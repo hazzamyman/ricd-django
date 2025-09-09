@@ -66,8 +66,8 @@ class WorkType(models.Model):
     def get_usage_count(self):
         """Count how many addresses/works use this work type"""
         return (
-            self.addresses.filter(project__isnull=False).count() +
-            self.works.filter(project__isnull=False).count()
+            self.address_set.filter(project__isnull=False).count() +
+            self.work_set.filter(project__isnull=False).count()
         )
 
     class Meta:
@@ -87,8 +87,8 @@ class OutputType(models.Model):
     def get_usage_count(self):
         """Count how many addresses/works use this output type"""
         return (
-            self.addresses.filter(project__isnull=False).count() +
-            self.works.filter(project__isnull=False).count()
+            self.address_set.filter(project__isnull=False).count() +
+            self.work_set.filter(project__isnull=False).count()
         )
 
     class Meta:
