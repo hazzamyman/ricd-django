@@ -12,10 +12,11 @@ import calendar
 
 from django.views.generic import TemplateView, DetailView, ListView
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
-from ricd.models import Project, Program, Council, QuarterlyReport, MonthlyTracker, Stage1Report, Stage2Report, FundingSchedule, Address, Work, FundingApproval
+from ricd.models import Project, Program, Council, QuarterlyReport, MonthlyTracker, Stage1Report, Stage2Report, FundingSchedule, Address, Work, FundingApproval, WorkType, OutputType
 from .forms import (
     MonthlyTrackerForm, QuarterlyReportForm, Stage1ReportForm, Stage2ReportForm,
-    CouncilForm, ProgramForm, ProjectForm, ProjectStateForm, AddressForm, WorkForm
+    CouncilForm, ProgramForm, ProjectForm, ProjectStateForm, AddressForm, WorkForm,
+    WorkTypeForm, OutputTypeForm
 )
 
 # RICD Dashboard
@@ -478,6 +479,134 @@ class ProjectStateUpdateView(LoginRequiredMixin, UpdateView):
         if old_state != new_state:
             messages.success(self.request, f'Project state changed from {dict(Project.STATE_CHOICES)[old_state]} to {dict(Project.STATE_CHOICES)[new_state]}.')
         return response
+
+
+# Work Type CRUD Views
+class WorkTypeListView(LoginRequiredMixin, ListView):
+    """List all work types"""
+    model = WorkType
+    template_name = "portal/work_type_list.html"
+    context_object_name = "work_types"
+    paginate_by = 20
+
+    def get_queryset(self):
+        queryset = WorkType.objects.all()
+        search = self.request.GET.get('search')
+        active_filter = self.request.GET.get('active')
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) |
+                Q(code__icontains=search)
+            )
+        if active_filter:
+            queryset = queryset.filter(is_active=active_filter == 'true')
+        return queryset.order_by('name')
+
+
+class WorkTypeCreateView(LoginRequiredMixin, CreateView):
+    """Create a new work type"""
+    model = WorkType
+    form_class = WorkTypeForm
+    template_name = "portal/work_type_form.html"
+    success_url = reverse_lazy('portal:work_type_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Work type "{form.instance.name}" created successfully!')
+        return super().form_valid(form)
+
+
+class WorkTypeUpdateView(LoginRequiredMixin, UpdateView):
+    """Update an existing work type"""
+    model = WorkType
+    form_class = WorkTypeForm
+    template_name = "portal/work_type_form.html"
+
+    def get_success_url(self):
+        return reverse_lazy('portal:work_type_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Work type "{form.instance.name}" updated successfully!')
+        return super().form_valid(form)
+
+
+class WorkTypeDeleteView(LoginRequiredMixin, DeleteView):
+    """Delete a work type"""
+    model = WorkType
+    template_name = "portal/work_type_confirm_delete.html"
+    success_url = reverse_lazy('portal:work_type_list')
+
+    def delete(self, request, *args, **kwargs):
+        work_type = self.get_object()
+        # Check if work type is in use
+        if work_type.get_usage_count() > 0:
+            messages.error(request, f'Cannot delete work type "{work_type.name}" as it is currently in use by {work_type.get_usage_count()} items.')
+            return redirect(reverse_lazy('portal:work_type_list'))
+        messages.success(request, f'Work type "{work_type.name}" has been deleted.')
+        return super().delete(request, *args, **kwargs)
+
+
+# Output Type CRUD Views
+class OutputTypeListView(LoginRequiredMixin, ListView):
+    """List all output types"""
+    model = OutputType
+    template_name = "portal/output_type_list.html"
+    context_object_name = "output_types"
+    paginate_by = 20
+
+    def get_queryset(self):
+        queryset = OutputType.objects.all()
+        search = self.request.GET.get('search')
+        active_filter = self.request.GET.get('active')
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) |
+                Q(code__icontains=search)
+            )
+        if active_filter:
+            queryset = queryset.filter(is_active=active_filter == 'true')
+        return queryset.order_by('name')
+
+
+class OutputTypeCreateView(LoginRequiredMixin, CreateView):
+    """Create a new output type"""
+    model = OutputType
+    form_class = OutputTypeForm
+    template_name = "portal/output_type_form.html"
+    success_url = reverse_lazy('portal:output_type_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Output type "{form.instance.name}" created successfully!')
+        return super().form_valid(form)
+
+
+class OutputTypeUpdateView(LoginRequiredMixin, UpdateView):
+    """Update an existing output type"""
+    model = OutputType
+    form_class = OutputTypeForm
+    template_name = "portal/output_type_form.html"
+
+    def get_success_url(self):
+        return reverse_lazy('portal:output_type_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Output type "{form.instance.name}" updated successfully!')
+        return super().form_valid(form)
+
+
+class OutputTypeDeleteView(LoginRequiredMixin, DeleteView):
+    """Delete an output type"""
+    model = OutputType
+    template_name = "portal/output_type_confirm_delete.html"
+    success_url = reverse_lazy('portal:output_type_list')
+
+    def delete(self, request, *args, **kwargs):
+        output_type = self.get_object()
+        # Check if output type is in use
+        if output_type.get_usage_count() > 0:
+            messages.error(request, f'Cannot delete output type "{output_type.name}" as it is currently in use by {output_type.get_usage_count()} items.')
+            return redirect(reverse_lazy('portal:output_type_list'))
+        messages.success(request, f'Output type "{output_type.name}" has been deleted.')
+        return super().delete(request, *args, **kwargs)
 
 
 # Address CRUD Views

@@ -2,7 +2,8 @@ from django import forms
 from django.contrib.auth.models import User
 from ricd.models import (
     Project, FundingSchedule, QuarterlyReport, MonthlyTracker,
-    Stage1Report, Stage2Report, Work, ReportAttachment, Council, Program, Address
+    Stage1Report, Stage2Report, Work, ReportAttachment, Council, Program, Address,
+    WorkType, OutputType
 )
 from django.utils import timezone
 
@@ -1455,4 +1456,57 @@ class ProjectStateForm(forms.ModelForm):
                 'class': 'form-select',
                 'onchange': 'this.form.submit()'
             })
+        }
+
+
+# Work Type Management Forms
+class WorkTypeForm(forms.ModelForm):
+    """Form for creating and editing Work Types"""
+
+    class Meta:
+        model = WorkType
+        fields = ['code', 'name', 'description', 'is_active']
+        widgets = {
+            'code': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter work type code'
+            }),
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter work type name'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Description (optional)'
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+        }
+
+
+class OutputTypeForm(forms.ModelForm):
+    """Form for creating and editing Output Types"""
+
+    class Meta:
+        model = OutputType
+        fields = ['code', 'name', 'description', 'is_active']
+        widgets = {
+            'code': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter output type code'
+            }),
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter output type name'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Description (optional)'
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
         }
