@@ -706,13 +706,13 @@ class AnalyticsDashboardView(LoginRequiredMixin, TemplateView):
         works_queryset = Work.objects.filter(project__in=projects)
 
         # 1. Enhanced Outputs Analysis
-        outputs_by_type = works_queryset.values('output_type').annotate(
+        outputs_by_type = works_queryset.values('output_type_id').annotate(
             total_quantity=Sum('output_quantity'),
             total_cost=Sum('estimated_cost')
         ).order_by('-total_quantity')
 
         # Enhanced groupings
-        outputs_by_work_type = works_queryset.values('work_type').annotate(
+        outputs_by_work_type = works_queryset.values('work_type_id').annotate(
             total_quantity=Sum('output_quantity'),
             total_cost=Sum('estimated_cost')
         ).order_by('-total_quantity')
@@ -830,7 +830,7 @@ class AnalyticsDashboardView(LoginRequiredMixin, TemplateView):
                 work__project__in=projects
             ).values(
                 'work__project__council__name',
-                'work__output_type',
+                'work__output_type_id',
                 'work__bedrooms'
             ).annotate(
                 total_spent=Sum('total_expenditure_council'),
@@ -840,7 +840,7 @@ class AnalyticsDashboardView(LoginRequiredMixin, TemplateView):
             for entry in quarterly_spending:
                 council_name = entry['work__project__council__name'] or 'Unknown Council'
                 # Group by similar project types for better comparison
-                group_key = f"{council_name}_{entry.get('work__output_type', 'unknown')}_{entry.get('work__bedrooms', 'unknown')}"
+                group_key = f"{council_name}_{entry.get('work__output_type_id', 'unknown')}_{entry.get('work__bedrooms', 'unknown')}"
 
                 analytics['spending_groups'][group_key] = analytics['spending_groups'].get(group_key, [])
                 analytics['spending_groups'][group_key].append(float(entry['total_spent'] or 0))

@@ -38,8 +38,8 @@ def monthly_report_form(request, council_id, period):
                 report_data.append({
                     'project': project,
                     'address': address,
-                    'work_type': work.work_type,
-                    'output': work.output_type,
+                    'work_type': work.work_type_id.name if work.work_type_id else 'Unknown',
+                    'output': work.output_type_id.name if work.output_type_id else 'Unknown',
                     'progress': None,  # Will be input in form
                     'notes': None,  # Will be in form
                 })
@@ -92,8 +92,8 @@ def quarterly_report_form(request, council_id, period):
                 report_data.append({
                     'project': project,
                     'address': address,
-                    'work_type': work.work_type,
-                    'output': work.output_type,
+                    'work_type': work.work_type_id.name if work.work_type_id else 'Unknown',
+                    'output': work.output_type_id.name if work.output_type_id else 'Unknown',
                     'progress': None,
                     'notes': None,
                 })

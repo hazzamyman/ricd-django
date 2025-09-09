@@ -123,7 +123,7 @@ class DefaultWorkStep(models.Model):
         ordering = ['order']
 
     def __str__(self):
-        return f"{self.name} - {self.program} ({self.work_type})"
+        return f"{self.name} - {self.program} ({self.work_type_id.name if self.work_type_id else 'No work type'})"
     
 
 class FundingSchedule(models.Model):
@@ -353,10 +353,10 @@ class Address(models.Model):
 
         # Add work type and output info if available
         work_info = []
-        if self.work_type:
-            work_info.append(f"{dict(self._meta.get_field('work_type').choices).get(self.work_type, self.work_type)}")
-        if self.output_type:
-            work_info.append(f"{dict(self._meta.get_field('output_type').choices).get(self.output_type, self.output_type)}")
+        if self.work_type_id:
+            work_info.append(self.work_type_id.name)
+        if self.output_type_id:
+            work_info.append(self.output_type_id.name)
         if self.bedrooms:
             work_info.append(f"{self.bedrooms}BR")
         if self.output_quantity and self.output_quantity > 1:
@@ -423,9 +423,9 @@ class Work(models.Model):
     def total_dwellings(self):
         # Simplified: for duplex/triplex, multiply
         multiplier = 1
-        if self.output_type in ["duplex"]:
+        if self.output_type_id and self.output_type_id.code in ["duplex"]:
             multiplier = 2
-        elif self.output_type == "triplex":
+        elif self.output_type_id and self.output_type_id.code == "triplex":
             multiplier = 3
         return self.output_quantity * multiplier
 
@@ -459,7 +459,7 @@ class Work(models.Model):
         return False
 
     def __str__(self):
-        return f"{self.work_type_id.name} - {self.output_type_id.name} ({self.project})"
+        return f"{self.work_type_id.name if self.work_type_id else 'No work type'} - {self.output_type_id.name if self.output_type_id else 'No output type'} ({self.project})"
 
 
 class WorkStep(models.Model):
@@ -1076,7 +1076,7 @@ def update_project_funded(sender, instance, **kwargs):
 @receiver(post_save, sender=Work)
 def copy_default_work_steps(sender, instance, created, **kwargs):
     if created:
-        defaults = DefaultWorkStep.objects.filter(program=instance.project.program, work_type=instance.work_type)
+        defaults = DefaultWorkStep.objects.filter(program=instance.project.program, work_type_id=instance.work_type_id)
         for default in defaults:
             due_date = None
             if instance.start_date:
