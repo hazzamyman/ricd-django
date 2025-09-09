@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from ricd.models import (
     Project, FundingSchedule, QuarterlyReport, MonthlyTracker,
     Stage1Report, Stage2Report, Work, ReportAttachment, Council, Program, Address,
-    WorkType, OutputType
+    WorkType, OutputType, Officer
 )
 from django.utils import timezone
 
@@ -1130,10 +1130,10 @@ class ProgramForm(forms.ModelForm):
 # Address Formset for Project Creation
 class WorkForm(forms.ModelForm):
     """Form for work creation/updating"""
-    project = forms.ModelChoiceField(
-        queryset=Project.objects.all(),
-        required=False,
-        label="Project",
+    address = forms.ModelChoiceField(
+        queryset=None,  # Will be set in __init__ based on project
+        required=True,
+        label="Address",
         widget=forms.Select(attrs={
             'class': 'form-select'
         })
@@ -1142,7 +1142,7 @@ class WorkForm(forms.ModelForm):
     class Meta:
         model = Work
         fields = [
-            'project', 'address_line', 'work_type_id', 'output_type_id', 'output_quantity',
+            'address', 'work_type_id', 'output_type_id', 'output_quantity',
             'bedrooms', 'estimated_cost', 'actual_cost', 'start_date', 'end_date'
         ]
         # Removed construction details: floor_method, frame_method, external_wall_method,
@@ -1326,13 +1326,11 @@ class ProjectForm(forms.ModelForm):
                 'class': 'form-control',
                 'step': '0.01'
             }),
-            'principal_officer': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Principal officer name'
+            'principal_officer': forms.Select(attrs={
+                'class': 'form-select'
             }),
-            'senior_officer': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Senior officer name'
+            'senior_officer': forms.Select(attrs={
+                'class': 'form-select'
             }),
             'state': forms.Select(attrs={'class': 'form-select'}),
             'start_date': forms.DateInput(attrs={
@@ -1431,11 +1429,31 @@ class ProjectForm(forms.ModelForm):
                 self.fields['council'].initial = user_council
                 # Only show funding schedules for user's council
                 self.fields['funding_schedule'].queryset = FundingSchedule.objects.filter(council=user_council)
+                # Filter officers to those assigned to user's council
+                self.fields['principal_officer'].queryset = Officer.objects.filter(
+                    user__profile__council=user_council,
+                    is_principal=True,
+                    is_active=True
+                )
+                self.fields['senior_officer'].queryset = Officer.objects.filter(
+                    user__profile__council=user_council,
+                    is_senior=True,
+                    is_active=True
+                )
                 # Filter projects to user's council
                 self.fields['council'].widget.attrs['disabled'] = 'disabled'
             else:
                 self.fields['council'].queryset = Council.objects.all()
                 self.fields['funding_schedule'].queryset = FundingSchedule.objects.all()
+                # RICD user can see all officers
+                self.fields['principal_officer'].queryset = Officer.objects.filter(
+                    is_principal=True,
+                    is_active=True
+                ).select_related('user')
+                self.fields['senior_officer'].queryset = Officer.objects.filter(
+                    is_senior=True,
+                    is_active=True
+                ).select_related('user')
 
     def save(self, commit=True):
         instance = super().save(commit=False)
