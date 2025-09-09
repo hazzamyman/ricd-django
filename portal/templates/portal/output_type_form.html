@@ -1,0 +1,126 @@
+{% extends "portal/base.html" %}
+
+{% block title %}{% if object %}Edit Council{% else %}Add Council{% endif %} - RICD Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        {% if object %}
+                            <i class="fas fa-edit"></i> Edit Council
+                        {% else %}
+                            <i class="fas fa-plus"></i> Add New Council
+                        {% endif %}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.name.id_for_label }}" class="form-label">{{ form.name.label }}</label>
+                                    {{ form.name }}
+                                    {% if form.name.errors %}
+                                        <div class="text-danger">{{ form.name.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.abn.id_for_label }}" class="form-label">{{ form.abn.label }}</label>
+                                    {{ form.abn }}
+                                    {% if form.abn.errors %}
+                                        <div class="text-danger">{{ form.abn.errors.0 }}</div>
+                                    {% endif %}
+                                    <div class="form-text">11-digit Australian Business Number (optional)</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.default_suburb.id_for_label }}" class="form-label">{{ form.default_suburb.label }}</label>
+                                    {{ form.default_suburb }}
+                                    {% if form.default_suburb.errors %}
+                                        <div class="text-danger">{{ form.default_suburb.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.default_state.id_for_label }}" class="form-label">{{ form.default_state.label }}</label>
+                                    {{ form.default_state }}
+                                    {% if form.default_state.errors %}
+                                        <div class="text-danger">{{ form.default_state.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.default_postcode.id_for_label }}" class="form-label">{{ form.default_postcode.label }}</label>
+                                    {{ form.default_postcode }}
+                                    {% if form.default_postcode.errors %}
+                                        <div class="text-danger">{{ form.default_postcode.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.federal_electorate.id_for_label }}" class="form-label">{{ form.federal_electorate.label }}</label>
+                                    {{ form.federal_electorate }}
+                                    {% if form.federal_electorate.errors %}
+                                        <div class="text-danger">{{ form.federal_electorate.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.state_electorate.id_for_label }}" class="form-label">{{ form.state_electorate.label }}</label>
+                                    {{ form.state_electorate }}
+                                    {% if form.state_electorate.errors %}
+                                        <div class="text-danger">{{ form.state_electorate.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.qhigi_region.id_for_label }}" class="form-label">{{ form.qhigi_region.label }}</label>
+                                    {{ form.qhigi_region }}
+                                    {% if form.qhigi_region.errors %}
+                                        <div class="text-danger">{{ form.qhigi_region.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'portal:council_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                {% if object %}
+                                    <i class="fas fa-save"></i> Save Changes
+                                {% else %}
+                                    <i class="fas fa-plus"></i> Create Council
+                                {% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
