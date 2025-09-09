@@ -788,7 +788,7 @@ class QuarterlyReport(models.Model):
     @classmethod
     def get_project_quarterly_summary(cls, project, quarter_str):
         """Get aggregated summary for all works in a project for a specific quarter"""
-        reports = cls.objects.filter(work__project=project, quarter=quarter_str)
+        reports = cls.objects.filter(work__address__project=project, quarter=quarter_str)
 
         if not reports:
             return {}
