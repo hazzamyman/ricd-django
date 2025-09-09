@@ -1,0 +1,67 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Delete Council - {{ council.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-exclamation-triangle"></i> Delete Council: {{ council.name }}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-warning"></i> <strong>Warning:</strong> This action cannot be undone.
+                        This will permanently delete the council "{{ council.name }}" and all associated data.
+                    </div>
+
+                    <div class="mb-4">
+                        <h5>Council Details:</h5>
+                        <ul class="list-unstyled">
+                            <li><strong>Name:</strong> {{ council.name }}</li>
+                            <li><strong>ABN:</strong> {{ council.abn|default:"Not specified" }}</li>
+                            <li><strong>Default Suburb:</strong> {{ council.default_suburb|default:"Not specified" }}</li>
+                            <li><strong>Default State:</strong> {{ council.default_state }}</li>
+                            <li><strong>Default Postcode:</strong> {{ council.default_postcode|default:"Not specified" }}</li>
+                        </ul>
+                    </div>
+
+                    <div class="mb-4">
+                        <h5>Associated Projects:</h5>
+                        {% if council.projects.exists %}
+                            <p>This council has {{ council.projects.count }} project{{ council.projects.count|pluralize }} that will be affected:</p>
+                            <ul class="list-group">
+                                {% for project in council.projects.all|slice:":5" %}
+                                    <li class="list-group-item">{{ project.name }}</li>
+                                {% endfor %}
+                                {% if council.projects.count > 5 %}
+                                    <li class="list-group-item text-muted">...and {{ council.projects.count|slice:"5:"|length }} more</li>
+                                {% endif %}
+                            </ul>
+                        {% else %}
+                            <p class="text-muted">This council has no associated projects.</p>
+                        {% endif %}
+                    </div>
+
+                    <hr>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'portal:council_detail' council.pk %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash"></i> Yes, Delete Council
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

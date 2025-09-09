@@ -1,0 +1,78 @@
+{% extends "portal/base.html" %}
+
+{% block title %}{% if object %}Edit Program{% else %}Add Program{% endif %} - RICD Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        {% if object %}
+                            <i class="fas fa-edit"></i> Edit Program
+                        {% else %}
+                            <i class="fas fa-plus"></i> Add New Program
+                        {% endif %}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label for="{{ form.name.id_for_label }}" class="form-label">{{ form.name.label }}</label>
+                                    {{ form.name }}
+                                    {% if form.name.errors %}
+                                        <div class="text-danger">{{ form.name.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.funding_source.id_for_label }}" class="form-label">{{ form.funding_source.label }}</label>
+                                    {{ form.funding_source }}
+                                    {% if form.funding_source.errors %}
+                                        <div class="text-danger">{{ form.funding_source.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">{{ form.description.label }}</label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                                <div class="text-danger">{{ form.description.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.budget.id_for_label }}" class="form-label">{{ form.budget.label }}</label>
+                            {{ form.budget }}
+                            {% if form.budget.errors %}
+                                <div class="text-danger">{{ form.budget.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'portal:program_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                {% if object %}
+                                    <i class="fas fa-save"></i> Save Changes
+                                {% else %}
+                                    <i class="fas fa-plus"></i> Create Program
+                                {% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

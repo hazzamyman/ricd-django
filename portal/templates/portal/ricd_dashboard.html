@@ -1,0 +1,187 @@
+{% extends "portal/base.html" %}
+{% load currency_filters %}
+{% block content %}
+<h1>RICD Dashboard</h1>
+
+<!-- Quick Add Buttons & Actions -->
+<div class="mb-3 d-flex gap-2 flex-wrap">
+    <div class="btn-group" role="group">
+        <a href="{% url 'portal:project_create' %}" class="btn btn-success btn-sm">
+            <i class="fas fa-plus"></i> Add New Project
+        </a>
+        <button type="button" class="btn btn-warning btn-sm dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+            <span class="visually-hidden">Toggle Dropdown</span>
+        </button>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="#" onclick="openFundingApprovalModal()">
+                <i class="fas fa-dollar-sign me-2"></i>Add Funding Approval
+            </a></li>
+            <li><hr class="dropdown-menu-divider"></li>
+            <li><a class="dropdown-item" href="#" onclick="openQuickProjectModal()">
+                <i class="fas fa-building me-2"></i>Quick Add Project
+            </a></li>
+        </ul>
+    </div>
+
+    <a href="#" class="btn btn-info btn-sm">
+        <i class="fas fa-file-circle-check"></i> Review Council Reports
+    </a>
+</div>
+
+<!-- Filters -->
+<div class="filters" style="margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 5px;">
+    <form method="get" action="">
+        <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+            <div>
+                <label for="program_filter">Program:</label>
+                <select name="program" id="program_filter">
+                    <option value="">All Programs</option>
+                    {% for program in programs %}
+                    <option value="{{ program.id }}" {% if current_filters.program == program.id|stringformat:"i" %}selected{% endif %}>{{ program.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label for="council_filter">Council:</label>
+                <select name="council" id="council_filter">
+                    <option value="">All Councils</option>
+                    {% for council in councils %}
+                    <option value="{{ council.id }}" {% if current_filters.council == council.id|stringformat:"i" %}selected{% endif %}>{{ council.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label for="stage_filter">Stage:</label>
+                <select name="stage" id="stage_filter">
+                    <option value="">All Stages</option>
+                    {% for stage in stages %}
+                    <option value="{{ stage.value }}" {% if current_filters.stage == stage.value %}selected{% endif %}>{{ stage.display }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button type="submit" style="background-color: #007bff; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">Filter</button>
+                <a href="{% url 'portal:ricd_dashboard' %}" style="background-color: #6c757d; color: white; text-decoration: none; padding: 5px 10px; border-radius: 3px;">Clear Filters</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Projects Table -->
+<table border="1" style="width: 100%; border-collapse: collapse;">
+    <thead>
+        <tr style="background-color: #f8f9fa;">
+            <th style="padding: 8px; text-align: left;">Project Name</th>
+            <th style="padding: 8px; text-align: left;">Council</th>
+            <th style="padding: 8px; text-align: left;">Funding Schedule</th>
+            <th style="padding: 8px; text-align: center;">Progress %</th>
+            <th style="padding: 8px; text-align: left;">Budget vs Spent</th>
+            <th style="padding: 8px; text-align: center;">Stage 1 Status</th>
+            <th style="padding: 8px; text-align: center;">Stage 2 Status</th>
+            <th style="padding: 8px; text-align: center;">Late</th>
+            <th style="padding: 8px; text-align: center;">Overdue</th>
+            <th style="padding: 8px; text-align: center;">Report Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in projects %}
+        <tr>
+            <td style="padding: 8px;">
+                <a href="{% url 'portal:project_detail' item.project.pk %}" style="color: #007bff; text-decoration: none;">
+                    {{ item.project.name }}
+                </a>
+            </td>
+            <td style="padding: 8px;">{{ item.project.council.name }}</td>
+            <td style="padding: 8px;">{{ item.funding_schedule_number }}</td>
+            <td style="padding: 8px; text-align: center;">
+                {% if item.progress_percentage > 0 %}
+                    {{ item.progress_percentage }}%
+                {% else %}
+                    N/A
+                {% endif %}
+            </td>
+            <td style="padding: 8px;">{{ item.budget_vs_spent }}</td>
+            <td style="padding: 8px; text-align: center;">
+                {% if item.stage1_status == 'Complete' %}
+                    <span style="color: green; font-weight: bold;">{{ item.stage1_status }}</span>
+                {% elif item.stage1_status == 'Pending Acceptance' %}
+                    <span style="color: orange;">{{ item.stage1_status }}</span>
+                {% else %}
+                    <span style="color: red;">{{ item.stage1_status }}</span>
+                {% endif %}
+            </td>
+            <td style="padding: 8px; text-align: center;">
+                {% if item.stage2_status == 'Complete' %}
+                    <span style="color: green; font-weight: bold;">{{ item.stage2_status }}</span>
+                {% elif item.stage2_status == 'In Progress' %}
+                    <span style="color: orange;">{{ item.stage2_status }}</span>
+                {% else %}
+                    <span style="color: red;">{{ item.stage2_status }}</span>
+                {% endif %}
+            </td>
+            {% if item.project.state == 'commenced' or item.project.state == 'under_construction' %}
+            <td style="padding: 8px; text-align: center;">
+                {% if item.late_flag %}
+                    <span style="color: red; font-weight: bold;">⚠️ Late</span>
+                {% else %}
+                    <span style="color: green;">✓ On Time</span>
+                {% endif %}
+            </td>
+            <td style="padding: 8px; text-align: center;">
+                {% if item.overdue_flag %}
+                    <span style="color: darkred; font-weight: bold;">🔴 Overdue</span>
+                {% else %}
+                    <span style="color: green;">✓ Current</span>
+                {% endif %}
+            </td>
+            <td style="padding: 8px; text-align: center;">
+                {% if item.project.state == 'commenced' or item.project.state == 'under_construction' %}
+                    {% if item.stage1_status == 'Not Submitted' %}
+                        <span style="color: red;">⚠️ Stage 1</span>
+                    {% else %}
+                        <span style="color: green;">✓ Current</span>
+                    {% endif %}
+                {% else %}
+                    -
+                {% endif %}
+            </td>
+            {% else %}
+            <td style="padding: 8px; text-align: center;">-</td>
+            <td style="padding: 8px; text-align: center;">-</td>
+            <td style="padding: 8px; text-align: center;">-</td>
+            {% endif %}
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="10" style="padding: 20px; text-align: center; color: #6c757d;">
+                No projects found matching the selected filters.
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if projects|length == 0 %}
+<div style="margin-top: 20px; padding: 15px; background-color: #fff3cd; border-left: 4px solid #ffecb5;">
+    <h4>No Data Available</h4>
+    <p>No projects are currently loaded in the system. Please check your data imports or contact support.</p>
+</div>
+{% endif %}
+
+<!-- JavaScript for Modal Functions -->
+<script>
+function openFundingApprovalModal() {
+    alert('Funding Approval modal would open here - functionality to be implemented');
+    // TODO: Implement Funding Approval modal
+}
+
+function openQuickProjectModal() {
+    alert('Quick Project modal would open here - functionality to be implemented');
+    // TODO: Implement Quick Project modal
+}
+</script>
+
+{% endblock %}

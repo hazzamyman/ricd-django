@@ -1,0 +1,162 @@
+{% extends "portal/base.html" %}
+
+{% block title %}{{ council.name }} - Council Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Council Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2><i class="fas fa-flag"></i> {{ council.name }}</h2>
+                    <p class="mb-0 text-muted">Council Details and Projects</p>
+                </div>
+                <div>
+                    <a href="{% url 'portal:council_update' council.pk %}" class="btn btn-warning me-2">
+                        <i class="fas fa-edit"></i> Edit Council
+                    </a>
+                    <a href="{% url 'portal:council_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Councils
+                    </a>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Council Information -->
+                <div class="col-lg-4">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-info-circle"></i> Council Information</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-4"><strong>Name:</strong></div>
+                                <div class="col-8">{{ council.name }}</div>
+                            </div>
+                            <hr>
+                            <div class="row">
+                                <div class="col-4"><strong>ABN:</strong></div>
+                                <div class="col-8">{{ council.abn|default:"Not specified" }}</div>
+                            </div>
+                            <hr>
+                            <div class="row">
+                                <div class="col-4"><strong>Default Location:</strong></div>
+                                <div class="col-8">
+                                    {% if council.default_suburb %}
+                                        {{ council.default_suburb }}, {{ council.default_state }}
+                                        {% if council.default_postcode %} {{ council.default_postcode }}{% endif %}
+                                    {% else %}
+                                        Not specified
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% if council.federal_electorate %}
+                            <hr>
+                            <div class="row">
+                                <div class="col-4"><strong>Federal Electorate:</strong></div>
+                                <div class="col-8">{{ council.federal_electorate }}</div>
+                            </div>
+                            {% endif %}
+                            {% if council.state_electorate %}
+                            <hr>
+                            <div class="row">
+                                <div class="col-4"><strong>State Electorate:</strong></div>
+                                <div class="col-8">{{ council.state_electorate }}</div>
+                            </div>
+                            {% endif %}
+                            {% if council.qhigi_region %}
+                            <hr>
+                            <div class="row">
+                                <div class="col-4"><strong>QHiGi Region:</strong></div>
+                                <div class="col-8">{{ council.qhigi_region }}</div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Projects Summary -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-project-diagram"></i> Projects Summary</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="text-center">
+                                <h3 class="text-primary">{{ council.projects.count }}</h3>
+                                <p class="mb-0">Total Projects</p>
+                            </div>
+                            {% if council.projects.exists %}
+                            <hr>
+                            <p class="mb-2 small text-muted">
+                                Project statuses vary - view individual projects for details.
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Projects List -->
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-list"></i> Projects</h5>
+                            <a href="{% url 'portal:project_create' %}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-plus"></i> Add Project
+                            </a>
+                        </div>
+                        <div class="card-body">
+                            {% if projects %}
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Project Name</th>
+                                                <th>Program</th>
+                                                <th>Status</th>
+                                                <th>Start Date</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for project in projects %}
+                                            <tr>
+                                                <td>
+                                                    <a href="{% url 'portal:project_detail' project.pk %}">{{ project.name }}</a>
+                                                </td>
+                                                <td>{{ project.program.name }}</td>
+                                                <td>
+                                                    <span class="badge bg-{{ project.state|slugify }}">{{ project.get_state_display }}</span>
+                                                </td>
+                                                <td>{{ project.start_date|date:"M j, Y"|default:"-" }}</td>
+                                                <td>
+                                                    <a href="{% url 'portal:project_detail' project.pk %}"
+                                                       class="btn btn-sm btn-outline-info">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                    <a href="{% url 'portal:project_update' project.pk %}"
+                                                       class="btn btn-sm btn-outline-warning">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <div class="text-center py-4">
+                                    <i class="fas faproject-diagram fa-2x text-muted mb-2"></i>
+                                    <p class="text-muted">No projects found for this council.</p>
+                                    <a href="{% url 'portal:project_create' %}" class="btn btn-primary">
+                                        <i class="fas fa-plus"></i> Add First Project
+                                    </a>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

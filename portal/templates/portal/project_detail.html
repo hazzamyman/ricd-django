@@ -1,0 +1,400 @@
+{% extends "portal/base.html" %}
+<!-- Removed mathfilters as it requires additional package -->
+
+{% load currency_filters %}
+{% block content %}
+<div class="container-fluid">
+    <!-- Project Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h1 class="mb-0">
+                            <i class="fas fa-building me-2"></i>{{ project.name }}
+                        </h1>
+                        <div>
+                            <span class="badge bg-white text-primary fs-6 px-3 py-2 me-2">
+                                {{ project.get_state_display|title }}
+                            </span>
+                            {% if project.is_overdue %}
+                                <span class="badge bg-danger fs-6 px-3 py-2">Overdue</span>
+                            {% elif project.is_late %}
+                                <span class="badge bg-warning fs-6 px-3 py-2">Late</span>
+                            {% else %}
+                                <span class="badge bg-success fs-6 px-3 py-2">On Track</span>
+                            {% endif %}
+                            <button class="btn btn-outline-light btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#editStateModal">
+                                <i class="fas fa-edit"></i> Edit State
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6 class="text-muted">Council</h6>
+                            <p class="mb-0"><strong>{{ project.council.name }} ({{ project.council.default_state }})</strong></p>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="text-muted">Funding Schedule</h6>
+                            <p class="mb-0"><strong>{{ project.funding_schedule_number }}</strong></p>
+                            {% if user.is_staff or user.council == project.council %}
+                                {% if not project.funding_schedule %}
+                                    <a href="{% url 'portal:add_project_to_funding_schedule' project.pk %}" class="btn btn-outline-primary btn-sm mt-1">
+                                        <i class="fas fa-plus-circle"></i> Add to Funding Schedule
+                                    </a>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="text-muted">Program</h6>
+                            <p class="mb-0"><strong>{{ project.program.name }}</strong></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <ul class="nav nav-tabs mb-4" id="projectTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab" aria-controls="overview" aria-selected="true">
+                <i class="fas fa-chart-line me-1"></i>Overview
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="works-tab" data-bs-toggle="tab" data-bs-target="#works" type="button" role="tab" aria-controls="works" aria-selected="false">
+                <i class="fas fa-tools me-1"></i>Works & Addresses
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="dates-tab" data-bs-toggle="tab" data-bs-target="#dates" type="button" role="tab" aria-controls="dates" aria-selected="false">
+                <i class="fas fa-calendar me-1"></i>Timeline
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="projectTabsContent">
+
+        <!-- Overview Tab -->
+        <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview-tab">
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Project Information</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="text-muted">Total Funding</h6>
+                                    <p class="h4 mb-3">{{ project.total_funding|currency:0 }}</p>
+
+                                    <h6 class="text-muted">Contingency Amount</h6>
+                                    <p class="mb-3">{{ project.contingency_amount|currency:0 }}</p>
+
+                                    <h6 class="text-muted">Principal Officer</h6>
+                                    <p class="mb-3">{{ project.principal_officer|default:"Not specified" }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-muted">Project Manager</h6>
+                                    <p class="mb-3">{{ project.get_project_manager_display|default:"Not specified" }}</p>
+
+                                    <h6 class="text-muted">Contractor</h6>
+                                    <p class="mb-3">{{ project.get_contractor_display|default:"Not specified" }}</p>
+
+                                    <h6 class="text-muted">SAP Project Number</h6>
+                                    <p class="mb-3">{{ project.sap_project|default:"Not specified" }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Progress Section -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Overall Progress</h5>
+                        </div>
+                        <div class="card-body">
+                            <h4 class="mb-3">{{ project.progress }}% Complete</h4>
+                            <div class="progress mb-3" style="height: 25px;">
+                                <div class="progress-bar {% if project.progress >= 75 %}bg-success
+                                                      {% elif project.progress >= 50 %}bg-info
+                                                      {% elif project.progress >= 25 %}bg-warning
+                                                      {% else %}bg-danger{% endif %}"
+                                     role="progressbar"
+                                     style="width: {{ project.progress }}%"
+                                     aria-valuenow="{{ project.progress }}"
+                                     aria-valuemin="0"
+                                     aria-valuemax="100">
+                                </div>
+                            </div>
+                            <div class="row text-center">
+                                <div class="col-md-3">
+                                    <small class="text-muted d-block">Target Stage 1</small>
+                                    <strong>{{ project.stage1_target|date:"M d, Y"|default:"Not set" }}</strong>
+                                </div>
+                                <div class="col-md-3">
+                                    <small class="text-muted d-block">Actual Stage 1</small>
+                                    <strong>{{ project.stage1_actual|date:"M d, Y"|default:"Not completed" }}</strong>
+                                </div>
+                                <div class="col-md-3">
+                                    <small class="text-muted d-block">Target Stage 2</small>
+                                    <strong>{{ project.stage2_target|date:"M d, Y"|default:"Not set" }}</strong>
+                                </div>
+                                <div class="col-md-3">
+                                    <small class="text-muted d-block">Actual Stage 2</small>
+                                    <strong>{{ project.stage2_actual|date:"M d, Y"|default:"Not completed" }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Works & Addresses Tab -->
+        <div class="tab-pane fade" id="works" role="tabpanel" aria-labelledby="works-tab">
+            <!-- Add buttons -->
+            <div class="mb-3">
+                <div class="btn-group me-2">
+                    <a href="{% url 'portal:address_create' project_pk=project.pk %}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus"></i> Add Address
+                    </a>
+                    <a href="{% url 'portal:work_create' project_pk=project.pk %}" class="btn btn-success btn-sm">
+                        <i class="fas fa-plus"></i> Add Work
+                    </a>
+                </div>
+            </div>
+
+            <div class="row">
+                {% for work in project.works.all %}
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-toolbox me-2"></i>{{ work.get_work_type_display|title }} Work
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-sm-8">
+                                    <h6>{{ work.output_type|title }}</h6>
+                                    <p class="text-muted mb-1">Quantity: {{ work.output_quantity }}</p>
+                                    <p class="text-muted mb-1">Estimated Cost: {{ work.estimated_cost|currency:0|default:"N/A" }}</p>
+                                </div>
+                                <div class="col-sm-4 text-end">
+                                    {% if work.actual_cost %}
+                                    <p class="mb-0"><strong>{{ work.actual_cost|currency:0 }}</strong></p>
+                                    <small class="text-muted">Actual Cost</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Work Progress -->
+                            {% if work.progress %}
+                            <div class="mt-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>Progress: {{ work.progress }}%</span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar {% if work.progress >= 75 %}bg-success
+                                                            {% elif work.progress >= 50 %}bg-info
+                                                            {% elif work.progress >= 25 %}bg-warning
+                                                            {% else %}bg-danger{% endif %}"
+                                         style="width: {{ work.progress }}%"
+                                         role="progressbar">
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <div class="alert alert-info">
+                        <h4>No Works Found</h4>
+                        <p>No construction works have been defined for this project yet.</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Addresses Section -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-map-marker-alt me-2"></i>Project Addresses & Work Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Address</th>
+                                    <th>Work Type</th>
+                                    <th>Output Type</th>
+                                    <th>Details</th>
+                                    <th>Budget</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for address in project.addresses.all %}
+                                <tr>
+                                    <td>
+                                        {{ address.street }}, {{ address.suburb }}
+                                        {% if address.postcode %}<br><small class="text-muted">{{ address.state }} {{ address.postcode }}</small>{% endif %}
+                                        {% if address.lot_number or address.plan_number or address.title_reference %}
+                                        <br><small class="text-muted">
+                                            {% if address.lot_number %}Lot {{ address.lot_number }}{% endif %}
+                                            {% if address.plan_number %} {{ address.plan_number }}{% endif %}
+                                            {% if address.title_reference %} Title {{ address.title_reference }}{% endif %}
+                                        </small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if address.work_type %}
+                                            <span class="badge bg-info">{{ address.get_work_type_display|title }}</span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if address.output_type %}
+                                            <span class="badge bg-secondary">{{ address.get_output_type_display|title }}</span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if address.bedrooms %}{{ address.bedrooms }}BR{% endif %}
+                                        {% if address.output_quantity and address.output_quantity > 1 %} × {{ address.output_quantity }}{% endif %}
+                                    </td>
+                                    <td>
+                                        {% if address.budget %}
+                                            {{ address.budget|currency:0 }}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">No addresses defined for this project.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dates & Timeline Tab -->
+        <div class="tab-pane fade" id="dates" role="tabpanel" aria-labelledby="dates-tab">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Project Timeline</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="mb-3">Stage 1</h6>
+                            <div class="timeline-item mb-3">
+                                <strong>Target:</strong> {{ project.stage1_target|date:"M d, Y"|default:"Not set" }}<br>
+                                <strong>Actual:</strong> {{ project.stage1_actual|date:"M d, Y"|default:"Not completed" }}<br>
+                                <strong>Sunset:</strong> {{ project.stage1_sunset|date:"M d, Y"|default:"Not set" }}
+                            </div>
+
+                            <h6 class="mb-3 mt-4">Stage 2</h6>
+                            <div class="timeline-item mb-3">
+                                <strong>Target:</strong> {{ project.stage2_target|date:"M d, Y"|default:"Not set" }}<br>
+                                <strong>Actual:</strong> {{ project.stage2_actual|date:"M d, Y"|default:"Not completed" }}<br>
+                                <strong>Sunset:</strong> {{ project.stage2_sunset|date:"M d, Y"|default:"Not set" }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="mb-3">Project Milestones</h6>
+                            <div class="timeline-item mb-3">
+                                <strong>Start Date:</strong> {{ project.start_date|date:"M d, Y"|default:"Not set" }}<br>
+                            </div>
+                            <div class="timeline-item mb-3">
+                                <strong>Estimated Completion:</strong> {{ project.estimated_completion|date:"M d, Y"|default:"Not set" }}<br>
+                            </div>
+                            <div class="timeline-item mb-3">
+                                <strong>Actual Completion:</strong> {{ project.actual_completion|date:"M d, Y"|default:"Not set" }}<br>
+                            </div>
+                            <div class="timeline-item mb-3">
+                                <strong>Handover Forecast:</strong> {{ project.handover_forecast|date:"M d, Y"|default:"Not set" }}<br>
+                            </div>
+                            <div class="timeline-item mb-3">
+                                <strong>Handover Actual:</strong> {{ project.handover_actual|date:"M d, Y"|default:"Not set" }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="btn-group">
+                        {% if user.is_staff or user.council == project.council %}
+                        <a href="{% url 'portal:work_create' project_pk=project.pk %}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-plus"></i> Add Work
+                        </a>
+                        <a href="{% url 'portal:address_create' project_pk=project.pk %}" class="btn btn-success btn-sm">
+                            <i class="fas fa-plus"></i> Add Address
+                        </a>
+                        {% endif %}
+                        <a href="{% url 'portal:ricd_dashboard' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit State Modal -->
+<div class="modal fade" id="editStateModal" tabindex="-1" aria-labelledby="editStateModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editStateModalLabel">Update Project State</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'portal:project_update_state' project.pk %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="id_state" class="form-label">Project State</label>
+                        <select name="state" id="id_state" class="form-select" required>
+                            {% for value, display in project.STATE_CHOICES %}
+                                <option value="{{ value }}" {% if project.state == value %}selected{% endif %}>
+                                    {{ display }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update State</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

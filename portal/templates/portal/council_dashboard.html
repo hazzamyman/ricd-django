@@ -1,0 +1,150 @@
+{% extends "portal/base.html" %}
+{% block content %}
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1><i class="fas fa-flag me-2"></i>Council Dashboard</h1>
+            {% if user_council %}
+                <p class="text-muted">Managing projects for {{ user_council.name }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Project Cards or Table -->
+    <div class="row">
+        {% for item in projects %}
+        <div class="col-lg-6 col-xl-4 mb-4">
+            <div class="card h-100 {% if item.is_overdue or item.required_reports_overdue %}border-danger{% elif item.progress_percentage >= 75 %}border-success{% else %}{% endif %}">
+                <div class="card-header bg-light">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <a href="{% url 'portal:project_detail' item.project.pk %}" class="text-decoration-none">
+                                <i class="fas fa-building"></i> {{ item.project.name }}
+                            </a>
+                        </h5>
+                        {% if item.is_overdue %}
+                            <span class="badge bg-danger">Overdue</span>
+                        {% else %}
+                            <span class="badge bg-success">On Track</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <div class="mb-3">
+                        <strong>Funding Schedule:</strong> {{ item.funding_schedule_number }}
+                    </div>
+
+                    <div class="mb-3">
+                        <strong>Project Stage:</strong>
+                        <span class="badge {% if item.project.state == 'completed' %}bg-success
+                                           {% elif item.project.state == 'under_construction' %}bg-primary
+                                           {% elif item.project.state == 'commenced' %}bg-info
+                                           {% else %}bg-secondary{% endif %}">
+                            {{ item.project.get_state_display }}
+                        </span>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span><strong>Progress: {{ item.progress_percentage }}%</strong></span>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar {% if item.progress_percentage >= 75 %}bg-success
+                                                    {% elif item.progress_percentage >= 50 %}bg-info
+                                                    {% elif item.progress_percentage >= 25 %}bg-warning
+                                                    {% else %}bg-danger{% endif %}"
+                                 role="progressbar"
+                                 style="width: {{ item.progress_percentage }}%"
+                                 aria-valuenow="{{ item.progress_percentage }}"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <strong>Latest Reports:</strong>
+                        <div class="small">
+                            {% if item.latest_quarterly_report %}
+                                <div class="text-success">
+                                    <i class="fas fa-check-circle"></i>
+                                    Quarterly: {{ item.latest_quarterly_report.quarter }}
+                                    ({{ item.latest_quarterly_report.submission_date|date:"M d, Y" }})
+                                </div>
+                            {% else %}
+                                <div class="text-danger">
+                                    <i class="fas fa-exclamation-circle"></i> No quarterly reports
+                                </div>
+                            {% endif %}
+
+                            {% if item.latest_monthly_report %}
+                                <div class="text-success">
+                                    <i class="fas fa-check-circle"></i>
+                                    Monthly: {{ item.latest_monthly_report.month|date:"M Y" }}
+                                </div>
+                            {% else %}
+                                <div class="text-warning">
+                                    <i class="fas fa-clock"></i> No monthly reports
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if item.required_reports_overdue %}
+                    <div class="alert alert-danger py-2 small">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Reports Due:</strong> {{ item.required_reports_overdue|join:", " }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="card-footer bg-light">
+                    <div class="btn-group w-100">
+                        <a href="{% url 'portal:project_detail' item.project.pk %}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-eye"></i> View Details
+                        </a>
+                        <a href="{% url 'portal:quarterly_report' %}?project={{ item.project.id }}" class="btn btn-success btn-sm">
+                            <i class="fas fa-plus"></i> Submit Report
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info">
+                <h4><i class="fas fa-info-circle"></i> No Projects Found</h4>
+                <p>You don't have any projects assigned to your council yet. Contact RICD administration if this seems incorrect.</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Action Buttons -->
+    {% if user_council %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h5 class="card-title">Quick Actions</h5>
+                    <div class="btn-group" role="group">
+                        <a href="/ricd/council/{{ user_council.id }}/monthly/2025-01/" class="btn btn-outline-primary">
+                            <i class="fas fa-calendar-week"></i> Submit Monthly Report
+                        </a>
+                        <a href="/ricd/council/{{ user_council.id }}/quarterly/2025-Q1/" class="btn btn-outline-success">
+                            <i class="fas fa-calendar-alt"></i> Submit Quarterly Report
+                        </a>
+                        <a href="{% url 'portal:ricd_dashboard' %}" class="btn btn-outline-info">
+                            <i class="fas fa-tachometer-alt"></i> View RICD Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

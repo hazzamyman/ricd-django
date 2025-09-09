@@ -1,0 +1,40 @@
+<h1>Monthly Report for {{ council.name }} - {{ period }}</h1>
+<form method="post">
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Address</th>
+                <th>Work Type</th>
+                <th>Output</th>
+                <th>Progress (%)</th>
+                <th>Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in report_data %}
+            <tr>
+                <td>{{ item.address }}</td>
+                <td>{{ item.work_type }}</td>
+                <td>{{ item.output }}</td>
+                <td><input type="number" name="progress_{{ forloop.counter }}" value="{{ item.progress }}"></td>
+                <td><textarea name="notes_{{ forloop.counter }}">{{ item.notes }}</textarea></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h3>Council Comments</h3>
+    <textarea name="council_comments" rows="4" cols="50">{{ monthly_report.council_comments }}</textarea>
+
+    {% if is_ricd %}
+    <h3>RICD Assessment</h3>
+    <input type="radio" name="ricd_status" value="accepted" {% if monthly_report.ricd_status == 'accepted' %}checked{% endif %}> Accepted
+    <input type="radio" name="ricd_status" value="rejected" {% if monthly_report.ricd_status == 'rejected' %}checked{% endif %}> Rejected
+    <input type="radio" name="ricd_status" value="more_info" {% if monthly_report.ricd_status == 'more_info' %}checked{% endif %}> Needs Info
+
+    <h3>RICD Comments</h3>
+    <textarea name="ricd_comments" rows="4" cols="50">{{ monthly_report.ricd_comments }}</textarea>
+    {% endif %}
+
+    <button type="submit">Submit</button>
+</form>

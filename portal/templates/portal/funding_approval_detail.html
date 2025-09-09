@@ -1,0 +1,135 @@
+{% extends "portal/base.html" %}
+{% load humanize %}
+
+{% block title %}{{ funding_approval.mincor_reference }} - Funding Approval Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Funding Approval Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2><i class="fas fa-money-check-alt"></i> {{ funding_approval.mincor_reference }}</h2>
+                    <p class="mb-0 text-muted">Funding Approval Details</p>
+                </div>
+                <div>
+                    <a href="{% url 'portal:funding_approval_update' funding_approval.pk %}" class="btn btn-warning me-2">
+                        <i class="fas fa-edit"></i> Edit Approval
+                    </a>
+                    <a href="{% url 'portal:funding_approval_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Approvals
+                    </a>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Funding Approval Information -->
+                <div class="col-lg-4">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-info-circle"></i> Approval Information</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-5"><strong>Reference:</strong></div>
+                                <div class="col-7">{{ funding_approval.mincor_reference }}</div>
+                            </div>
+                            <hr>
+                            <div class="row">
+                                <div class="col-5"><strong>Amount:</strong></div>
+                                <div class="col-7">
+                                    <span class="h4 text-success">${{ funding_approval.amount|floatformat:0|intcomma }}</span>
+                                </div>
+                            </div>
+                            <hr>
+                            <div class="row">
+                                <div class="col-5"><strong>Approved By:</strong></div>
+                                <div class="col-7">{{ funding_approval.approved_by }}</div>
+                            </div>
+                            <hr>
+                            <div class="row">
+                                <div class="col-5"><strong>Date:</strong></div>
+                                <div class="col-7">{{ funding_approval.approved_date|date:"M j, Y" }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Projects Summary -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-project-diagram"></i> Projects Summary</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="text-center">
+                                <h3 class="text-primary">{{ associated_projects.count }}</h3>
+                                <p class="mb-0">Associated Projects</p>
+                            </div>
+                            {% if associated_projects %}
+                            <hr>
+                            <p class="small mb-0 text-muted">
+                                All associated projects have been updated to "Funded" status.
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Associated Projects List -->
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-list"></i> Associated Projects</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if associated_projects %}
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Project Name</th>
+                                                <th>Council</th>
+                                                <th>Program</th>
+                                                <th>Status</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for project in associated_projects %}
+                                            <tr>
+                                                <td>
+                                                    <a href="{% url 'portal:project_detail' project.pk %}">{{ project.name }}</a>
+                                                </td>
+                                                <td>{{ project.council.name }}</td>
+                                                <td>{{ project.program.name }}</td>
+                                                <td>
+                                                    <span class="badge bg-primary">{{ project.get_state_display }}</span>
+                                                </td>
+                                                <td>
+                                                    <a href="{% url 'portal:project_detail' project.pk %}"
+                                                       class="btn btn-sm btn-outline-info">
+                                                        <i class="fas fa-eye"></i> View
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <div class="text-center py-4">
+                                    <i class="fas fa-project-diagram fa-2x text-muted mb-2"></i>
+                                    <p class="text-muted">No projects associated with this funding approval.</p>
+                                    <a href="{% url 'portal:funding_approval_update' funding_approval.pk %}" class="btn btn-primary">
+                                        <i class="fas fa-edit"></i> Associate Projects
+                                    </a>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

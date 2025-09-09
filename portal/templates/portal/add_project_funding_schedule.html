@@ -1,0 +1,143 @@
+{% extends "portal/base.html" %}
+{% load humanize %}
+
+{% block title %}Add {{ project.name }} to Funding Schedule - RICD Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-plus-circle me-2"></i>Add Project to Funding Schedule
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Adding:</strong> {{ project.name }} ({{ project.council.name }} - {{ project.program.name }})
+                    </div>
+
+                    {% if existing_schedules %}
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">Add to Existing Funding Schedule</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-3">You can add this project to an existing funding schedule for the same council and program:</p>
+
+                            <div class="row">
+                                {% for schedule in existing_schedules %}
+                                <div class="col-md-6 mb-3">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h6 class="card-title">
+                                                Schedule #{{ schedule.funding_schedule_number }}
+                                            </h6>
+                                            <div class="mb-2">
+                                                <strong>FUNDING:</strong> ${{ schedule.funding_amount|floatformat:0|intcomma }}
+                                                {% if schedule.contingency_amount %}
+                                                <br><strong>Contingency:</strong> ${{ schedule.contingency_amount|floatformat:0|intcomma }}
+                                                {% endif %}
+                                            </div>
+                                            <div class="mb-3">
+                                                <strong>Projects:</strong> {{ schedule.projects.all|length }} associated
+                                            </div>
+                                            <form method="post" action="{% url 'portal:add_project_to_existing_schedule' %}">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="project_id" value="{{ project.pk }}">
+                                                <input type="hidden" name="schedule_id" value="{{ schedule.pk }}">
+                                                <button type="submit" class="btn btn-success btn-sm">
+                                                    <i class="fas fa-plus me-1"></i>Add to This Schedule
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Create New Funding Schedule</h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="post">
+                                {% csrf_token %}
+
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="{{ form.funding_schedule_number.id_for_label }}" class="form-label">{{ form.funding_schedule_number.label }}</label>
+                                            {{ form.funding_schedule_number }}
+                                            {% if form.funding_schedule_number.errors %}
+                                                <div class="text-danger">{{ form.funding_schedule_number.errors.0 }}</div>
+                                            {% endif %}
+                                            <div class="form-text">Unique schedule number for this council</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="{{ form.funding_amount.id_for_label }}" class="form-label">{{ form.funding_amount.label }}</label>
+                                            {{ form.funding_amount }}
+                                            {% if form.funding_amount.errors %}
+                                                <div class="text-danger">{{ form.funding_amount.errors.0 }}</div>
+                                            {% endif %}
+                                            <div class="form-text">Total funding amount allocated</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="{{ form.contingency_amount.id_for_label }}" class="form-label">{{ form.contingency_amount.label }}</label>
+                                            {{ form.contingency_amount }}
+                                            {% if form.contingency_amount.errors %}
+                                                <div class="text-danger">{{ form.contingency_amount.errors.0 }}</div>
+                                            {% endif %}
+                                            <div class="form-text">Contingency amount (optional)</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Council</label>
+                                            <input type="text" class="form-control" value="{{ project.council.name }}" readonly>
+                                            <div class="form-text">Auto-selected from project</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Program</label>
+                                            <input type="text" class="form-control" value="{{ project.program.name }}" readonly>
+                                            <div class="form-text">Auto-selected from project</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    <strong>Note:</strong> After creating the funding schedule, the project status will be automatically updated to "Funded".
+                                </div>
+
+                                <div class="d-flex justify-content-between mt-4">
+                                    <a href="{% url 'portal:project_detail' project.pk %}" class="btn btn-secondary">
+                                        <i class="fas fa-arrow-left"></i> Back to Project
+                                    </a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save"></i> Create Funding Schedule
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,133 @@
+{% extends "portal/base.html" %}
+
+{% block title %}{{ program.name }} - RICD Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="fas fa-folder"></i> {{ program.name }}
+                    </h4>
+                    <div>
+                        <a href="{% url 'portal:program_update' program.pk %}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-edit"></i> Edit
+                        </a>
+                        <a href="{% url 'portal:program_delete' program.pk %}" class="btn btn-sm btn-outline-danger">
+                            <i class="fas fa-trash"></i> Delete
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h5>Program Information</h5>
+                            <table class="table table-sm">
+                                <tbody>
+                                    <tr>
+                                        <th>Name:</th>
+                                        <td>{{ program.name }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Description:</th>
+                                        <td>{{ program.description|default:"Not specified" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Budget:</th>
+                                        <td>
+                                            {% if program.budget %}
+                                                ${{ program.budget|floatformat:0 }}
+                                            {% else %}
+                                                Not specified
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Funding Source:</th>
+                                        <td>{{ program.funding_source|default:"Not specified" }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="col-md-4">
+                            <h5>Projects</h5>
+                            <div class="list-group">
+                                {% if program.projects.exists %}
+                                    {% for project in program.projects.all %}
+                                        <a href="{% url 'portal:project_detail' project.pk %}" class="list-group-item list-group-item-action">
+                                            {{ project.name }}
+                                            <br><small class="text-muted">{{ project.council.name }}</small>
+                                        </a>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="text-muted">No projects in this program yet.</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    {% comment %} Default work steps section could be added here if needed {% endcomment %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Funding Schedules</h5>
+                </div>
+                <div class="card-body">
+                    {% if program.funding_schedules.exists %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Council</th>
+                                        <th>Schedule #</th>
+                                        <th>Funding Amount</th>
+                                        <th>Contingency Amount</th>
+                                        <th>Total Funding</th>
+                                        <th>Projects</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for schedule in program.funding_schedules.all %}
+                                        <tr>
+                                            <td>{{ schedule.council.name }}</td>
+                                            <td>{{ schedule.funding_schedule_number }}</td>
+                                            <td>${{ schedule.funding_amount|floatformat:0 }}</td>
+                                            <td>
+                                                {% if schedule.contingency_amount %}
+                                                    ${{ schedule.contingency_amount|floatformat:0 }}
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            </td>
+                                            <td>${{ schedule.total_funding|floatformat:0 }}</td>
+                                            <td>{{ schedule.projects.count }} project{{ schedule.projects.count|pluralize }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-muted">No funding schedules for this program yet.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <a href="{% url 'portal:program_list' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Programs
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

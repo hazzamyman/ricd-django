@@ -1,0 +1,431 @@
+{% extends "portal/base.html" %}
+
+{% block title %}{% if object %}Edit Project{% else %}Add Project{% endif %} - RICD Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        {% if object %}
+                            <i class="fas fa-edit"></i> Edit Project
+                        {% else %}
+                            <i class="fas fa-plus"></i> Add New Project
+                        {% endif %}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <!-- Basic Information -->
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label for="{{ form.name.id_for_label }}" class="form-label">{{ form.name.label }}</label>
+                                    {{ form.name }}
+                                    {% if form.name.errors %}
+                                        <div class="text-danger">{{ form.name.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.state.id_for_label }}" class="form-label">{{ form.state.label }}</label>
+                                    {{ form.state }}
+                                    {% if form.state.errors %}
+                                        <div class="text-danger">{{ form.state.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">{{ form.description.label }}</label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                                <div class="text-danger">{{ form.description.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Council, Program, Funding Schedule -->
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.council.id_for_label }}" class="form-label">{{ form.council.label }}</label>
+                                    {{ form.council }}
+                                    {% if form.council.errors %}
+                                        <div class="text-danger">{{ form.council.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.program.id_for_label }}" class="form-label">{{ form.program.label }}</label>
+                                    {{ form.program }}
+                                    {% if form.program.errors %}
+                                        <div class="text-danger">{{ form.program.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.funding_schedule.id_for_label }}" class="form-label">{{ form.funding_schedule.label }}</label>
+                                    {{ form.funding_schedule }}
+                                    {% if form.funding_schedule.errors %}
+                                        <div class="text-danger">{{ form.funding_schedule.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SAP Project Details -->
+                        <h5 class="mt-4 mb-3">SAP Project Details</h5>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.sap_project.id_for_label }}" class="form-label">{{ form.sap_project.label }}</label>
+                                    {{ form.sap_project }}
+                                    {% if form.sap_project.errors %}
+                                        <div class="text-danger">{{ form.sap_project.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.cli_no.id_for_label }}" class="form-label">{{ form.cli_no.label }}</label>
+                                    {{ form.cli_no }}
+                                    {% if form.cli_no.errors %}
+                                        <div class="text-danger">{{ form.cli_no.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.sap_master_project.id_for_label }}" class="form-label">{{ form.sap_master_project.label }}</label>
+                                    {{ form.sap_master_project }}
+                                    {% if form.sap_master_project.errors %}
+                                        <div class="text-danger">{{ form.sap_master_project.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Financial Information -->
+                        <h5 class="mt-4 mb-3">Financial Information</h5>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.funding_schedule_amount.id_for_label }}" class="form-label">{{ form.funding_schedule_amount.label }}</label>
+                                    {{ form.funding_schedule_amount }}
+                                    {% if form.funding_schedule_amount.errors %}
+                                        <div class="text-danger">{{ form.funding_schedule_amount.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.contingency_amount.id_for_label }}" class="form-label">{{ form.contingency_amount.label }}</label>
+                                    {{ form.contingency_amount }}
+                                    {% if form.contingency_amount.errors %}
+                                        <div class="text-danger">{{ form.contingency_amount.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.contingency_percentage.id_for_label }}" class="form-label">{{ form.contingency_percentage.label }}</label>
+                                    {{ form.contingency_percentage }}
+                                    {% if form.contingency_percentage.errors %}
+                                        <div class="text-danger">{{ form.contingency_percentage.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="{{ form.commitments.id_for_label }}" class="form-label">{{ form.commitments.label }}</label>
+                                    {{ form.commitments }}
+                                    {% if form.commitments.errors %}
+                                        <div class="text-danger">{{ form.commitments.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="{{ form.forecast_final_cost.id_for_label }}" class="form-label">{{ form.forecast_final_cost.label }}</label>
+                                    {{ form.forecast_final_cost }}
+                                    {% if form.forecast_final_cost.errors %}
+                                        <div class="text-danger">{{ form.forecast_final_cost.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="{{ form.final_cost.id_for_label }}" class="form-label">{{ form.final_cost.label }}</label>
+                                    {{ form.final_cost }}
+                                    {% if form.final_cost.errors %}
+                                        <div class="text-danger">{{ form.final_cost.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <div class="form-check mt-4">
+                                        {{ form.costs_finalised }}
+                                        <label for="{{ form.costs_finalised.id_for_label }}" class="form-check-label">{{ form.costs_finalised.label }}</label>
+                                    </div>
+                                    {% if form.costs_finalised.errors %}
+                                        <div class="text-danger">{{ form.costs_finalised.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Officers and Management -->
+                        <h5 class="mt-4 mb-3">Project Management</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.principal_officer.id_for_label }}" class="form-label">{{ form.principal_officer.label }}</label>
+                                    {{ form.principal_officer }}
+                                    {% if form.principal_officer.errors %}
+                                        <div class="text-danger">{{ form.principal_officer.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.senior_officer.id_for_label }}" class="form-label">{{ form.senior_officer.label }}</label>
+                                    {{ form.senior_officer }}
+                                    {% if form.senior_officer.errors %}
+                                        <div class="text-danger">{{ form.senior_officer.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.project_manager.id_for_label }}" class="form-label">{{ form.project_manager.label }}</label>
+                                    {{ form.project_manager }}
+                                    {% if form.project_manager.errors %}
+                                        <div class="text-danger">{{ form.project_manager.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.contractor.id_for_label }}" class="form-label">{{ form.contractor.label }}</label>
+                                    {{ form.contractor }}
+                                    {% if form.contractor.errors %}
+                                        <div class="text-danger">{{ form.contractor.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.contractor_address.id_for_label }}" class="form-label">{{ form.contractor_address.label }}</label>
+                            {{ form.contractor_address }}
+                            {% if form.contractor_address.errors %}
+                                <div class="text-danger">{{ form.contractor_address.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Important Dates -->
+                        <h5 class="mt-4 mb-3">Key Dates</h5>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.start_date.id_for_label }}" class="form-label">{{ form.start_date.label }}</label>
+                                    {{ form.start_date }}
+                                    {% if form.start_date.errors %}
+                                        <div class="text-danger">{{ form.start_date.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.date_physically_commenced.id_for_label }}" class="form-label">{{ form.date_physically_commenced.label }}</label>
+                                    {{ form.date_physically_commenced }}
+                                    {% if form.date_physically_commenced.errors %}
+                                        <div class="text-danger">{{ form.date_physically_commenced.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.estimated_completion.id_for_label }}" class="form-label">{{ form.estimated_completion.label }}</label>
+                                    {{ form.estimated_completion }}
+                                    {% if form.estimated_completion.errors %}
+                                        <div class="text-danger">{{ form.estimated_completion.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Stage Timeline -->
+                        <h5 class="mt-4 mb-3">Stage Timeline</h5>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="{{ form.stage1_target.id_for_label }}" class="form-label">{{ form.stage1_target.label }}</label>
+                                    {{ form.stage1_target }}
+                                    {% if form.stage1_target.errors %}
+                                        <div class="text-danger">{{ form.stage1_target.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="{{ form.stage1_sunset.id_for_label }}" class="form-label">{{ form.stage1_sunset.label }}</label>
+                                    {{ form.stage1_sunset }}
+                                    {% if form.stage1_sunset.errors %}
+                                        <div class="text-danger">{{ form.stage1_sunset.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="{{ form.stage2_target.id_for_label }}" class="form-label">{{ form.stage2_target.label }}</label>
+                                    {{ form.stage2_target }}
+                                    {% if form.stage2_target.errors %}
+                                        <div class="text-danger">{{ form.stage2_target.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="{{ form.stage2_sunset.id_for_label }}" class="form-label">{{ form.stage2_sunset.label }}</label>
+                                    {{ form.stage2_sunset }}
+                                    {% if form.stage2_sunset.errors %}
+                                        <div class="text-danger">{{ form.stage2_sunset.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Handover and Completion -->
+                        <h5 class="mt-4 mb-3">Handover & Completion</h5>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="{{ form.handover_forecast.id_for_label }}" class="form-label">{{ form.handover_forecast.label }}</label>
+                                    {{ form.handover_forecast }}
+                                    {% if form.handover_forecast.errors %}
+                                        <div class="text-danger">{{ form.handover_forecast.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="{{ form.handover_actual.id_for_label }}" class="form-label">{{ form.handover_actual.label }}</label>
+                                    {{ form.handover_actual }}
+                                    {% if form.handover_actual.errors %}
+                                        <div class="text-danger">{{ form.handover_actual.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="{{ form.actual_completion.id_for_label }}" class="form-label">{{ form.actual_completion.label }}</label>
+                                    {{ form.actual_completion }}
+                                    {% if form.actual_completion.errors %}
+                                        <div class="text-danger">{{ form.actual_completion.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- LOA Information -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.commencement_loa_forecast.id_for_label }}" class="form-label">{{ form.commencement_loa_forecast.label }}</label>
+                                    {{ form.commencement_loa_forecast }}
+                                    {% if form.commencement_loa_forecast.errors %}
+                                        <div class="text-danger">{{ form.commencement_loa_forecast.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.commencement_loa_actual.id_for_label }}" class="form-label">{{ form.commencement_loa_actual.label }}</label>
+                                    {{ form.commencement_loa_actual }}
+                                    {% if form.commencement_loa_actual.errors %}
+                                        <div class="text-danger">{{ form.commencement_loa_actual.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Address Information -->
+                        {% if not object or not object.addresses.exists %}
+                        <h5 class="mt-4 mb-3">Project Address</h5>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> You can add a project address below. This will create a new address record associated with this project.
+                        </div>
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label for="{{ form.street.id_for_label }}" class="form-label">{{ form.street.label }}</label>
+                                    {{ form.street }}
+                                    {% if form.street.errors %}
+                                        <div class="text-danger">{{ form.street.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.postcode.id_for_label }}" class="form-label">{{ form.postcode.label }}</label>
+                                    {{ form.postcode }}
+                                    {% if form.postcode.errors %}
+                                        <div class="text-danger">{{ form.postcode.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ form.suburb.id_for_label }}" class="form-label">{{ form.suburb.label }}</label>
+                            {{ form.suburb }}
+                            {% if form.suburb.errors %}
+                                <div class="text-danger">{{ form.suburb.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        {% elif object and object.addresses.exists %}
+                        <h5 class="mt-4 mb-3">Existing Addresses</h5>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> This project already has addresses. You can manage addresses from the project detail page.
+                        </div>
+                        <ul class="list-group">
+                            {% for addr in object.addresses.all %}
+                            <li class="list-group-item">{{ addr }}</li>
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'portal:project_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                {% if object %}
+                                    <i class="fas fa-save"></i> Save Changes
+                                {% else %}
+                                    <i class="fas fa-plus"></i> Create Project
+                                {% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

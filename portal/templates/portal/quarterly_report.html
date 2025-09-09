@@ -1,0 +1,330 @@
+{% extends "portal/base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1><i class="fas fa-calendar-alt me-2"></i>Quarterly Report</h1>
+                <a href="{% url 'portal:council_dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Submit Quarterly Progress Report</h5>
+                </div>
+                <div class="card-body">
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <h6>Please correct the following errors:</h6>
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+
+                        <!-- Work Selection and Submission Date -->
+                        <div class="row mb-4">
+                            <div class="col-md-8">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.work.id_for_label }}" class="form-label">
+                                        <i class="fas fa-toolbox me-1"></i>{{ form.work.label }}
+                                    </label>
+                                    {{ form.work }}
+                                    {% if form.work.errors %}
+                                        <div class="text-danger small">{{ form.work.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.submission_date.id_for_label }}" class="form-label">
+                                        <i class="fas fa-calendar me-1"></i>{{ form.submission_date.label }}
+                                    </label>
+                                    {{ form.submission_date }}
+                                    {% if form.submission_date.errors %}
+                                        <div class="text-danger small">{{ form.submission_date.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Project Information -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="text-primary mb-3"><i class="fas fa-info-circle me-2"></i>Project Information</h5>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.funding_schedule_display.id_for_label }}" class="form-label">
+                                        <i class="fas fa-dollar-sign me-2"></i>{{ form.funding_schedule_display.label }}
+                                    </label>
+                                    {{ form.funding_schedule_display }}
+                                    {% if form.funding_schedule_display.errors %}
+                                        <div class="text-danger small">{{ form.funding_schedule_display.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.works_address_display.id_for_label }}" class="form-label">
+                                        <i class="fas fa-map-marker-alt me-2"></i>{{ form.works_address_display.label }}
+                                    </label>
+                                    {{ form.works_address_display }}
+                                    {% if form.works_address_display.errors %}
+                                        <div class="text-danger small">{{ form.works_address_display.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Progress & Expenditure -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="text-primary mb-3"><i class="fas fa-chart-line me-2"></i>Progress Tracking</h5>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.percentage_works_completed.id_for_label }}" class="form-label">
+                                        {{ form.percentage_works_completed.label }}
+                                    </label>
+                                    {{ form.percentage_works_completed }}
+                                    {% if form.percentage_works_completed.errors %}
+                                        <div class="text-danger small">{{ form.percentage_works_completed.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.total_expenditure_council.id_for_label }}" class="form-label">
+                                        {{ form.total_expenditure_council.label }} (Optional)
+                                    </label>
+                                    {{ form.total_expenditure_council }}
+                                    {% if form.total_expenditure_council.errors %}
+                                        <div class="text-danger small">{{ form.total_expenditure_council.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.unspent_funding_amount.id_for_label }}" class="form-label">
+                                        {{ form.unspent_funding_amount.label }} (Optional)
+                                    </label>
+                                    {{ form.unspent_funding_amount }}
+                                    {% if form.unspent_funding_amount.errors %}
+                                        <div class="text-danger small">{{ form.unspent_funding_amount.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Employment Statistics -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="text-primary mb-3"><i class="fas fa-users me-2"></i>Employment Statistics</h5>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.total_employed_people.id_for_label }}" class="form-label">
+                                        {{ form.total_employed_people.label }} (Optional)
+                                    </label>
+                                    {{ form.total_employed_people }}
+                                    {% if form.total_employed_people.errors %}
+                                        <div class="text-danger small">{{ form.total_employed_people.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.total_indigenous_employed.id_for_label }}" class="form-label">
+                                        {{ form.total_indigenous_employed.label }} (Optional)
+                                    </label>
+                                    {{ form.total_indigenous_employed }}
+                                    {% if form.total_indigenous_employed.errors %}
+                                        <div class="text-danger small">{{ form.total_indigenous_employed.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.comments_indigenous_employment.id_for_label }}" class="form-label">
+                                        {{ form.comments_indigenous_employment.label }} (Optional)
+                                    </label>
+                                    {{ form.comments_indigenous_employment }}
+                                    {% if form.comments_indigenous_employment.errors %}
+                                        <div class="text-danger small">{{ form.comments_indigenous_employment.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Completion Dates -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="text-primary mb-3"><i class="fas fa-flag-checkered me-2"></i>Completion Information</h5>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.practical_completion_forecast_date.id_for_label }}" class="form-label">
+                                        {{ form.practical_completion_forecast_date.label }} (Optional)
+                                    </label>
+                                    {{ form.practical_completion_forecast_date }}
+                                    {% if form.practical_completion_forecast_date.errors %}
+                                        <div class="text-danger small">{{ form.practical_completion_forecast_date.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.practical_completion_actual_date.id_for_label }}" class="form-label">
+                                        {{ form.practical_completion_actual_date.label }} (Optional)
+                                    </label>
+                                    {{ form.practical_completion_actual_date }}
+                                    {% if form.practical_completion_actual_date.errors %}
+                                        <div class="text-danger small">{{ form.practical_completion_actual_date.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Issues and Contributions -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="text-primary mb-3"><i class="fas fa-exclamation-triangle me-2"></i>Project Issues & Contributions</h5>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.adverse_matters.id_for_label }}" class="form-label">
+                                        {{ form.adverse_matters.label }} (Optional)
+                                    </label>
+                                    {{ form.adverse_matters }}
+                                    {% if form.adverse_matters.errors %}
+                                        <div class="text-danger small">{{ form.adverse_matters.errors }}</div>
+                                    {% endif %}
+                                    <small class="text-muted">Any adverse matters, issues, or challenges encountered.</small>
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <h6 class="mb-3">Contributions</h6>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.council_contributions_details.id_for_label }}" class="form-label">
+                                        {{ form.council_contributions_details.label }} (Optional)
+                                    </label>
+                                    {{ form.council_contributions_details }}
+                                    {% if form.council_contributions_details.errors %}
+                                        <div class="text-danger small">{{ form.council_contributions_details.errors }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="form-group">
+                                    <label for="{{ form.council_contributions_amount.id_for_label }}" class="form-label">
+                                        {{ form.council_contributions_amount.label }} (Optional)
+                                    </label>
+                                    {{ form.council_contributions_amount }}
+                                    {% if form.council_contributions_amount.errors %}
+                                        <div class="text-danger small">{{ form.council_contributions_amount.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.other_contributions_details.id_for_label }}" class="form-label">
+                                        {{ form.other_contributions_details.label }} (Optional)
+                                    </label>
+                                    {{ form.other_contributions_details }}
+                                    {% if form.other_contributions_details.errors %}
+                                        <div class="text-danger small">{{ form.other_contributions_details.errors }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="form-group">
+                                    <label for="{{ form.other_contributions_amount.id_for_label }}" class="form-label">
+                                        {{ form.other_contributions_amount.label }} (Optional)
+                                    </label>
+                                    {{ form.other_contributions_amount }}
+                                    {% if form.other_contributions_amount.errors %}
+                                        <div class="text-danger small">{{ form.other_contributions_amount.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Summary Notes -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="{{ form.summary_notes.id_for_label }}" class="form-label">
+                                        <i class="fas fa-sticky-note me-2"></i>{{ form.summary_notes.label }}
+                                    </label>
+                                    {{ form.summary_notes }}
+                                    {% if form.summary_notes.errors %}
+                                        <div class="text-danger small">{{ form.summary_notes.errors }}</div>
+                                    {% endif %}
+                                    <small class="text-muted">Optional summary or additional notes.</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- RICD Assessment Section -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="text-warning"><i class="fas fa-user-check me-2"></i>RICD Assessment</h5>
+                                <div class="alert alert-info">
+                                    <small>This section is for RICD staff to review and assess the submitted report.</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.ricd_status.id_for_label }}" class="form-label">
+                                        <i class="fas fa-tasks me-2"></i>{{ form.ricd_status.label }}
+                                    </label>
+                                    {{ form.ricd_status }}
+                                    {% if form.ricd_status.errors %}
+                                        <div class="text-danger small">{{ form.ricd_status.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="{{ form.ricd_comments.id_for_label }}" class="form-label">
+                                        <i class="fas fa-comment me-2"></i>{{ form.ricd_comments.label }}
+                                    </label>
+                                    {{ form.ricd_comments }}
+                                    {% if form.ricd_comments.errors %}
+                                        <div class="text-danger small">{{ form.ricd_comments.errors }}</div>
+                                    {% endif %}
+                                    <small class="text-muted">RICD assessment comments and reasons for decision.</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Submit Buttons -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="fas fa-save me-1"></i>Submit Quarterly Report
+                                    </button>
+                                    <a href="{% url 'portal:council_dashboard' %}" class="btn btn-outline-secondary">
+                                        <i class="fas fa-times me-1"></i>Cancel
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,124 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Delete Project - {{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-exclamation-triangle"></i> Delete Project: {{ project.name }}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-warning"></i> <strong>Warning:</strong> This action cannot be undone.
+                        This will permanently delete the project "{{ project.name }}" and all associated data.
+                    </div>
+
+                    <div class="mb-4">
+                        <h5>Project Details:</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <ul class="list-unstyled">
+                                    <li><strong>Name:</strong> {{ project.name }}</li>
+                                    <li><strong>Program:</strong> {{ project.program.name }}</li>
+                                    <li><strong>Council:</strong> {{ project.council.name }}</li>
+                                    <li><strong>State:</strong> {{ project.get_state_display }}</li>
+                                    <li><strong>SAP Project:</strong> {{ project.sap_project|default:"Not specified" }}</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <ul class="list-unstyled">
+                                    <li><strong>Start Date:</strong> {{ project.start_date|date:"M j, Y"|default:"Not specified" }}</li>
+                                    <li><strong>Estimated Completion:</strong> {{ project.estimated_completion|date:"M j, Y"|default:"Not specified" }}</li>
+                                    <li><strong>Funding Amount:</strong>
+                                        {% if project.funding_schedule_amount %}
+                                            ${{ project.funding_schedule_amount|floatformat:0 }}
+                                        {% else %}
+                                            Not specified
+                                        {% endif %}
+                                    </li>
+                                    <li><strong>Forecast Cost:</strong>
+                                        {% if project.forecast_final_cost %}
+                                            ${{ project.forecast_final_cost|floatformat:0 }}
+                                        {% else %}
+                                            Not specified
+                                        {% endif %}
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <h5>Associated Data:</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Addresses:</h6>
+                                {% if project.addresses.exists %}
+                                    <ul class="list-group list-group-flush">
+                                        {% for address in project.addresses.all %}
+                                            <li class="list-group-item">{{ address }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                {% else %}
+                                    <p class="text-muted">No addresses associated with this project.</p>
+                                {% endif %}
+
+                                <h6 class="mt-3">Funding Schedule:</h6>
+                                {% if project.funding_schedule %}
+                                    <p>{{ project.funding_schedule.funding_schedule_number }} - ${{ project.funding_schedule.total_funding|floatformat:0 }}</p>
+                                {% else %}
+                                    <p class="text-muted">No funding schedule associated.</p>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6">
+                                <h6>Monthly Reports:</h6>
+                                {% if project.monthly_trackers.exists %}
+                                    <p>{{ project.monthly_trackers.count }} monthly tracker{{ project.monthly_trackers.count|pluralize }}</p>
+                                {% else %}
+                                    <p class="text-muted">No monthly reports.</p>
+                                {% endif %}
+
+                                <h6 class="mt-3">Quarterly Reports:</h6>
+                                {% if project.quarterly_reports.exists %}
+                                    <p>{{ project.quarterly_reports.count }} quarterly report{{ project.quarterly_reports.count|pluralize }}</p>
+                                {% else %}
+                                    <p class="text-muted">No quarterly reports.</p>
+                                {% endif %}
+
+                                <h6 class="mt-3">Stage Reports:</h6>
+                                {% with stages=project.stage1_reports|length %}
+                                    {% if stages %}
+                                        <p>{{ stages }} stage 1 report{{ stages|pluralize }}</p>
+                                    {% else %}
+                                        <p class="text-muted">No stage reports.</p>
+                                    {% endif %}
+                                {% endwith %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'portal:project_detail' project.pk %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash"></i> Yes, Delete Project
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

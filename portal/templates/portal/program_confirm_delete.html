@@ -1,0 +1,81 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Delete Program - {{ program.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-exclamation-triangle"></i> Delete Program: {{ program.name }}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-warning"></i> <strong>Warning:</strong> This action cannot be undone.
+                        This will permanently delete the program "{{ program.name }}" and all associated data.
+                    </div>
+
+                    <div class="mb-4">
+                        <h5>Program Details:</h5>
+                        <ul class="list-unstyled">
+                            <li><strong>Name:</strong> {{ program.name }}</li>
+                            <li><strong>Description:</strong> {{ program.description|default:"Not specified" }}</li>
+                            <li><strong>Budget:</strong>
+                                {% if program.budget %}
+                                    ${{ program.budget|floatformat:0 }}
+                                {% else %}
+                                    Not specified
+                                {% endif %}
+                            </li>
+                            <li><strong>Funding Source:</strong> {{ program.funding_source|default:"Not specified" }}</li>
+                        </ul>
+                    </div>
+
+                    <div class="mb-4">
+                        <h5>Associated Projects:</h5>
+                        {% if program.projects.exists %}
+                            <p>This program has {{ program.projects.count }} project{{ program.projects.count|pluralize }} that will be affected:</p>
+                            <ul class="list-group">
+                                {% for project in program.projects.all|slice:":5" %}
+                                    <li class="list-group-item">{{ project.name }} ({{ project.council.name }})</li>
+                                {% endfor %}
+                                {% if program.projects.count > 5 %}
+                                    <li class="list-group-item text-muted">...and {{ program.projects.count|slice:"5:"|length }} more</li>
+                                {% endif %}
+                            </ul>
+                        {% else %}
+                            <p class="text-muted">This program has no associated projects.</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-4">
+                        <h5>Funding Schedules:</h5>
+                        {% if program.funding_schedules.exists %}
+                            <p>{{ program.funding_schedules.count }} funding schedule{{ program.funding_schedules.count|pluralize }} will be affected.</p>
+                        {% else %}
+                            <p class="text-muted">No funding schedules associated with this program.</p>
+                        {% endif %}
+                    </div>
+
+                    <hr>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'portal:program_detail' program.pk %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash"></i> Yes, Delete Program
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

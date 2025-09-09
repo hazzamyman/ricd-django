@@ -1,0 +1,232 @@
+{% extends "portal/base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1><i class="fas fa-calendar-week me-2"></i>Monthly Report</h1>
+                <a href="{% url 'portal:council_dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Submit Monthly Progress Report</h5>
+                </div>
+                <div class="card-body">
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <h6>Please correct the following errors:</h6>
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+
+                        <!-- Work Selection -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.work.id_for_label }}" class="form-label">
+                                        <i class="fas fa-toolbox me-1"></i>{{ form.work.label }}
+                                    </label>
+                                    {{ form.work }}
+                                    {% if form.work.errors %}
+                                        <div class="text-danger small">{{ form.work.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.month.id_for_label }}" class="form-label">
+                                        <i class="fas fa-calendar me-1"></i>{{ form.month.label }}
+                                    </label>
+                                    {{ form.month }}
+                                    {% if form.month.errors %}
+                                        <div class="text-danger small">{{ form.month.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Project Information -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="text-primary"><i class="fas fa-info-circle me-2"></i>Project Information</h5>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.funding_schedule_display.id_for_label }}" class="form-label">
+                                        <i class="fas fa-dollar-sign me-2"></i>{{ form.funding_schedule_display.label }}
+                                    </label>
+                                    {{ form.funding_schedule_display }}
+                                    {% if form.funding_schedule_display.errors %}
+                                        <div class="text-danger small">{{ form.funding_schedule_display.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.works_address_display.id_for_label }}" class="form-label">
+                                        <i class="fas fa-map-marker-alt me-2"></i>{{ form.works_address_display.label }}
+                                    </label>
+                                    {{ form.works_address_display }}
+                                    {% if form.works_address_display.errors %}
+                                        <div class="text-danger small">{{ form.works_address_display.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Design Phase -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="text-primary"><i class="fas fa-drafting-compass me-2"></i>Design Phase</h5>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.design_tender_date.id_for_label }}" class="form-label">
+                                        {{ form.design_tender_date.label }}
+                                    </label>
+                                    {{ form.design_tender_date }}
+                                    {% if form.design_tender_date.errors %}
+                                        <div class="text-danger small">{{ form.design_tender_date.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.design_award_date.id_for_label }}" class="form-label">
+                                        {{ form.design_award_date.label }}
+                                    </label>
+                                    {{ form.design_award_date }}
+                                    {% if form.design_award_date.errors %}
+                                        <div class="text-danger small">{{ form.design_award_date.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tender and Award Phase -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="text-primary"><i class="fas fa-gavel me-2"></i>Tender and Award Phase</h5>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.construction_tender_date.id_for_label }}" class="form-label">
+                                        {{ form.construction_tender_date.label }}
+                                    </label>
+                                    {{ form.construction_tender_date }}
+                                    {% if form.construction_tender_date.errors %}
+                                        <div class="text-danger small">{{ form.construction_tender_date.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.construction_award_date.id_for_label }}" class="form-label">
+                                        {{ form.construction_award_date.label }}
+                                    </label>
+                                    {{ form.construction_award_date }}
+                                    {% if form.construction_award_date.errors %}
+                                        <div class="text-danger small">{{ form.construction_award_date.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Site Establishment -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="text-primary"><i class="fas fa-map-marker-alt me-2"></i>Site Establishment</h5>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.site_establishment_date.id_for_label }}" class="form-label">
+                                        {{ form.site_establishment_date.label }}
+                                    </label>
+                                    {{ form.site_establishment_date }}
+                                    {% if form.site_establishment_date.errors %}
+                                        <div class="text-danger small">{{ form.site_establishment_date.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Progress Notes -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="{{ form.progress_notes.id_for_label }}" class="form-label">
+                                        <i class="fas fa-sticky-note me-2"></i>{{ form.progress_notes.label }}
+                                    </label>
+                                    {{ form.progress_notes }}
+                                    {% if form.progress_notes.errors %}
+                                        <div class="text-danger small">{{ form.progress_notes.errors }}</div>
+                                    {% endif %}
+                                    <small class="text-muted">Optional notes about progress, issues, or other relevant information.</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- RICD Assessment Section -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="text-warning"><i class="fas fa-user-check me-2"></i>RICD Assessment</h5>
+                                <div class="alert alert-info">
+                                    <small>This section is for RICD staff to review and assess the submitted report.</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.ricd_status.id_for_label }}" class="form-label">
+                                        <i class="fas fa-tasks me-2"></i>{{ form.ricd_status.label }}
+                                    </label>
+                                    {{ form.ricd_status }}
+                                    {% if form.ricd_status.errors %}
+                                        <div class="text-danger small">{{ form.ricd_status.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="{{ form.ricd_comments.id_for_label }}" class="form-label">
+                                        <i class="fas fa-comment me-2"></i>{{ form.ricd_comments.label }}
+                                    </label>
+                                    {{ form.ricd_comments }}
+                                    {% if form.ricd_comments.errors %}
+                                        <div class="text-danger small">{{ form.ricd_comments.errors }}</div>
+                                    {% endif %}
+                                    <small class="text-muted">RICD assessment comments and reasons for decision.</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Submit Buttons -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save me-1"></i>Submit Monthly Report
+                                    </button>
+                                    <a href="{% url 'portal:council_dashboard' %}" class="btn btn-outline-secondary">
+                                        <i class="fas fa-times me-1"></i>Cancel
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

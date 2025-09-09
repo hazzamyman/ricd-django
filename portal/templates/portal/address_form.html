@@ -1,0 +1,123 @@
+{% extends "portal/base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h1 class="h4 mb-0">
+                        {% if form.instance.pk %}
+                            <i class="fas fa-edit me-2"></i>Edit Address
+                        {% else %}
+                            <i class="fas fa-plus me-2"></i>Add New Address
+                        {% endif %}
+                    </h1>
+                </div>
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h5 class="mb-3">Address Details</h5>
+                                <div class="mb-3">
+                                    <label for="{{ form.street.id_for_label }}" class="form-label">Street Address *</label>
+                                    {{ form.street }}
+                                    {% if form.street.errors %}
+                                        <div class="text-danger small">{{ form.street.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="{{ form.suburb.id_for_label }}" class="form-label">Suburb *</label>
+                                    {{ form.suburb }}
+                                    {% if form.suburb.errors %}
+                                        <div class="text-danger small">{{ form.suburb.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="{{ form.postcode.id_for_label }}" class="form-label">Postcode</label>
+                                            {{ form.postcode }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="{{ form.state.id_for_label }}" class="form-label">State</label>
+                                            {{ form.state }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <h5 class="mb-3">Property References</h5>
+                                <div class="mb-3">
+                                    <label for="{{ form.lot_number.id_for_label }}" class="form-label">Lot Number</label>
+                                    {{ form.lot_number }}
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="{{ form.plan_number.id_for_label }}" class="form-label">Plan Number</label>
+                                    {{ form.plan_number }}
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="{{ form.title_reference.id_for_label }}" class="form-label">Title Reference</label>
+                                    {{ form.title_reference }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5 class="mb-3">Work Details</h5>
+                                <div class="mb-3">
+                                    <label for="{{ form.work_type.id_for_label }}" class="form-label">Work Type</label>
+                                    {{ form.work_type }}
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="{{ form.output_type.id_for_label }}" class="form-label">Output Type</label>
+                                    {{ form.output_type }}
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <h5 class="mb-3">Budget & Quantity</h5>
+                                <div class="mb-3">
+                                    <label for="{{ form.output_quantity.id_for_label }}" class="form-label">Output Quantity</label>
+                                    {{ form.output_quantity }}
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="{{ form.budget.id_for_label }}" class="form-label">Budget ($)</label>
+                                    {{ form.budget }}
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="{{ form.bedrooms.id_for_label }}" class="form-label">Bedrooms</label>
+                                    {{ form.bedrooms }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="fas fa-save me-1"></i>Save Address
+                            </button>
+                            <a href="{% url 'portal:project_detail' project.pk %}" class="btn btn-secondary">
+                                <i class="fas fa-times me-1"></i>Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

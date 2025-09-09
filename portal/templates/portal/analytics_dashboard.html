@@ -1,0 +1,517 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Advanced Analytics - RICD Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-chart-line"></i> Advanced Analytics & Forecasting</h2>
+                <small class="text-muted">Smart insights and budget predictions</small>
+            </div>
+
+            <!-- Filters -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="start_date" class="form-label">Start Date</label>
+                            <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date|date:'Y-m-d' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="end_date" class="form-label">End Date</label>
+                            <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date|date:'Y-m-d' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="program" class="form-label">Filter by Program</label>
+                            <select name="program" id="program" class="form-select">
+                                <option value="">All Programs</option>
+                                {% for program in programs %}
+                                    <option value="{{ program.pk }}" {% if program_filter == program.pk|stringformat:"s" %}selected{% endif %}>
+                                        {{ program.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">&nbsp;</label>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-search"></i> Apply Filters
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Analytics Summary -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-title mb-1">Total Outputs</h6>
+                                    <h3 class="mb-0">
+                                        {% for output in outputs_by_type|slice:":1" %}
+                                            {{ output.total_quantity }}
+                                        {% empty %}
+                                            0
+                                        {% endfor %}
+                                    </h3>
+                                    <small>Selected period</small>
+                                </div>
+                                <i class="fas fa-cube fa-2x opacity-75"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-title mb-1">Construction %</h6>
+                                    <h3 class="mb-0">
+                                        {% for work_type in outputs_by_work_type %}
+                                            {% if work_type.work_type == 'construction' %}
+                                                {% for output in outputs_by_type|slice:":1" %}
+                                                    {% if output.total_quantity > 0 %}
+                                                        {% widthratio work_type.total_quantity output.total_quantity 100 %}
+                                                        {% else %}
+                                                        0
+                                                    {% endif %}
+                                                {% empty %}
+                                                    0
+                                                {% endfor %}
+                                            {% endif %}
+                                        {% empty %}
+                                            0
+                                        {% endfor %}
+                                        %
+                                    </h3>
+                                    <small>Of total outputs</small>
+                                </div>
+                                <i class="fas fa-tools fa-2x opacity-75"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-title mb-1">Alerts Active</h6>
+                                    <h3 class="mb-0">{{ alerts|length }}</h3>
+                                    <small>
+                                        {% if report_alerts %}
+                                            {{ report_alerts|length }} reports{% if budget_analytics.alerts %}, {{ budget_analytics.alerts|length }} budget{% endif %}
+                                        {% else %}
+                                            Budget anomalies detected
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                <i class="fas fa-exclamation-triangle fa-2x opacity-75"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-title mb-1">Work Types</h6>
+                                    <h3 class="mb-0">{{ outputs_by_work_type|length }}</h3>
+                                    <small>Variety in construction</small>
+                                </div>
+                                <i class="fas fa-brush fa-2x opacity-75"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Budget Alerts -->
+            {% if alerts %}
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-warning">
+                        <div class="card-header bg-warning">
+                            <h5 class="mb-0 text-white">
+                                <i class="fas fa-exclamation-triangle"></i> Budget Alerts
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% for alert in alerts %}
+                             <div class="alert alert-{% if alert.severity == 'high' %}danger{% elif alert.severity == 'medium' %}warning{% else %}info{% endif %} d-flex justify-content-between align-items-center">
+                                 <div>
+                                     <strong>{{ alert.council }}</strong> - {{ alert.type|title }}
+                                     {% if alert.output_type %}
+                                         <div class="small">
+                                             <i class="fas fa-home"></i> {{ alert.get_output_type_display }} | {{ alert.bedrooms|title }} Bedrooms
+                                         </div>
+                                     {% endif %}
+                                     <div class="small mt-1">
+                                         Deviation: ${{ alert.deviation|floatformat:0 }}
+                                         (Current: ${{ alert.current|floatformat:0 }} vs Average: ${{ alert.mean|floatformat:0 }})
+                                         <small class="text-muted">Sample Size: {{ alert.sample_size }} quarters</small>
+                                     </div>
+                                 </div>
+                                 <div class="text-end">
+                                     <span class="badge bg-{{ alert.severity }}">{{ alert.severity|upper }}</span>
+                                     {% if alert.output_type %}
+                                         <div class="small text-muted">{{ alert.output_type|title }}</div>
+                                     {% endif %}
+                                 </div>
+                             </div>
+                             {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Report Alerts -->
+            {% if report_alerts %}
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-danger">
+                        <div class="card-header bg-danger text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-exclamation-circle"></i> Report Compliance Alerts
+                                <span class="badge bg-light text-dark ms-2">{{ report_alerts|length }}</span>
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% for alert in report_alerts %}
+                            <div class="alert alert-{% if alert.severity == 'critical' %}danger{% elif alert.severity == 'high' %}warning{% elif alert.severity == 'medium' %}info{% endif %} d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="d-flex align-items-center">
+                                        <strong class="me-2">{{ alert.council }}</strong>
+                                        <span class="badge bg-dark text-white">{{ alert.type }}</span>
+                                    </div>
+                                    <div class="mt-2">
+                                        <span class="fw-bold">{{ alert.project }}</span>
+                                        {% if alert.days_overdue %}
+                                            <span class="text-danger">• {{ alert.days_overdue }} days overdue</span>
+                                        {% endif %}
+                                        {% if alert.days_past_target %}
+                                            <span class="text-danger">• {{ alert.days_past_target }} days past target</span>
+                                        {% endif %}
+                                        {% if alert.days_past_sunset %}
+                                            <span class="text-danger">• {{ alert.days_past_sunset }} days past sunset date</span>
+                                        {% endif %}
+                                        {% if alert.target_date %}
+                                            <span class="small text-muted">• Target: {{ alert.target_date }}</span>
+                                        {% endif %}
+                                        {% if alert.sunset_date %}
+                                            <span class="small text-muted">• Sunset: {{ alert.sunset_date }}</span>
+                                        {% endif %}
+                                        {% if alert.last_report_date %}
+                                            <span class="small text-muted">• Last Report: {{ alert.last_report_date }}</span>
+                                        {% endif %}
+                                        {% if alert.due_month %}
+                                            <span class="small text-muted">• Due: {{ alert.due_month }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <a href="{% url 'portal:project_detail' alert.project_id %}"
+                                       class="btn btn-sm btn-outline-primary me-2">
+                                        <i class="fas fa-eye"></i> View Project
+                                    </a>
+                                    <span class="badge bg-{% if alert.severity == 'critical' %}dark{% elif alert.severity == 'high' %}danger{% elif alert.severity == 'medium' %}warning{% endif %}">
+                                        {{ alert.severity|upper }}
+                                    </span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Project Commencement/Completion Summary -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-title mb-1">Projects Commenced</h6>
+                                    <h2 class="mb-0">{{ commenced_projects }}</h2>
+                                    <small>{{ start_date|date:"M j, Y" }} - {{ end_date|date:"M j, Y" }}</small>
+                                </div>
+                                <i class="fas fa-play-circle fa-3x opacity-75"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-title mb-1">Projects Completed</h6>
+                                    <h2 class="mb-0">{{ completed_projects }}</h2>
+                                    <small>{{ start_date|date:"M j, Y" }} - {{ end_date|date:"M j, Y" }}</small>
+                                </div>
+                                <i class="fas fa-check-circle fa-3x opacity-75"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-title mb-1">Addresses Commenced</h6>
+                                    <h2 class="mb-0">{{ addresses_commenced }}</h2>
+                                    <small>{{ start_date|date:"M j, Y" }} - {{ end_date|date:"M j, Y" }}</small>
+                                </div>
+                                <i class="fas fa-map-marker-alt fa-3x opacity-75"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Outputs by Type -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-cube"></i> Outputs by Type
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% if outputs_by_type %}
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Output Type</th>
+                                                <th>Quantity</th>
+                                                <th>Estimated Cost</th>
+                                                <th>% of Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for output_type in outputs_by_type %}
+                                                {% widthratio output_type.total_quantity outputs_by_type.0.total_quantity 100 as percentage %}
+                                            <tr>
+                                                <td>{{ output_type.get_output_type_display }}</td>
+                                                <td><span class="badge bg-primary">{{ output_type.total_quantity }}</span></td>
+                                                <td>${{ output_type.total_cost|floatformat:0|default:0 }}</td>
+                                                <td>
+                                                    <div class="progress" style="height: 20px;">
+                                                        <div class="progress-bar bg-success" role="progressbar"
+                                                             style="width: {{ percentage }}%"
+                                                             aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100">
+                                                            {{ percentage|floatformat:1 }}%
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <div class="text-center py-3">
+                                    <p class="text-muted">No output data available for selected period.</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Enhanced Output Analytics -->
+            <div class="row mb-4">
+                <!-- Work Type Breakdown -->
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-wrench"></i> Outputs by Work Type
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% if outputs_by_work_type %}
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Work Type</th>
+                                                <th>Quantity</th>
+                                                <th>Cost</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for work_type in outputs_by_work_type %}
+                                                <tr>
+                                                    <td>{{ work_type.work_type|title }}</td>
+                                                    <td>{{ work_type.total_quantity }}</td>
+                                                    <td>${{ work_type.total_cost|floatformat:0 }}</td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <p class="text-muted">No work type data available.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bedroom Breakdown -->
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-bed"></i> Outputs by Bedrooms
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% if outputs_by_bedrooms %}
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Bedrooms</th>
+                                                <th>Quantity</th>
+                                                <th>Cost</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for bedroom_data in outputs_by_bedrooms %}
+                                                <tr>
+                                                    <td>{% if bedroom_data.bedrooms %}{{ bedroom_data.bedrooms }} bed{% else %}Unknown{% endif %}</td>
+                                                    <td>{{ bedroom_data.total_quantity }}</td>
+                                                    <td>${{ bedroom_data.total_cost|floatformat:0 }}</td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <p class="text-muted">No bedroom data available.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Outputs by Council -->
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-flag"></i> Outputs by Council
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% if outputs_by_council %}
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Council</th>
+                                                <th>Quantity</th>
+                                                <th>Cost</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for council in outputs_by_council %}
+                                                <tr>
+                                                    <td>{{ council.project__council__name }}</td>
+                                                    <td>{{ council.total_quantity }}</td>
+                                                    <td>${{ council.total_cost|floatformat:0 }}</td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <p class="text-muted">No council output data available.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Budget Forecasting -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-chart-pie"></i> Budget Forecasting
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% if forecast_summary %}
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Council</th>
+                                                <th>Current Avg Spending</th>
+                                                <th>Next Quarter Forecast</th>
+                                                <th>Trend</th>
+                                                <th>Forecast vs Average</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                             {% for council, forecast in forecast_summary.items %}
+                                             <tr>
+                                                 <td>{{ council }}</td>
+                                                 <td>
+                                                     ${{ forecast.current_avg|floatformat:0 }}
+                                                     <div class="small text-muted">Sample: {{ forecast.sample_size }} quarters</div>
+                                                 </td>
+                                                 <td>${{ forecast.next_forecast|floatformat:0 }}</td>
+                                                 <td>
+                                                     {% if forecast.trend == 'increasing' %}
+                                                         <span class="badge bg-danger"><i class="fas fa-arrow-up"></i> Increasing</span>
+                                                     {% else %}
+                                                         <span class="badge bg-success"><i class="fas fa-arrow-down"></i> Decreasing</span>
+                                                     {% endif %}
+                                                 </td>
+                                                 <td>
+                                                     {% widthratio forecast.next_forecast forecast.current_avg 100 as change_percentage %}
+                                                     {% if change_percentage > 120 %}
+                                                         <span class="text-danger">High Risk</span>
+                                                     {% elif change_percentage > 110 %}
+                                                         <span class="text-warning">Moderate Risk</span>
+                                                     {% elif change_percentage < 80 %}
+                                                         <span class="text-info">Under Forecast</span>
+                                                     {% else %}
+                                                         <span class="text-success">On Track</span>
+                                                     {% endif %}
+                                                     <div class="small text-muted">({{ change_percentage|floatformat:1 }}% of average)</div>
+                                                 </td>
+                                             </tr>
+                                             {% endfor %}
+                                         </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <div class="text-center py-3">
+                                    <p class="text-muted">Insufficient data for budget forecasting. Need at least 3 quarters of spending data.</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
