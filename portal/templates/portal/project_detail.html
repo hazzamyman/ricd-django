@@ -74,6 +74,11 @@
                 <i class="fas fa-calendar me-1"></i>Timeline
             </button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="approvals-tab" data-bs-toggle="tab" data-bs-target="#approvals" type="button" role="tab" aria-controls="approvals" aria-selected="false">
+                <i class="fas fa-dollar-sign me-1"></i>Funding Approvals
+            </button>
+        </li>
     </ul>
 
     <!-- Tab Content -->
@@ -193,8 +198,69 @@
                                     <small class="text-muted">Actual Cost</small>
                                     {% endif %}
                                 </div>
+                        
+                                <!-- Funding Approvals Tab -->
+                                <div class="tab-pane fade" id="approvals" role="tabpanel" aria-labelledby="approvals-tab">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <h5 class="mb-0"><i class="fas fa-dollar-sign me-2"></i>Attached Funding Approvals</h5>
+                                                {% if user.is_staff %}
+                                                <a href="{% url 'portal:funding_approval_create' %}" class="btn btn-primary btn-sm">
+                                                    <i class="fas fa-plus"></i> Create Approval
+                                                </a>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="card-body">
+                                            {% if funding_approvals %}
+                                            <div class="table-responsive">
+                                                <table class="table table-striped">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>MINCOR Reference</th>
+                                                            <th>Amount</th>
+                                                            <th>Approved By</th>
+                                                            <th>Approval Date</th>
+                                                            <th>Actions</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for approval in funding_approvals %}
+                                                        <tr>
+                                                            <td><strong>{{ approval.mincor_reference }}</strong></td>
+                                                            <td>{{ approval.amount|currency:0 }}</td>
+                                                            <td>{{ approval.approved_by_position }}</td>
+                                                            <td>{{ approval.approved_date|date:"M d, Y" }}</td>
+                                                            <td>
+                                                                <a href="{% url 'portal:funding_approval_detail' approval.pk %}" class="btn btn-outline-info btn-sm">
+                                                                    <i class="fas fa-eye"></i> View
+                                                                </a>
+                                                                {% if user.is_staff %}
+                                                                <a href="{% url 'portal:funding_approval_update' approval.pk %}" class="btn btn-outline-primary btn-sm">
+                                                                    <i class="fas fa-edit"></i> Edit
+                                                                </a>
+                                                                {% endif %}
+                                                            </td>
+                                                        </tr>
+                                                        {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            {% else %}
+                                            <div class="alert alert-info">
+                                                <h4>No Funding Approvals</h4>
+                                                <p>This project has no attached funding approvals.</p>
+                                                {% if user.is_staff %}
+                                                <p><a href="{% url 'portal:funding_approval_create' %}" class="btn btn-primary">Create Funding Approval</a></p>
+                                                {% endif %}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                        
                             </div>
-
                             <!-- Work Progress -->
                             {% if work.progress %}
                             <div class="mt-3">

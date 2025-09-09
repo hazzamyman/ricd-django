@@ -2,6 +2,7 @@ from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
 from decimal import Decimal
+from dateutil.relativedelta import relativedelta
 
 
 class UserProfile(models.Model):
@@ -36,6 +37,8 @@ class Council(models.Model):
     default_suburb = models.CharField(max_length=255, blank=True, null=True)
     default_postcode = models.CharField(max_length=4, blank=True, null=True)
     default_state = models.CharField(max_length=3, default='QLD')
+    default_principal_officer = models.ForeignKey('Officer', on_delete=models.SET_NULL, null=True, blank=True, related_name='council_principal_defaults')
+    default_senior_officer = models.ForeignKey('Officer', on_delete=models.SET_NULL, null=True, blank=True, related_name='council_senior_defaults')
 
     # Geographic fields - council-level specifics (don't change per project)
     federal_electorate = models.CharField(max_length=255, blank=True, null=True)
@@ -139,6 +142,24 @@ class FundingSchedule(models.Model):
     first_release_date = models.DateField(blank=True, null=True)
     first_reference_number = models.CharField(max_length=100, blank=True, null=True)
 
+    # Additional agreement fields for different agreement types
+    agreement_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('funding_schedule', 'Funding Schedule'),
+            ('frpf_agreement', 'Forward Remote Program Funding Agreement'),
+            ('ifrpf_agreement', 'Interim Forward Remote Program Funding Agreement'),
+        ],
+        default='funding_schedule',
+        help_text="Type of funding agreement"
+    )
+
+    # Signature dates for agreements
+    date_sent_to_council = models.DateField(blank=True, null=True, help_text="Date funding agreement sent to council")
+    date_council_signed = models.DateField(blank=True, null=True, help_text="Date council signed the agreement")
+    date_delegate_signed = models.DateField(blank=True, null=True, help_text="Date delegate signed the agreement")
+    executed_date = models.DateField(blank=True, null=True, help_text="Date agreement was executed (calculated)")
+
     class Meta:
         unique_together = ('council', 'funding_schedule_number')
 
@@ -164,6 +185,16 @@ class FundingSchedule(models.Model):
                 self.first_release_date = timezone.now().date() + timezone.timedelta(days=30)
             if not self.first_reference_number:
                 self.first_reference_number = f"FS-{self.funding_schedule_number}-001"
+
+        # Auto-calculate executed_date if council_signed and delegate_signed dates are available
+        if self.council_signed_date and self.delegate_signed_date:
+            # Executed date is the later of the two signature dates
+            self.executed_date = max(self.council_signed_date, self.delegate_signed_date)
+        elif self.council_signed_date:
+            self.executed_date = self.council_signed_date
+        elif self.delegate_signed_date:
+            self.executed_date = self.delegate_signed_date
+
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -182,13 +213,18 @@ class Project(models.Model):
 
     council = models.ForeignKey(Council, on_delete=models.CASCADE, related_name="projects")
     program = models.ForeignKey(Program, on_delete=models.CASCADE, related_name="projects")
+
+    # Funding agreement options
     funding_schedule = models.ForeignKey(FundingSchedule, on_delete=models.SET_NULL, null=True, blank=True, related_name="projects")
+    forward_rpf_agreement = models.ForeignKey('ForwardRemoteProgramFundingAgreement', on_delete=models.SET_NULL, null=True, blank=True, related_name="projects")
+    interim_fp_agreement = models.ForeignKey('InterimForwardProgramFundingAgreement', on_delete=models.SET_NULL, null=True, blank=True, related_name="projects")
+
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     funding_schedule_amount = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True)
     contingency_amount = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True)
-    principal_officer = models.CharField(max_length=255, blank=True, null=True)
-    senior_officer = models.CharField(max_length=255, blank=True, null=True)
+    principal_officer = models.ForeignKey('Officer', on_delete=models.SET_NULL, null=True, blank=True, related_name='principal_projects')
+    senior_officer = models.ForeignKey('Officer', on_delete=models.SET_NULL, null=True, blank=True, related_name='senior_projects')
     start_date = models.DateField(blank=True, null=True)
     stage1_target = models.DateField(blank=True, null=True)
     stage1_sunset = models.DateField(blank=True, null=True)
@@ -242,15 +278,27 @@ class Project(models.Model):
         ]
 
     @property
+    def funding_agreement(self):
+        """Get the specific funding agreement linked to this project"""
+        if self.funding_schedule:
+            return self.funding_schedule
+        elif self.forward_rpf_agreement:
+            return self.forward_rpf_agreement
+        elif self.interim_fp_agreement:
+            return self.interim_fp_agreement
+        return None
+
+    @property
     def total_funding(self):
         return (self.funding_schedule_amount or 0) + (self.contingency_amount or 0)
 
     @property
     def calculated_commitments(self):
         """Calculate commitments from funding schedule or estimated amounts"""
-        if self.funding_schedule:
-            return self.funding_schedule.funding_amount
-        return self.contingency_amount or 0  # Fallback to contingency if no funding schedule
+        if self.funding_agreement:
+            if hasattr(self.funding_agreement, 'funding_amount'):
+                return self.funding_agreement.funding_amount
+        return self.contingency_amount or 0  # Fallback to contingency if no funding agreement
 
     @property
     def calculated_contingency(self):
@@ -287,6 +335,37 @@ class Project(models.Model):
         if self.funding_schedule and self.funding_schedule.first_release_date:
             return str(self.funding_schedule.first_release_date.year)
         return str(timezone.now().year)
+
+    def save(self, *args, **kwargs):
+        # Pre-populate officers from council defaults for new projects
+        if not self.pk and self.council:
+            if not self.principal_officer and self.council.default_principal_officer:
+                self.principal_officer = self.council.default_principal_officer
+            if not self.senior_officer and self.council.default_senior_officer:
+                self.senior_officer = self.council.default_senior_officer
+
+        """Auto-calculate stage dates when start_date is set"""
+        if self.start_date:
+            # Calculate stage dates only if they haven't been manually set
+            if not self.stage1_target:
+                self.stage1_target = self.start_date + relativedelta(months=12)
+
+            if not self.stage1_sunset:
+                self.stage1_sunset = self.start_date + relativedelta(months=18)
+
+            if not self.stage2_target:
+                if self.stage1_target:
+                    self.stage2_target = self.stage1_target + relativedelta(months=12)
+                else:
+                    self.stage2_target = self.start_date + relativedelta(months=24)
+
+            if not self.stage2_sunset:
+                if self.stage1_sunset:
+                    self.stage2_sunset = self.stage1_sunset + relativedelta(months=12)
+                else:
+                    self.stage2_sunset = self.start_date + relativedelta(months=30)
+
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.name} ({self.council})"
@@ -380,8 +459,7 @@ class Address(models.Model):
 
 
 class Work(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="works")
-    address_line = models.CharField(max_length=500, blank=True, null=True)  # Full address
+    address = models.ForeignKey('Address', on_delete=models.CASCADE, related_name="works")
     work_type_id = models.ForeignKey(
         WorkType,
         on_delete=models.PROTECT,
@@ -458,8 +536,13 @@ class Work(models.Model):
             return today <= expiry
         return False
 
+    @property
+    def project(self):
+        """Get project through associated address"""
+        return self.address.project
+
     def __str__(self):
-        return f"{self.work_type_id.name if self.work_type_id else 'No work type'} - {self.output_type_id.name if self.output_type_id else 'No output type'} ({self.project})"
+        return f"{self.work_type_id.name if self.work_type_id else 'No work type'} - {self.output_type_id.name if self.output_type_id else 'No output type'} ({self.address})"
 
 
 class WorkStep(models.Model):
@@ -639,15 +722,32 @@ class QuarterlyReport(models.Model):
     other_contributions_amount = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True)
 
     # Additional summary/notes
-    # Additional summary/notes
     summary_notes = models.TextField(blank=True, null=True)
+
+    # RICD Staff Assessment
+    staff_assessment_notes = models.TextField(blank=True, null=True, help_text="RICD Staff assessment notes")
+    staff_assessed_date = models.DateField(blank=True, null=True, help_text="Date when RICD Staff assessed")
+
+    # RICD Manager Decision
+    MANAGER_DECISIONS = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+    manager_decision = models.CharField(
+        max_length=10,
+        choices=MANAGER_DECISIONS,
+        default='pending',
+        help_text="RICD Manager approval decision"
+    )
+    manager_comments = models.TextField(blank=True, null=True, help_text="RICD Manager comments")
+    manager_decision_date = models.DateField(blank=True, null=True, help_text="Date of RICD Manager decision")
 
     # Supporting documents
     supporting_document_1 = models.FileField(upload_to="reports/supporting/%Y/%m/", blank=True, null=True, help_text="Supporting document 1")
     supporting_document_2 = models.FileField(upload_to="reports/supporting/%Y/%m/", blank=True, null=True, help_text="Supporting document 2")
     supporting_document_3 = models.FileField(upload_to="reports/supporting/%Y/%m/", blank=True, null=True, help_text="Supporting document 3")
     supporting_document_description = models.TextField(blank=True, null=True, help_text="Description of supporting documents")
-    summary_notes = models.TextField(blank=True, null=True)
 
     def save(self, *args, **kwargs):
         """Auto-generate quarter field"""
@@ -982,10 +1082,76 @@ class Defect(models.Model):
             return pc_date + relativedelta(months=12)
         return None
 
+class Officer(models.Model):
+    """Officer model for dynamic project officers based on users"""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='officer_profile')
+    position = models.CharField(max_length=255, blank=True, null=True, help_text="Official position title")
+    is_active = models.BooleanField(default=True, help_text="Whether this officer is active")
+    is_principal = models.BooleanField(default=False, help_text="Can be assigned as Principal Officer")
+    is_senior = models.BooleanField(default=False, help_text="Can be assigned as Senior Officer")
+
+    class Meta:
+        ordering = ['user__last_name', 'user__first_name']
+
+    def __str__(self):
+        full_name = f"{self.user.first_name} {self.user.last_name}".strip()
+        if self.position:
+            return f"{full_name} ({self.position})"
+        return full_name
+
+    @property
+    def council_assignment(self):
+        """Get officer's council from user profile"""
+        if hasattr(self.user, 'profile') and self.user.profile.council:
+            return self.user.profile.council
+        return None
+
+    @property
+    def councils(self):
+        """Get list of councils this officer can be assigned to projects in"""
+        councils = set()
+        if self.council_assignment:
+            councils.add(self.council_assignment)
+        return councils
+
+
+# Older Agreement Models
+class BaseAgreement(models.Model):
+    """Base class for funding agreements"""
+    date_sent_to_council = models.DateField(blank=True, null=True, help_text="Date funding agreement sent to council")
+    date_council_signed = models.DateField(blank=True, null=True, help_text="Date council signed the agreement")
+    date_delegate_signed = models.DateField(blank=True, null=True, help_text="Date delegate signed the agreement")
+
+    class Meta:
+        abstract = True
+
+    @property
+    def date_executed(self):
+        """Calculate executed date as the latest of council or delegate signed"""
+        dates = [date for date in [self.date_council_signed, self.date_delegate_signed] if date is not None]
+        return max(dates) if dates else None
+
+
+class ForwardRemoteProgramFundingAgreement(BaseAgreement):
+    """Forward Remote Program Funding Agreement"""
+    pass
+
+    def __str__(self):
+        return f"FRPF Agreement - Executed: {self.date_executed}"
+
+
+class InterimForwardProgramFundingAgreement(BaseAgreement):
+    """Interim Forward Remote Program Funding Agreement"""
+    pass
+
+    def __str__(self):
+        return f"IFRPF Agreement - Executed: {self.date_executed}"
+
+
 class FundingApproval(models.Model):
     mincor_reference = models.CharField(max_length=100)
     amount = models.DecimalField(max_digits=15, decimal_places=2)
-    approved_by = models.CharField(max_length=255)  # Position/role
+    approved_by_position = models.CharField(max_length=255, help_text="Position/role that approved")
     approved_date = models.DateField()
     projects = models.ManyToManyField('Project', related_name='funding_approvals')
 

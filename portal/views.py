@@ -205,6 +205,11 @@ class ProjectDetailView(DetailView):
     template_name = "portal/project_detail.html"
     context_object_name = "project"
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['funding_approvals'] = self.object.funding_approvals.all()
+        return context
+
 
 # Report Form Views
 class MonthlyReportView(LoginRequiredMixin, TemplateView):
@@ -1238,7 +1243,7 @@ class FundingApprovalListView(LoginRequiredMixin, ListView):
         if search:
             queryset = queryset.filter(
                 Q(mincor_reference__icontains=search) |
-                Q(approved_by__icontains=search)
+                Q(approved_by_position__icontains=search)
             )
         if council_filter:
             queryset = queryset.filter(projects__council_id=council_filter)
@@ -1271,7 +1276,7 @@ class FundingApprovalCreateView(LoginRequiredMixin, CreateView):
     """Create a new funding approval"""
     model = FundingApproval
     template_name = "portal/funding_approval_form.html"
-    fields = ['mincor_reference', 'amount', 'approved_by', 'approved_date', 'projects']
+    fields = ['mincor_reference', 'amount', 'approved_by_position', 'approved_date', 'projects']
     success_url = reverse_lazy('portal:funding_approval_list')
 
     def form_valid(self, form):
@@ -1352,7 +1357,7 @@ class FundingApprovalUpdateView(LoginRequiredMixin, UpdateView):
     """Update an existing funding approval"""
     model = FundingApproval
     template_name = "portal/funding_approval_form.html"
-    fields = ['mincor_reference', 'amount', 'approved_by', 'approved_date', 'projects']
+    fields = ['mincor_reference', 'amount', 'approved_by_position', 'approved_date', 'projects']
 
     def get_success_url(self):
         return reverse_lazy('portal:funding_approval_detail', kwargs={'pk': self.object.pk})

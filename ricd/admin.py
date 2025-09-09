@@ -22,23 +22,32 @@ class DefectAdmin(admin.ModelAdmin):
 class WorkAdmin(admin.ModelAdmin):
     inlines = [WorkStepInline]
     readonly_fields = ('is_within_defect_liability_period',)
-    list_display = ('get_work_type', 'project', 'get_council', 'get_funding_schedule', 'get_progress_percentage', 'get_budget_vs_spent', 'get_late_overdue_status', 'start_date', 'end_date')
-    list_filter = ('work_type_id__name', 'project__council', 'project__funding_schedule', 'start_date')
-    search_fields = ('project__name', 'project__council__name')
+    list_display = ('get_work_type', 'get_project', 'get_address', 'get_council', 'get_funding_agreement', 'get_progress_percentage', 'get_budget_vs_spent', 'get_late_overdue_status', 'start_date', 'end_date')
+    list_filter = ('work_type_id__name', 'address__project__council', 'address__project__funding_schedule', 'start_date')
+    search_fields = ('address__project__name', 'address__project__council__name', 'address__street', 'address__suburb')
     ordering = ('start_date',)
 
     def get_work_type(self, obj):
         return obj.work_type_id.name
     get_work_type.short_description = 'Work Type'
 
+    def get_project(self, obj):
+        return obj.project.name
+    get_project.short_description = 'Project'
+    get_project.admin_order_field = 'address__project__name'
+
+    def get_address(self, obj):
+        return str(obj.address)
+    get_address.short_description = 'Address'
+
     def get_council(self, obj):
         return obj.project.council.name
     get_council.short_description = 'Council'
-    get_council.admin_order_field = 'project__council__name'
+    get_council.admin_order_field = 'address__project__council__name'
 
-    def get_funding_schedule(self, obj):
-        return obj.project.funding_schedule if obj.project.funding_schedule else "No Funding Schedule"
-    get_funding_schedule.short_description = 'Funding Schedule'
+    def get_funding_agreement(self, obj):
+        return obj.project.funding_agreement or "No Funding Agreement"
+    get_funding_agreement.short_description = 'Funding Agreement'
 
     def get_progress_percentage(self, obj):
         latest_report = obj.quarterly_reports.order_by('-submission_date').first()
@@ -67,7 +76,7 @@ class WorkAdmin(admin.ModelAdmin):
     get_late_overdue_status.short_description = 'Status'
 
 class ProjectAdmin(admin.ModelAdmin):
-    inlines = [AddressInline, WorkInline]
+    inlines = [AddressInline]
     readonly_fields = ('state', 'is_late', 'is_overdue', 'is_on_time')
 
 admin.site.register(Council)
