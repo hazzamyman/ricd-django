@@ -58,4 +58,16 @@ urlpatterns = [
     path('funding-approvals/create/', views.FundingApprovalCreateView.as_view(), name='funding_approval_create'),
     path('funding-approvals/<int:pk>/', views.FundingApprovalDetailView.as_view(), name='funding_approval_detail'),
     path('funding-approvals/<int:pk>/update/', views.FundingApprovalUpdateView.as_view(), name='funding_approval_update'),
+
+    # Work Type Management URLs
+    path('work-types/', views.WorkTypeListView.as_view(), name='work_type_list'),
+    path('work-types/create/', views.WorkTypeCreateView.as_view(), name='work_type_create'),
+    path('work-types/<int:pk>/update/', views.WorkTypeUpdateView.as_view(), name='work_type_update'),
+    path('work-types/<int:pk>/delete/', views.WorkTypeDeleteView.as_view(), name='work_type_delete'),
+
+    # Output Type Management URLs
+    path('output-types/', views.OutputTypeListView.as_view(), name='output_type_list'),
+    path('output-types/create/', views.OutputTypeCreateView.as_view(), name='output_type_create'),
+    path('output-types/<int:pk>/update/', views.OutputTypeUpdateView.as_view(), name='output_type_update'),
+    path('output-types/<int:pk>/delete/', views.OutputTypeDeleteView.as_view(), name='output_type_delete'),
 ]
