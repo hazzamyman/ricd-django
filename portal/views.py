@@ -74,7 +74,13 @@ class RICDDashboardView(TemplateView):
 
     def get_project_progress(self, project):
         """Calculate average progress percentage from most recent quarterly reports"""
-        latest_reports = QuarterlyReport.objects.filter(work__project=project).order_by('-submission_date')
+        from django.db.models import Exists, OuterRef
+        from ricd.models import Work, Address
+
+        # Updated query to use address relationship since Work no longer has direct project FK
+        latest_reports = QuarterlyReport.objects.filter(
+            work__address__project=project
+        ).order_by('-submission_date')
         if latest_reports.exists():
             avg_progress = latest_reports.aggregate(avg_progress=Avg('percentage_works_completed'))['avg_progress']
             return avg_progress or 0
@@ -86,13 +92,17 @@ class RICDDashboardView(TemplateView):
         total_spent = 0
 
         # Get total budget from funding schedule or commitments
-        if project.funding_schedule:
+        if project.funding_agreement and hasattr(project.funding_agreement, 'total_funding'):
+            total_budget = project.funding_agreement.total_funding or 0
+        elif hasattr(project.funding_schedule, 'total_funding'):
             total_budget = project.funding_schedule.total_funding or 0
         else:
             total_budget = project.commitments or 0
 
         # Sum total expenditures from quarterly reports
-        expenditures = QuarterlyReport.objects.filter(work__project=project).aggregate(
+        expenditures = QuarterlyReport.objects.filter(
+            work__address__project=project
+        ).aggregate(
             total_spent=Sum('total_expenditure_council')
         )['total_spent'] or 0
 
@@ -143,12 +153,12 @@ class CouncilDashboardView(TemplateView):
         enhanced_projects = []
         for project in user_projects.select_related('council', 'program', 'funding_schedule'):
             # Get latest monthly report through works relationship
-            latest_monthly = MonthlyTracker.objects.filter(work__project=project).order_by('-month').first()
+            latest_monthly = MonthlyTracker.objects.filter(work__address__project=project).order_by('-month').first()
             # Get latest quarterly report through works relationship
-            latest_quarterly = QuarterlyReport.objects.filter(work__project=project).order_by('-submission_date').first()
+            latest_quarterly = QuarterlyReport.objects.filter(work__address__project=project).order_by('-submission_date').first()
 
             # Calculate progress from quarterly reports through works relationship
-            quarterly_reports = QuarterlyReport.objects.filter(work__project=project).order_by('-submission_date')
+            quarterly_reports = QuarterlyReport.objects.filter(work__address__project=project).order_by('-submission_date')
             progress_percentage = 0
             if quarterly_reports.exists():
                 avg_progress = quarterly_reports.aggregate(avg_progress=Avg('percentage_works_completed'))['avg_progress']
@@ -180,7 +190,7 @@ class CouncilDashboardView(TemplateView):
         if project.state == 'under_construction':
             last_month = today.replace(day=1) - timezone.timedelta(days=1)
             latest_monthly = MonthlyTracker.objects.filter(
-                work__project=project,
+                work__address__project=project,
                 month__year=last_month.year,
                 month__month=last_month.month
             ).first()
@@ -188,7 +198,7 @@ class CouncilDashboardView(TemplateView):
                 overdue_reports.append('Monthly Report')
 
         # Check for quarterly reports
-        latest_quarterly = QuarterlyReport.objects.filter(work__project=project).order_by('-submission_date').first()
+        latest_quarterly = QuarterlyReport.objects.filter(work__address__project=project).order_by('-submission_date').first()
         if not latest_quarterly:
             overdue_reports.append('Quarterly Report')
         else:
@@ -961,18 +971,18 @@ class AnalyticsDashboardView(LoginRequiredMixin, TemplateView):
         for quarter_start, quarter_end in quarters:
             quarterly_spending = QuarterlyReport.objects.filter(
                 submission_date__range=[quarter_start, quarter_end],
-                work__project__in=projects
+                work__address__project__in=projects
             ).values(
-                'work__project__council__name',
+                'work__address__project__council__name',
                 'work__output_type_id',
                 'work__bedrooms'
             ).annotate(
                 total_spent=Sum('total_expenditure_council'),
-                project_count=Count('work__project', distinct=True)
+                project_count=Count('work__address__project', distinct=True)
             )
 
             for entry in quarterly_spending:
-                council_name = entry['work__project__council__name'] or 'Unknown Council'
+                council_name = entry['work__address__project__council__name'] or 'Unknown Council'
                 # Group by similar project types for better comparison
                 group_key = f"{council_name}_{entry.get('work__output_type_id', 'unknown')}_{entry.get('work__bedrooms', 'unknown')}"
 
@@ -981,7 +991,7 @@ class AnalyticsDashboardView(LoginRequiredMixin, TemplateView):
 
             # Also maintain council-level summary for backwards compatibility
             for entry in quarterly_spending:
-                council_name = entry['work__project__council__name'] or 'Unknown Council'
+                council_name = entry['work__address__project__council__name'] or 'Unknown Council'
                 council_spending[council_name].append(float(entry['total_spent'] or 0))
 
         # Enhanced anomaly detection with like-for-like comparison and sample size validation
@@ -1069,7 +1079,7 @@ class AnalyticsDashboardView(LoginRequiredMixin, TemplateView):
             if project.state == 'under_construction':
                 last_month = today.replace(day=1) - timezone.timedelta(days=1)
                 latest_monthly = MonthlyTracker.objects.filter(
-                    work__project=project,
+                    work__address__project=project,
                     month__year=last_month.year,
                     month__month=last_month.month
                 ).first()
@@ -1090,7 +1100,7 @@ class AnalyticsDashboardView(LoginRequiredMixin, TemplateView):
                     })
 
             # Check quarterly reports - required for all active projects
-            latest_quarterly = QuarterlyReport.objects.filter(work__project=project).order_by('-submission_date').first()
+            latest_quarterly = QuarterlyReport.objects.filter(work__address__project=project).order_by('-submission_date').first()
 
             if not latest_quarterly:
                 # Check how many months have passed since project started
