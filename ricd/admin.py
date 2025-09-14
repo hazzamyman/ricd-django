@@ -165,5 +165,6 @@ class CustomGroupAdmin(GroupAdmin):
 
 # Register User and Group with custom admin classes
 admin.site.unregister(User)  # Unregister the default User admin
+admin.site.unregister(Group)  # Unregister the default Group admin
 admin.site.register(User, CustomUserAdmin)
 admin.site.register(Group, CustomGroupAdmin)

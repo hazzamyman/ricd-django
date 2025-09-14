@@ -1,6 +1,10 @@
 <h1>Review {{ report_type|title }} Report for {{ report.council.name }}</h1>
 
-<p>Period: {{ report.period | date:"F Y" if report_type == 'monthly' else report.period | date:"q Q" }}</p>
+{% if report_type == 'monthly' %}
+<p>Period: {{ report.period | date:"F Y" }}</p>
+{% else %}
+<p>Period: {{ report.period | date:"q Q" }}</p>
+{% endif %}
 
 <p>Council Comments: {{ report.council_comments }}</p>
 
