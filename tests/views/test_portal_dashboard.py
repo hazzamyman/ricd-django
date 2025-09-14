@@ -2,6 +2,7 @@ import pytest
 from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
+from ricd.models import Council, Program, Project, WorkType, OutputType, Address, Work, QuarterlyReport
 
 
 class TestRICDDashboardView:

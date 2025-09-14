@@ -1,9 +1,10 @@
 from django import forms
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
 from ricd.models import (
     Project, FundingSchedule, QuarterlyReport, MonthlyTracker,
     Stage1Report, Stage2Report, Work, ReportAttachment, Council, Program, Address,
-    WorkType, OutputType, Officer
+    WorkType, OutputType, ConstructionMethod, Officer, ForwardRemoteProgramFundingAgreement,
+    InterimForwardProgramFundingAgreement, RemoteCapitalProgramFundingAgreement, FundingApproval, Defect, UserProfile
 )
 from django.utils import timezone
 
@@ -217,7 +218,7 @@ class QuarterlyReportForm(forms.ModelForm):
             'practical_completion_actual_date', 'adverse_matters',
             'council_contributions_details', 'council_contributions_amount',
             'other_contributions_details', 'other_contributions_amount',
-            'summary_notes'
+            'summary_notes', 'council_manager_decision', 'council_manager_comments'
         ]
 
     def __init__(self, user=None, *args, **kwargs):
@@ -905,6 +906,48 @@ class Stage2ReportForm(forms.ModelForm):
         })
     )
 
+    # Council Manager Approval Fields
+    council_manager_decision = forms.ChoiceField(
+        choices=[('pending', 'Pending'), ('approved', 'Approved'), ('rejected', 'Rejected')],
+        initial='pending',
+        required=False,
+        label="Council Manager Decision",
+        widget=forms.Select(attrs={
+            'class': 'form-select'
+        })
+    )
+
+    council_manager_comments = forms.CharField(
+        required=False,
+        label="Council Manager Comments",
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 4,
+            'placeholder': 'Council Manager approval comments and reasons for decision'
+        })
+    )
+
+    # Council Manager Approval Fields
+    council_manager_decision = forms.ChoiceField(
+        choices=[('pending', 'Pending'), ('approved', 'Approved'), ('rejected', 'Rejected')],
+        initial='pending',
+        required=False,
+        label="Council Manager Decision",
+        widget=forms.Select(attrs={
+            'class': 'form-select'
+        })
+    )
+
+    council_manager_comments = forms.CharField(
+        required=False,
+        label="Council Manager Comments",
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 4,
+            'placeholder': 'Council Manager approval comments and reasons for decision'
+        })
+    )
+
     # RICD Assessment Fields
     ricd_status = forms.ChoiceField(
         choices=[('pending', 'Pending'), ('accepted', 'Accepted'), ('rejected', 'Rejected'), ('needs_more_info', 'Needs More Information')],
@@ -1056,45 +1099,85 @@ class Stage2ReportForm(forms.ModelForm):
 class CouncilForm(forms.ModelForm):
     """Form for creating and editing Councils"""
 
+    default_principal_officer = forms.ModelChoiceField(
+        queryset=None,  # Will be filtered
+        required=False,
+        label="Default Principal Officer",
+        widget=forms.Select(attrs={
+            'class': 'form-select',
+        }),
+        help_text="This officer will be automatically assigned as Principal Officer for new projects in this council."
+    )
+
+    default_senior_officer = forms.ModelChoiceField(
+        queryset=None,  # Will be filtered
+        required=False,
+        label="Default Senior Officer",
+        widget=forms.Select(attrs={
+            'class': 'form-select',
+        }),
+        help_text="This officer will be automatically assigned as Senior Officer for new projects in this council."
+    )
+
     class Meta:
         model = Council
         fields = [
             'name', 'abn', 'default_suburb', 'default_postcode', 'default_state',
-            'federal_electorate', 'state_electorate', 'qhigi_region'
+            'federal_electorate', 'state_electorate', 'qhigi_region',
+            'default_principal_officer', 'default_senior_officer'
         ]
-        widgets = {
-            'name': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter council name'
-            }),
-            'abn': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': '11-digit ABN (optional)'
-            }),
-            'default_suburb': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Default suburb'
-            }),
-            'default_postcode': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Postcode (optional)'
-            }),
-            'default_state': forms.Select(attrs={
-                'class': 'form-select'
-            }, choices=[('QLD', 'Queensland')]),
-            'federal_electorate': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Federal electorate'
-            }),
-            'state_electorate': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'State electorate'
-            }),
-            'qhigi_region': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'QHiGi region'
-            }),
-        }
+    # Add __init__ method to filter officer querysets
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Filter officers based on council - show all officers with councils
+        # or filter by instance council for editing
+        all_council_officers = Officer.objects.filter(
+            is_active=True
+        ).select_related('user', 'user__profile')
+
+        # Separate querysets for principal and senior officers
+        self.fields['default_principal_officer'].queryset = all_council_officers.filter(is_principal=True)
+        self.fields['default_senior_officer'].queryset = all_council_officers.filter(is_senior=True)
+
+        # For existing councils, pre-select current defaults
+        if self.instance and self.instance.pk:
+            self.fields['default_principal_officer'].initial = self.instance.default_principal_officer
+            self.fields['default_senior_officer'].initial = self.instance.default_senior_officer
+
+    widgets = {
+        'name': forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter council name'
+        }),
+        'abn': forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': '11-digit ABN (optional)'
+        }),
+        'default_suburb': forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Default suburb'
+        }),
+        'default_postcode': forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Postcode (optional)'
+        }),
+        'default_state': forms.Select(attrs={
+            'class': 'form-select'
+        }, choices=[('QLD', 'Queensland')]),
+        'federal_electorate': forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Federal electorate'
+        }),
+        'state_electorate': forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'State electorate'
+        }),
+        'qhigi_region': forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'QHiGi region'
+        }),
+    }
 
 
 # Program Management Forms
@@ -1138,25 +1221,73 @@ class WorkForm(forms.ModelForm):
             'class': 'form-select'
         })
     )
+    work_type_id = forms.ModelChoiceField(
+        queryset=WorkType.objects.filter(is_active=True),
+        required=True,
+        label="Work Type",
+        widget=forms.Select(attrs={
+            'class': 'form-select'
+        })
+    )
+    output_type_id = forms.ModelChoiceField(
+        queryset=OutputType.objects.filter(is_active=True),
+        required=True,
+        label="Output Type",
+        widget=forms.Select(attrs={
+            'class': 'form-select'
+        })
+    )
+
+    def __init__(self, *args, **kwargs):
+        project = kwargs.pop('project', None)
+        super().__init__(*args, **kwargs)
+        if project:
+            self.fields['address'].queryset = Address.objects.filter(project=project)
+        else:
+            self.fields['address'].queryset = Address.objects.all()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        work_type_id = cleaned_data.get('work_type_id')
+        output_type_id = cleaned_data.get('output_type_id')
+
+        if work_type_id and output_type_id:
+            # Check if the selected output type is allowed for the selected work type
+            if not work_type_id.allowed_output_types.filter(id=output_type_id.id).exists():
+                raise forms.ValidationError(
+                    f"Output type '{output_type_id.name}' is not allowed for work type '{work_type_id.name}'."
+                )
+
+        return cleaned_data
+
+    def clean(self):
+        cleaned_data = super().clean()
+        work_type_id = cleaned_data.get('work_type_id')
+        output_type_id = cleaned_data.get('output_type_id')
+
+        if work_type_id and output_type_id:
+            # Check if the selected output type is allowed for the selected work type
+            if not work_type_id.allowed_output_types.filter(id=output_type_id.id).exists():
+                raise forms.ValidationError(
+                    f"Output type '{output_type_id.name}' is not allowed for work type '{work_type_id.name}'."
+                )
+
+        return cleaned_data
 
     class Meta:
         model = Work
         fields = [
             'address', 'work_type_id', 'output_type_id', 'output_quantity',
-            'bedrooms', 'estimated_cost', 'actual_cost', 'start_date', 'end_date'
+            'bedrooms', 'estimated_cost', 'actual_cost', 'start_date', 'end_date',
+            # Construction details
+            'land_status', 'floor_method', 'frame_method', 'external_wall_method',
+            'roof_method', 'car_accommodation', 'additional_facilities', 'extension_high_low',
+            'bathrooms', 'kitchens', 'dwellings_count', 'construction_method'
         ]
-        # Removed construction details: floor_method, frame_method, external_wall_method,
-        # roof_method, car_accommodation, additional_facilities, bathrooms, kitchens, dwellings_count
         widgets = {
             'address_line': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Full address'
-            }),
-            'work_type_id': forms.Select(attrs={
-                'class': 'form-select'
-            }),
-            'output_type_id': forms.Select(attrs={
-                'class': 'form-select'
             }),
             'output_quantity': forms.NumberInput(attrs={
                 'class': 'form-control',
@@ -1210,6 +1341,9 @@ class WorkForm(forms.ModelForm):
                 'class': 'form-control',
                 'step': '0.01'
             }),
+            'construction_method': forms.Select(attrs={
+                'class': 'form-control'
+            }),
             'start_date': forms.DateInput(attrs={
                 'class': 'form-control',
                 'type': 'date',
@@ -1225,11 +1359,63 @@ class WorkForm(forms.ModelForm):
 class AddressForm(forms.ModelForm):
     """Form for address creation/updating with work details"""
 
+    work_type_id = forms.ModelChoiceField(
+        queryset=WorkType.objects.filter(is_active=True),
+        required=True,
+        label="Work Type",
+        widget=forms.Select(attrs={
+            'class': 'form-select'
+        })
+    )
+    output_type_id = forms.ModelChoiceField(
+        queryset=OutputType.objects.filter(is_active=True),
+        required=True,
+        label="Output Type",
+        widget=forms.Select(attrs={
+            'class': 'form-select'
+        })
+    )
+
+    def __init__(self, *args, **kwargs):
+        self.project = kwargs.pop('project', None)
+        super().__init__(*args, **kwargs)
+
+    def clean_budget(self):
+        """Validate budget against project total funding"""
+        budget = self.cleaned_data.get('budget')
+        if not budget or not self.project:
+            return budget
+
+        # Calculate current total budget of all addresses in the project (excluding current instance if updating)
+        current_addresses_budget = sum(
+            addr.budget or 0
+            for addr in self.project.addresses.all()
+            if addr.pk != getattr(self.instance, 'pk', None)  # Exclude current instance if updating
+        )
+
+        total_budget_with_new = current_addresses_budget + budget
+
+        # Get project total funding (funding_schedule_amount + contingency_amount)
+        project_total_funding = (self.project.funding_schedule_amount or 0) + (self.project.contingency_amount or 0)
+
+        # Get funding from funding agreement if available
+        if self.project.funding_agreement:
+            agreement_funding = self.project.funding_agreement.funding_amount + (self.project.funding_agreement.contingency_amount or 0)
+            project_total_funding = max(project_total_funding, agreement_funding)
+
+        if project_total_funding > 0 and total_budget_with_new > project_total_funding:
+            raise forms.ValidationError(
+                f'The total budget of all addresses (${total_budget_with_new:,.2f}) exceeds the project\'s total funding (${project_total_funding:,.2f}). '
+                f'Please adjust the budget or contact your project manager.'
+            )
+
+        return budget
+
     class Meta:
         model = Address
         fields = [
             'street', 'suburb', 'postcode', 'state', 'lot_number', 'plan_number', 'title_reference',
-            'work_type_id', 'output_type_id', 'bedrooms', 'output_quantity', 'budget'
+            'work_type_id', 'output_type_id', 'bedrooms', 'output_quantity', 'budget', 'construction_method'
         ]
         widgets = {
             'street': forms.TextInput(attrs={
@@ -1260,12 +1446,6 @@ class AddressForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'Title reference (e.g., 123456)'
             }),
-            'work_type_id': forms.Select(attrs={
-                'class': 'form-select'
-            }),
-            'output_type_id': forms.Select(attrs={
-                'class': 'form-select'
-            }),
             'bedrooms': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Number of bedrooms'
@@ -1280,6 +1460,9 @@ class AddressForm(forms.ModelForm):
                 'step': '0.01',
                 'placeholder': 'Budget amount'
             }),
+            'construction_method': forms.Select(attrs={
+                'class': 'form-control'
+            }),
         }
 
 
@@ -1290,8 +1473,8 @@ class ProjectForm(forms.ModelForm):
     class Meta:
         model = Project
         fields = [
-            'council', 'program', 'funding_schedule', 'name', 'description',
-            'funding_schedule_amount', 'contingency_amount', 'contingency_percentage',
+            'council', 'program', 'funding_schedule', 'forward_rpf_agreement', 'interim_fp_agreement',
+            'name', 'description', 'funding_schedule_amount', 'contingency_amount', 'contingency_percentage',
             'principal_officer', 'senior_officer', 'state', 'start_date',
             'stage1_target', 'stage1_sunset', 'stage2_target', 'stage2_sunset',
             'sap_project', 'cli_no', 'sap_master_project',
@@ -1305,6 +1488,8 @@ class ProjectForm(forms.ModelForm):
             'council': forms.Select(attrs={'class': 'form-select'}),
             'program': forms.Select(attrs={'class': 'form-select'}),
             'funding_schedule': forms.Select(attrs={'class': 'form-select'}),
+            'forward_rpf_agreement': forms.Select(attrs={'class': 'form-select'}),
+            'interim_fp_agreement': forms.Select(attrs={'class': 'form-select'}),
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Project name'
@@ -1421,14 +1606,23 @@ class ProjectForm(forms.ModelForm):
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
 
+        import logging
+        logger = logging.getLogger(__name__)
+
         # Filter queryset based on user council if not RICD user
         if user:
             user_council = getattr(user, 'council', None)
+            logger.info(f"DEBUG: ProjectForm.__init__ - User: {user.username}, User Council: {user_council}, Is Staff: {user.is_staff}, Groups: {[g.name for g in user.groups.all()]}")
+
             if user_council:
+                logger.info(f"DEBUG: ProjectForm.__init__ - Restricting to council: {user_council.name}")
                 self.fields['council'].queryset = Council.objects.filter(id=user_council.id)
                 self.fields['council'].initial = user_council
-                # Only show funding schedules for user's council
+                # Only show funding schedules for user's council (includes remote capital programs)
                 self.fields['funding_schedule'].queryset = FundingSchedule.objects.filter(council=user_council)
+                # Filter agreements for user's council
+                self.fields['forward_rpf_agreement'].queryset = ForwardRemoteProgramFundingAgreement.objects.filter(council=user_council)
+                self.fields['interim_fp_agreement'].queryset = InterimForwardProgramFundingAgreement.objects.filter(council=user_council)
                 # Filter officers to those assigned to user's council
                 self.fields['principal_officer'].queryset = Officer.objects.filter(
                     user__profile__council=user_council,
@@ -1442,9 +1636,26 @@ class ProjectForm(forms.ModelForm):
                 )
                 # Filter projects to user's council
                 self.fields['council'].widget.attrs['disabled'] = 'disabled'
+
+                # Restrict state choices for council users - they can only select basic states
+                council_allowed_states = [
+                    ('prospective', 'Prospective'),
+                    ('programmed', 'Programmed'),
+                    ('funded', 'Funded'),
+                    ('commenced', 'Commenced'),
+                    ('under_construction', 'Under Construction'),
+                    ('completed', 'Completed'),
+                ]
+                self.fields['state'].choices = council_allowed_states
+                logger.info("DEBUG: ProjectForm.__init__ - Restricted state choices for council user")
+
             else:
+                logger.info("DEBUG: ProjectForm.__init__ - RICD user, no restrictions applied")
                 self.fields['council'].queryset = Council.objects.all()
                 self.fields['funding_schedule'].queryset = FundingSchedule.objects.all()
+                # RICD users can see all agreements
+                self.fields['forward_rpf_agreement'].queryset = ForwardRemoteProgramFundingAgreement.objects.all()
+                self.fields['interim_fp_agreement'].queryset = InterimForwardProgramFundingAgreement.objects.all()
                 # RICD user can see all officers
                 self.fields['principal_officer'].queryset = Officer.objects.filter(
                     is_principal=True,
@@ -1528,3 +1739,593 @@ class OutputTypeForm(forms.ModelForm):
                 'class': 'form-check-input'
             }),
         }
+
+
+class ConstructionMethodForm(forms.ModelForm):
+    """Form for creating and editing Construction Methods"""
+
+    class Meta:
+        model = ConstructionMethod
+        fields = ['code', 'name', 'description', 'is_active']
+        widgets = {
+            'code': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter construction method code'
+            }),
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter construction method name'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Description (optional)'
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+        }
+
+
+# Agreement Forms
+class ForwardRemoteProgramFundingAgreementForm(forms.ModelForm):
+    """Form for creating and editing Forward Remote Program Funding Agreements"""
+
+    class Meta:
+        model = ForwardRemoteProgramFundingAgreement
+        fields = ['council', 'date_sent_to_council', 'date_council_signed', 'date_delegate_signed']
+        widgets = {
+            'council': forms.Select(attrs={
+                'class': 'form-select',
+                'disabled': 'disabled'  # Usually determined by existing council
+            }),
+            'date_sent_to_council': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+            'date_council_signed': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+            'date_delegate_signed': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+        }
+
+
+class InterimForwardProgramFundingAgreementForm(forms.ModelForm):
+    """Form for creating and editing Interim Forward Remote Program Funding Agreements"""
+
+    class Meta:
+        model = InterimForwardProgramFundingAgreement
+        fields = ['council', 'date_sent_to_council', 'date_council_signed', 'date_delegate_signed']
+        widgets = {
+            'council': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'date_sent_to_council': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+            'date_council_signed': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+            'date_delegate_signed': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+        }
+
+
+class RemoteCapitalProgramFundingAgreementForm(forms.ModelForm):
+    """Form for creating and editing Remote Capital Program Funding Agreements"""
+
+    class Meta:
+        model = RemoteCapitalProgramFundingAgreement
+        fields = ['council', 'date_sent_to_council', 'date_council_signed', 'date_delegate_signed', 'notes']
+        widgets = {
+            'council': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'date_sent_to_council': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+            'date_council_signed': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+            'date_delegate_signed': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+            'notes': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Additional notes about the agreement (optional)'
+            }),
+        }
+
+
+# User and Officer Management Forms
+class UserCreationForm(forms.ModelForm):
+    """Form for creating new users with group assignment"""
+
+    password1 = forms.CharField(
+        label='Password',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter password'
+        })
+    )
+    password2 = forms.CharField(
+        label='Password confirmation',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Repeat password'
+        })
+    )
+    groups = forms.ModelMultipleChoiceField(
+        queryset=Group.objects.all(),
+        required=False,
+        widget=forms.SelectMultiple(attrs={
+            'class': 'form-select'
+        })
+    )
+
+    class Meta:
+        model = User
+        fields = ['username', 'first_name', 'last_name', 'email', 'is_active', 'is_staff']
+        widgets = {
+            'username': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Username'
+            }),
+            'first_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'First name'
+            }),
+            'last_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Last name'
+            }),
+            'email': forms.EmailInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Email address'
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'is_staff': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+        }
+
+    def clean_password2(self):
+        password1 = self.cleaned_data.get("password1")
+        password2 = self.cleaned_data.get("password2")
+        if password1 and password2 and password1 != password2:
+            raise forms.ValidationError("Passwords don't match")
+        return password2
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.set_password(self.cleaned_data["password1"])
+        if commit:
+            user.save()
+            if self.cleaned_data.get('groups'):
+                user.groups.set(self.cleaned_data['groups'])
+        return user
+
+
+class OfficerForm(forms.ModelForm):
+    """Form for creating and editing Officers"""
+
+    create_user = forms.BooleanField(
+        required=False,
+        label="Create new user account",
+        initial=True,
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input'
+        })
+    )
+
+    class Meta:
+        model = Officer
+        fields = ['user', 'position', 'is_principal', 'is_senior', 'is_active']
+        widgets = {
+            'user': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'position': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Official position title'
+            }),
+            'is_principal': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'is_senior': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+        }
+
+
+class OfficerAssignmentForm(forms.ModelForm):
+    """Form for assigning officers to projects"""
+
+    class Meta:
+        model = Project
+        fields = ['principal_officer', 'senior_officer']
+        widgets = {
+            'principal_officer': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'senior_officer': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+        }
+
+
+class CustomExcelExportForm(forms.Form):
+    """Form for selecting fields to include in Excel export"""
+
+    # Available fields with checkboxes
+    fields = forms.MultipleChoiceField(
+        choices=[
+            ('State', 'State'),
+            ('Project', 'Project Name'),
+            ('Council', 'Council'),
+            ('Program', 'Program'),
+            ('Street', 'Street Address'),
+            ('Suburb', 'Suburb'),
+            ('Postcode', 'Postcode'),
+            ('Work Type', 'Work Type'),
+            ('Output Type', 'Output Type'),
+            ('Bedrooms', 'Bedrooms'),
+            ('Bathrooms', 'Bathrooms'),
+            ('Kitchens', 'Kitchens'),
+            ('Dwellings Count', 'Dwellings Count'),
+            ('Output Quantity', 'Output Quantity'),
+            ('Estimated Cost', 'Estimated Cost'),
+            ('Actual Cost', 'Actual Cost'),
+            ('Start Date', 'Start Date'),
+            ('End Date', 'End Date'),
+            ('Land Status', 'Land Status'),
+            ('Floor Method', 'Floor Method'),
+            ('Frame Method', 'Frame Method'),
+            ('External Wall Method', 'External Wall Method'),
+            ('Roof Method', 'Roof Method'),
+            ('Car Accommodation', 'Car Accommodation'),
+            ('Additional Facilities', 'Additional Facilities'),
+            ('Extension High Low', 'Extension High/Low'),
+            ('Lot Number', 'Lot Number'),
+            ('Plan Number', 'Plan Number'),
+            ('Title Reference', 'Title Reference'),
+        ],
+        initial=[
+            'State', 'Project', 'Council', 'Program', 'Street',
+            'Suburb', 'Postcode', 'Work Type', 'Output Type',
+            'Bedrooms', 'Output Quantity', 'Estimated Cost', 'Actual Cost'
+        ],
+        widget=forms.CheckboxSelectMultiple(attrs={
+            'class': 'form-check-input'
+        }),
+        label="Select Fields to Include",
+        required=True
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set default checked items
+        if not self.is_bound:
+            self.fields['fields'].initial = [
+                'State', 'Project', 'Council', 'Program', 'Street',
+                'Suburb', 'Postcode', 'Work Type', 'Output Type',
+                'Bedrooms', 'Output Quantity', 'Estimated Cost', 'Actual Cost'
+            ]
+
+
+class FundingApprovalForm(forms.ModelForm):
+    """Form for creating and updating Funding Approvals with filtered project choices"""
+    projects = forms.ModelMultipleChoiceField(
+        queryset=None,  # Will be filtered to active projects only
+        widget=forms.SelectMultiple(attrs={
+            'class': 'form-select',
+            'style': 'width: 100%;'
+        }),
+        help_text="Only projects in 'prospective' or 'programmed' status are available for funding approval."
+    )
+
+    class Meta:
+        model = FundingApproval
+        fields = ['mincor_reference', 'amount', 'approved_by_position', 'approved_date', 'projects']
+        widgets = {
+            'mincor_reference': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'MINCOR reference number'
+            }),
+            'amount': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'placeholder': 'Approval amount'
+            }),
+            'approved_by_position': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Position that approved this funding'
+            }),
+            'approved_date': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        initial_project = kwargs.pop('initial_project', None)
+        super().__init__(*args, **kwargs)
+        # Filter projects to only show prospective or programmed projects
+        self.fields['projects'].queryset = Project.objects.filter(
+            state__in=['prospective', 'programmed']
+        ).select_related('council').order_by('name')
+
+        # If initial project provided, pre-select it
+        if initial_project and initial_project.state in ['prospective', 'programmed']:
+            self.fields['projects'].initial = [initial_project]
+
+
+# Council User Creation Form
+class CouncilUserCreationForm(forms.ModelForm):
+    """Form for creating new council users with role restrictions"""
+
+    password1 = forms.CharField(
+        label='Password',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter password'
+        })
+    )
+    password2 = forms.CharField(
+        label='Password confirmation',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Repeat password'
+        })
+    )
+
+    # Council selection for RICD users
+    council = forms.ModelChoiceField(
+        queryset=None,  # Will be set in __init__ based on user permissions
+        required=False,
+        label="Council",
+        widget=forms.Select(attrs={
+            'class': 'form-select'
+        }),
+        help_text="Select the council this user belongs to"
+    )
+
+    # Role choices restricted based on current user
+    ROLE_CHOICES = [
+        ('council_user', 'Council User'),
+        ('council_manager', 'Council Manager'),
+    ]
+
+    role = forms.ChoiceField(
+        choices=ROLE_CHOICES,
+        label="User Role",
+        widget=forms.Select(attrs={
+            'class': 'form-select'
+        }),
+        help_text="Select the role for this council user"
+    )
+
+    class Meta:
+        model = User
+        fields = ['username', 'first_name', 'last_name', 'email', 'is_active']
+        widgets = {
+            'username': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Username'
+            }),
+            'first_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'First name'
+            }),
+            'last_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Last name'
+            }),
+            'email': forms.EmailInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Email address'
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+        }
+
+    def __init__(self, council=None, user=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.council = council
+
+        # Set council field behavior based on user permissions
+        if user and user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            # RICD users can select council
+            self.fields['council'].queryset = Council.objects.all().order_by('name')
+            self.fields['council'].required = True
+            if council:
+                # If council was passed, pre-select it
+                self.fields['council'].initial = council
+        else:
+            # Council managers can't select council - it's fixed to their own
+            self.fields['council'].widget = forms.HiddenInput()
+            self.fields['council'].queryset = Council.objects.none()
+            if council:
+                self.fields['council'].initial = council
+
+        # Restrict role choices based on current user permissions
+        if user:
+            user_council = getattr(user, 'council', None)
+            if user_council and not user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+                # Council Manager can only create Council User
+                self.fields['role'].choices = [('council_user', 'Council User')]
+                self.fields['role'].help_text = "As a Council Manager, you can only create Council User accounts."
+            elif user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+                # RICD users can create both roles
+                self.fields['role'].choices = self.ROLE_CHOICES
+                self.fields['role'].help_text = "Select the appropriate role for this council user."
+
+    def clean_password2(self):
+        password1 = self.cleaned_data.get("password1")
+        password2 = self.cleaned_data.get("password2")
+        if password1 and password2 and password1 != password2:
+            raise forms.ValidationError("Passwords don't match")
+        return password2
+
+    def clean_role(self):
+        """Ensure role selection is valid for current user's permissions"""
+        role = self.cleaned_data.get('role')
+        if not self.fields['role'].choices:
+            raise forms.ValidationError("You don't have permission to create users with this role.")
+        return role
+
+    def save(self, commit=True):
+        import logging
+        from django.db import transaction
+        logger = logging.getLogger(__name__)
+
+        user = super().save(commit=False)
+        user.set_password(self.cleaned_data["password1"])
+
+        # Set user profile council - use form data if available, otherwise fall back to passed parameter
+        council = self.cleaned_data.get('council') or self.council
+
+        logger.info(f"DEBUG: CouncilUserCreationForm.save - Username: {user.username}, Council: {council}, Commit: {commit}")
+
+        if commit:
+            try:
+                # Use atomic transaction to ensure all operations succeed or fail together
+                with transaction.atomic():
+                    # Save the user first
+                    user.save()
+                    logger.info(f"DEBUG: User saved successfully - ID: {user.pk}")
+
+                    # Ensure UserProfile exists and is linked to council
+                    profile, created = UserProfile.objects.get_or_create(
+                        user=user,
+                        defaults={'council': council}
+                    )
+
+                    if not created and profile.council != council:
+                        # Update existing profile with new council
+                        profile.council = council
+                        profile.save()
+                        logger.info(f"DEBUG: UserProfile updated - Council: {council}")
+                    elif created:
+                        logger.info(f"DEBUG: UserProfile created - Council: {council}")
+
+                    # Clear existing groups to prevent duplicates
+                    user.groups.clear()
+
+                    # Assign groups based on role
+                    role = self.cleaned_data.get('role')
+                    if role == 'council_user':
+                        group, _ = Group.objects.get_or_create(name='Council User')
+                        user.groups.add(group)
+                        logger.info(f"DEBUG: Added Council User group")
+                    elif role == 'council_manager':
+                        group, _ = Group.objects.get_or_create(name='Council Manager')
+                        user.groups.add(group)
+                        logger.info(f"DEBUG: Added Council Manager group")
+
+                    # Force refresh user groups from database
+                    user.groups.through.objects.filter(user=user).exists()
+
+                    logger.info(f"DEBUG: User creation completed successfully - Final groups: {[g.name for g in user.groups.all()]}")
+
+            except Exception as e:
+                logger.error(f"DEBUG: Error during user creation: {str(e)}")
+                # Re-raise the exception to ensure transaction rollback
+                raise
+
+        return user
+
+
+# Defect Management Forms
+class DefectForm(forms.ModelForm):
+    """Form for creating and editing Defects"""
+
+    work = forms.ModelChoiceField(
+        queryset=None,  # Will be filtered based on user permissions
+        required=True,
+        label="Work Item",
+        widget=forms.Select(attrs={
+            'class': 'form-select'
+        })
+    )
+
+    identified_date = forms.DateField(
+        initial=timezone.now().date(),
+        label="Date Identified",
+        widget=forms.DateInput(attrs={
+            'class': 'form-control',
+            'type': 'date'
+        })
+    )
+
+    description = forms.CharField(
+        required=True,
+        label="Defect Description",
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 4,
+            'placeholder': 'Describe the defect that was identified'
+        })
+    )
+
+    rectified_date = forms.DateField(
+        required=False,
+        label="Date Rectified",
+        widget=forms.DateInput(attrs={
+            'class': 'form-control',
+            'type': 'date',
+            'placeholder': 'Leave blank if not yet rectified'
+        })
+    )
+
+    class Meta:
+        model = Defect
+        fields = ['work', 'description', 'identified_date', 'rectified_date']
+        widgets = {
+            # Work queryset is handled in __init__
+        }
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+
+        # Filter work queryset based on user permissions
+        if user:
+            user_council = getattr(user, 'council', None)
+            if user_council:
+                # Council user - only show their works
+                self.fields['work'].queryset = Work.objects.filter(
+                    address__project__council=user_council
+                ).select_related('address__project', 'work_type_id', 'output_type_id')
+            else:
+                # RICD user - can see all works
+                self.fields['work'].queryset = Work.objects.select_related(
+                    'address__project', 'work_type_id', 'output_type_id'
+                )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        work = cleaned_data.get('work')
+
+        if work and not self.fields['work'].queryset.filter(pk=work.pk).exists():
+            raise forms.ValidationError("You don't have permission to add defects to this work.")
+
+        return cleaned_data

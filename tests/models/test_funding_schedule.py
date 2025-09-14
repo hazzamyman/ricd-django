@@ -135,15 +135,15 @@ class TestFundingScheduleModel:
         assert schedule.executed_date is None
 
         # Test with one signature date
-        schedule.council_signed_date = timezone.now().date()
+        schedule.date_council_signed = timezone.now().date()
         schedule.save()
-        assert schedule.executed_date == schedule.council_signed_date
+        assert schedule.executed_date == schedule.date_council_signed
 
         # Test with both signature dates
-        schedule.delegate_signed_date = schedule.council_signed_date + timedelta(days=2)
+        schedule.date_delegate_signed = schedule.date_council_signed + timedelta(days=2)
         schedule.save()
         # Should pick the later date
-        assert schedule.executed_date == schedule.delegate_signed_date
+        assert schedule.executed_date == schedule.date_delegate_signed
 
     @pytest.mark.django_db
     def test_funding_schedule_agreement_types(self):

@@ -1,3 +1,11 @@
+import os
+import django
+from django.conf import settings
+
+# Configure Django before importing models
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'testproj.settings')
+django.setup()
+
 import pytest
 from django.test import Client
 
@@ -57,7 +65,7 @@ def make_project_factory():
         name = factory.Sequence(lambda n: f"Test Project {n}")
         council = factory.SubFactory(CouncilFactory)
         program = factory.SubFactory(ProgramFactory)
-        start_date = factory.Faker('date_past')
+        start_date = factory.Faker('date')
     return ProjectFactory
 
 def make_address_factory():

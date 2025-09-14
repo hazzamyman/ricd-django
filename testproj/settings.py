@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-c&!w-gub)tk4@+%wl6+hjzhvpwl803_m-=o&6jry^5-1u!oujo
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["192.168.5.202", "localhost", "127.0.0.1"]
+ALLOWED_HOSTS = ["192.168.5.202", "localhost", "127.0.0.1", "ricd.nolanholmes.com", "testserver"]
 
 
 # Application definition
@@ -117,9 +117,43 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+#STATIC_URL = 'static/'
+# Make Django aware it runs under /ricd
+#FORCE_SCRIPT_NAME = '/ricd'
+USE_X_FORWARDED_HOST = True
+
+# Static and media URLs
+STATIC_URL = '/static/'
+MEDIA_URL = '/media/'
+
+# Static and media roots (adjust paths to match your setup)
+STATIC_ROOT = '/opt/ricd/static/'
+MEDIA_ROOT = '/opt/ricd/media/'
+
+# Authentication settings
+LOGIN_REDIRECT_URL = '/accounts/login/'
+
+# Logging configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'portal.views': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+        'portal.forms': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+    },
+}
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

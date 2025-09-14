@@ -2,6 +2,7 @@ import pytest
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from django.utils import timezone
+from ricd.models import Council, Program, Project
 
 
 class TestProjectDateDefaults:

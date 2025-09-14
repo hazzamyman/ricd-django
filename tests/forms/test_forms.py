@@ -8,6 +8,7 @@ from portal.forms import QuarterlyReportForm, CouncilForm, ProgramForm
 class TestCouncilForm:
     """Test Council form functionality"""
 
+    @pytest.mark.django_db
     def test_council_form_creation(self):
         """Test basic council form creation"""
         form_data = {
@@ -44,6 +45,7 @@ class TestCouncilForm:
 class TestProgramForm:
     """Test Program form functionality"""
 
+    @pytest.mark.django_db
     def test_program_form_creation(self):
         """Test basic program form creation"""
         form_data = {
@@ -60,6 +62,7 @@ class TestProgramForm:
         assert program.name == 'Test Program'
         assert program.budget == Decimal('1000000.00')
 
+    @pytest.mark.django_db
     def test_program_form_optional_fields(self):
         """Test program form with optional fields blank"""
         form_data = {

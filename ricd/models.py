@@ -63,6 +63,14 @@ class WorkType(models.Model):
     description = models.TextField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
 
+    # Many-to-many relationship with OutputType to define allowed output types
+    allowed_output_types = models.ManyToManyField(
+        'OutputType',
+        blank=True,
+        related_name='work_types',
+        help_text="Output types that are allowed for this work type"
+    )
+
     def __str__(self):
         return self.name
 
@@ -70,8 +78,12 @@ class WorkType(models.Model):
         """Count how many addresses/works use this work type"""
         return (
             self.address_set.filter(project__isnull=False).count() +
-            self.work_set.filter(project__isnull=False).count()
+            self.work_set.filter(address__project__isnull=False).count()
         )
+
+    def get_allowed_output_types(self):
+        """Get queryset of allowed output types for this work type"""
+        return self.allowed_output_types.filter(is_active=True)
 
     class Meta:
         ordering = ['name']
@@ -91,7 +103,28 @@ class OutputType(models.Model):
         """Count how many addresses/works use this output type"""
         return (
             self.address_set.filter(project__isnull=False).count() +
-            self.work_set.filter(project__isnull=False).count()
+            self.work_set.filter(address__project__isnull=False).count()
+        )
+
+    class Meta:
+        ordering = ['name']
+
+
+class ConstructionMethod(models.Model):
+    """Manage construction methods independently from code choices"""
+    code = models.CharField(max_length=50, unique=True, help_text="Internal code for construction method")
+    name = models.CharField(max_length=255, help_text="Display name for construction method")
+    description = models.TextField(blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.name
+
+    def get_usage_count(self):
+        """Count how many addresses/works use this construction method"""
+        return (
+            self.address_set.filter(project__isnull=False).count() +
+            self.work_set.filter(address__project__isnull=False).count()
         )
 
     class Meta:
@@ -144,14 +177,24 @@ class FundingSchedule(models.Model):
 
     # Additional agreement fields for different agreement types
     agreement_type = models.CharField(
-        max_length=20,
+        max_length=50,
         choices=[
             ('funding_schedule', 'Funding Schedule'),
             ('frpf_agreement', 'Forward Remote Program Funding Agreement'),
             ('ifrpf_agreement', 'Interim Forward Remote Program Funding Agreement'),
+            ('rcpf_agreement', 'Remote Capital Program Funding Agreement'),
         ],
         default='funding_schedule',
         help_text="Type of funding agreement"
+    )
+
+    remote_capital_program = models.ForeignKey(
+        'RemoteCapitalProgramFundingAgreement',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="scheduled_funding",
+        help_text="Remote Capital Program Funding Agreement this schedule belongs to"
     )
 
     # Signature dates for agreements
@@ -209,6 +252,9 @@ class Project(models.Model):
         ("commenced", "Commenced"),
         ("under_construction", "Under Construction"),
         ("completed", "Completed"),
+        ("cancelled", "Cancelled"),
+        ("terminated", "Terminated"),
+        ("varied", "Varied"),
     ]
 
     council = models.ForeignKey(Council, on_delete=models.CASCADE, related_name="projects")
@@ -270,11 +316,31 @@ class Project(models.Model):
     estimated_completion = models.DateField(blank=True, null=True)
     actual_completion = models.DateField(blank=True, null=True)
 
+    # Project termination/cancellation fields
+    termination_date = models.DateField(blank=True, null=True, help_text="Date project was terminated or cancelled")
+    termination_reason = models.TextField(blank=True, null=True, help_text="Reason for termination or cancellation")
+
+    # Variation fields
+    variation_description = models.TextField(blank=True, null=True, help_text="Description of what was varied")
+    replacement_funding_schedule = models.ForeignKey(
+        FundingSchedule,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Replacement or additional funding schedule",
+        related_name='project_replacements'
+    )
+
+    # Analytics: Track outputs cancelled/varied
+    cancelled_outputs = models.PositiveIntegerField(default=0, help_text="Number of outputs cancelled")
+    varied_outputs = models.PositiveIntegerField(default=0, help_text="Number of outputs varied")
+
     # Indexes for performance
     class Meta:
         indexes = [
             models.Index(fields=['sap_project']),
             models.Index(fields=['contractor']),
+            models.Index(fields=['state']),  # For status filtering
         ]
 
     @property
@@ -291,6 +357,11 @@ class Project(models.Model):
     @property
     def total_funding(self):
         return (self.funding_schedule_amount or 0) + (self.contingency_amount or 0)
+
+    @property
+    def works(self):
+        """Get all works for this project's addresses"""
+        return Work.objects.filter(address__project=self)
 
     @property
     def calculated_commitments(self):
@@ -422,6 +493,15 @@ class Address(models.Model):
     plan_number = models.CharField(max_length=50, blank=True, null=True, help_text="e.g., RP3435")
     title_reference = models.CharField(max_length=50, blank=True, null=True, help_text="e.g., 5456565")
 
+    # Construction method field for cost analysis
+    construction_method = models.ForeignKey(
+        'ConstructionMethod',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Construction method used for this address"
+    )
+
     class Meta:
         ordering = ['street']
 
@@ -496,6 +576,15 @@ class Work(models.Model):
     actual_cost = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True)
     start_date = models.DateField(blank=True, null=True)
     end_date = models.DateField(blank=True, null=True)
+
+    # Construction method field for cost analysis
+    construction_method = models.ForeignKey(
+        'ConstructionMethod',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Construction method used for this work"
+    )
 
     @property
     def total_dwellings(self):
@@ -728,6 +817,21 @@ class QuarterlyReport(models.Model):
     staff_assessment_notes = models.TextField(blank=True, null=True, help_text="RICD Staff assessment notes")
     staff_assessed_date = models.DateField(blank=True, null=True, help_text="Date when RICD Staff assessed")
 
+    # Council Manager Approval
+    COUNCIL_MANAGER_DECISIONS = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+    council_manager_decision = models.CharField(
+        max_length=10,
+        choices=COUNCIL_MANAGER_DECISIONS,
+        default='pending',
+        help_text="Council Manager approval decision"
+    )
+    council_manager_comments = models.TextField(blank=True, null=True, help_text="Council Manager comments")
+    council_manager_decision_date = models.DateField(blank=True, null=True, help_text="Date of Council Manager decision")
+
     # RICD Manager Decision
     MANAGER_DECISIONS = [
         ('pending', 'Pending'),
@@ -751,10 +855,19 @@ class QuarterlyReport(models.Model):
 
     def save(self, *args, **kwargs):
         """Auto-generate quarter field"""
+
         if not self.quarter:
-            date = self.submission_date or timezone.now()
-            year = date.year
-            month = date.month
+            date_obj = self.submission_date or timezone.now()
+            # Ensure we have a date object
+            if isinstance(date_obj, str):
+                from datetime import datetime
+                date_obj = datetime.fromisoformat(date_obj).date()
+            elif hasattr(date_obj, 'date'):
+                # If it's a datetime, get the date part
+                date_obj = date_obj.date()
+
+            year = date_obj.year
+            month = date_obj.month
             if 1 <= month <= 3:
                 self.quarter = f"Jan-Mar {year}"
             elif 4 <= month <= 6:
@@ -782,6 +895,27 @@ class QuarterlyReport(models.Model):
         """Calculate unspent funding for this work"""
         if self.work.estimated_cost and self.total_expenditure_council:
             return self.work.estimated_cost - self.total_expenditure_council
+        return None
+
+    @property
+    def stage1_payment_due(self):
+        """Check if Stage 1 report is approved and 60% payment should be released"""
+        if (self.manager_decision == 'approved' and
+            self.work.project.stage1_target and
+            self.submission_date >= self.work.project.stage1_target):
+            # Check if 60% payment has been released
+            funding_schedule = self.work.project.funding_schedule
+            if funding_schedule and not any(instalment.amount == funding_schedule.funding_amount * Decimal('0.6')
+                                           and instalment.paid
+                                           for instalment in funding_schedule.instalments.all()):
+                return funding_schedule.funding_amount * Decimal('0.6')
+        return None
+
+    @property
+    def stage2_payment_due(self):
+        """Check if Stage 2 report is approved and 10% payment should be released"""
+        # This would need to be called on Stage2Report, not QuarterlyReport
+        # Or we need to adapt for Project-level payment tracking
         return None
 
     # Project-level aggregation properties for summary reporting
@@ -935,6 +1069,21 @@ class Stage2Report(models.Model):
     # Land works completion
     land_works_completed = models.BooleanField(default=False)
 
+    # Council Manager Approval
+    COUNCIL_MANAGER_DECISIONS = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+    council_manager_decision = models.CharField(
+        max_length=10,
+        choices=COUNCIL_MANAGER_DECISIONS,
+        default='pending',
+        help_text="Council Manager approval decision"
+    )
+    council_manager_comments = models.TextField(blank=True, null=True, help_text="Council Manager comments")
+    council_manager_decision_date = models.DateField(blank=True, null=True, help_text="Date of Council Manager decision")
+
     # Additional documentation and notes
     completion_notes = models.TextField(blank=True, null=True)
 
@@ -956,6 +1105,26 @@ class Stage2Report(models.Model):
                     self.practical_completion_achieved and
                     self.handover_requirements_met and
                     self.land_works_completed)
+
+    @property
+    def stage2_payment_due(self):
+        """Check if Stage 2 report is approved and 10% payment should be released"""
+        if self.state_accepted and self.acceptance_date:
+            # Get funding schedule or agreement
+            funding_agreement = self.project.funding_agreement
+            if funding_agreement and hasattr(funding_agreement, 'funding_amount'):
+                total_funding = funding_agreement.funding_amount + (funding_agreement.contingency_amount or 0)
+                return total_funding * Decimal('0.1')
+        return None
+
+    @property
+    def stage2_payment_released(self):
+        """Check if remaining 10% payment has been released"""
+        payment_amount = self.stage2_payment_due
+        if payment_amount and self.project.funding_agreement:
+            return any(instalment.amount == payment_amount and instalment.paid
+                      for instalment in self.project.funding_agreement.instalments.all())
+        return False
 
 
 class Stage1Report(models.Model):
@@ -1017,6 +1186,21 @@ class Stage1Report(models.Model):
     infrastructure_approvals_obtained = models.BooleanField(default=False)
     infrastructure_documentation = models.FileField(upload_to="reports/stage1/infrastructure/", blank=True, null=True)
 
+    # Council Manager Approval
+    COUNCIL_MANAGER_DECISIONS = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+    council_manager_decision = models.CharField(
+        max_length=10,
+        choices=COUNCIL_MANAGER_DECISIONS,
+        default='pending',
+        help_text="Council Manager approval decision"
+    )
+    council_manager_comments = models.TextField(blank=True, null=True, help_text="Council Manager comments")
+    council_manager_decision_date = models.DateField(blank=True, null=True, help_text="Date of Council Manager decision")
+
     # Additional notes
     completion_notes = models.TextField(blank=True, null=True)
 
@@ -1041,6 +1225,26 @@ class Stage1Report(models.Model):
                     self.design_approved and
                     self.contractors_appointed and
                     self.infrastructure_approvals_obtained)
+
+    @property
+    def stage1_payment_due(self):
+        """Check if Stage 1 report is approved and 60% payment should be released"""
+        if self.state_accepted and self.acceptance_date:
+            # Get funding schedule or agreement
+            funding_agreement = self.project.funding_agreement
+            if funding_agreement and hasattr(funding_agreement, 'funding_amount'):
+                total_funding = funding_agreement.funding_amount + (funding_agreement.contingency_amount or 0)
+                return total_funding * Decimal('0.6')
+        return None
+
+    @property
+    def stage1_payment_released(self):
+        """Check if 60% payment has been released"""
+        payment_amount = self.stage1_payment_due
+        if payment_amount and self.project.funding_agreement:
+            return any(instalment.amount == payment_amount and instalment.paid
+                      for instalment in self.project.funding_agreement.instalments.all())
+        return False
 
 
 class WorkProgress(models.Model):
@@ -1134,18 +1338,30 @@ class BaseAgreement(models.Model):
 
 class ForwardRemoteProgramFundingAgreement(BaseAgreement):
     """Forward Remote Program Funding Agreement"""
-    pass
+    council = models.OneToOneField(
+        Council,
+        on_delete=models.CASCADE,
+        null=True,
+        related_name="forward_rpf_agreement",
+        help_text="Council this agreement applies to"
+    )
 
     def __str__(self):
-        return f"FRPF Agreement - Executed: {self.date_executed}"
+        return f"FRPF Agreement - {self.council.name} - Executed: {self.date_executed}"
 
 
 class InterimForwardProgramFundingAgreement(BaseAgreement):
     """Interim Forward Remote Program Funding Agreement"""
-    pass
+    council = models.OneToOneField(
+        Council,
+        on_delete=models.CASCADE,
+        null=True,
+        related_name="interim_fp_agreement",
+        help_text="Council this agreement applies to"
+    )
 
     def __str__(self):
-        return f"IFRPF Agreement - Executed: {self.date_executed}"
+        return f"IFRPF Agreement - {self.council.name} - Executed: {self.date_executed}"
 
 
 class FundingApproval(models.Model):
@@ -1172,6 +1388,21 @@ class MonthlyReport(models.Model):
     council = models.ForeignKey('Council', on_delete=models.CASCADE, related_name='monthly_reports')
     period = models.DateField(help_text="First day of the month")
     council_comments = models.TextField(blank=True)
+    # Council Manager Approval
+    COUNCIL_MANAGER_DECISIONS = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+    council_manager_decision = models.CharField(
+        max_length=10,
+        choices=COUNCIL_MANAGER_DECISIONS,
+        default='pending',
+        help_text="Council Manager approval decision"
+    )
+    council_manager_comments = models.TextField(blank=True, null=True, help_text="Council Manager comments")
+    council_manager_decision_date = models.DateField(blank=True, null=True, help_text="Date of Council Manager decision")
+
     ricd_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='more_info')
     ricd_comments = models.TextField(blank=True)
 
@@ -1239,31 +1470,120 @@ def update_project_funded(sender, instance, **kwargs):
         project.state = "funded"
         project.save()
 
-@receiver(post_save, sender=Work)
-def copy_default_work_steps(sender, instance, created, **kwargs):
-    if created:
-        defaults = DefaultWorkStep.objects.filter(program=instance.project.program, work_type_id=instance.work_type_id)
-        for default in defaults:
-            due_date = None
-            if instance.start_date:
-                due_date = instance.start_date + timezone.timedelta(days=default.due_offset_days)
-            WorkStep.objects.create(
-                work=instance,
-                order=default.order,
-                name=default.name,
-                description=default.description,
-                due_date=due_date,
-                completed=False
-            )
     
     
+    @receiver(post_save, sender=Work)
+    def copy_default_work_steps(sender, instance, created, **kwargs):
+        if created:
+            defaults = DefaultWorkStep.objects.filter(program=instance.project.program, work_type_id=instance.work_type_id)
+            for default in defaults:
+                due_date = None
+                if instance.start_date:
+                    due_date = instance.start_date + timezone.timedelta(days=default.due_offset_days)
+                WorkStep.objects.create(
+                    work=instance,
+                    order=default.order,
+                    name=default.name,
+                    description=default.description,
+                    due_date=due_date,
+                    completed=False
+                )
+
+
     # Dynamic User Extensions
-    # Monkey patch the User model to add council property
     def user_council_property(self):
         """Dynamic property to get user's council from profile"""
         try:
             return self.profile.council
         except:
             return None
-    
+
     User.council = property(user_council_property)
+
+
+class Variation(models.Model):
+    """Model for documenting variations to funding agreements"""
+    agreement_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('funding_schedule', 'Funding Schedule'),
+            ('frpf_agreement', 'Forward Remote Program Funding Agreement'),
+            ('ifrpf_agreement', 'Interim Forward Remote Program Funding Agreement'),
+            ('rcpf_agreement', 'Remote Capital Program Funding Agreement'),
+        ],
+        help_text="Type of agreement being varied"
+    )
+    agreement_id = models.PositiveIntegerField(help_text="ID of the agreement being varied")
+
+    # Variation details
+    variation_description = models.TextField(help_text="Description of what was varied")
+    variation_date = models.DateField(help_text="Date the variation was made")
+    date_sent_to_council = models.DateField(blank=True, null=True, help_text="Date variation sent to council")
+    date_council_signed = models.DateField(blank=True, null=True, help_text="Date council signed variation")
+    date_delegate_signed = models.DateField(blank=True, null=True, help_text="Date delegate signed variation")
+    executed_date = models.DateField(blank=True, null=True, help_text="Date variation executed (calculated)")
+
+    # Financial impact
+    additional_funding = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True, help_text="Additional funding amount")
+    adjusted_budget = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True, help_text="Adjusted total budget")
+
+    # For project variations (cancelled/terminated case)
+    replacement_funding_schedule = models.ForeignKey(
+        'FundingSchedule',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Replacement or additional funding schedule",
+        related_name='variation_replacements'
+    )
+
+    notes = models.TextField(blank=True, null=True, help_text="Additional notes about the variation")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def executed_date_calc(self):
+        """Calculate executed date as the latest of council or delegate signed"""
+        dates = [date for date in [self.date_council_signed, self.date_delegate_signed] if date is not None]
+        return max(dates) if dates else None
+
+    def save(self, *args, **kwargs):
+        # Auto-set executed_date if not manually set
+        if not self.executed_date:
+            self.executed_date = self.executed_date_calc
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Variation to {self.agreement_type} #{self.agreement_id} - {self.variation_date}"
+
+    class Meta:
+        ordering = ['-variation_date', '-created_at']
+
+
+# Remote Capital Program Funding Agreement model
+class RemoteCapitalProgramFundingAgreement(BaseAgreement):
+    """Remote Capital Program Funding Agreement"""
+    council = models.OneToOneField(
+        Council,
+        on_delete=models.CASCADE,
+        related_name="remote_capital_program_agreement",
+        help_text="Council this agreement applies to"
+    )
+
+    # Can have many funding schedules
+    funding_schedules = models.ManyToManyField(
+        FundingSchedule,
+        blank=True,
+        related_name="remote_capital_program_agreements",
+        help_text="Funding schedules under this program agreement"
+    )
+
+    notes = models.TextField(blank=True, null=True, help_text="Additional notes about the agreement")
+
+    def __str__(self):
+        return f"RCFP Agreement - {self.council.name} - Executed: {self.date_executed}"
+
+    class Meta:
+        verbose_name = "Remote Capital Program Funding Agreement"
+        verbose_name_plural = "Remote Capital Program Funding Agreements"
