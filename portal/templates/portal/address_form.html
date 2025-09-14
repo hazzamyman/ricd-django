@@ -77,13 +77,19 @@
                             <div class="col-md-6">
                                 <h5 class="mb-3">Work Details</h5>
                                 <div class="mb-3">
-                                    <label for="{{ form.work_type.id_for_label }}" class="form-label">Work Type</label>
-                                    {{ form.work_type }}
+                                    <label for="{{ form.work_type_id.id_for_label }}" class="form-label">Work Type</label>
+                                    {{ form.work_type_id }}
+                                    {% if form.work_type_id.errors %}
+                                        <div class="text-danger small">{{ form.work_type_id.errors.0 }}</div>
+                                    {% endif %}
                                 </div>
 
                                 <div class="mb-3">
-                                    <label for="{{ form.output_type.id_for_label }}" class="form-label">Output Type</label>
-                                    {{ form.output_type }}
+                                    <label for="{{ form.output_type_id.id_for_label }}" class="form-label">Output Type</label>
+                                    {{ form.output_type_id }}
+                                    {% if form.output_type_id.errors %}
+                                        <div class="text-danger small">{{ form.output_type_id.errors.0 }}</div>
+                                    {% endif %}
                                 </div>
                             </div>
 
@@ -103,6 +109,11 @@
                                     <label for="{{ form.bedrooms.id_for_label }}" class="form-label">Bedrooms</label>
                                     {{ form.bedrooms }}
                                 </div>
+
+                                <div class="mb-3">
+                                    <label for="{{ form.construction_method.id_for_label }}" class="form-label">Construction Method</label>
+                                    {{ form.construction_method }}
+                                </div>
                             </div>
                         </div>
 
@@ -120,4 +131,43 @@
         </div>
     </div>
 </div>
+
+<script>
+// Store work type to output type mappings
+const workTypeOutputTypes = JSON.parse('{{ work_type_output_types_json|escapejs }}');
+
+document.addEventListener('DOMContentLoaded', function() {
+    const workTypeSelect = document.getElementById('{{ form.work_type_id.id_for_label }}');
+    const outputTypeSelect = document.getElementById('{{ form.output_type_id.id_for_label }}');
+
+    function filterOutputTypes() {
+        const selectedWorkTypeId = workTypeSelect.value;
+        const allowedOutputTypeIds = workTypeOutputTypes[selectedWorkTypeId] || [];
+
+        // Hide all options except the first (empty) one
+        const options = outputTypeSelect.querySelectorAll('option');
+        options.forEach(option => {
+            if (option.value === '') {
+                option.style.display = 'block'; // Keep empty option
+            } else if (allowedOutputTypeIds.includes(parseInt(option.value))) {
+                option.style.display = 'block';
+            } else {
+                option.style.display = 'none';
+            }
+        });
+
+        // Reset selection if current selection is not allowed
+        if (outputTypeSelect.value && !allowedOutputTypeIds.includes(parseInt(outputTypeSelect.value))) {
+            outputTypeSelect.value = '';
+        }
+    }
+
+    // Filter on page load
+    filterOutputTypes();
+
+    // Filter when work type changes
+    workTypeSelect.addEventListener('change', filterOutputTypes);
+});
+</script>
+
 {% endblock %}

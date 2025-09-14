@@ -1,0 +1,249 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Move Addresses & Works - {{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1>Move Addresses & Works</h1>
+                    <p class="text-muted mb-0">From project: <strong>{{ project.name }}</strong></p>
+                    <p class="text-muted">{{ project.council.name }} - {{ project.program.name }}</p>
+                </div>
+                <a href="{% url 'portal:project_detail' project.pk %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Project
+                </a>
+            </div>
+
+            <!-- Alert about functionality -->
+            <div class="alert alert-info">
+                <h6 class="fw-bold"><i class="fas fa-info-circle"></i> About Moving Addresses & Works</h6>
+                <ul class="mb-0">
+                    <li>Select addresses and their associated works to move to another project</li>
+                    <li>You can create a new project or move to an existing project with the same council</li>
+                    <li>Funding amounts and contingency amounts will be updated automatically with notices</li>
+                    <li>This action will affect project budgets and reporting</li>
+                </ul>
+            </div>
+
+            {% if addresses %}
+            <!-- Selection Form -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-list-check"></i> Select Addresses to Move</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="moveForm">
+                        {% csrf_token %}
+
+                        <!-- Address Selection -->
+                        <div class="row">
+                            {% for address in addresses %}
+                            <div class="col-md-6 col-lg-4 mb-4">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox"
+                                                   id="address_{{ address.pk }}" name="selected_addresses"
+                                                   value="{{ address.pk }}">
+                                            <label class="form-check-label mb-2" for="address_{{ address.pk }}">
+                                                <strong>{{ address.street }}</strong>
+                                            </label>
+                                        </div>
+
+                                        <div class="address-details">
+                                            <p class="text-muted small mb-1">
+                                                {{ address.suburb }}, {{ address.postcode }}
+                                            </p>
+                                            {% for work in address.works.all %}
+                                            <div class="work-item small text-muted">
+                                                <i class="fas fa-tools"></i> {{ work.work_type_id.name }}
+                                                {% if work.output_type_id %}
+                                                    ({{ work.output_type_id.name }})
+                                                {% endif %}
+                                                {% if work.output_quantity > 1 %}×{{ work.output_quantity }}{% endif %}
+                                            </div>
+                                            {% endfor %}
+                                            {% if address.budget %}
+                                            <p class="text-primary fw-bold mt-2">
+                                                Budget: ${{ address.budget|floatformat:0 }}
+                                            </p>
+                                            {% endif %}
+                                        </div>
+                                        <div class="mt-2">
+                                            <small class="badge bg-info">{{ address.works.count }} works</small>
+                                            {% if address.work_type_id %}
+                                            <small class="badge bg-secondary">{{ address.get_work_type_display|title }}</small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Select All Checkbox -->
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="selectAll">
+                            <label class="form-check-label fw-bold" for="selectAll">
+                                Select All Addresses
+                            </label>
+                        </div>
+
+                        <!-- Move Options -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header bg-primary text-white">
+                                        <h6 class="mb-0"><i class="fas fa-plus"></i> Move to New Project</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label for="new_project_name" class="form-label">New Project Name <span class="text-danger">*</span></label>
+                                            <input type="text" class="form-control" id="new_project_name"
+                                                   name="new_project_name" placeholder="Enter project name" required>
+                                            <div class="form-text">
+                                                This will create a new project with the same council and program
+                                            </div>
+                                        </div>
+                                        <button type="submit" name="action" value="move_to_new" class="btn btn-primary">
+                                            <i class="fas fa-plus"></i> Create & Move to New Project
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header bg-info text-white">
+                                        <h6 class="mb-0"><i class="fas fa-arrow-right"></i> Move to Existing Project</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        {% if existing_projects %}
+                                        <div class="mb-3">
+                                            <label for="target_project" class="form-label">Select Existing Project <span class="text-danger">*</span></label>
+                                            <select class="form-select" id="target_project" name="target_project">
+                                                <option value="">Choose a project...</option>
+                                                {% for proj in existing_projects %}
+                                                <option value="{{ proj.pk }}">
+                                                    {{ proj.name }} ({{ proj.addresses.count }} addresses)
+                                                </option>
+                                                {% endfor %}
+                                            </select>
+                                            <div class="form-text">
+                                                Only projects with the same council are shown
+                                            </div>
+                                        </div>
+                                        <button type="submit" name="action" value="move_to_existing" class="btn btn-info">
+                                            <i class="fas fa-arrow-right"></i> Move to Selected Project
+                                        </button>
+                                        {% else %}
+                                        <p class="text-muted">No other projects available with the same council.</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Summary -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-line"></i> Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <h4 class="text-primary">{{ total_addresses }}</h4>
+                                <p class="mb-0">Addresses</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <h4 class="text-info">{{ total_works }}</h4>
+                                <p class="mb-0">Works</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <h4 class="text-success">{{ existing_projects|length }}</h4>
+                                <p class="mb-0">Available Projects</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% else %}
+            <!-- No addresses available -->
+            <div class="alert alert-warning">
+                <h5><i class="fas fa-exclamation-triangle"></i> No Addresses Available</h5>
+                <p>This project has no addresses or works to move.</p>
+                <a href="{% url 'portal:address_create' project_pk=project.pk %}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add Addresses to Project
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+// Select All functionality
+document.getElementById('selectAll').addEventListener('change', function(e) {
+    const checkboxes = document.querySelectorAll('input[name="selected_addresses"]');
+    checkboxes.forEach(cb => cb.checked = e.target.checked);
+});
+
+// Form validation
+document.getElementById('moveForm').addEventListener('submit', function(e) {
+    const selectedAddresses = document.querySelectorAll('input[name="selected_addresses"]:checked');
+    const action = document.querySelector('button[name="action"]:focus')?.value;
+    const newProjectName = document.getElementById('new_project_name').value;
+
+    if (selectedAddresses.length === 0) {
+        e.preventDefault();
+        alert('Please select at least one address to move.');
+        return;
+    }
+
+    if (action === 'move_to_new' && !newProjectName.trim()) {
+        e.preventDefault();
+        alert('Please provide a name for the new project.');
+        return;
+    }
+
+    if (action === 'move_to_existing' && !document.getElementById('target_project').value) {
+        e.preventDefault();
+        alert('Please select a target project.');
+        return;
+    }
+
+    return confirm('Are you sure you want to move the selected addresses and works? This action cannot be undone.');
+});
+</script>
+
+<style>
+.card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.address-details {
+    font-size: 0.9rem;
+}
+
+.work-item {
+    margin-bottom: 0.25rem;
+}
+
+.form-check-label {
+    cursor: pointer;
+}
+</style>
+{% endblock %}

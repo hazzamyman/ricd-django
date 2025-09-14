@@ -1,0 +1,183 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Defects - RICD Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="fas fa-exclamation-triangle"></i> Defects
+                    </h4>
+                    <a href="{% url 'portal:defect_create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Report New Defect
+                    </a>
+                </div>
+                <div class="card-body">
+                    <!-- Filters -->
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <form method="get" class="row g-3">
+                                <div class="col-md-3">
+                                    <label for="search" class="form-label">Search</label>
+                                    <input type="text" name="search" id="search" class="form-control"
+                                           value="{{ request.GET.search }}" placeholder="Search defect descriptions">
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="status" class="form-label">Status</label>
+                                    <select name="status" id="status" class="form-select">
+                                        <option value="">All</option>
+                                        <option value="rectified" {% if request.GET.status == 'rectified' %}selected{% endif %}>Rectified</option>
+                                        <option value="unrectified" {% if request.GET.status == 'unrectified' %}selected{% endif %}>Unrectified</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="council" class="form-label">Council</label>
+                                    <select name="council" id="council" class="form-select">
+                                        <option value="">All Councils</option>
+                                        {% for council in councils %}
+                                            <option value="{{ council.pk }}" {% if request.GET.council == council.pk|stringformat:"s" %}selected{% endif %}>
+                                                {{ council.name }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="work" class="form-label">Work</label>
+                                    <select name="work" id="work" class="form-select">
+                                        <option value="">All Works</option>
+                                        {% for work in works %}
+                                            <option value="{{ work.pk }}" {% if request.GET.work == work.pk|stringformat:"s" %}selected{% endif %}>
+                                                {{ work.work_type_id.name }}{% if work.address %} - {{ work.address }}{% endif %}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-2 d-flex align-items-end">
+                                    <button type="submit" class="btn btn-outline-primary me-2">
+                                        <i class="fas fa-search"></i> Filter
+                                    </button>
+                                    <a href="{% url 'portal:defect_list' %}" class="btn btn-outline-secondary">
+                                        <i class="fas fa-times"></i> Clear
+                                    </a>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Defects Table -->
+                    {% if defects %}
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Description</th>
+                                        <th>Work</th>
+                                        <th>Council</th>
+                                        <th>Identified Date</th>
+                                        <th>Status</th>
+                                        <th>Ongoing Liability</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for defect in defects %}
+                                        <tr>
+                                            <td>{{ defect.description|truncatechars:50 }}</td>
+                                            <td>{{ defect.work.work_type_id.name }}{% if defect.work.address %} - {{ defect.work.address }}{% endif %}</td>
+                                            <td>{{ defect.work.address.project.council.name }}</td>
+                                            <td>{{ defect.identified_date|date:"M j, Y" }}</td>
+                                            <td>
+                                                {% if defect.rectified_date %}
+                                                    <span class="badge bg-success">Rectified</span>
+                                                {% else %}
+                                                    <span class="badge bg-warning">Outstanding</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if defect.expiry_date and defect.rectified_date %}
+                                                    <span class="text-muted">DEFECT RECTIFIED</span>
+                                                {% elif defect.work.is_within_defect_liability_period %}
+                                                    <span class="text-danger"><i class="fas fa-clock"></i> ACTIVE ({{ defect.expiry_date|date:"M j, Y" }} expiry)</span>
+                                                {% else %}
+                                                    <span class="text-muted">Expired</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <a href="{% url 'portal:defect_detail' defect.pk %}" class="btn btn-outline-info" title="View">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                    <a href="{% url 'portal:defect_update' defect.pk %}" class="btn btn-outline-primary" title="Edit">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                    {% if not defect.rectified_date %}
+                                                        <a href="{% url 'portal:defect_rectify' defect.pk %}" class="btn btn-outline-success" title="Mark as Rectified">
+                                                            <i class="fas fa-check"></i>
+                                                        </a>
+                                                    {% endif %}
+                                                    <a href="{% url 'portal:defect_delete' defect.pk %}" class="btn btn-outline-danger" title="Delete">
+                                                        <i class="fas fa-trash"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        {% if is_paginated %}
+                            <nav aria-label="Page navigation">
+                                <ul class="pagination justify-content-center">
+                                    {% if page_obj.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                                <i class="fas fa-chevron-left"></i> Previous
+                                            </a>
+                                        </li>
+                                    {% endif %}
+
+                                    {% for num in page_obj.paginator.page_range %}
+                                        {% if page_obj.number == num %}
+                                            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+
+                                    {% if page_obj.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                                Next <i class="fas fa-chevron-right"></i>
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        {% endif %}
+
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-exclamation-triangle fa-3x text-secondary mb-3"></i>
+                            <h5 class="text-muted">No Defects Found</h5>
+                            {% if request.GET %}
+                                <p class="text-muted">Try adjusting your filter criteria.</p>
+                                <a href="{% url 'portal:defect_list' %}" class="btn btn-outline-primary">Clear Filters</a>
+                            {% else %}
+                                <p class="text-muted">Great! No defects reported yet.</p>
+                                <a href="{% url 'portal:defect_create' %}" class="btn btn-primary">Report First Defect</a>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

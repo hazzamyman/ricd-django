@@ -1,0 +1,224 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Work Type & Output Type Configuration - RICD Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-cogs"></i> Work Type & Output Type Configuration</h2>
+                <div>
+                    <a href="{% url 'portal:work_type_list' %}" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-hammer"></i> Manage Work Types
+                    </a>
+                    <a href="{% url 'portal:output_type_list' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-cube"></i> Manage Output Types
+                    </a>
+                </div>
+            </div>
+
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                Drag output types from the right panel to work types on the left to associate them.
+                Click the × button to remove associations.
+            </div>
+
+            <div class="row">
+                <!-- Work Types Panel -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0"><i class="fas fa-hammer"></i> Work Types</h5>
+                        </div>
+                        <div class="card-body">
+                            {% for work_type in work_types %}
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <h6 class="card-title mb-0">{{ work_type.name }}</h6>
+                                    <small class="text-muted">{{ work_type.description|truncatechars:50|default:"-" }}</small>
+                                </div>
+                                <div class="card-body" style="min-height: 100px;">
+                                    <div class="drop-zone" data-work-type-id="{{ work_type.id }}" style="min-height: 60px; border: 2px dashed #dee2e6; border-radius: 5px; padding: 10px;">
+                                        {% for output_type in work_type.allowed_output_types.all %}
+                                        <span class="badge bg-primary me-1 mb-1 output-type-badge" data-output-type-id="{{ output_type.id }}">
+                                            {{ output_type.name }}
+                                            <button type="button" class="btn-close btn-close-white btn-sm ms-1 remove-association"
+                                                    data-work-type-id="{{ work_type.id }}"
+                                                    data-output-type-id="{{ output_type.id }}"
+                                                    title="Remove association">
+                                            </button>
+                                        </span>
+                                        {% empty %}
+                                        <small class="text-muted">No output types associated</small>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Output Types Panel -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0"><i class="fas fa-cube"></i> Available Output Types</h5>
+                        </div>
+                        <div class="card-body">
+                            {% for output_type in output_types %}
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="badge bg-secondary me-2 output-type-draggable"
+                                      data-output-type-id="{{ output_type.id }}"
+                                      style="cursor: grab; user-select: none;"
+                                      draggable="true">
+                                    <i class="fas fa-grip-vertical me-1"></i>
+                                    {{ output_type.name }}
+                                </span>
+                                <small class="text-muted">{{ output_type.description|truncatechars:30|default:"" }}</small>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden form for AJAX requests -->
+<form id="config-form" method="post" style="display: none;">
+    {% csrf_token %}
+    <input type="hidden" name="action" id="action-input">
+    <input type="hidden" name="work_type_id" id="work-type-input">
+    <input type="hidden" name="output_type_id" id="output-type-input">
+</form>
+
+{% block extra_js %}
+<script>
+// Initialize drag and drop functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const draggables = document.querySelectorAll('.output-type-draggable');
+    const dropZones = document.querySelectorAll('.drop-zone');
+    const form = document.getElementById('config-form');
+    const actionInput = document.getElementById('action-input');
+    const workTypeInput = document.getElementById('work-type-input');
+    const outputTypeInput = document.getElementById('output-type-input');
+
+    let draggedElement = null;
+
+    // Make output types draggable
+    draggables.forEach(draggable => {
+        draggable.addEventListener('dragstart', function(e) {
+            draggedElement = this;
+            e.dataTransfer.effectAllowed = 'copy';
+            e.dataTransfer.setData('text/plain', this.dataset.outputTypeId);
+            this.style.opacity = '0.5';
+            this.style.transform = 'scale(0.95)';
+        });
+
+        draggable.addEventListener('dragend', function(e) {
+            draggedElement = null;
+            this.style.opacity = '1';
+            this.style.transform = 'scale(1)';
+        });
+    });
+
+    // Make drop zones accept drops
+    dropZones.forEach(zone => {
+        zone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+            this.style.borderColor = '#007bff';
+            this.style.backgroundColor = '#f8f9fa';
+            this.style.transform = 'scale(1.02)';
+        });
+
+        zone.addEventListener('dragleave', function(e) {
+            // Only reset if we're actually leaving the zone (not entering a child)
+            if (!this.contains(e.relatedTarget)) {
+                this.style.borderColor = '#dee2e6';
+                this.style.backgroundColor = '';
+                this.style.transform = 'scale(1)';
+            }
+        });
+
+        zone.addEventListener('dragenter', function(e) {
+            e.preventDefault();
+            this.style.borderColor = '#007bff';
+            this.style.backgroundColor = '#f8f9fa';
+            this.style.transform = 'scale(1.02)';
+        });
+
+        zone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.style.borderColor = '#dee2e6';
+            this.style.backgroundColor = '';
+            this.style.transform = 'scale(1)';
+
+            const outputTypeId = e.dataTransfer.getData('text/plain');
+            const workTypeId = this.dataset.workTypeId;
+
+            // Check if already associated
+            const existingBadges = this.querySelectorAll('.output-type-badge');
+            let alreadyAssociated = false;
+            existingBadges.forEach(badge => {
+                if (badge.dataset.outputTypeId === outputTypeId) {
+                    alreadyAssociated = true;
+                }
+            });
+
+            if (alreadyAssociated) {
+                // Show a temporary message instead of alert
+                showMessage('This output type is already associated with this work type.', 'warning');
+                return;
+            }
+
+            // Submit association
+            actionInput.value = 'add';
+            workTypeInput.value = workTypeId;
+            outputTypeInput.value = outputTypeId;
+            form.submit();
+        });
+    });
+
+    // Handle remove association buttons
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-association')) {
+            e.preventDefault();
+
+            const workTypeId = e.target.dataset.workTypeId;
+            const outputTypeId = e.target.dataset.outputTypeId;
+
+            if (confirm('Are you sure you want to remove this association?')) {
+                actionInput.value = 'remove';
+                workTypeInput.value = workTypeId;
+                outputTypeInput.value = outputTypeId;
+                form.submit();
+            }
+        }
+    });
+
+    // Helper function to show temporary messages
+    function showMessage(message, type) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(alertDiv);
+
+        // Auto-remove after 3 seconds
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 3000);
+    }
+});
+</script>
+{% endblock %}
+{% endblock %}

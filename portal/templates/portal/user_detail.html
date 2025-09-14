@@ -1,0 +1,176 @@
+{% extends "portal/base.html" %}
+
+{% block title %}{{ user.get_full_name|default:user.username }} - User Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-user"></i> {{ user.get_full_name|default:user.username }}</h2>
+                <div>
+                    <a href="{% url 'portal:user_update' user.pk %}" class="btn btn-warning me-2">
+                        <i class="fas fa-edit"></i> Edit User
+                    </a>
+                    <a href="{% url 'portal:user_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Users
+                    </a>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- User Information -->
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">User Information</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Username</label>
+                                        <p class="form-control-plaintext">{{ user.username }}</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Email</label>
+                                        <p class="form-control-plaintext">{{ user.email|default:"Not provided" }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">First Name</label>
+                                        <p class="form-control-plaintext">{{ user.first_name|default:"Not provided" }}</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Last Name</label>
+                                        <p class="form-control-plaintext">{{ user.last_name|default:"Not provided" }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Active Status</label>
+                                        <p class="form-control-plaintext">
+                                            {% if user.is_active %}
+                                                <span class="badge bg-success">Active</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Inactive</span>
+                                            {% endif %}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Staff Status</label>
+                                        <p class="form-control-plaintext">
+                                            {% if user.is_staff %}
+                                                <span class="badge bg-info">Staff</span>
+                                            {% else %}
+                                                <span class="text-muted">Regular User</span>
+                                            {% endif %}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Date Joined</label>
+                                        <p class="form-control-plaintext">{{ user.date_joined|date:"M d, Y" }}</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Last Login</label>
+                                        <p class="form-control-plaintext">{{ user.last_login|date:"M d, Y H:i"|default:"Never" }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Groups and Permissions -->
+                <div class="col-md-4">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">Groups & Permissions</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Groups</label>
+                                <div>
+                                    {% for group in user_groups %}
+                                        <span class="badge bg-primary me-1 mb-1">{{ group.name }}</span>
+                                    {% empty %}
+                                        <span class="text-muted">No groups assigned</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            {% if user.is_superuser %}
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <strong>Superuser:</strong> This user has all permissions.
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Council Information (if applicable) -->
+                    {% if user.council %}
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Council Association</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Council</label>
+                                    <p class="form-control-plaintext">
+                                        <a href="{% url 'portal:council_detail' user.council.pk %}">
+                                            {{ user.council.name }}
+                                        </a>
+                                    </p>
+                                </div>
+                                {% if user.council.abn %}
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">ABN</label>
+                                        <p class="form-control-plaintext">{{ user.council.abn }}</p>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Additional Information -->
+            {% if user.is_staff %}
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Staff Information</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i>
+                                    This user is designated as staff and has access to the Django admin interface.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

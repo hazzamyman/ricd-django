@@ -105,6 +105,35 @@
                             </div>
                         </div>
 
+                        <hr class="my-4">
+                        <h5><i class="fas fa-users"></i> Default Project Officer Settings</h5>
+                        <p class="text-muted small mb-3">
+                            These officers will be automatically assigned to new projects created for this council.
+                        </p>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.default_principal_officer.id_for_label }}" class="form-label">{{ form.default_principal_officer.label }}</label>
+                                    {{ form.default_principal_officer }}
+                                    {% if form.default_principal_officer.errors %}
+                                        <div class="text-danger">{{ form.default_principal_officer.errors.0 }}</div>
+                                    {% endif %}
+                                    <div class="form-text">Officer who will be assigned as Principal Officer to new projects</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.default_senior_officer.id_for_label }}" class="form-label">{{ form.default_senior_officer.label }}</label>
+                                    {{ form.default_senior_officer }}
+                                    {% if form.default_senior_officer.errors %}
+                                        <div class="text-danger">{{ form.default_senior_officer.errors.0 }}</div>
+                                    {% endif %}
+                                    <div class="form-text">Officer who will be assigned as Senior Officer to new projects</div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="d-flex justify-content-between mt-4">
                             <a href="{% url 'portal:council_list' %}" class="btn btn-secondary">
                                 <i class="fas fa-arrow-left"></i> Cancel

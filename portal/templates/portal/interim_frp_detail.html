@@ -1,0 +1,135 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Interim FRP Agreement Details - RICD Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-file-contract"></i> Interim FRP Agreement Details</h2>
+                <div class="btn-group" role="group">
+                    <a href="{% url 'portal:interim_frp_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to List
+                    </a>
+                    <a href="{% url 'portal:interim_frp_update' agreement.pk %}" class="btn btn-warning">
+                        <i class="fas fa-edit"></i> Edit
+                    </a>
+                    <a href="{% url 'portal:interim_frp_delete' agreement.pk %}" class="btn btn-danger"
+                       onclick="return confirm('Are you sure you want to delete this agreement?')">
+                        <i class="fas fa-trash"></i> Delete
+                    </a>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Agreement Information</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>Council Information</h6>
+                                    <p><strong>Name:</strong> {{ agreement.council.name }}</p>
+                                    <p><strong>ABN:</strong> {{ agreement.council.abn|default:"Not provided" }}</p>
+                                    <p><strong>Location:</strong> {{ agreement.council.default_suburb|default:"-" }}, {{ agreement.council.default_state }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>Agreement Status</h6>
+                                    <p><strong>Sent to Council:</strong> {{ agreement.date_sent_to_council|date:"d/m/Y"|default:"-" }}</p>
+                                    <p><strong>Date Council Signed:</strong> {{ agreement.date_council_signed|date:"d/m/Y" }}</p>
+                                    <p><strong>Date Delegate Signed:</strong> {{ agreement.date_delegate_signed|date:"d/m/Y" }}</p>
+                                    <p><strong>Date Executed:</strong> {{ agreement.date_executed|date:"d/m/Y" }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if agreement.projects.all %}
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h5 class="mb-0">Associated Projects</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Project Name</th>
+                                            <th>State</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for project in agreement.projects.all %}
+                                        <tr>
+                                            <td>
+                                                <a href="{% url 'portal:project_detail' project.pk %}">
+                                                    {{ project.name }}
+                                                </a>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-{% if project.get_state_display == 'Completed' %}success{% elif project.get_state_display == 'Under Construction' %}primary{% else %}secondary{% endif %}">
+                                                    {{ project.get_state_display }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <a href="{% url 'portal:project_detail' project.pk %}" class="btn btn-sm btn-outline-info">
+                                                    View Details
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Actions</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="small text-muted">Quick actions for this agreement:</p>
+                            <div class="d-grid gap-2">
+                                <a href="{% url 'portal:interim_frp_update' agreement.pk %}" class="btn btn-outline-warning">
+                                    <i class="fas fa-edit"></i> Edit Agreement
+                                </a>
+                                {% if agreement.projects.count == 0 %}
+                                <a href="{% url 'portal:interim_frp_delete' agreement.pk %}" class="btn btn-outline-danger"
+                                   onclick="return confirm('Are you sure you want to delete this agreement?')">
+                                    <i class="fas fa-trash"></i> Delete Agreement
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if agreement.funding_schedules.all %}
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h5 class="mb-0">Funding Schedules</h5>
+                        </div>
+                        <div class="card-body">
+                            {% for schedule in agreement.funding_schedules.all %}
+                            <div class="mb-2">
+                                <strong>{{ schedule.funding_schedule_number }}</strong>
+                                <br>
+                                <small class="text-muted">${{ schedule.total_funding|floatformat:0|default:"0" }} total</small>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

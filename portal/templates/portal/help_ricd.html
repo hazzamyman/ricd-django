@@ -1,0 +1,159 @@
+{% extends "portal/base.html" %}
+{% load static %}
+
+{% block title %}RICD Help & Documentation{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-question-circle"></i> RICD Staff Help & Documentation
+                </h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="list-group" id="help-nav">
+                            <a href="#getting-started" class="list-group-item list-group-item-action active" onclick="showSection('getting-started')">Getting Started</a>
+                            <a href="#dashboard" class="list-group-item list-group-item-action" onclick="showSection('dashboard')">RICD Dashboard</a>
+                            <a href="#councils" class="list-group-item list-group-item-action" onclick="showSection('councils')">Managing Councils</a>
+                            <a href="#projects" class="list-group-item list-group-item-action" onclick="showSection('projects')">Project Management</a>
+                            <a href="#agreements" class="list-group-item list-group-item-action" onclick="showSection('agreements')">Funding Agreements</a>
+                            <a href="#reports" class="list-group-item list-group-item-action" onclick="showSection('reports')">Reports & Approvals</a>
+                            <a href="#analytics" class="list-group-item list-group-item-action" onclick="showSection('analytics')">Analytics & Export</a>
+                        </div>
+                    </div>
+                    <div class="col-md-9">
+                        <div id="getting-started" class="help-section">
+                            <h4>Getting Started</h4>
+                            <p>Welcome to the RICD Portal! This system is designed to manage the lifecycle of indigenous housing and infrastructure projects from application to completion.</p>
+
+                            <h5>Main Functions:</h5>
+                            <ul>
+                                <li><strong>Project Management:</strong> Track and manage all construction projects</li>
+                                <li><strong>Council Oversight:</strong> Monitor council activities and report submission</li>
+                                <li><strong>Funding Administration:</strong> Manage funding schedules and agreements</li>
+                                <li><strong>Report Processing:</strong> Review and approve council submissions</li>
+                                <li><strong>Analytics & Insights:</strong> Monitor program performance and trends</li>
+                            </ul>
+                        </div>
+
+                        <div id="dashboard" class="help-section d-none">
+                            <h4>RICDC Dashboard</h4>
+                            <p>The RICD Dashboard provides an overview of all active projects and key metrics.</p>
+
+                            <h5>Navigation:</h5>
+                            <ul>
+                                <li>Filter projects by program, council, or stage</li>
+                                <li>View project progress and budget information</li>
+                                <li>Identify overdue milestones and reports</li>
+                                <li>Access detailed project views</li>
+                            </ul>
+                        </div>
+
+                        <div id="councils" class="help-section d-none">
+                            <h4>Managing Councils</h4>
+                            <p>Councils are the primary users of this system for report submission and project management.</p>
+
+                            <h5>Council Management:</h5>
+                            <ul>
+                                <li>Create and configure council profiles</li>
+                                <li>Link users to councils for access control</li>
+                                <li>Set default officers for projects</li>
+                                <li>Monitor council submission compliance</li>
+                            </ul>
+                        </div>
+
+                        <div id="projects" class="help-section d-none">
+                            <h4>Project Management</h4>
+                            <p>All construction projects are managed through the project listing and detail pages.</p>
+
+                            <h5>Project Details Include:</h5>
+                            <ul>
+                                <li>Funding schedules and agreements</li>
+                                <li>Work orders and addresses</li>
+                                <li>Progress tracking and milestones</li>
+                                <li>Assigned officers and contractors</li>
+                            </ul>
+                        </div>
+
+                        <div id="agreements" class="help-section d-none">
+                            <h4>Funding Agreements</h4>
+                            <p>The system supports multiple types of funding agreements:</p>
+
+                            <h5>Agreement Types:</h5>
+                            <ul>
+                                <li><strong>Forward Remote Program Funding Agreement</strong></li>
+                                <li><strong>Interim Forward Remote Program Funding Agreement</strong></li>
+                                <li><strong>Remote Capital Program Funding Agreement</strong></li>
+                            </ul>
+
+                            <p>Each agreement can be created, updated, and linked to specific projects and funding schedules.</p>
+                        </div>
+
+                        <div id="reports" class="help-section d-none">
+                            <h4>Reports & Approvals</h4>
+                            <p>Councils submit monthly and quarterly reports plus stage milestone reports.</p>
+
+                            <h5>Report Types:</h5>
+                            <ul>
+                                <li><strong>Monthly Trackers:</strong> Construction progress and expenditure</li>
+                                <li><strong>Quarterly Reports:</strong> Employment, progress, and financial updates</li>
+                                <li><strong>Stage Reports:</strong> Milestone achievements and compliance</li>
+                            </ul>
+                        </div>
+
+                        <div id="analytics" class="help-section d-none">
+                            <h4>Analytics & Export</h4>
+                            <p>The analytics dashboard provides insights into program performance.</p>
+
+                            <h5>Features:</h5>
+                            <ul>
+                                <li>Budget vs. expenditure analysis</li>
+                                <li>Construction timeline tracking</li>
+                                <li>Report compliance monitoring</li>
+                                <li>Export functionality for external reporting</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showSection(sectionId) {
+    // Hide all sections
+    document.querySelectorAll('.help-section').forEach(section => {
+        section.classList.add('d-none');
+    });
+    // Show selected section
+    document.getElementById(sectionId).classList.remove('d-none');
+
+    // Update navigation
+    document.querySelectorAll('#help-nav .list-group-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    document.querySelector(`[onclick="showSection('${sectionId}')"]`).classList.add('active');
+}
+</script>
+
+<style>
+.list-group-item {
+    cursor: pointer;
+}
+
+.help-section h5 {
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+    color: #495057;
+}
+
+.help-section ul {
+    margin-bottom: 1rem;
+}
+</style>
+{% endblock %}

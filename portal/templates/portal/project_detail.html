@@ -24,6 +24,9 @@
                             {% else %}
                                 <span class="badge bg-success fs-6 px-3 py-2">On Track</span>
                             {% endif %}
+                            <a href="{% url 'portal:project_update' project.pk %}" class="btn btn-outline-light btn-sm me-2">
+                                <i class="fas fa-edit"></i> Edit Project
+                            </a>
                             <button class="btn btn-outline-light btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#editStateModal">
                                 <i class="fas fa-edit"></i> Edit State
                             </button>
@@ -49,8 +52,58 @@
                         </div>
                         <div class="col-md-4">
                             <h6 class="text-muted">Program</h6>
-                            <p class="mb-0"><strong>{{ project.program.name }}</strong></p>
+                            <p class="mb-0">
+                                <strong>{{ project.program.name }}</strong>
+                                {% comment %}Add quick defect report button{% endcomment %}
+                                <a href="{% url 'portal:defect_create' %}" class="btn btn-warning btn-sm ms-2" title="Report a Defect">
+                                    <i class="fas fa-exclamation-triangle"></i> Report Defect
+                                </a>
+                            </p>
                         </div>
+                    </div>
+                    <div class="row mt-2">
+                        {% if project.forward_rpf_agreement %}
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Forward Remote Program Agreement</h6>
+                            <p class="mb-0"><strong>{{ project.forward_rpf_agreement }}</strong></p>
+                            <small class="text-muted">Executed: {{ project.forward_rpf_agreement.date_executed|date:"M d, Y"|default:"Not executed" }}</small>
+                            <br><a href="{% url 'portal:forward_rpf_list' %}?unlink_project={{ project.pk }}" class="btn btn-outline-danger btn-sm mt-1">Unlink</a>
+                        </div>
+                        {% endif %}
+                        {% if project.interim_fp_agreement %}
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Interim Forward Remote Program Agreement</h6>
+                            <p class="mb-0"><strong>{{ project.interim_fp_agreement }}</strong></p>
+                            <small class="text-muted">Executed: {{ project.interim_fp_agreement.date_executed|date:"M d, Y"|default:"Not executed" }}</small>
+                            <br><a href="{% url 'portal:interim_frp_list' %}?unlink_project={{ project.pk }}" class="btn btn-outline-danger btn-sm mt-1">Unlink</a>
+                        </div>
+                        {% endif %}
+                        {% if project.funding_agreement and project.funding_agreement.agreement_type == 'rcpf_agreement' %}
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Remote Capital Program Agreement</h6>
+                            <p class="mb-0"><strong>{{ project.funding_agreement }}</strong></p>
+                            <small class="text-muted">Executed: {{ project.funding_agreement.date_executed|date:"M d, Y"|default:"Not executed" }}</small>
+                            <br><a href="{% url 'portal:remote_capital_program_list' %}?unlink_project={{ project.pk }}" class="btn btn-outline-danger btn-sm mt-1">Unlink</a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="row mt-2">
+                        {% if not project.forward_rpf_agreement and not project.interim_fp_agreement %}
+                        {% if not project.funding_agreement or project.funding_agreement.agreement_type != 'rcpf_agreement' %}
+                        <div class="col-md-12">
+                            <div class="alert alert-secondary mt-3">
+                                <small><strong>Note:</strong> This project is not linked to any funding program agreement.</small>
+                                {% if user.is_staff or user.council == project.council %}
+                                <br><small>Available options:
+                                    <a href="{% url 'portal:add_project_to_funding_schedule' project.pk %}" class="btn btn-link btn-sm p-0 text-decoration-none">Funding Schedule</a> |
+                                    <a href="{% url 'portal:forward_rpf_list' %}?link_project={{ project.pk }}" class="btn btn-link btn-sm p-0 text-decoration-none">Forward RPF</a> |
+                                    <a href="{% url 'portal:interim_frp_list' %}?link_project={{ project.pk }}" class="btn btn-link btn-sm p-0 text-decoration-none">Interim FRP</a>{% if not project.funding_schedule %} |
+                                    <a href="{% url 'portal:remote_capital_program_list' %}?link_project={{ project.pk }}" class="btn btn-link btn-sm p-0 text-decoration-none">Remote Capital</a>{% endif %}
+                                </small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -74,11 +127,13 @@
                 <i class="fas fa-calendar me-1"></i>Timeline
             </button>
         </li>
+        {% if not user.council %}
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="approvals-tab" data-bs-toggle="tab" data-bs-target="#approvals" type="button" role="tab" aria-controls="approvals" aria-selected="false">
                 <i class="fas fa-dollar-sign me-1"></i>Funding Approvals
             </button>
         </li>
+        {% endif %}
     </ul>
 
     <!-- Tab Content -->
@@ -95,11 +150,13 @@
                         <div class="card-body">
                             <div class="row">
                                 <div class="col-md-6">
+                                    {% if not user.council %}{% comment %}Hide total funding and contingency from council users{% endcomment %}
                                     <h6 class="text-muted">Total Funding</h6>
-                                    <p class="h4 mb-3">{{ project.total_funding|currency:0 }}</p>
+                                     <p class="h4 mb-3">{{ project.total_funding|currency:0 }}</p>
 
-                                    <h6 class="text-muted">Contingency Amount</h6>
-                                    <p class="mb-3">{{ project.contingency_amount|currency:0 }}</p>
+                                     <h6 class="text-muted">Contingency Amount</h6>
+                                     <p class="mb-3">{{ project.contingency_amount|currency:0 }}</p>
+                                     {% endif %}
 
                                     <h6 class="text-muted">Principal Officer</h6>
                                     <p class="mb-3">{{ project.principal_officer|default:"Not specified" }}</p>
@@ -111,8 +168,10 @@
                                     <h6 class="text-muted">Contractor</h6>
                                     <p class="mb-3">{{ project.get_contractor_display|default:"Not specified" }}</p>
 
+                                    {% if not user.council %}{% comment %}Hide SAP details from council users{% endcomment %}
                                     <h6 class="text-muted">SAP Project Number</h6>
                                     <p class="mb-3">{{ project.sap_project|default:"Not specified" }}</p>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -168,11 +227,14 @@
             <div class="mb-3">
                 <div class="btn-group me-2">
                     <a href="{% url 'portal:address_create' project_pk=project.pk %}" class="btn btn-primary btn-sm">
-                        <i class="fas fa-plus"></i> Add Address
+                        <i class="fas fa-plus"></i> Manage Addresses & Works
                     </a>
-                    <a href="{% url 'portal:work_create' project_pk=project.pk %}" class="btn btn-success btn-sm">
-                        <i class="fas fa-plus"></i> Add Work
+                    {% if user.is_staff or user.council == project.council %}
+                    <a href="{% url 'portal:move_addresses_works' project.pk %}" class="btn btn-warning btn-sm"
+                       title="Move addresses and works to another project">
+                        <i class="fas fa-exchange-alt"></i> Move Addresses & Works
                     </a>
+                    {% endif %}
                 </div>
             </div>
 
@@ -187,18 +249,24 @@
                         </div>
                         <div class="card-body">
                             <div class="row">
-                                <div class="col-sm-8">
+                                <div class="col-sm-6">
                                     <h6>{{ work.output_type|title }}</h6>
                                     <p class="text-muted mb-1">Quantity: {{ work.output_quantity }}</p>
                                     <p class="text-muted mb-1">Estimated Cost: {{ work.estimated_cost|currency:0|default:"N/A" }}</p>
+                                    <!-- Quick defect buttons -->
+                                    <div class="mt-2">
+                                        <a href="{% url 'portal:work_defect_create' work.pk %}" class="btn btn-outline-danger btn-sm me-1" title="Report Defect for this Work">
+                                            <i class="fas fa-exclamation-triangle"></i> Report Defect
+                                        </a>
+                                    </div>
                                 </div>
-                                <div class="col-sm-4 text-end">
+                                <div class="col-sm-6 text-end">
                                     {% if work.actual_cost %}
                                     <p class="mb-0"><strong>{{ work.actual_cost|currency:0 }}</strong></p>
                                     <small class="text-muted">Actual Cost</small>
                                     {% endif %}
-                                </div>
                         
+                                {% if not user.council %}{% comment %}Hide funding approvals tab content from council users{% endcomment %}
                                 <!-- Funding Approvals Tab -->
                                 <div class="tab-pane fade" id="approvals" role="tabpanel" aria-labelledby="approvals-tab">
                                     <div class="card">
@@ -206,8 +274,8 @@
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <h5 class="mb-0"><i class="fas fa-dollar-sign me-2"></i>Attached Funding Approvals</h5>
                                                 {% if user.is_staff %}
-                                                <a href="{% url 'portal:funding_approval_create' %}" class="btn btn-primary btn-sm">
-                                                    <i class="fas fa-plus"></i> Create Approval
+                                                <a href="{% url 'portal:funding_approval_create' %}?project={{ project.pk }}" class="btn btn-primary btn-sm">
+                                                    <i class="fas fa-plus"></i> Create Approval for this Project
                                                 </a>
                                                 {% endif %}
                                             </div>
@@ -259,7 +327,8 @@
                                         </div>
                                     </div>
                                 </div>
-                        
+                                {% endif %}
+
                             </div>
                             <!-- Work Progress -->
                             {% if work.progress %}
@@ -408,24 +477,14 @@
 
     </div>
 
-    <!-- Action Buttons -->
+    <!-- Back Button -->
     <div class="row mt-4">
         <div class="col-12">
             <div class="card">
                 <div class="card-body">
-                    <div class="btn-group">
-                        {% if user.is_staff or user.council == project.council %}
-                        <a href="{% url 'portal:work_create' project_pk=project.pk %}" class="btn btn-primary btn-sm">
-                            <i class="fas fa-plus"></i> Add Work
-                        </a>
-                        <a href="{% url 'portal:address_create' project_pk=project.pk %}" class="btn btn-success btn-sm">
-                            <i class="fas fa-plus"></i> Add Address
-                        </a>
-                        {% endif %}
-                        <a href="{% url 'portal:ricd_dashboard' %}" class="btn btn-outline-secondary">
-                            <i class="fas fa-arrow-left"></i> Back to Dashboard
-                        </a>
-                    </div>
+                    <a href="{% url 'portal:ricd_dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
                 </div>
             </div>
         </div>
@@ -462,5 +521,7 @@
         </div>
     </div>
 </div>
+
+{% endif %}
 
 {% endblock %}

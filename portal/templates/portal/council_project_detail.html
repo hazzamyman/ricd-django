@@ -1,0 +1,294 @@
+{% extends "portal/base.html" %}
+{% load currency_filters %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Council Project Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h1 class="mb-0">
+                            <i class="fas fa-building me-2"></i>{{ project.name }}
+                            <small class="text-white-50">(Council View)</small>
+                        </h1>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Council</h6>
+                            <p class="mb-0"><strong>{{ project.council.name }}</strong></p>
+                        </div>
+                        <div class="col-md-6">
+                            {% if funding_schedule %}
+                            <h6 class="text-muted">Funding Schedule Number</h6>
+                            <p class="mb-0"><strong>{{ funding_schedule.funding_schedule_number }}</strong></p>
+                            {% else %}
+                            <h6 class="text-muted">Funding Schedule</h6>
+                            <p class="mb-0 text-muted">Not linked to Funding Schedule</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-12">
+                            <h6 class="text-muted">Funding Agreement Links</h6>
+                            {% if funding_schedule %}
+                                <span class="badge bg-primary me-2">Funding Schedule</span>
+                            {% endif %}
+                            {% if forward_rpf %}
+                                <span class="badge bg-success me-2">Forward RPF</span>
+                            {% endif %}
+                            {% if interim_frp %}
+                                <span class="badge bg-warning me-2">Interim FRP</span>
+                            {% endif %}
+                            {% if not funding_schedule and not forward_rpf and not interim_frp %}
+                                <span class="text-muted">No funding agreements linked</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            
+                <!-- Council-Specific Information -->
+                <div class="row mb-4">
+                    <div class="col-lg-8">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Council Project Information</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6 class="text-muted">Funding Amount (less Contingency)</h6>
+                                        <p class="h4 mb-3 text-success">{{ funding_amount_less_contingency|currency:0 }}</p>
+            
+                                        <h6 class="text-muted">Principal Officer</h6>
+                                        <p class="mb-3">{{ project.principal_officer|default:"Not specified" }}</p>
+            
+                                        <h6 class="text-muted">Project Manager</h6>
+                                        <p class="mb-3">{{ project.get_project_manager_display|default:"Not specified" }}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6 class="text-muted">Contractor</h6>
+                                        <p class="mb-3">{{ project.get_contractor_display|default:"Not specified" }}</p>
+            
+                                        <h6 class="text-muted">Overall Progress</h6>
+                                        <p class="h4 mb-3">{{ overall_progress }}%</p>
+                                        <div class="progress mb-3" style="height: 20px;">
+                                            <div class="progress-bar bg-info" role="progressbar"
+                                                 style="width: {{ overall_progress }}%"
+                                                 aria-valuenow="{{ overall_progress }}"
+                                                 aria-valuemin="0" aria-valuemax="100">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            
+                <!-- Navigation Tabs -->
+                <ul class="nav nav-tabs mb-4" id="councilProjectTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="works-tab" data-bs-toggle="tab" data-bs-target="#works" type="button" role="tab" aria-controls="works" aria-selected="true">
+                            <i class="fas fa-tools me-1"></i>Works & Addresses
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="timeline-tab" data-bs-toggle="tab" data-bs-target="#timeline" type="button" role="tab" aria-controls="timeline" aria-selected="false">
+                            <i class="fas fa-calendar me-1"></i>Timeline
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="defects-tab" data-bs-toggle="tab" data-bs-target="#defects" type="button" role="tab" aria-controls="defects" aria-selected="false">
+                            <i class="fas fa-exclamation-triangle me-1"></i>Defects
+                        </button>
+                    </li>
+                </ul>
+            
+                <!-- Tab Content -->
+                <div class="tab-content" id="councilProjectTabsContent">
+            
+                    <!-- Works & Addresses Tab -->
+                    <div class="tab-pane fade show active" id="works" role="tabpanel" aria-labelledby="works-tab">
+                        <div class="row">
+                            {% for work in project.works.all %}
+                            <div class="col-md-6 mb-4">
+                                <div class="card h-100">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">
+                                            <i class="fas fa-toolbox me-2"></i>{{ work.work_type_id.name|title }} Work
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-sm-6">
+                                                <h6>{{ work.output_type_id.name|title }}</h6>
+                                                <p class="text-muted mb-1">Quantity: {{ work.output_quantity }}</p>
+                                                <p class="text-muted mb-1">Estimated Cost: {{ work.estimated_cost|currency:0|default:"N/A" }}</p>
+                                            </div>
+                                            <div class="col-sm-6 text-end">
+                                                {% if work.actual_cost %}
+                                                <p class="mb-0"><strong>{{ work.actual_cost|currency:0 }}</strong></p>
+                                                <small class="text-muted">Actual Cost</small>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="col-12">
+                                <div class="alert alert-info">
+                                    <h4>No Works Found</h4>
+                                    <p>No construction works have been defined for this project yet.</p>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+            
+                        <!-- Addresses Section -->
+                        <div class="card mt-4">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-map-marker-alt me-2"></i>Project Addresses</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Address</th>
+                                                <th>Work Type</th>
+                                                <th>Output Type</th>
+                                                <th>Details</th>
+                                                <th>Budget</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for address in project.addresses.all %}
+                                            <tr>
+                                                <td>{{ address.street }}, {{ address.suburb }}</td>
+                                                <td>
+                                                    {% if address.work_type_id %}
+                                                        {{ address.work_type_id.name|title }}
+                                                    {% else %}
+                                                        <span class="text-muted">-</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if address.output_type_id %}
+                                                        {{ address.output_type_id.name|title }}
+                                                    {% else %}
+                                                        <span class="text-muted">-</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>{{ address.bedrooms|default:"" }}BR {% if address.output_quantity > 1 %}×{{ address.output_quantity }}{% endif %}</td>
+                                                <td>{{ address.budget|currency:0|default:"-" }}</td>
+                                            </tr>
+                                            {% empty %}
+                                            <tr>
+                                                <td colspan="5" class="text-center text-muted">No addresses defined.</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+            
+                    <!-- Timeline Tab -->
+                    <div class="tab-pane fade" id="timeline" role="tabpanel" aria-labelledby="timeline-tab">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Project Timeline</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Stage 1</h6>
+                                        <p><strong>Target:</strong> {{ project.stage1_target|date:"M d, Y"|default:"Not set" }}</p>
+                                        <p><strong>Sunset:</strong> {{ project.stage1_sunset|date:"M d, Y"|default:"Not set" }}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>Stage 2</h6>
+                                        <p><strong>Target:</strong> {{ project.stage2_target|date:"M d, Y"|default:"Not set" }}</p>
+                                        <p><strong>Sunset:</strong> {{ project.stage2_sunset|date:"M d, Y"|default:"Not set" }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+            
+                    <!-- Defects Tab -->
+                    <div class="tab-pane fade" id="defects" role="tabpanel" aria-labelledby="defects-tab">
+                        <div class="mb-3">
+                            <a href="{% url 'portal:defect_create' %}" class="btn btn-danger">
+                                <i class="fas fa-plus"></i> Add Defect
+                            </a>
+                        </div>
+            
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Project Defects</h5>
+                            </div>
+                            <div class="card-body">
+                                {% if defects %}
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Description</th>
+                                                <th>Work</th>
+                                                <th>Address</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for defect in defects %}
+                                            <tr>
+                                                <td>{{ defect.description|truncatechars:50 }}</td>
+                                                <td>{{ defect.work.work_type_id.name|title }}</td>
+                                                <td>{{ defect.work.address.street }}</td>
+                                                <td>
+                                                    {% if defect.rectified_date %}
+                                                        <span class="badge bg-success">Rectified</span>
+                                                    {% else %}
+                                                        <span class="badge bg-warning">Open</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% else %}
+                                <div class="alert alert-info">
+                                    <h4>No Defects Found</h4>
+                                    <p>No defects have been reported for this project yet.</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            
+                <!-- Back Button -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <a href="{% url 'portal:council_dashboard' %}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-arrow-left"></i> Back to Council Dashboard
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

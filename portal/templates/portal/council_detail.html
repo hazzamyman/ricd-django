@@ -92,6 +92,64 @@
                             </p>
                             {% endif %}
                         </div>
+                    <!-- Council Users -->
+                    <div class="card mt-4">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-users"></i> Council Users</h5>
+                            <a href="{% url 'portal:council_add_user' council.pk %}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-plus"></i> Add User
+                            </a>
+                        </div>
+                        <div class="card-body">
+                            {% if council_users %}
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Username</th>
+                                                <th>Name</th>
+                                                <th>Email</th>
+                                                <th>Role</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for user in council_users %}
+                                            <tr>
+                                                <td>{{ user.username }}</td>
+                                                <td>{{ user.get_full_name|default:"-" }}</td>
+                                                <td>{{ user.email|default:"-" }}</td>
+                                                <td>
+                                                    {% if user.council_role == 'manager' %}
+                                                        <span class="badge bg-warning">Manager</span>
+                                                    {% elif user.council_role == 'user' %}
+                                                        <span class="badge bg-info">User</span>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary">No Role</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if user.is_active %}
+                                                        <span class="badge bg-success">Active</span>
+                                                    {% else %}
+                                                        <span class="badge bg-danger">Inactive</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <div class="text-center py-4">
+                                    <i class="fas fa-user-slash fa-2x text-muted mb-2"></i>
+                                    <p class="text-muted">No users found for this council.</p>
+                                    <a href="{% url 'portal:council_add_user' council.pk %}" class="btn btn-primary">
+                                        <i class="fas fa-plus"></i> Add First User
+                                    </a>
+                                </div>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
 

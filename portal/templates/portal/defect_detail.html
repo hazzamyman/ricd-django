@@ -1,0 +1,375 @@
+{% extends "portal/base.html" %}
+
+{% block title %}{{ defect.description|truncatechars:50 }} - Defect Details - RICD Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Defect Header -->
+            <div class="card mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h1 class="mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>{{ defect.description|truncatechars:50 }}
+                        </h1>
+                        <div>
+                            {% if defect.rectified_date %}
+                                <span class="badge bg-success fs-6 px-3 py-2 me-2">
+                                    <i class="fas fa-check-circle me-1"></i>Rectified
+                                </span>
+                            {% else %}
+                                <span class="badge bg-danger fs-6 px-3 py-2 me-2">
+                                    <i class="fas fa-times-circle me-1"></i>Outstanding
+                                </span>
+                            {% endif %}
+                            {% if defect.work.is_within_defect_liability_period %}
+                                <span class="badge bg-info fs-6 px-3 py-2">Within Liability Period</span>
+                            {% else %}
+                                <span class="badge bg-secondary fs-6 px-3 py-2">Liability Period Expired</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Work Item</h6>
+                            <p class="mb-2">
+                                <strong>{{ defect.work.work_type_id.name }}{% if defect.work.address %} - {{ defect.work.address }}{% endif %}</strong>
+                            </p>
+
+                            <h6 class="text-muted">Project</h6>
+                            <p class="mb-2">
+                                <a href="{% url 'portal:project_detail' defect.work.address.project.pk %}" class="text-decoration-none">
+                                    {{ defect.work.address.project.name }}
+                                </a>
+                            </p>
+
+                            <h6 class="text-muted">Council</h6>
+                            <p class="mb-2">
+                                <strong>{{ defect.work.address.project.council.name }}</strong>
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Prioritized Status</h6>
+                            <p class="mb-2">
+                                {% if defect.rectified_date %}
+                                    <span class="text-success">
+                                        <i class="fas fa-check-circle me-1"></i>DEFECT RECTIFIED
+                                        <br><small>{{ defect.rectified_date|date:"F j, Y" }}</small>
+                                    </span>
+                                {% else %}
+                                    <span class="text-danger">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>ACTIVE DEFECT
+                                    </span>
+                                {% endif %}
+                            </p>
+
+                            <h6 class="text-muted">Identified Date</h6>
+                            <p class="mb-2"><strong>{{ defect.identified_date|date:"F j, Y" }}</strong></p>
+
+                            <h6 class="text-muted">Defect Liability</h6>
+                            <p class="mb-2">
+                                {% if defect.expiry_date %}
+                                    Expires: <strong>{{ defect.expiry_date|date:"F j, Y" }}</strong>
+                                {% else %}
+                                    <span class="text-muted">No expiry date available</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content Tabs -->
+            <ul class="nav nav-tabs mb-4" id="defectTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="details-tab" data-bs-toggle="tab" data-bs-target="#details" type="button" role="tab" aria-controls="details" aria-selected="true">
+                        <i class="fas fa-info-circle me-1"></i>Details
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="work-info-tab" data-bs-toggle="tab" data-bs-target="#work-info" type="button" role="tab" aria-controls="work-info" aria-selected="false">
+                        <i class="fas fa-tools me-1"></i>Work Context
+                    </button>
+                </li>
+                {% if not defect.rectified_date and defect.work.is_within_defect_liability_period %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="rectify-tab" data-bs-toggle="tab" data-bs-target="#rectify" type="button" role="tab" aria-controls="rectify" aria-selected="false">
+                        <i class="fas fa-check-circle me-1"></i>Rectify Defect
+                    </button>
+                </li>
+                {% endif %}
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content" id="defectTabsContent">
+
+                <!-- Details Tab -->
+                <div class="tab-pane fade show active" id="details" role="tabpanel" aria-labelledby="details-tab">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>Defect Description</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p class="mb-0">{{ defect.description }}</p>
+                                </div>
+                            </div>
+
+                            <!-- Action buttons for this defect -->
+                            <div class="card mt-3">
+                                <div class="card-header">
+                                    <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>Actions</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="btn-group me-2">
+                                        <a href="{% url 'portal:defect_update' defect.pk %}" class="btn btn-outline-primary">
+                                            <i class="fas fa-edit"></i> Edit Defect
+                                        </a>
+                                        {% if not defect.rectified_date %}
+                                            <a href="{% url 'portal:defect_rectify' defect.pk %}" class="btn btn-outline-success">
+                                                <i class="fas fa-check"></i> Mark Rectified
+                                            </a>
+                                        {% endif %}
+                                    </div>
+                                    <a href="{% url 'portal:defect_delete' defect.pk %}" class="btn btn-outline-danger">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <!-- Status Summary -->
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Status Summary</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <span class="badge {% if defect.rectified_date %}bg-success{% else %}bg-danger{% endif %} mb-2">
+                                            {% if defect.rectified_date %}RESOLVED{% else %}ACTIVE{% endif %}
+                                        </span>
+                                    </div>
+                                    <dl class="row">
+                                        <dt class="col-sm-6">Identified:</dt>
+                                        <dd class="col-sm-6">{{ defect.identified_date|date:"M j, Y" }}</dd>
+
+                                        {% if defect.rectified_date %}
+                                        <dt class="col-sm-6">Rectified:</dt>
+                                        <dd class="col-sm-6">{{ defect.rectified_date|date:"M j, Y" }}</dd>
+                                        {% endif %}
+
+                                        <dt class="col-sm-6">Liability Period:</dt>
+                                        <dd class="col-sm-6">
+                                            {% if defect.work.is_within_defect_liability_period %}
+                                                <span class="text-success">Active</span>
+                                            {% else %}
+                                                <span class="text-muted">Expired</span>
+                                            {% endif %}
+                                        </dd>
+                                    </dl>
+                                </div>
+                            </div>
+
+                            <!-- Liability Information -->
+                            {% if defect.work.get_practical_completion_date %}
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Defect Liability</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p class="mb-2">
+                                        <strong>Practical Completion:</strong><br>
+                                        {{ defect.work.get_practical_completion_date|date:"F j, Y" }}
+                                    </p>
+                                    {% if defect.expiry_date %}
+                                    <p class="mb-2">
+                                        <strong>Liability Expires:</strong><br>
+                                        {{ defect.expiry_date|date:"F j, Y" }}
+                                    </p>
+                                    {% endif %}
+                                    {% if not defect.work.is_within_defect_liability_period and not defect.rectified_date %}
+                                    <div class="alert alert-info">
+                                        <small><strong>Note:</strong> The defect liability period for this work has expired. Rectification may no longer be required.</small>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Work Context Tab -->
+                <div class="tab-pane fade" id="work-info" role="tabpanel" aria-labelledby="work-info-tab">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0"><i class="fas fa-wrench me-2"></i>Work Details</h5>
+                                </div>
+                                <div class="card-body">
+                                    <dl class="row">
+                                        <dt class="col-sm-5">Work Type:</dt>
+                                        <dd class="col-sm-7">{{ defect.work.work_type_id.name }}</dd>
+
+                                        <dt class="col-sm-5">Output Type:</dt>
+                                        <dd class="col-sm-7">{{ defect.work.output_type_id.name }}</dd>
+
+                                        <dt class="col-sm-5">Output Qty:</dt>
+                                        <dd class="col-sm-7">{{ defect.work.output_quantity }}</dd>
+
+                                        {% if defect.work.bedrooms %}
+                                        <dt class="col-sm-5">Bedrooms:</dt>
+                                        <dd class="col-sm-7">{{ defect.work.bedrooms }}</dd>
+                                        {% endif %}
+
+                                        {% if defect.work.estimated_cost %}
+                                        <dt class="col-sm-5">Est. Cost:</dt>
+                                        <dd class="col-sm-7">${{ defect.work.estimated_cost|floatformat:0 }}</dd>
+                                        {% endif %}
+
+                                        {% if defect.work.actual_cost %}
+                                        <dt class="col-sm-5">Actual Cost:</dt>
+                                        <dd class="col-sm-7">${{ defect.work.actual_cost|floatformat:0 }}</dd>
+                                        {% endif %}
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0"><i class="fas fa-building me-2"></i>Project Context</h5>
+                                </div>
+                                <div class="card-body">
+                                    <dl class="row">
+                                        <dt class="col-sm-5">Project:</dt>
+                                        <dd class="col-sm-7">
+                                            <a href="{% url 'portal:project_detail' defect.work.address.project.pk %}">
+                                                {{ defect.work.address.project.name }}
+                                            </a>
+                                        </dd>
+
+                                        <dt class="col-sm-5">Council:</dt>
+                                        <dd class="col-sm-7">{{ defect.work.address.project.council.name }}</dd>
+
+                                        <dt class="col-sm-5">Program:</dt>
+                                        <dd class="col-sm-7">{{ defect.work.address.project.program.name }}</dd>
+
+                                        <dt class="col-sm-5">State:</dt>
+                                        <dd class="col-sm-7">
+                                            <span class="badge bg-secondary">{{ defect.work.address.project.get_state_display }}</span>
+                                        </dd>
+
+                                        <dt class="col-sm-5">Start Date:</dt>
+                                        <dd class="col-sm-7">{{ defect.work.address.project.start_date|date:"M j, Y"|default:"Not set" }}</dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Project Progress if available -->
+                    {% if defect.work.progress %}
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Work Progress</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6>Overall Progress</h6>
+                                            <div class="progress mb-3">
+                                                <div class="progress-bar progress-bar-striped"
+                                                     style="width: {{ defect.work.progress }}%">
+                                                    {{ defect.work.progress }}%
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6>Construction Stages</h6>
+                                            <p class="mb-1">
+                                                <small>Total Dwellings: {{ defect.work.total_dwellings }}</small>
+                                            </p>
+                                            {% if defect.work.start_date %}
+                                            <p class="mb-1">
+                                                <small>Start Date: {{ defect.work.start_date|date:"M j, Y" }}</small>
+                                            </p>
+                                            {% endif %}
+                                            {% if defect.work.end_date %}
+                                            <p class="mb-0">
+                                                <small>End Date: {{ defect.work.end_date|date:"M j, Y" }}</small>
+                                            </p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Rectify Tab (only shown for outstanding defects within liability period) -->
+                {% if not defect.rectified_date and defect.work.is_within_defect_liability_period %}
+                <div class="tab-pane fade" id="rectify" role="tabpanel" aria-labelledby="rectify-tab">
+                    <div class="card">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0"><i class="fas fa-check-circle me-2"></i>Rectify Defect</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <h6>Mark Defect as Rectified</h6>
+                                <p>By rectifying this defect, you confirm that the defect has been properly identified and corrected. This action will:</p>
+                                <ul>
+                                    <li>Update the defect status to "Rectified"</li>
+                                    <li>Set the rectification date to today</li>
+                                    <li>Move this defect out of active status</li>
+                                </ul>
+                            </div>
+
+                            <form method="post" action="{% url 'portal:defect_rectify' defect.pk %}">
+                                {% csrf_token %}
+                                <div class="mb-3">
+                                    <label class="form-label">Rectification Date</label>
+                                    <input type="date" class="form-control" name="rectified_date" value="{{ defect.rectified_date|date:'Y-m-d'|default:request.GET.today }}" required>
+                                </div>
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-check"></i> Mark as Rectified
+                                </button>
+                                <a href="{% url 'portal:defect_detail' defect.pk %}" class="btn btn-secondary">
+                                    <i class="fas fa-times"></i> Cancel
+                                </a>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+            </div>
+
+            <!-- Navigation -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'portal:defect_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to All Defects
+                        </a>
+                        <a href="{% url 'portal:project_detail' defect.work.address.project.pk %}" class="btn btn-outline-primary">
+                            <i class="fas fa-building"></i> View Project
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

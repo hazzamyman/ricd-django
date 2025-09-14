@@ -1,6 +1,6 @@
 {% extends "portal/base.html" %}
 
-{% block title %}Delete Council - {{ council.name }}{% endblock %}
+{% block title %}Delete Work Type - {{ work_type.name }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -9,40 +9,49 @@
             <div class="card border-danger">
                 <div class="card-header bg-danger text-white">
                     <h4 class="mb-0">
-                        <i class="fas fa-exclamation-triangle"></i> Delete Council: {{ council.name }}
+                        <i class="fas fa-exclamation-triangle"></i> Delete Work Type: {{ work_type.name }}
                     </h4>
                 </div>
                 <div class="card-body">
                     <div class="alert alert-warning">
                         <i class="fas fa-warning"></i> <strong>Warning:</strong> This action cannot be undone.
-                        This will permanently delete the council "{{ council.name }}" and all associated data.
+                        This will permanently delete the work type "{{ work_type.name }}" and all associated data.
                     </div>
 
                     <div class="mb-4">
-                        <h5>Council Details:</h5>
+                        <h5>Work Type Details:</h5>
                         <ul class="list-unstyled">
-                            <li><strong>Name:</strong> {{ council.name }}</li>
-                            <li><strong>ABN:</strong> {{ council.abn|default:"Not specified" }}</li>
-                            <li><strong>Default Suburb:</strong> {{ council.default_suburb|default:"Not specified" }}</li>
-                            <li><strong>Default State:</strong> {{ council.default_state }}</li>
-                            <li><strong>Default Postcode:</strong> {{ council.default_postcode|default:"Not specified" }}</li>
+                            <li><strong>Name:</strong> {{ work_type.name }}</li>
+                            <li><strong>Code:</strong> {{ work_type.code }}</li>
+                            <li><strong>Description:</strong> {{ work_type.description|default:"Not specified" }}</li>
+                            <li><strong>Active:</strong> {% if work_type.is_active %}Yes{% else %}No{% endif %}</li>
                         </ul>
                     </div>
 
                     <div class="mb-4">
-                        <h5>Associated Projects:</h5>
-                        {% if council.projects.exists %}
-                            <p>This council has {{ council.projects.count }} project{{ council.projects.count|pluralize }} that will be affected:</p>
+                        <h5>Usage Count:</h5>
+                        {% if work_type.get_usage_count > 0 %}
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <strong>Warning:</strong> This work type is currently in use by {{ work_type.get_usage_count }} item{{ work_type.get_usage_count|pluralize }}.
+                                Deleting it may cause data integrity issues.
+                            </div>
+                        {% else %}
+                            <p class="text-muted">This work type is not currently in use.</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-4">
+                        <h5>Allowed Output Types:</h5>
+                        {% if work_type.allowed_output_types.exists %}
+                            <p>This work type is allowed for the following output types:</p>
                             <ul class="list-group">
-                                {% for project in council.projects.all|slice:":5" %}
-                                    <li class="list-group-item">{{ project.name }}</li>
+                                {% for output_type in work_type.allowed_output_types.all %}
+                                    <li class="list-group-item">{{ output_type.name }}</li>
                                 {% endfor %}
-                                {% if council.projects.count > 5 %}
-                                    <li class="list-group-item text-muted">...and {{ council.projects.count|slice:"5:"|length }} more</li>
-                                {% endif %}
                             </ul>
                         {% else %}
-                            <p class="text-muted">This council has no associated projects.</p>
+                            <p class="text-muted">This work type has no allowed output types configured.</p>
                         {% endif %}
                     </div>
 
@@ -51,11 +60,11 @@
                     <form method="post">
                         {% csrf_token %}
                         <div class="d-flex justify-content-between">
-                            <a href="{% url 'portal:council_detail' council.pk %}" class="btn btn-secondary">
+                            <a href="{% url 'portal:work_type_list' %}" class="btn btn-secondary">
                                 <i class="fas fa-arrow-left"></i> Cancel
                             </a>
                             <button type="submit" class="btn btn-danger">
-                                <i class="fas fa-trash"></i> Yes, Delete Council
+                                <i class="fas fa-trash"></i> Yes, Delete Work Type
                             </button>
                         </div>
                     </form>

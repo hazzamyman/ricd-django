@@ -77,6 +77,7 @@
             <th style="padding: 8px; text-align: left;">Project Name</th>
             <th style="padding: 8px; text-align: left;">Council</th>
             <th style="padding: 8px; text-align: left;">Funding Schedule</th>
+            <th style="padding: 8px; text-align: center;">State</th>
             <th style="padding: 8px; text-align: center;">Progress %</th>
             <th style="padding: 8px; text-align: left;">Budget vs Spent</th>
             <th style="padding: 8px; text-align: center;">Stage 1 Status</th>
@@ -97,6 +98,29 @@
             <td style="padding: 8px;">{{ item.project.council.name }}</td>
             <td style="padding: 8px;">{{ item.funding_schedule_number }}</td>
             <td style="padding: 8px; text-align: center;">
+                {% if item.project.state == 'prospective' %}
+                    <span class="badge bg-secondary">Prospective</span>
+                {% elif item.project.state == 'programmed' %}
+                    <span class="badge bg-info">Programmed</span>
+                {% elif item.project.state == 'funded' %}
+                    <span class="badge bg-success">Funded</span>
+                {% elif item.project.state == 'commenced' %}
+                    <span class="badge bg-warning text-dark">Commenced</span>
+                {% elif item.project.state == 'under_construction' %}
+                    <span class="badge bg-primary">Under Construction</span>
+                {% elif item.project.state == 'completed' %}
+                    <span class="badge bg-success">Completed</span>
+                {% elif item.project.state == 'cancelled' %}
+                    <span class="badge bg-danger">Cancelled</span>
+                {% elif item.project.state == 'terminated' %}
+                    <span class="badge bg-danger">Terminated</span>
+                {% elif item.project.state == 'varied' %}
+                    <span class="badge bg-warning">Varied</span>
+                {% else %}
+                    <span class="badge bg-secondary">{{ item.project.get_state_display }}</span>
+                {% endif %}
+            </td>
+            <td style="padding: 8px; text-align: center;">
                 {% if item.progress_percentage > 0 %}
                     {{ item.progress_percentage }}%
                 {% else %}
@@ -104,6 +128,7 @@
                 {% endif %}
             </td>
             <td style="padding: 8px;">{{ item.budget_vs_spent }}</td>
+            {% if item.project.state == 'commenced' or item.project.state == 'under_construction' %}
             <td style="padding: 8px; text-align: center;">
                 {% if item.stage1_status == 'Complete' %}
                     <span style="color: green; font-weight: bold;">{{ item.stage1_status }}</span>
@@ -122,6 +147,10 @@
                     <span style="color: red;">{{ item.stage2_status }}</span>
                 {% endif %}
             </td>
+            {% else %}
+            <td style="padding: 8px; text-align: center;">-</td>
+            <td style="padding: 8px; text-align: center;">-</td>
+            {% endif %}
             {% if item.project.state == 'commenced' or item.project.state == 'under_construction' %}
             <td style="padding: 8px; text-align: center;">
                 {% if item.late_flag %}

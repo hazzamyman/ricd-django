@@ -1,0 +1,204 @@
+{% extends "portal/base.html" %}
+{% load static %}
+
+{% block title %}Council Help & Documentation{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-question-circle"></i> Council Help & Documentation
+                </h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="list-group" id="help-nav">
+                            <a href="#getting-started" class="list-group-item list-group-item-action active" onclick="showSection('getting-started')">Getting Started</a>
+                            <a href="#dashboard" class="list-group-item list-group-item-action" onclick="showSection('dashboard')">Council Dashboard</a>
+                            <a href="#projects" class="list-group-item list-group-item-action" onclick="showSection('projects')">Your Projects</a>
+                            <a href="#monthly-reports" class="list-group-item list-group-item-action" onclick="showSection('monthly-reports')">Monthly Reports</a>
+                            <a href="#quarterly-reports" class="list-group-item list-group-item-action" onclick="showSection('quarterly-reports')">Quarterly Reports</a>
+                            <a href="#stage-reports" class="list-group-item list-group-item-action" onclick="showSection('stage-reports')">Stage Reports</a>
+                        </div>
+                    </div>
+                    <div class="col-md-9">
+                        <div id="getting-started" class="help-section">
+                            <h4>Getting Started</h4>
+                            <p>Welcome to the RICD Portal! This system helps you manage your council's housing construction projects and submit required reports.</p>
+
+                            <div class="alert alert-info">
+                                <h5><i class="fas fa-info-circle"></i> Important:</h5>
+                                <p>Regular reporting is essential for maintaining funding and remaining compliant with program requirements. Please submit all reports before deadlines.</p>
+                            </div>
+
+                            <h5>Your Responsibilities:</h5>
+                            <ul>
+                                <li><strong>Report Submission:</strong> Submit monthly, quarterly, and milestone reports</li>
+                                <li><strong>Project Monitoring:</strong> Track construction progress and expenditure</li>
+                                <li><strong>Documentation:</strong> Maintain required records and documentation</li>
+                                <li><strong>Compliance:</strong> Ensure projects meet all program requirements</li>
+                            </ul>
+                        </div>
+
+                        <div id="dashboard" class="help-section d-none">
+                            <h4>Council Dashboard</h4>
+                            <p>Your council dashboard shows all projects assigned to your council and their current status.</p>
+
+                            <h5>Dashboard Features:</h5>
+                            <ul>
+                                <li>View all your council's active projects</li>
+                                <li>Check project status and progress</li>
+                                <li>See upcoming report deadlines</li>
+                                <li>Access project details and addresses</li>
+                                <li>Track submission history</li>
+                            </ul>
+                        </div>
+
+                        <div id="projects" class="help-section d-none">
+                            <h4>Your Projects</h4>
+                            <p>Each project represents a construction initiative funded by the RICD program.</p>
+
+                            <h5>Project Information:</h5>
+                            <ul>
+                                <li><strong>Basic Details:</strong> Project name, description, and funding amounts</li>
+                                <li><strong>Addresses:</strong> Individual property addresses for works</li>
+                                <li><strong>Officers:</strong> Primary and secondary officers assigned to the project</li>
+                                <li><strong>Contractors:</strong> External contractors or council works teams</li>
+                                <li><strong>Status:</strong> Current project stage (prospective, funded, commenced, etc.)</li>
+                            </ul>
+                        </div>
+
+                        <div id="monthly-reports" class="help-section d-none">
+                            <h4>Monthly Reports</h4>
+                            <p>Monthly reports track construction progress and financial expenditure for active projects.</p>
+
+                            <div class="alert alert-warning">
+                                <h5><i class="fas fa-exclamation-triangle"></i> Deadline:</h5>
+                                <p>Monthly reports must be submitted by the end of the first week of each month for the previous month's activities.</p>
+                            </div>
+
+                            <h5>Report Components:</h5>
+                            <ul>
+                                <li><strong>Progress Notes:</strong> Description of work completed during the month</li>
+                                <li><strong>Dates:</strong> Key construction milestone dates achieved</li>
+                                <li><strong>Expenditure:</strong> Total council contribution and unspent funding</li>
+                                <li><strong>Status:</strong> Current progress as percentage complete</li>
+                            </ul>
+
+                            <h5>How to Submit:</h5>
+                            <ol>
+                                <li>Navigate to Reports > Submit Monthly from the main menu</li>
+                                <li>Select the work item you want to report on</li>
+                                <li>Fill in all required fields with accurate information</li>
+                                <li>Review your entry and submit</li>
+                            </ol>
+                        </div>
+
+                        <div id="quarterly-reports" class="help-section d-none">
+                            <h4>Quarterly Reports</h4>
+                            <p>Quarterly reports provide comprehensive updates on progress, employment, and financial status.</p>
+
+                            <div class="alert alert-warning">
+                                <h5><i class="fas fa-exclamation-triangle"></i> Deadline:</h5>
+                                <p>Quarterly reports are due within 15 business days after the end of each quarter (January, April, July, October).</p>
+                            </div>
+
+                            <h5>Report Components:</h5>
+                            <ul>
+                                <li><strong>Progress Information:</strong> Percentage completion and expenditure details</li>
+                                <li><strong>Employment Stats:</strong> Indigenous and total employment created</li>
+                                <li><strong>Completion Forecast:</strong> Estimated completion dates</li>
+                                <li><strong>Issues & Contributions:</strong> Any project challenges or additional funding</li>
+                                <li><strong>Supporting Documentation:</strong> Optional file uploads</li>
+                            </ul>
+                        </div>
+
+                        <div id="stage-reports" class="help-section d-none">
+                            <h4>Stage Reports</h4>
+                            <p>Stage reports are submitted at major project milestones to demonstrate compliance and request payment releases.</p>
+
+                            <h5>Stage 1 Report:</h5>
+                            <p>Submitted when a project moves from planning to construction phase. Includes documentation of:</p>
+                            <ul>
+                                <li>All required approvals and permits</li>
+                                <li>Survey and title information</li>
+                                <li>Tender and contractor selection</li>
+                                <li>Design documentation</li>
+                            </ul>
+
+                            <h5>Stage 2 Report:</h5>
+                            <p>Submitted upon practical completion of construction. Includes documentation of:</p>
+                            <ul>
+                                <li>Final construction completion</li>
+                                <li>Handover requirements met</li>
+                                <li>All warranties and guarantees</li>
+                                <li>Infrastructure and utilities completion</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="fas fa-headset"></i> Need Additional Help?
+                </h5>
+            </div>
+            <div class="card-body">
+                <p>If you need assistance beyond what's covered here, please contact your RICD representative:</p>
+                <ul>
+                    <li><strong>Email:</strong> Contact your assigned RICD coordinator</li>
+                    <li><strong>Phone:</strong> Call the RICD support line during business hours</li>
+                    <li><strong>Documentation:</strong> Additional guides available upon request</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showSection(sectionId) {
+    // Hide all sections
+    document.querySelectorAll('.help-section').forEach(section => {
+        section.classList.add('d-none');
+    });
+    // Show selected section
+    document.getElementById(sectionId).classList.remove('d-none');
+
+    // Update navigation
+    document.querySelectorAll('#help-nav .list-group-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    document.querySelector(`[onclick="showSection('${sectionId}')"]`).classList.add('active');
+}
+</script>
+
+<style>
+.list-group-item {
+    cursor: pointer;
+}
+
+.help-section h5 {
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+    color: #495057;
+}
+
+.help-section ul {
+    margin-bottom: 1rem;
+}
+
+.help-section ol {
+    margin-bottom: 1rem;
+}
+</style>
+{% endblock %}

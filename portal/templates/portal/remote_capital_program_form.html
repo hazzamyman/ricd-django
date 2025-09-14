@@ -1,0 +1,73 @@
+{% extends "portal/base.html" %}
+
+{% block title %}{% if object %}Edit{% else %}Create{% endif %} Remote Capital Program Funding Agreement - RICD Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-edit"></i> {% if object %}Edit Remote Capital Program Agreement{% else %}Create New Remote Capital Program Agreement{% endif %}</h2>
+            </div>
+
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-body">
+                            <form method="POST">
+                                {% csrf_token %}
+
+                                {% for field in form %}
+                                <div class="mb-3">
+                                    <label for="{{ field.id_for_label }}" class="form-label">
+                                        {{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}
+                                    </label>
+                                    {{ field }}
+                                    {% if field.help_text %}
+                                        <div class="form-text">{{ field.help_text }}</div>
+                                    {% endif %}
+                                    {% if field.errors %}
+                                        <div class="text-danger">{{ field.errors }}</div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+
+                                <div class="d-flex justify-content-between">
+                                    <a href="{% url 'portal:remote_capital_program_list' %}" class="btn btn-secondary">
+                                        <i class="fas fa-arrow-left"></i> Cancel
+                                    </a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save"></i> {{ submit_text|default:"Save Agreement" }}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Help</h5>
+                        </div>
+                        <div class="card-body">
+                            <h6>Fields:</h6>
+                            <ul class="small">
+                                <li><strong>Council:</strong> Select the council for this agreement</li>
+                                <li><strong>Date Sent to Council:</strong> When agreement was sent</li>
+                                <li><strong>Date Council Signed:</strong> When council signed</li>
+                                <li><strong>Date Delegate Signed:</strong> When delegate signed</li>
+                                <li><strong>Notes:</strong> Additional notes about the agreement</li>
+                            </ul>
+                            <hr>
+                            <p class="mb-0 small">
+                                Required fields are marked with <span class="text-danger">*</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

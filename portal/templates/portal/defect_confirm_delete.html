@@ -1,0 +1,71 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Delete Defect - RICD Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Delete Defect
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <h5 class="alert-heading">Warning!</h5>
+                        <p class="mb-0">You are about to permanently delete this defect. This action cannot be undone.</p>
+                    </div>
+
+                    <div class="mb-4">
+                        <h6>Defect Details:</h6>
+                        <dl class="row">
+                            <dt class="col-sm-4">Description:</dt>
+                            <dd class="col-sm-8">{{ defect.description }}</dd>
+
+                            <dt class="col-sm-4">Work Item:</dt>
+                            <dd class="col-sm-8">{{ defect.work.work_type_id.name }}{% if defect.work.address %} - {{ defect.work.address }}{% endif %}</dd>
+
+                            <dt class="col-sm-4">Project:</dt>
+                            <dd class="col-sm-8">{{ defect.work.address.project.name }}</dd>
+
+                            <dt class="col-sm-4">Council:</dt>
+                            <dd class="col-sm-8">{{ defect.work.address.project.council.name }}</dd>
+
+                            <dt class="col-sm-4">Status:</dt>
+                            <dd class="col-sm-8">
+                                {% if defect.rectified_date %}
+                                    <span class="badge bg-success">Rectified</span>
+                                {% else %}
+                                    <span class="badge bg-warning">Outstanding</span>
+                                {% endif %}
+                            </dd>
+
+                            <dt class="col-sm-4">Identified Date:</dt>
+                            <dd class="col-sm-8">{{ defect.identified_date|date:"F j, Y" }}</dd>
+
+                            {% if defect.rectified_date %}
+                            <dt class="col-sm-4">Rectified Date:</dt>
+                            <dd class="col-sm-8">{{ defect.rectified_date|date:"F j, Y" }}</dd>
+                            {% endif %}
+                        </dl>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'portal:defect_detail' defect.pk %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash"></i> Delete Defect
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

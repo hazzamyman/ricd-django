@@ -25,21 +25,15 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 {% if user.is_authenticated %}
                 <ul class="navbar-nav me-auto">
-                    {% if user.user_type == 'ricd' or user.is_staff %}
+                    {% if user.is_staff %}
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'portal:ricd_dashboard' %}">
                             <i class="fas fa-tachometer-alt"></i> RICD Dashboard
                         </a>
                     </li>
-                    <!-- Analytics for RICD users -->
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'portal:analytics_dashboard' %}">
-                            <i class="fas fa-chart-line"></i> Analytics
-                        </a>
-                    </li>
                     {% endif %}
 
-                    {% if user.council or user.user_type == 'council' %}
+                    {% if user.council %}
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'portal:council_dashboard' %}">
                             <i class="fas fa-flag"></i> Council Dashboard
@@ -47,37 +41,88 @@
                     </li>
                     {% endif %}
 
+                    {% if user.is_staff %}
                     <!-- Management Dropdown -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="managementDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-cogs"></i> Management
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="managementDropdown">
-                            <li><a class="dropdown-item" href="{% url 'portal:council_list' %}">Councils</a></li>
+                            <!-- Council Management -->
+                            <li><h6 class="dropdown-header">Councils</h6></li>
+                            <li><a class="dropdown-item" href="{% url 'portal:council_list' %}">All Councils</a></li>
+                            <li><a class="dropdown-item" href="{% url 'portal:officer_list' %}">Officers</a></li>
+                            <li><hr class="dropdown-divider"></li>
+
+                            <!-- Program & Project Management -->
+                            <li><h6 class="dropdown-header">Programs & Projects</h6></li>
                             <li><a class="dropdown-item" href="{% url 'portal:program_list' %}">Programs</a></li>
                             <li><a class="dropdown-item" href="{% url 'portal:project_list' %}">Projects</a></li>
-                            <li><a class="dropdown-item" href="{% url 'portal:funding_approval_list' %}">Funding Approvals</a></li>
                             <li><hr class="dropdown-divider"></li>
+
+                            <!-- Defect Management -->
+                            <li><h6 class="dropdown-header">Defects & Quality</h6></li>
+                            <li><a class="dropdown-item" href="{% url 'portal:defect_list' %}">
+                                <i class="fas fa-exclamation-triangle"></i> All Defects
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'portal:defect_create' %}">
+                                <i class="fas fa-plus"></i> Report Defect
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+
+                            <!-- User Management -->
+                            <li><h6 class="dropdown-header">Users</h6></li>
+                            <li><a class="dropdown-item" href="{% url 'portal:user_list' %}">User Management</a></li>
+                            <li><hr class="dropdown-divider"></li>
+
+                            <!-- Funding & Agreements -->
+                            <li><h6 class="dropdown-header">Funding</h6></li>
+                            <li><a class="dropdown-item" href="{% url 'portal:funding_approval_list' %}">Funding Approvals</a></li>
+                            <li><a class="dropdown-item" href="{% url 'portal:remote_capital_program_list' %}">Remote Capital Agreements</a></li>
+                            <li><a class="dropdown-item" href="{% url 'portal:forward_rpf_list' %}">Forward RPF Agreements</a></li>
+                            <li><a class="dropdown-item" href="{% url 'portal:interim_frp_list' %}">Interim FRP Agreements</a></li>
+                            <li><hr class="dropdown-divider"></li>
+
+                            <!-- Types & Classifications -->
+                            <li><h6 class="dropdown-header">Types</h6></li>
                             <li><a class="dropdown-item" href="{% url 'portal:work_type_list' %}">Work Types</a></li>
                             <li><a class="dropdown-item" href="{% url 'portal:output_type_list' %}">Output Types</a></li>
+                            <li><a class="dropdown-item" href="{% url 'portal:work_output_type_config' %}">Work/Output Config</a></li>
+                            <li><hr class="dropdown-divider"></li>
+
+                            <!-- Maintenance -->
+                            <li><h6 class="dropdown-header">Maintenance</h6></li>
+                            <li><a class="dropdown-item" href="{% url 'portal:construction_method_list' %}">
+                                <i class="fas fa-tools"></i> Construction Methods
+                            </a></li>
                         </ul>
                     </li>
+                    {% endif %}
 
+                    {% if user.is_staff %}
+                    <!-- Analytics Menu Item (separate) -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'portal:analytics_dashboard' %}">
+                            <i class="fas fa-chart-line"></i> Analytics
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% if user.council %}
                     <!-- Reports Dropdown -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="reportsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-file-alt"></i> Reports
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="reportsDropdown">
-                            {% if user.council or user.user_type == 'council' %}
                             <li><a class="dropdown-item" href="{% url 'portal:monthly_report' %}">Submit Monthly</a></li>
                             <li><a class="dropdown-item" href="{% url 'portal:quarterly_report' %}">Submit Quarterly</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{% url 'portal:stage1_report' %}">Stage 1 Report</a></li>
                             <li><a class="dropdown-item" href="{% url 'portal:stage2_report' %}">Stage 2 Report</a></li>
-                            {% endif %}
                         </ul>
                     </li>
+                    {% endif %}
                 </ul>
                 {% endif %}
 
@@ -90,6 +135,14 @@
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                                 <li><a class="dropdown-item" href="#"><i class="fas fa-user"></i> Profile</a></li>
+                                {% if user.is_staff %}
+                                <li><a class="dropdown-item" href="/admin/" target="_blank"><i class="fas fa-cog"></i> Admin Backend</a></li>
+                                {% endif %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{% url 'portal:help_ricd' %}"><i class="fas fa-question-circle"></i> Help (RICD)</a></li>
+                                {% if user.council %}
+                                <li><a class="dropdown-item" href="{% url 'portal:help_council' %}"><i class="fas fa-question-circle"></i> Help (Council)</a></li>
+                                {% endif %}
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="{% url 'logout' %}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
                             </ul>
