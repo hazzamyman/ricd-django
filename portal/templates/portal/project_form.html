@@ -50,6 +50,7 @@
                             {% endif %}
                         </div>
 
+                        {% if not user.council %}{% comment %}Hide Program, Funding Schedule, and Agreements from council users{% endcomment %}
                         <!-- Council, Program, Funding Schedule -->
                         <div class="row">
                             <div class="col-md-4">
@@ -81,6 +82,33 @@
                             </div>
                         </div>
 
+                        <!-- Funding Agreements -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.forward_rpf_agreement.id_for_label }}" class="form-label">{{ form.forward_rpf_agreement.label }}</label>
+                                    {{ form.forward_rpf_agreement }}
+                                    {% if form.forward_rpf_agreement.errors %}
+                                        <div class="text-danger">{{ form.forward_rpf_agreement.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.interim_fp_agreement.id_for_label }}" class="form-label">{{ form.interim_fp_agreement.label }}</label>
+                                    {{ form.interim_fp_agreement }}
+                                    {% if form.interim_fp_agreement.errors %}
+                                        <div class="text-danger">{{ form.interim_fp_agreement.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Basic Information -->
+                        </div>
+
+                        {% if not user.council %}{% comment %}Hide SAP Project Details from council users{% endcomment %}
                         <!-- SAP Project Details -->
                         <h5 class="mt-4 mb-3">SAP Project Details</h5>
                         <div class="row">
@@ -112,7 +140,9 @@
                                 </div>
                             </div>
                         </div>
+                        {% endif %}
 
+                        {% if not user.council %}{% comment %}Hide Financial Information from council users{% endcomment %}
                         <!-- Financial Information -->
                         <h5 class="mt-4 mb-3">Financial Information</h5>
                         <div class="row">
@@ -185,6 +215,7 @@
                                 </div>
                             </div>
                         </div>
+                        {% endif %}
 
                         <!-- Officers and Management -->
                         <h5 class="mt-4 mb-3">Project Management</h5>

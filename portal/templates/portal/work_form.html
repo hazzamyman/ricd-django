@@ -76,36 +76,130 @@
                             </div>
                         </div>
 
-                        <hr>
-
-                        <!-- Timeline Information (Optional) -->
-                        <div class="alert alert-info">
-                            <small><i class="fas fa-info-circle me-1"></i>Construction details like floor/frame/roof methods can be added later in the detailed works section after Stage 1 completion.</small>
-                        </div>
-
+                        <!-- Work Details Section -->
                         <div class="mb-3">
-                            <label for="{{ form.start_date.id_for_label }}" class="form-label">Start Date (Optional)</label>
-                            {{ form.start_date }}
-                            <small class="form-text text-muted">If not specified, all works on this project will start at the same time when defined.</small>
+                            <h5 class="mb-3">Work Details</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ form.land_status.id_for_label }}" class="form-label">Land Status</label>
+                                        {{ form.land_status }}
+                                        {% if form.land_status.errors %}
+                                            <div class="text-danger small">{{ form.land_status.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="{{ form.floor_method.id_for_label }}" class="form-label">Floor Method</label>
+                                        {{ form.floor_method }}
+                                        {% if form.floor_method.errors %}
+                                            <div class="text-danger small">{{ form.floor_method.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="{{ form.frame_method.id_for_label }}" class="form-label">Frame Method</label>
+                                        {{ form.frame_method }}
+                                        {% if form.frame_method.errors %}
+                                            <div class="text-danger small">{{ form.frame_method.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="{{ form.external_wall_method.id_for_label }}" class="form-label">External Wall Method</label>
+                                        {{ form.external_wall_method }}
+                                        {% if form.external_wall_method.errors %}
+                                            <div class="text-danger small">{{ form.external_wall_method.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="{{ form.roof_method.id_for_label }}" class="form-label">Roof Method</label>
+                                        {{ form.roof_method }}
+                                        {% if form.roof_method.errors %}
+                                            <div class="text-danger small">{{ form.roof_method.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ form.car_accommodation.id_for_label }}" class="form-label">Car Accommodation</label>
+                                        {{ form.car_accommodation }}
+                                        {% if form.car_accommodation.errors %}
+                                            <div class="text-danger small">{{ form.car_accommodation.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="{{ form.additional_facilities.id_for_label }}" class="form-label">Additional Facilities</label>
+                                        {{ form.additional_facilities }}
+                                        {% if form.additional_facilities.errors %}
+                                            <div class="text-danger small">{{ form.additional_facilities.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="{{ form.extension_high_low.id_for_label }}" class="form-label">Extension High/Low</label>
+                                        {{ form.extension_high_low }}
+                                        {% if form.extension_high_low.errors %}
+                                            <div class="text-danger small">{{ form.extension_high_low.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="{{ form.bathrooms.id_for_label }}" class="form-label">Bathrooms</label>
+                                        {{ form.bathrooms }}
+                                        {% if form.bathrooms.errors %}
+                                            <div class="text-danger small">{{ form.bathrooms.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="{{ form.kitchens.id_for_label }}" class="form-label">Kitchens</label>
+                                        {{ form.kitchens }}
+                                        {% if form.kitchens.errors %}
+                                            <div class="text-danger small">{{ form.kitchens.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="{{ form.construction_method.id_for_label }}" class="form-label">Construction Method</label>
+                                        {{ form.construction_method }}
+                                        {% if form.construction_method.errors %}
+                                            <div class="text-danger small">{{ form.construction_method.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <hr>
 
-                        <!-- Timeline Information (Optional) -->
+
+                        <hr>
+
+                        <!-- Timeline Information -->
                         <h5 class="mb-3">Timeline (Optional)</h5>
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="{{ form.start_date.id_for_label }}" class="form-label">Start Date</label>
+                                    <label for="{{ form.start_date.id_for_label }}" class="form-label">Work Start Date</label>
                                     {{ form.start_date }}
                                     <small class="form-text text-muted">Leave blank - all works on the project will start together</small>
+                                    {% if form.start_date.errors %}
+                                        <div class="text-danger small">{{ form.start_date.errors.0 }}</div>
+                                    {% endif %}
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="{{ form.end_date.id_for_label }}" class="form-label">Estimated End Date</label>
+                                    <label for="{{ form.end_date.id_for_label }}" class="form-label">Estimated Completion Date</label>
                                     {{ form.end_date }}
                                     <small class="form-text text-muted">Optional: estimated completion date</small>
+                                    {% if form.end_date.errors %}
+                                        <div class="text-danger small">{{ form.end_date.errors.0 }}</div>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -124,4 +218,43 @@
         </div>
     </div>
 </div>
+
+<script>
+// Store work type to output type mappings
+const workTypeOutputTypes = JSON.parse('{{ work_type_output_types_json|escapejs }}');
+
+document.addEventListener('DOMContentLoaded', function() {
+    const workTypeSelect = document.getElementById('{{ form.work_type.id_for_label }}');
+    const outputTypeSelect = document.getElementById('{{ form.output_type.id_for_label }}');
+
+    function filterOutputTypes() {
+        const selectedWorkTypeId = workTypeSelect.value;
+        const allowedOutputTypeIds = workTypeOutputTypes[selectedWorkTypeId] || [];
+
+        // Hide all options except the first (empty) one
+        const options = outputTypeSelect.querySelectorAll('option');
+        options.forEach(option => {
+            if (option.value === '') {
+                option.style.display = 'block'; // Keep empty option
+            } else if (allowedOutputTypeIds.includes(parseInt(option.value))) {
+                option.style.display = 'block';
+            } else {
+                option.style.display = 'none';
+            }
+        });
+
+        // Reset selection if current selection is not allowed
+        if (outputTypeSelect.value && !allowedOutputTypeIds.includes(parseInt(outputTypeSelect.value))) {
+            outputTypeSelect.value = '';
+        }
+    }
+
+    // Filter on page load
+    filterOutputTypes();
+
+    // Filter when work type changes
+    workTypeSelect.addEventListener('change', filterOutputTypes);
+});
+</script>
+
 {% endblock %}

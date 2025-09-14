@@ -1,0 +1,163 @@
+{% extends "portal/base.html" %}
+
+{% block title %}
+    {% if form.instance.pk %}
+        Edit Defect - RICD Portal
+    {% else %}
+        Report New Defect - RICD Portal
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        {% if form.instance.pk %}
+                            <i class="fas fa-edit"></i> Edit Defect
+                        {% else %}
+                            <i class="fas fa-plus"></i> Report New Defect
+                        {% endif %}
+                    </h4>
+                    {% if work %}
+                        <p class="mb-0 text-muted small">
+                            For work: <strong>{{ work.work_type_id.name }}{% if work.address %} - {{ work.address }}{% endif %}</strong>
+                        </p>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <!-- Work selection (only shown if not pre-selected) -->
+                        {% if not work %}
+                            <div class="mb-3">
+                                <label for="{{ form.work.id_for_label }}" class="form-label">{{ form.work.label }}</label>
+                                {{ form.work }}
+                                {% if form.work.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.work.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                {% if form.work.help_text %}
+                                    <div class="form-text">{{ form.work.help_text }}</div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        <!-- Description -->
+                        <div class="mb-3">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">{{ form.description.label }}</label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.description.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            {% if form.description.help_text %}
+                                <div class="form-text">{{ form.description.help_text }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Identified Date -->
+                        <div class="mb-3">
+                            <label for="{{ form.identified_date.id_for_label }}" class="form-label">{{ form.identified_date.label }}</label>
+                            {{ form.identified_date }}
+                            {% if form.identified_date.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.identified_date.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            {% if form.identified_date.help_text %}
+                                <div class="form-text">{{ form.identified_date.help_text }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Rectified Date -->
+                        <div class="mb-4">
+                            <label for="{{ form.rectified_date.id_for_label }}" class="form-label">{{ form.rectified_date.label }}</label>
+                            {{ form.rectified_date }}
+                            {% if form.rectified_date.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.rectified_date.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            {% if form.rectified_date.help_text %}
+                                <div class="form-text">{{ form.rectified_date.help_text }}</div>
+                            {% endif %}
+                            <div class="form-text">
+                                <small class="text-muted">Leave blank if defect is not yet rectified.</small>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i>
+                                {% if form.instance.pk %}Update{% else %}Report{% endif %} Defect
+                            </button>
+                            <a href="{% url 'portal:defect_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                            {% if work and not form.instance.pk %}
+                                <a href="{% url 'portal:project_detail' work.project.pk %}" class="btn btn-outline-info">
+                                    <i class="fas fa-arrow-left"></i> Back to Project
+                                </a>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            {% if work and (work.is_within_defect_liability_period or work.get_practical_completion_date()) %}
+            <!-- Defect Liability Information -->
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="fas fa-info-circle"></i> Defect Liability Period Information
+                    </h6>
+                    {% if work.get_practical_completion_date %}
+                        <p class="mb-0">
+                            <strong>Practical Completion Date:</strong> {{ work.get_practical_completion_date|date:"M j, Y" }}
+                        </p>
+                        <p class="mb-0">
+                            <strong>Defect Liability Period Expires:</strong>
+                            {% load tz %}
+                            {% timezone "UTC" %}
+                                {{ work.get_practical_completion_date|timezone:"UTC"|add:"months:12"|date:"M j, Y" }}
+                            {% endtimezone %}
+                        </p>
+                        {% if work.is_within_defect_liability_period %}
+                            <p class="text-warning mb-0">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                This work is currently within the defect liability period.
+                            </p>
+                        {% else %}
+                            <p class="text-muted mb-0">
+                                <i class="fas fa-check-circle"></i>
+                                This work has passed the defect liability period.
+                            </p>
+                        {% endif %}
+                    {% else %}
+                        <p class="text-muted mb-0">
+                            <i class="fas fa-question-circle"></i>
+                            No practical completion date has been recorded.
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

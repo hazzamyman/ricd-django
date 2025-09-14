@@ -1,0 +1,193 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Officers - RICD Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-user-tie"></i> Officers</h2>
+                {% if perms.portal.add_officer %}
+                <a href="{% url 'portal:officer_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add Officer
+                </a>
+                {% endif %}
+            </div>
+
+            <!-- Search Form -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-3">
+                            <input type="text" name="search" class="form-control"
+                                   placeholder="Search by name, username, or position..."
+                                   value="{{ request.GET.search }}">
+                        </div>
+                        <div class="col-md-2">
+                            <select name="council" class="form-select">
+                                <option value="">All Councils</option>
+                                {% for council in councils %}
+                                    <option value="{{ council.id }}" {% if request.GET.council == council.id|stringformat:'s' %}selected{% endif %}>
+                                        {{ council.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select name="active" class="form-select">
+                                <option value="" {% if not request.GET.active %}selected{% endif %}>All Officers</option>
+                                <option value="true" {% if request.GET.active == 'true' %}selected{% endif %}>Active</option>
+                                <option value="false" {% if request.GET.active == 'false' %}selected{% endif %}>Inactive</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select name="role" class="form-select">
+                                <option value="" {% if not request.GET.role %}selected{% endif %}>All Roles</option>
+                                <option value="principal" {% if request.GET.role == 'principal' %}selected{% endif %}>Principal Officers</option>
+                                <option value="senior" {% if request.GET.role == 'senior' %}selected{% endif %}>Senior Officers</option>
+                                <option value="both" {% if request.GET.role == 'both' %}selected{% endif %}>Both Roles</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-outline-primary me-2">
+                                <i class="fas fa-search"></i> Search
+                            </button>
+                            <a href="{% url 'portal:officer_list' %}" class="btn btn-outline-secondary">
+                                Clear
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Officer List -->
+            <div class="card">
+                <div class="card-body">
+                    {% if officers %}
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Username</th>
+                                        <th>Full Name</th>
+                                        <th>Position</th>
+                                        <th>Council Assignment</th>
+                                        <th>Officer Roles</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for officer in officers %}
+                                    <tr>
+                                        <td>
+                                            <a href="{% url 'portal:officer_detail' officer.pk %}">
+                                                {{ officer.user.username }}
+                                            </a>
+                                        </td>
+                                        <td>{{ officer.user.first_name }} {{ officer.user.last_name }}</td>
+                                        <td>{{ officer.position|default:"-" }}</td>
+                                        <td>
+                                            {% with council=officer.council_assignment %}
+                                                {% if council %}
+                                                    <span class="badge bg-info">{{ council.name }}</span>
+                                                {% else %}
+                                                    No Council
+                                                {% endif %}
+                                            {% endwith %}
+                                        </td>
+                                        <td>
+                                            {% if officer.is_principal and officer.is_senior %}
+                                                <span class="badge bg-success">Principal & Senior</span>
+                                            {% elif officer.is_principal %}
+                                                <span class="badge bg-primary">Principal</span>
+                                            {% elif officer.is_senior %}
+                                                <span class="badge bg-secondary">Senior</span>
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if officer.is_active %}
+                                                <span class="badge bg-success">Active</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Inactive</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                {% if perms.portal.view_officer %}
+                                                <a href="{% url 'portal:officer_detail' officer.pk %}"
+                                                   class="btn btn-sm btn-outline-info"
+                                                   title="View Details">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                {% endif %}
+                                                {% if perms.portal.change_officer %}
+                                                <a href="{% url 'portal:officer_update' officer.pk %}"
+                                                   class="btn btn-sm btn-outline-warning"
+                                                   title="Edit">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        {% if is_paginated %}
+                        <nav aria-label="Officer pagination" class="mt-4">
+                            <ul class="pagination justify-content-center">
+                                {% if page_obj.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                            <i class="fas fa-angle-left"></i> Previous
+                                        </a>
+                                    </li>
+                                {% endif %}
+
+                                <li class="page-item disabled">
+                                    <span class="page-link">
+                                        Page {{ page_obj.number }} of {{ paginator.num_pages }}
+                                    </span>
+                                </li>
+
+                                {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                            Next <i class="fas fa-angle-right"></i>
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-user-tie fa-3x text-muted mb-3"></i>
+                            <h4>No Officers Found</h4>
+                            <p class="text-muted">
+                                {% if request.GET %}
+                                    No officers match your search criteria.
+                                {% else %}
+                                    No officers have been added yet.
+                                {% endif %}
+                            </p>
+                            {% if perms.portal.add_officer %}
+                            <a href="{% url 'portal:officer_create' %}" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> Add First Officer
+                            </a>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

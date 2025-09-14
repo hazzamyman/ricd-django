@@ -15,15 +15,7 @@
             <div class="card mb-4">
                 <div class="card-body">
                     <form method="GET" class="row g-3">
-                        <div class="col-md-3">
-                            <label for="start_date" class="form-label">Start Date</label>
-                            <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date|date:'Y-m-d' }}">
-                        </div>
-                        <div class="col-md-3">
-                            <label for="end_date" class="form-label">End Date</label>
-                            <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date|date:'Y-m-d' }}">
-                        </div>
-                        <div class="col-md-3">
+                        <div class="col-md-6">
                             <label for="program" class="form-label">Filter by Program</label>
                             <select name="program" id="program" class="form-select">
                                 <option value="">All Programs</option>
@@ -34,11 +26,16 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-6">
                             <label class="form-label">&nbsp;</label>
-                            <button type="submit" class="btn btn-primary w-100">
-                                <i class="fas fa-search"></i> Apply Filters
-                            </button>
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search"></i> Apply Filters
+                                </button>
+                                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#exportModal">
+                                    <i class="fas fa-download"></i> Custom Export (Excel)
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>

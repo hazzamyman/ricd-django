@@ -2,26 +2,46 @@ from django.shortcuts import render, get_object_or_404
 from django.db.models import Q, Avg, Sum, Count
 from django.utils import timezone
 from django.utils.dateformat import format
+from django import forms
 from decimal import Decimal
 from django.contrib import messages
 from django.shortcuts import redirect
+from django.contrib.auth.models import User, Group
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth import views as auth_views
 from django.urls import reverse_lazy
 from collections import defaultdict
 import calendar
 
 from django.views.generic import TemplateView, DetailView, ListView
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
-from ricd.models import Project, Program, Council, QuarterlyReport, MonthlyTracker, Stage1Report, Stage2Report, FundingSchedule, Address, Work, FundingApproval, WorkType, OutputType
+from django.views import View
+import json
+from ricd.models import (
+    Project, Program, Council, QuarterlyReport, MonthlyTracker, Stage1Report, Stage2Report,
+    FundingSchedule, Address, Work, WorkStep, FundingApproval, WorkType, OutputType, ConstructionMethod, Officer,
+    ForwardRemoteProgramFundingAgreement, InterimForwardProgramFundingAgreement,
+    RemoteCapitalProgramFundingAgreement, Defect
+)
 from .forms import (
     MonthlyTrackerForm, QuarterlyReportForm, Stage1ReportForm, Stage2ReportForm,
     CouncilForm, ProgramForm, ProjectForm, ProjectStateForm, AddressForm, WorkForm,
-    WorkTypeForm, OutputTypeForm
+    WorkTypeForm, OutputTypeForm, ConstructionMethodForm, ForwardRemoteProgramFundingAgreementForm,
+    InterimForwardProgramFundingAgreementForm, RemoteCapitalProgramFundingAgreementForm,
+    UserCreationForm, OfficerForm, OfficerAssignmentForm, FundingApprovalForm,
+    CustomExcelExportForm, DefectForm, CouncilUserCreationForm
 )
 
 # RICD Dashboard
-class RICDDashboardView(TemplateView):
+class RICDDashboardView(LoginRequiredMixin, TemplateView):
     template_name = "portal/ricd_dashboard.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        # Restrict access to RICD users only
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied. Only RICD staff can view RICD dashboard.")
+        return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -149,6 +169,11 @@ class CouncilDashboardView(TemplateView):
         else:
             user_projects = Project.objects.none()
 
+        # Apply stage filter if provided
+        stage_filter = self.request.GET.get('stage')
+        if stage_filter:
+            user_projects = user_projects.filter(state=stage_filter)
+
         # Enhance projects with calculated data
         enhanced_projects = []
         for project in user_projects.select_related('council', 'program', 'funding_schedule'):
@@ -177,6 +202,11 @@ class CouncilDashboardView(TemplateView):
 
         context['projects'] = enhanced_projects
         context['user_council'] = getattr(self.request.user, 'council', None) if self.request.user.is_authenticated else None
+
+        # Add only stage filter options
+        context['stages'] = [{'value': choice[0], 'display': choice[1]} for choice in Project.STATE_CHOICES]
+        context['current_stage'] = stage_filter
+
         return context
 
     def get_required_reports_status(self, project):
@@ -215,9 +245,80 @@ class ProjectDetailView(DetailView):
     template_name = "portal/project_detail.html"
     context_object_name = "project"
 
+    def dispatch(self, request, *args, **kwargs):
+        # Check if user has permission to view this project
+        project = self.get_object()
+        user_council = getattr(request.user, 'council', None)
+
+        # If user has a council (council user), they can only view their own council's projects
+        if user_council and project.council != user_council:
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("You don't have permission to view this project.")
+
+        return super().dispatch(request, *args, **kwargs)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['funding_approvals'] = self.object.funding_approvals.all()
+        return context
+
+
+# Council Project Detail View
+class CouncilProjectDetailView(DetailView):
+    model = Project
+    template_name = "portal/council_project_detail.html"
+    context_object_name = "project"
+
+    def dispatch(self, request, *args, **kwargs):
+        # Check if user has permission to view this project
+        project = self.get_object()
+        user_council = getattr(request.user, 'council', None)
+
+        # Only council users and managers can access this view
+        if not request.user.groups.filter(name__in=['Council User', 'Council Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied. Only council users can view council project details.")
+
+        # If user has a council, they can only view their own council's projects
+        if user_council and project.council != user_council:
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("You don't have permission to view this project.")
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        project = self.object
+
+        # Add funding agreement information
+        context['funding_agreement'] = project.funding_agreement
+        context['funding_schedule'] = project.funding_schedule
+        context['forward_rpf'] = project.forward_rpf_agreement
+        context['interim_frp'] = project.interim_fp_agreement
+
+        # Calculate funding amount (less contingency)
+        if project.funding_agreement and hasattr(project.funding_agreement, 'funding_amount'):
+            total_funding = project.funding_agreement.funding_amount or 0
+            contingency = project.funding_agreement.contingency_amount or 0
+            context['funding_amount_less_contingency'] = total_funding - contingency
+        else:
+            context['funding_amount_less_contingency'] = 0
+
+        # Get overall progress from latest quarterly reports
+        from django.db.models import Avg
+        latest_reports = QuarterlyReport.objects.filter(
+            work__address__project=project
+        ).order_by('-submission_date')[:5]  # Last 5 reports
+
+        if latest_reports.exists():
+            avg_progress = latest_reports.aggregate(avg_progress=Avg('percentage_works_completed'))['avg_progress']
+            context['overall_progress'] = avg_progress or 0
+        else:
+            context['overall_progress'] = 0
+
+        # Get defects for this project
+        context['defects'] = Defect.objects.filter(work__address__project=project).select_related('work__address')
+
         return context
 
 
@@ -243,11 +344,18 @@ class MonthlyReportView(LoginRequiredMixin, TemplateView):
 
 # Council CRUD Views
 class CouncilListView(LoginRequiredMixin, ListView):
-    """List all councils - accessible by RICD users primarily"""
+    """List all councils - accessible by RICD users only"""
     model = Council
     template_name = "portal/council_list.html"
     context_object_name = "councils"
     paginate_by = 20
+
+    def dispatch(self, request, *args, **kwargs):
+        # Restrict access to RICD users only
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied. Only RICD staff can view council list.")
+        return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
         queryset = Council.objects.all()
@@ -293,10 +401,10 @@ class CouncilDeleteView(LoginRequiredMixin, DeleteView):
     template_name = "portal/council_confirm_delete.html"
     success_url = reverse_lazy('portal:council_list')
 
-    def delete(self, request, *args, **kwargs):
+    def form_valid(self, form):
         council = self.get_object()
-        messages.success(request, f'Council "{council.name}" has been deleted.')
-        return super().delete(request, *args, **kwargs)
+        messages.success(self.request, f'Council "{council.name}" has been deleted.')
+        return super().form_valid(form)
 
 
 class CouncilDetailView(LoginRequiredMixin, DetailView):
@@ -309,16 +417,129 @@ class CouncilDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context['projects'] = self.object.projects.all()
         context['funding_schedules'] = self.object.funding_schedules.all()
+
+        # Add council users with role information (only Council User and Council Manager groups)
+        council_users = []
+        for profile in self.object.users.all().select_related('user'):
+            user = profile.user
+            # Only include users who are in Council User or Council Manager groups
+            if user.groups.filter(name__in=['Council User', 'Council Manager']).exists():
+                # Add role information to user for template use
+                user.council_role = None
+                for group in user.groups.all():
+                    if group.name == 'Council Manager':
+                        user.council_role = 'manager'
+                        break
+                    elif group.name == 'Council User':
+                        user.council_role = 'user'
+                        break
+                council_users.append(user)
+
+        context['council_users'] = council_users
         return context
+
+
+class CouncilUserCreateView(LoginRequiredMixin, CreateView):
+    """Create a new council user - RICD users can select council, Council Managers create for their own council"""
+    model = User
+    form_class = CouncilUserCreationForm
+    template_name = "portal/council_user_form.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        # Only get council from URL if it's a council-specific URL (for Council Managers)
+        if 'council_pk' in self.kwargs:
+            self.council = get_object_or_404(Council, pk=self.kwargs['council_pk'])
+        else:
+            self.council = None
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        if self.council:
+            kwargs['council'] = self.council
+        kwargs['user'] = self.request.user
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if self.council:
+            context['council'] = self.council
+        return context
+
+    def get_success_url(self):
+        # If we have a specific council, go back to it
+        if self.council:
+            return reverse_lazy('portal:council_detail', kwargs={'pk': self.council.pk})
+        # Otherwise, go to council list
+        return reverse_lazy('portal:council_list')
+
+    def form_valid(self, form):
+        # Check permissions before saving
+        user = self.request.user
+        selected_council = form.cleaned_data.get('council') or self.council
+
+        # Only RICD users or Council Managers of this council can create users
+        user_council = getattr(user, 'council', None)
+        is_ricd = user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists()
+        is_council_manager = user.groups.filter(name='Council Manager').exists() and user_council == selected_council
+
+        if not (is_ricd or is_council_manager):
+            messages.error(self.request, 'You do not have permission to create users for this council.')
+            return self.form_invalid(form)
+
+        # Additional check: only RICD users can create Council Manager roles
+        role = form.cleaned_data.get('role')
+        if role == 'council_manager' and not is_ricd:
+            messages.error(self.request, 'Only RICD staff can create Council Manager accounts.')
+            return self.form_invalid(form)
+
+        # Debug logging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"DEBUG: CouncilUserCreateView.form_valid - Creating user: {form.cleaned_data.get('username')}, Council: {selected_council}, Role: {role}")
+
+        try:
+            response = super().form_valid(form)
+
+            # Verify user was created and has profile
+            created_user = form.instance
+            logger.info(f"DEBUG: User created - ID: {created_user.pk}, Username: {created_user.username}")
+
+            # Check if profile was created
+            if hasattr(created_user, 'profile'):
+                logger.info(f"DEBUG: UserProfile exists - Council: {created_user.profile.council}")
+            else:
+                logger.error(f"DEBUG: UserProfile NOT created for user {created_user.username}")
+
+            # Check groups
+            user_groups = list(created_user.groups.values_list('name', flat=True))
+            logger.info(f"DEBUG: User groups: {user_groups}")
+
+            role_display = "Council Manager" if role == 'council_manager' else "Council User"
+            council_name = selected_council.name if selected_council else "Unknown Council"
+            messages.success(self.request, f'{role_display} "{created_user.username}" created successfully for {council_name}.')
+            return response
+
+        except Exception as e:
+            logger.error(f"DEBUG: Error creating user: {str(e)}")
+            messages.error(self.request, f'Error creating user: {str(e)}')
+            return self.form_invalid(form)
 
 
 # Program CRUD Views
 class ProgramListView(LoginRequiredMixin, ListView):
-    """List all programs"""
+    """List all programs - RICD users only"""
     model = Program
     template_name = "portal/program_list.html"
     context_object_name = "programs"
     paginate_by = 20
+
+    def dispatch(self, request, *args, **kwargs):
+        # Restrict access to RICD users only
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied. Only RICD staff can view programs.")
+        return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
         queryset = Program.objects.all()
@@ -363,10 +584,10 @@ class ProgramDeleteView(LoginRequiredMixin, DeleteView):
     template_name = "portal/program_confirm_delete.html"
     success_url = reverse_lazy('portal:program_list')
 
-    def delete(self, request, *args, **kwargs):
+    def form_valid(self, form):
         program = self.get_object()
-        messages.success(request, f'Program "{program.name}" has been deleted.')
-        return super().delete(request, *args, **kwargs)
+        messages.success(self.request, f'Program "{program.name}" has been deleted.')
+        return super().form_valid(form)
 
 
 class ProgramDetailView(LoginRequiredMixin, DetailView):
@@ -396,8 +617,13 @@ class ProjectListView(LoginRequiredMixin, ListView):
 
         # Apply user-specific filtering (council users see only their projects)
         user_council = getattr(self.request.user, 'council', None)
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"DEBUG: ProjectListView - User: {self.request.user.username}, User Council: {user_council}, Is Staff: {self.request.user.is_staff}, Groups: {[g.name for g in self.request.user.groups.all()]}")
+
         if user_council:
             queryset = queryset.filter(council=user_council)
+            logger.info(f"DEBUG: ProjectListView - Filtering by council: {user_council.name}")
 
         # Apply search/filtering
         search = self.request.GET.get('search')
@@ -415,10 +641,13 @@ class ProjectListView(LoginRequiredMixin, ListView):
             queryset = queryset.filter(program_id=program_filter)
         if council_filter:
             queryset = queryset.filter(council_id=council_filter)
+            logger.info(f"DEBUG: ProjectListView - Additional council filter applied: {council_filter}")
         if state_filter:
             queryset = queryset.filter(state=state_filter)
 
-        return queryset.order_by('name')
+        final_queryset = queryset.order_by('name')
+        logger.info(f"DEBUG: ProjectListView - Final queryset count: {final_queryset.count()}")
+        return final_queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -443,6 +672,9 @@ class ProjectCreateView(LoginRequiredMixin, CreateView):
         return reverse_lazy('portal:project_detail', kwargs={'pk': self.object.pk})
 
     def form_valid(self, form):
+        # Check if user is in Council groups
+        if self.request.user.groups.filter(name__in=['Council User', 'Council Manager']).exists():
+            form.instance.state = 'prospective'
         messages.success(self.request, f'Project "{form.instance.name}" created successfully!')
         return super().form_valid(form)
 
@@ -453,6 +685,22 @@ class ProjectUpdateView(LoginRequiredMixin, UpdateView):
     form_class = ProjectForm
     template_name = "portal/project_form.html"
 
+    def dispatch(self, request, *args, **kwargs):
+        # Check if user has permission to update this project
+        project = self.get_object()
+        user_council = getattr(request.user, 'council', None)
+
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"DEBUG: ProjectUpdateView.dispatch - User: {request.user.username}, User Council: {user_council}, Project ID: {kwargs.get('pk')}, Project Council: {project.council}")
+
+        # If user has a council (council user), they can only update their own council's projects
+        if user_council and project.council != user_council:
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("You don't have permission to update this project.")
+
+        return super().dispatch(request, *args, **kwargs)
+
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['user'] = self.request.user
@@ -462,6 +710,9 @@ class ProjectUpdateView(LoginRequiredMixin, UpdateView):
         return reverse_lazy('portal:project_detail', kwargs={'pk': self.object.pk})
 
     def form_valid(self, form):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"DEBUG: ProjectUpdateView.form_valid - User: {self.request.user.username}, Project: {form.instance.name}, Council: {form.instance.council}")
         messages.success(self.request, f'Project "{form.instance.name}" updated successfully!')
         return super().form_valid(form)
 
@@ -472,10 +723,10 @@ class ProjectDeleteView(LoginRequiredMixin, DeleteView):
     template_name = "portal/project_confirm_delete.html"
     success_url = reverse_lazy('portal:project_list')
 
-    def delete(self, request, *args, **kwargs):
+    def form_valid(self, form):
         project = self.get_object()
         messages.success(self.request, f'Project "{project.name}" has been deleted.')
-        return super().delete(request, *args, **kwargs)
+        return super().form_valid(form)
 
 
 class ProjectStateUpdateView(LoginRequiredMixin, UpdateView):
@@ -488,6 +739,11 @@ class ProjectStateUpdateView(LoginRequiredMixin, UpdateView):
         return reverse_lazy('portal:project_detail', kwargs={'pk': self.object.pk})
 
     def form_valid(self, form):
+        # Check if user is in RICD groups (only RICD officers can change project state)
+        if not self.request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            messages.error(self.request, 'Only RICD officers can change project state.')
+            return self.form_invalid(form)
+
         old_state = self.get_object().state
         response = super().form_valid(form)
         new_state = self.object.state
@@ -496,13 +752,225 @@ class ProjectStateUpdateView(LoginRequiredMixin, UpdateView):
         return response
 
 
+# Custom Login View for role-based redirection
+class CustomLoginView(auth_views.LoginView):
+    """Custom login view that redirects based on user role"""
+    template_name = 'portal/login.html'
+
+    def get_success_url(self):
+        """Determine redirect URL based on user role"""
+        user = self.request.user
+
+        import logging
+        logger = logging.getLogger(__name__)
+        user_council = getattr(user, 'council', None)
+        logger.info(f"DEBUG: CustomLoginView.get_success_url - User: {user.username}, Groups: {[g.name for g in user.groups.all()]}, User Council: {user_council}")
+
+        # Check if user is in RICD groups
+        if user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            logger.info("DEBUG: CustomLoginView.get_success_url - Redirecting to RICD dashboard")
+            return '/portal/ricd/'
+
+        # Check if user is in Council groups
+        if user.groups.filter(name__in=['Council User', 'Council Manager']).exists():
+            logger.info("DEBUG: CustomLoginView.get_success_url - Redirecting to Council dashboard")
+            return '/portal/council/'
+
+        # Check if user has a council (council user - fallback)
+        if user_council:
+            logger.info("DEBUG: CustomLoginView.get_success_url - Redirecting to Council dashboard (fallback)")
+            return '/portal/council/'
+
+        # Default fallback
+        logger.info("DEBUG: CustomLoginView.get_success_url - Redirecting to RICD dashboard (default)")
+        return '/portal/ricd/'
+
+
+# Help Pages Views
+class RICDSHelpView(LoginRequiredMixin, TemplateView):
+    """RICD Staff Help Page"""
+    template_name = "portal/help_ricd.html"
+
+
+class CouncilHelpView(LoginRequiredMixin, TemplateView):
+    """Council Help Page"""
+    template_name = "portal/help_council.html"
+
+
+# Export Views
+class AddressWorkExportView(LoginRequiredMixin, View):
+    """Export all addresses and works data to Excel format"""
+
+    def get(self, request, *args, **kwargs):
+        import pandas as pd
+        from django.http import HttpResponse
+
+        # Get all addresses with related data
+        addresses = Address.objects.select_related(
+            'project', 'project__council', 'project__program',
+            'work_type_id', 'output_type_id'
+        ).all()
+
+        selected_fields = request.GET.getlist('fields')
+
+        # Default fields if none selected
+        if not selected_fields:
+            selected_fields = [
+                'State', 'Project', 'Council', 'Program', 'Street', 'Suburb',
+                'Postcode', 'Work Type', 'Output Type', 'Bedrooms',
+                'Output Quantity', 'Estimated Cost', 'Actual Cost',
+                'Start Date', 'End Date'
+            ]
+
+        # Prepare data for export
+        data = []
+        for address in addresses:
+            # Get associated works for this address
+            works = Work.objects.filter(address=address).select_related('work_type_id', 'output_type_id')
+
+            if works.exists():
+                # Create a row for each work at this address
+                for work in works:
+                    full_row = {
+                        'State': address.state or '',
+                        'Project': address.project.name,
+                        'Council': address.project.council.name if address.project.council else '',
+                        'Program': address.project.program.name if address.project.program else '',
+                        'Street': address.street,
+                        'Suburb': address.suburb or '',
+                        'Postcode': address.postcode or '',
+                        'Work Type': work.work_type_id.name if work.work_type_id else '',
+                        'Output Type': work.output_type_id.name if work.output_type_id else '',
+                        'Bedrooms': work.bedrooms or '',
+                        'Output Quantity': work.output_quantity or 1,
+                        'Estimated Cost': work.estimated_cost or '',
+                        'Actual Cost': work.actual_cost or '',
+                        'Start Date': work.start_date.strftime('%Y-%m-%d') if work.start_date else '',
+                        'End Date': work.end_date.strftime('%Y-%m-%d') if work.end_date else '',
+                        'Land Status': work.land_status or '',
+                        'Floor Method': work.floor_method or '',
+                        'Frame Method': work.frame_method or '',
+                        'External Wall Method': work.external_wall_method or '',
+                        'Roof Method': work.roof_method or '',
+                        'Car Accommodation': work.car_accommodation or '',
+                        'Additional Facilities': work.additional_facilities or '',
+                        'Extension High Low': work.extension_high_low or '',
+                        'Bathrooms': work.bathrooms or '',
+                        'Kitchens': work.kitchens or '',
+                        'Dwellings Count': work.dwellings_count or '',
+                        'Lot Number': address.lot_number or '',
+                        'Plan Number': address.plan_number or '',
+                        'Title Reference': address.title_reference or '',
+                    }
+                    # Filter to only selected fields
+                    row = {field: full_row[field] for field in selected_fields if field in full_row}
+                    data.append(row)
+            else:
+                # Address without work data
+                full_row = {
+                    'State': address.state or '',
+                    'Project': address.project.name,
+                    'Council': address.project.council.name if address.project.council else '',
+                    'Program': address.project.program.name if address.project.program else '',
+                    'Street': address.street,
+                    'Suburb': address.suburb or '',
+                    'Postcode': address.postcode or '',
+                    'Work Type': '',
+                    'Output Type': '',
+                    'Bedrooms': '',
+                    'Output Quantity': '',
+                    'Estimated Cost': '',
+                    'Actual Cost': '',
+                    'Start Date': '',
+                    'End Date': '',
+                    'Land Status': '',
+                    'Floor Method': '',
+                    'Frame Method': '',
+                    'External Wall Method': '',
+                    'Roof Method': '',
+                    'Car Accommodation': '',
+                    'Additional Facilities': '',
+                    'Extension High Low': '',
+                    'Bathrooms': '',
+                    'Kitchens': '',
+                    'Dwellings Count': '',
+                    'Lot Number': address.lot_number or '',
+                    'Plan Number': address.plan_number or '',
+                    'Title Reference': address.title_reference or '',
+                }
+                # Filter to only selected fields
+                row = {field: full_row[field] for field in selected_fields if field in full_row}
+                data.append(row)
+
+        # Create DataFrame
+        df = pd.DataFrame(data)
+
+        # Create Excel file
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename="addresses_and_works_export.xlsx"'
+
+        try:
+            with pd.ExcelWriter(response, engine='openpyxl') as writer:
+                df.to_excel(writer, sheet_name='Addresses and Works', index=False)
+
+                # Auto-adjust column widths
+                worksheet = writer.sheets['Addresses and Works']
+                for column in worksheet.columns:
+                    max_length = 0
+                    column_letter = column[0].column_letter
+                    for cell in column:
+                        try:
+                            if len(str(cell.value)) > max_length:
+                                max_length = len(str(cell.value))
+                        except:
+                            pass
+                    adjusted_width = min(max_length + 2, 50)  # Max width of 50
+                    worksheet.column_dimensions[column_letter].width = adjusted_width
+
+        except ImportError:
+            # Fallback without pandas if not available
+            response = HttpResponse("Excel export requires pandas and openpyxl libraries to be installed.", content_type='text/plain')
+
+        return response
+
+
+class CustomExportView(LoginRequiredMixin, TemplateView):
+    """View for configuring custom Excel export with field selection"""
+    template_name = 'portal/custom_export.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['form'] = CustomExcelExportForm()
+        return context
+
+    def post(self, request, *args, **kwargs):
+        form = CustomExcelExportForm(request.POST)
+        if form.is_valid():
+            selected_fields = form.cleaned_data['fields']
+            # Redirect to export view with selected fields as URL parameters
+            from django.shortcuts import redirect
+            from urllib.parse import urlencode
+
+            query_string = urlencode({'fields': selected_fields}, doseq=True)
+            return redirect(f'/analytics/export/addresses-works/?{query_string}')
+        else:
+            return self.render_to_response({'form': form})
+
+
 # Work Type CRUD Views
 class WorkTypeListView(LoginRequiredMixin, ListView):
-    """List all work types"""
+    """List work types - RICD users only"""
     model = WorkType
     template_name = "portal/work_type_list.html"
     context_object_name = "work_types"
     paginate_by = 20
+
+    def dispatch(self, request, *args, **kwargs):
+        # Restrict access to RICD users only
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied. Only RICD staff can view work types.")
+        return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
         queryset = WorkType.objects.all()
@@ -550,23 +1018,30 @@ class WorkTypeDeleteView(LoginRequiredMixin, DeleteView):
     template_name = "portal/work_type_confirm_delete.html"
     success_url = reverse_lazy('portal:work_type_list')
 
-    def delete(self, request, *args, **kwargs):
+    def form_valid(self, form):
         work_type = self.get_object()
         # Check if work type is in use
         if work_type.get_usage_count() > 0:
-            messages.error(request, f'Cannot delete work type "{work_type.name}" as it is currently in use by {work_type.get_usage_count()} items.')
+            messages.error(self.request, f'Cannot delete work type "{work_type.name}" as it is currently in use by {work_type.get_usage_count()} items.')
             return redirect(reverse_lazy('portal:work_type_list'))
-        messages.success(request, f'Work type "{work_type.name}" has been deleted.')
-        return super().delete(request, *args, **kwargs)
+        messages.success(self.request, f'Work type "{work_type.name}" has been deleted.')
+        return super().form_valid(form)
 
 
 # Output Type CRUD Views
 class OutputTypeListView(LoginRequiredMixin, ListView):
-    """List all output types"""
+    """List output types - RICD users only"""
     model = OutputType
     template_name = "portal/output_type_list.html"
     context_object_name = "output_types"
     paginate_by = 20
+
+    def dispatch(self, request, *args, **kwargs):
+        # Restrict access to RICD users only
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied. Only RICD staff can view output types.")
+        return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
         queryset = OutputType.objects.all()
@@ -614,14 +1089,85 @@ class OutputTypeDeleteView(LoginRequiredMixin, DeleteView):
     template_name = "portal/output_type_confirm_delete.html"
     success_url = reverse_lazy('portal:output_type_list')
 
-    def delete(self, request, *args, **kwargs):
+    def form_valid(self, form):
         output_type = self.get_object()
         # Check if output type is in use
         if output_type.get_usage_count() > 0:
-            messages.error(request, f'Cannot delete output type "{output_type.name}" as it is currently in use by {output_type.get_usage_count()} items.')
+            messages.error(self.request, f'Cannot delete output type "{output_type.name}" as it is currently in use by {output_type.get_usage_count()} items.')
             return redirect(reverse_lazy('portal:output_type_list'))
-        messages.success(request, f'Output type "{output_type.name}" has been deleted.')
-        return super().delete(request, *args, **kwargs)
+        messages.success(self.request, f'Output type "{output_type.name}" has been deleted.')
+        return super().form_valid(form)
+
+
+# Construction Method CRUD Views
+class ConstructionMethodListView(LoginRequiredMixin, ListView):
+    """List construction methods - RICD users only"""
+    model = ConstructionMethod
+    template_name = "portal/construction_method_list.html"
+    context_object_name = "construction_methods"
+    paginate_by = 20
+
+    def dispatch(self, request, *args, **kwargs):
+        # Restrict access to RICD users only
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied. Only RICD staff can view construction methods.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        queryset = ConstructionMethod.objects.all()
+        search = self.request.GET.get('search')
+        active_filter = self.request.GET.get('active')
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) |
+                Q(code__icontains=search)
+            )
+        if active_filter:
+            queryset = queryset.filter(is_active=active_filter == 'true')
+        return queryset.order_by('name')
+
+
+class ConstructionMethodCreateView(LoginRequiredMixin, CreateView):
+    """Create a new construction method"""
+    model = ConstructionMethod
+    form_class = ConstructionMethodForm
+    template_name = "portal/construction_method_form.html"
+    success_url = reverse_lazy('portal:construction_method_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Construction method "{form.instance.name}" created successfully!')
+        return super().form_valid(form)
+
+
+class ConstructionMethodUpdateView(LoginRequiredMixin, UpdateView):
+    """Update an existing construction method"""
+    model = ConstructionMethod
+    form_class = ConstructionMethodForm
+    template_name = "portal/construction_method_form.html"
+
+    def get_success_url(self):
+        return reverse_lazy('portal:construction_method_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Construction method "{form.instance.name}" updated successfully!')
+        return super().form_valid(form)
+
+
+class ConstructionMethodDeleteView(LoginRequiredMixin, DeleteView):
+    """Delete a construction method"""
+    model = ConstructionMethod
+    template_name = "portal/construction_method_confirm_delete.html"
+    success_url = reverse_lazy('portal:construction_method_list')
+
+    def form_valid(self, form):
+        construction_method = self.get_object()
+        # Check if construction method is in use
+        if construction_method.get_usage_count() > 0:
+            messages.error(self.request, f'Cannot delete construction method "{construction_method.name}" as it is currently in use by {construction_method.get_usage_count()} items.')
+            return redirect(reverse_lazy('portal:construction_method_list'))
+        messages.success(self.request, f'Construction method "{construction_method.name}" has been deleted.')
+        return super().form_valid(form)
 
 
 # Address CRUD Views
@@ -638,6 +1184,7 @@ class AddressCreateView(LoginRequiredMixin, CreateView):
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['instance'] = Address(project=self.project)
+        kwargs['project'] = self.project  # Pass project for budget validation
         return kwargs
 
     def get_success_url(self):
@@ -651,6 +1198,14 @@ class AddressCreateView(LoginRequiredMixin, CreateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['project'] = self.project
+
+        # Add work type to output type mappings for JavaScript
+        work_types = WorkType.objects.filter(is_active=True).prefetch_related('allowed_output_types')
+        work_type_mappings = {}
+        for work_type in work_types:
+            work_type_mappings[work_type.id] = [ot.id for ot in work_type.allowed_output_types.all()]
+        context['work_type_output_types_json'] = json.dumps(work_type_mappings)
+
         return context
 
 
@@ -670,6 +1225,14 @@ class AddressUpdateView(LoginRequiredMixin, UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['project'] = self.object.project
+
+        # Add work type to output type mappings for JavaScript
+        work_types = WorkType.objects.filter(is_active=True).prefetch_related('allowed_output_types')
+        work_type_mappings = {}
+        for work_type in work_types:
+            work_type_mappings[work_type.id] = [ot.id for ot in work_type.allowed_output_types.all()]
+        context['work_type_output_types_json'] = json.dumps(work_type_mappings)
+
         return context
 
 
@@ -681,11 +1244,11 @@ class AddressDeleteView(LoginRequiredMixin, DeleteView):
     def get_success_url(self):
         return reverse_lazy('portal:project_detail', kwargs={'pk': self.object.project.pk})
 
-    def delete(self, request, *args, **kwargs):
+    def form_valid(self, form):
         address = self.get_object()
         project = address.project
-        messages.success(request, f'Address "{address}" has been deleted.')
-        return super().delete(request, *args, **kwargs)
+        messages.success(self.request, f'Address "{address}" has been deleted.')
+        return super().form_valid(form)
 
 
 # Work CRUD Views
@@ -701,20 +1264,27 @@ class WorkCreateView(LoginRequiredMixin, CreateView):
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
-        kwargs['instance'] = Work(project=self.project)
+        kwargs['project'] = self.project
         return kwargs
 
     def get_success_url(self):
         return reverse_lazy('portal:project_detail', kwargs={'pk': self.project.pk})
 
     def form_valid(self, form):
-        form.instance.project = self.project
         messages.success(self.request, f'Work "{form.instance}" created successfully!')
         return super().form_valid(form)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['project'] = self.project
+
+        # Add work type to output type mappings for JavaScript
+        work_types = WorkType.objects.filter(is_active=True).prefetch_related('allowed_output_types')
+        work_type_mappings = {}
+        for work_type in work_types:
+            work_type_mappings[work_type.id] = [ot.id for ot in work_type.allowed_output_types.all()]
+        context['work_type_output_types_json'] = json.dumps(work_type_mappings)
+
         return context
 
 
@@ -731,9 +1301,22 @@ class WorkUpdateView(LoginRequiredMixin, UpdateView):
         messages.success(self.request, f'Work "{form.instance}" updated successfully!')
         return super().form_valid(form)
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['project'] = self.object.project  # Pass project for budget validation
+        return kwargs
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['project'] = self.object.project
+
+        # Add work type to output type mappings for JavaScript
+        work_types = WorkType.objects.filter(is_active=True).prefetch_related('allowed_output_types')
+        work_type_mappings = {}
+        for work_type in work_types:
+            work_type_mappings[work_type.id] = [ot.id for ot in work_type.allowed_output_types.all()]
+        context['work_type_output_types_json'] = json.dumps(work_type_mappings)
+
         return context
 
 
@@ -745,11 +1328,140 @@ class WorkDeleteView(LoginRequiredMixin, DeleteView):
     def get_success_url(self):
         return reverse_lazy('portal:project_detail', kwargs={'pk': self.object.project.pk})
 
-    def delete(self, request, *args, **kwargs):
+    def form_valid(self, form):
         work = self.get_object()
         project = work.project
-        messages.success(request, f'Work "{work}" has been deleted.')
-        return super().delete(request, *args, **kwargs)
+        messages.success(self.request, f'Work "{work}" has been deleted.')
+        return super().form_valid(form)
+
+
+# Work List View
+class WorkListView(LoginRequiredMixin, ListView):
+    """List all works with filtering and templating features"""
+    model = Work
+    template_name = "portal/work_list.html"
+    context_object_name = "works"
+    paginate_by = 25
+
+    def get_queryset(self):
+        queryset = Work.objects.select_related(
+            'address__project__council',
+            'address__project__program',
+            'work_type_id',
+            'output_type_id'
+        )
+
+        # Apply user-specific filtering (council users see only their works)
+        user_council = getattr(self.request.user, 'council', None)
+        if user_council:
+            queryset = queryset.filter(address__project__council=user_council)
+
+        # Apply search/filtering
+        search = self.request.GET.get('search')
+        construction_filter = self.request.GET.get('construction_type')
+        output_filter = self.request.GET.get('output_type')
+        project_filter = self.request.GET.get('project')
+        status_filter = self.request.GET.get('status')  # completed/pending/all
+
+        if search:
+            queryset = queryset.filter(
+                Q(address__street__icontains=search) |
+                Q(address__project__name__icontains=search) |
+                Q(work_type_id__name__icontains=search) |
+                Q(output_type_id__name__icontains=search)
+            )
+        if construction_filter:
+            queryset = queryset.filter(work_type_id__code=construction_filter)
+        if output_filter:
+            queryset = queryset.filter(output_type_id__code=output_filter)
+        if project_filter:
+            queryset = queryset.filter(address__project_id=project_filter)
+        if status_filter == 'completed':
+            queryset = queryset.exclude(end_date__isnull=True)
+        elif status_filter == 'pending':
+            queryset = queryset.filter(end_date__isnull=True)
+
+        # Allow reordering
+        order_by = self.request.GET.get('order_by', '-start_date')
+        if order_by in ['start_date', '-start_date', 'estimated_cost', '-estimated_cost', 'end_date', '-end_date']:
+            queryset = queryset.order_by(order_by)
+
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Get filter options
+        user_council = getattr(self.request.user, 'council', None)
+        projects = Project.objects.select_related('council', 'program')
+        if user_council:
+            projects = projects.filter(council=user_council)
+
+        context.update({
+            'projects': projects,
+            'work_types': WorkType.objects.filter(is_active=True),
+            'output_types': OutputType.objects.filter(is_active=True),
+            'order_options': [
+                ('-start_date', 'Recent Start First'),
+                ('start_date', 'Oldest Start First'),
+                ('-estimated_cost', 'Highest Cost First'),
+                ('estimated_cost', 'Lowest Cost First'),
+                ('-end_date', 'Recently Completed'),
+                ('end_date', 'Oldest Completed'),
+            ]
+        })
+
+        # Add current filters for form pre-population
+        context['current_filters'] = {
+            'search': self.request.GET.get('search', ''),
+            'construction_type': self.request.GET.get('construction_type', ''),
+            'output_type': self.request.GET.get('output_type', ''),
+            'project': self.request.GET.get('project', ''),
+            'status': self.request.GET.get('status', ''),
+            'order_by': self.request.GET.get('order_by', '-start_date'),
+        }
+
+        return context
+
+
+# Work Step Management Views
+class WorkStepListView(LoginRequiredMixin, DetailView):
+    """View to list and manage work steps (stages/tasks) for a specific work"""
+    model = Work
+    template_name = "portal/work_step_list.html"
+    context_object_name = "work"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['steps'] = self.object.work_steps.order_by('order')
+        return context
+
+
+class WorkStepReorderView(LoginRequiredMixin, View):
+    """View to reorder work steps"""
+
+    def post(self, request, work_pk):
+        work = get_object_or_404(Work, pk=work_pk)
+
+        # Check permissions
+        if not (request.user.is_staff or (
+            hasattr(request.user, 'council') and
+            request.user.council == work.address.project.council
+        )):
+            messages.error(request, "You don't have permission to modify this work.")
+            return redirect('portal:work_detail', pk=work_pk)
+
+        step_orders = request.POST.getlist('step_order[]')
+        for i, step_id in enumerate(step_orders):
+            try:
+                step = WorkStep.objects.get(pk=step_id, work=work)
+                step.order = i + 1
+                step.save()
+            except WorkStep.DoesNotExist:
+                continue
+
+        messages.success(request, 'Work steps reordered successfully!')
+        return redirect('portal:work_step_list', work_pk=work_pk)
 
 
 class QuarterlyReportView(LoginRequiredMixin, TemplateView):
@@ -815,27 +1527,10 @@ class AnalyticsDashboardView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # Get date range from request
-        start_date = self.request.GET.get('start_date')
-        end_date = self.request.GET.get('end_date')
-
         # Get program filter
         program_filter = self.request.GET.get('program')
 
-        if not start_date:
-            start_date = timezone.now().date().replace(day=1)  # First day of current month
-        if not end_date:
-            end_date = timezone.now().date()
-
-        # Convert to date objects
-        try:
-            start_date = timezone.datetime.strptime(start_date, '%Y-%m-%d').date()
-            end_date = timezone.datetime.strptime(end_date, '%Y-%m-%d').date()
-        except (ValueError, TypeError):
-            start_date = timezone.now().date().replace(day=1)
-            end_date = timezone.now().date()
-
-        # Filter projects based on user permissions
+        # Filter projects based on user permissions - capture all projects without date restrictions
         user_council = getattr(self.request.user, 'council', None)
         if user_council:
             projects = Project.objects.filter(council=user_council)
@@ -846,8 +1541,8 @@ class AnalyticsDashboardView(LoginRequiredMixin, TemplateView):
         if program_filter:
             projects = projects.filter(program_id=program_filter)
 
-        # Get works data for output analytics
-        works_queryset = Work.objects.filter(project__in=projects)
+        # Get works data for output analytics - capture all without date restrictions
+        works_queryset = Work.objects.filter(address__project__in=projects)
 
         # 1. Enhanced Outputs Analysis
         outputs_by_type = works_queryset.values('output_type_id').annotate(
@@ -867,46 +1562,44 @@ class AnalyticsDashboardView(LoginRequiredMixin, TemplateView):
         ).order_by('-total_quantity')
 
         outputs_by_council = works_queryset.values(
-            'project__council__name'
+            'address__project__council__name'
         ).annotate(
             total_quantity=Sum('output_quantity'),
             total_cost=Sum('estimated_cost')
         ).order_by('-total_quantity')
 
         outputs_by_program = works_queryset.values(
-            'project__program__name'
+            'address__project__program__name'
         ).annotate(
             total_quantity=Sum('output_quantity'),
             total_cost=Sum('estimated_cost')
         ).order_by('-total_quantity')
 
-        # 2. Project Status Tracking
+        # 2. Project Status Tracking - capture all without date restrictions
         commenced_projects = projects.filter(
-            date_physically_commenced__range=[start_date, end_date]
+            date_physically_commenced__isnull=False
         ).count()
 
         completed_projects = projects.filter(
-            actual_completion__range=[start_date, end_date]
+            actual_completion__isnull=False
         ).count()
 
-        # Addresses/Projects commenced in period
+        # Addresses/Projects commenced - capture all without date restrictions
         addresses_commenced = Address.objects.filter(
             project__in=projects,
-            project__date_physically_commenced__range=[start_date, end_date]
+            project__date_physically_commenced__isnull=False
         ).count()
 
-        # 3. Budget Forecasting and Anomaly Detection
-        budget_analytics = self.analyze_budget_forecasting(projects, end_date)
+        # 3. Budget Forecasting and Anomaly Detection - use current date for analysis
+        budget_analytics = self.analyze_budget_forecasting(projects, timezone.now().date())
 
-        # 4. Report overdue alerts
-        report_alerts = self.analyze_report_alerts(projects, end_date)
+        # 4. Report overdue alerts - check all projects without date restrictions
+        report_alerts = self.analyze_report_alerts(projects, timezone.now().date())
 
         # Combine all alerts
         all_alerts = budget_analytics.get('alerts', []) + report_alerts
 
         context.update({
-            'start_date': start_date,
-            'end_date': end_date,
             'program_filter': program_filter,
             'programs': Program.objects.all(),
             'outputs_by_type': outputs_by_type,
@@ -1237,11 +1930,18 @@ class AnalyticsDashboardView(LoginRequiredMixin, TemplateView):
 
 # Funding Approval Views
 class FundingApprovalListView(LoginRequiredMixin, ListView):
-    """List all funding approvals with filtering and management capabilities"""
+    """List funding approvals - RICD users only"""
     model = FundingApproval
     template_name = "portal/funding_approval_list.html"
     context_object_name = "funding_approvals"
     paginate_by = 20
+
+    def dispatch(self, request, *args, **kwargs):
+        # Restrict access to RICD users only
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied. Only RICD staff can view funding approvals.")
+        return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
         queryset = FundingApproval.objects.select_related().prefetch_related('projects')
@@ -1285,9 +1985,21 @@ class FundingApprovalDetailView(LoginRequiredMixin, DetailView):
 class FundingApprovalCreateView(LoginRequiredMixin, CreateView):
     """Create a new funding approval"""
     model = FundingApproval
+    form_class = FundingApprovalForm
     template_name = "portal/funding_approval_form.html"
-    fields = ['mincor_reference', 'amount', 'approved_by_position', 'approved_date', 'projects']
     success_url = reverse_lazy('portal:funding_approval_list')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        # Check for project parameter in query string
+        project_id = self.request.GET.get('project')
+        if project_id:
+            try:
+                project = Project.objects.get(pk=project_id)
+                kwargs['initial_project'] = project
+            except Project.DoesNotExist:
+                pass  # Ignore if project doesn't exist
+        return kwargs
 
     def form_valid(self, form):
         response = super().form_valid(form)
@@ -1299,6 +2011,478 @@ class FundingApprovalCreateView(LoginRequiredMixin, CreateView):
                 messages.success(self.request,
                     f'Project "{project.name}" state updated to "Funded" due to funding approval.')
         return response
+
+
+# Remote Capital Program Funding Agreement CRUD Views
+class RemoteCapitalProgramListView(LoginRequiredMixin, ListView):
+    """List Remote Capital Program Funding Agreements - RICD users only"""
+    model = RemoteCapitalProgramFundingAgreement
+    template_name = "portal/remote_capital_program_list.html"
+    context_object_name = "agreements"
+    paginate_by = 20
+
+    def dispatch(self, request, *args, **kwargs):
+        # Restrict access to RICD users only
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied. Only RICD staff can view remote capital program agreements.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        queryset = RemoteCapitalProgramFundingAgreement.objects.select_related('council')
+        search = self.request.GET.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(council__name__icontains=search) |
+                Q(date_council_signed__icontains=search) |
+                Q(date_delegate_signed__icontains=search)
+            )
+        return queryset.order_by('-date_council_signed')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        link_project = self.request.GET.get('link_project')
+        unlink_project = self.request.GET.get('unlink_project')
+
+        if link_project:
+            try:
+                project = Project.objects.get(pk=link_project)
+                context['link_project'] = project
+                # Check permissions - user should have access to this project
+                if not (self.request.user.is_staff or (hasattr(self.request.user, 'council') and self.request.user.council == project.council)):
+                    raise PermissionError("You don't have permission to modify this project.")
+            except Project.DoesNotExist:
+                pass  # Project doesn't exist, just don't show link functionality
+
+        if unlink_project:
+            try:
+                project = Project.objects.get(pk=unlink_project)
+                context['unlink_project'] = project
+                # Check permissions - user should have access to this project
+                if not (self.request.user.is_staff or (hasattr(self.request.user, 'council') and self.request.user.council == project.council)):
+                    raise PermissionError("You don't have permission to modify this project.")
+            except Project.DoesNotExist:
+                pass  # Project doesn't exist, just don't show unlink functionality
+
+        return context
+
+    def post(self, request, *args, **kwargs):
+        """Handle linking/unlinking projects to agreements"""
+        project_id = request.POST.get('project_id')
+        agreement_id = request.POST.get('agreement_id')
+        action = request.POST.get('action')
+
+        if not project_id:
+            messages.error(request, 'Project ID is required.')
+            return self.get(request)
+
+        try:
+            project = Project.objects.get(pk=project_id)
+
+            # Check permissions
+            if not (request.user.is_staff or (hasattr(request.user, 'council') and request.user.council == project.council)):
+                messages.error(request, "You don't have permission to modify this project.")
+                return redirect('portal:project_detail', pk=project_id)
+
+            if action == 'link' and agreement_id:
+                agreement = RemoteCapitalProgramFundingAgreement.objects.get(pk=agreement_id)
+
+                # Ensure project is not already linked to another agreement type
+                if project.tuition_agreement or project.forward_rpf_agreement or project.funding_schedule:
+                    messages.error(request,
+                       'Project is already linked to another funding agreement. Remove existing link first.')
+                    return redirect('portal:project_detail', pk=project_id)
+
+                # For remote capital programs, we link through the funding schedule
+                agreement.funding_schedules.create(
+                    council=project.council,
+                    program=project.program,
+                    funding_schedule_number=f"RCP-{project.council.abn}-{agreement.pk}",
+                    funding_amount=0,  # To be set later
+                    remote_capital_program=agreement,
+                    agreement_type='rcpf_agreement'
+                )
+
+                messages.success(request, f'Project "{project.name}" linked to Remote Capital Program "{agreement}".')
+
+            elif action == 'unlink':
+                if not project.funding_agreement or project.funding_agreement.agreement_type != 'rcpf_agreement':
+                    messages.warning(request, 'Project is not linked to any Remote Capital Program.')
+                else:
+                    agreement_name = str(project.funding_agreement)
+                    # Remove the project from its funding schedule and delete the schedule
+                    if hasattr(project.funding_agreement, 'funding_schedules'):
+                        project.funding_agreement.funding_schedules.clear()
+                    project.funding_schedule = None
+                    project.save()
+                    messages.success(request, f'Project "{project.name}" unlinked from Remote Capital Program "{agreement_name}".')
+
+        except Project.DoesNotExist:
+            messages.error(request, 'Project not found.')
+        except RemoteCapitalProgramFundingAgreement.DoesNotExist:
+            messages.error(request, 'Remote Capital Program Agreement not found.')
+        except Exception as e:
+            messages.error(request, f'An error occurred: {str(e)}')
+
+        return redirect('portal:project_detail', pk=project_id)
+
+
+class RemoteCapitalProgramCreateView(LoginRequiredMixin, CreateView):
+    """Create a new Remote Capital Program Funding Agreement"""
+    model = RemoteCapitalProgramFundingAgreement
+    form_class = RemoteCapitalProgramFundingAgreementForm
+    template_name = "portal/remote_capital_program_form.html"
+    success_url = reverse_lazy('portal:remote_capital_program_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Remote Capital Program Agreement for {form.instance.council.name} created successfully!')
+        return super().form_valid(form)
+
+
+class RemoteCapitalProgramUpdateView(LoginRequiredMixin, UpdateView):
+    """Update an existing Remote Capital Program Funding Agreement"""
+    model = RemoteCapitalProgramFundingAgreement
+    form_class = RemoteCapitalProgramFundingAgreementForm
+    template_name = "portal/remote_capital_program_form.html"
+
+    def get_success_url(self):
+        return reverse_lazy('portal:remote_capital_program_detail', kwargs={'pk': self.object.pk})
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Remote Capital Program Agreement updated successfully!')
+        return super().form_valid(form)
+
+
+class RemoteCapitalProgramDetailView(LoginRequiredMixin, DetailView):
+    """Display Remote Capital Program Funding Agreement details"""
+    model = RemoteCapitalProgramFundingAgreement
+    template_name = "portal/remote_capital_program_detail.html"
+    context_object_name = "agreement"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['funding_schedules'] = self.object.funding_schedules.all()
+        return context
+
+
+class RemoteCapitalProgramDeleteView(LoginRequiredMixin, DeleteView):
+    """Delete a Remote Capital Program Funding Agreement"""
+    model = RemoteCapitalProgramFundingAgreement
+    template_name = "portal/remote_capital_program_confirm_delete.html"
+    success_url = reverse_lazy('portal:remote_capital_program_list')
+
+    def form_valid(self, form):
+        agreement = self.get_object()
+        messages.success(self.request, f'Remote Capital Program Agreement for {agreement.council.name} has been deleted.')
+        return super().form_valid(form)
+
+
+# Forward Remote Program Funding Agreement CRUD Views
+class ForwardRPFListView(LoginRequiredMixin, ListView):
+    """List Forward Remote Program Funding Agreements - RICD users only"""
+    model = ForwardRemoteProgramFundingAgreement
+    template_name = "portal/forward_rpf_list.html"
+    context_object_name = "agreements"
+    paginate_by = 20
+
+    def dispatch(self, request, *args, **kwargs):
+        # Restrict access to RICD users only
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied. Only RICD staff can view forward RPF agreements.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        queryset = ForwardRemoteProgramFundingAgreement.objects.select_related('council')
+        search = self.request.GET.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(council__name__icontains=search) |
+                Q(date_council_signed__icontains=search) |
+                Q(date_delegate_signed__icontains=search)
+            )
+        return queryset.order_by('-date_council_signed')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        link_project = self.request.GET.get('link_project')
+        unlink_project = self.request.GET.get('unlink_project')
+
+        if link_project:
+            try:
+                project = Project.objects.get(pk=link_project)
+                context['link_project'] = project
+                # Check permissions - user should have access to this project
+                if not (self.request.user.is_staff or (hasattr(self.request.user, 'council') and self.request.user.council == project.council)):
+                    raise PermissionError("You don't have permission to modify this project.")
+            except Project.DoesNotExist:
+                pass  # Project doesn't exist, just don't show link functionality
+
+        if unlink_project:
+            try:
+                project = Project.objects.get(pk=unlink_project)
+                context['unlink_project'] = project
+                # Check permissions - user should have access to this project
+                if not (self.request.user.is_staff or (hasattr(self.request.user, 'council') and self.request.user.council == project.council)):
+                    raise PermissionError("You don't have permission to modify this project.")
+            except Project.DoesNotExist:
+                pass  # Project doesn't exist, just don't show unlink functionality
+
+        return context
+
+    def post(self, request, *args, **kwargs):
+        """Handle linking/unlinking projects to agreements"""
+        project_id = request.POST.get('project_id')
+        agreement_id = request.POST.get('agreement_id')
+        action = request.POST.get('action')
+
+        if not project_id:
+            messages.error(request, 'Project ID is required.')
+            return self.get(request)
+
+        try:
+            project = Project.objects.get(pk=project_id)
+
+            # Check permissions
+            if not (request.user.is_staff or (hasattr(request.user, 'council') and request.user.council == project.council)):
+                messages.error(request, "You don't have permission to modify this project.")
+                return redirect('portal:project_detail', pk=project_id)
+
+            if action == 'link' and agreement_id:
+                agreement = ForwardRemoteProgramFundingAgreement.objects.get(pk=agreement_id)
+
+                # Ensure project is not already linked to another agreement type
+                if project.funding_agreement or project.interim_fp_agreement or project.funding_schedule:
+                    messages.error(request,
+                       'Project is already linked to another funding agreement. Remove existing link first.')
+                    return redirect('portal:project_detail', pk=project_id)
+
+                # Link the project
+                project.forward_rpf_agreement = agreement
+                project.save()
+                messages.success(request, f'Project "{project.name}" linked to Forward RPF Agreement "{agreement}".')
+
+            elif action == 'unlink':
+                if not project.forward_rpf_agreement:
+                    messages.warning(request, 'Project is not linked to any Forward RPF Agreement.')
+                else:
+                    agreement_name = str(project.forward_rpf_agreement)
+                    project.forward_rpf_agreement = None
+                    project.save()
+                    messages.success(request, f'Project "{project.name}" unlinked from Forward RPF Agreement "{agreement_name}".')
+
+        except Project.DoesNotExist:
+            messages.error(request, 'Project not found.')
+        except ForwardRemoteProgramFundingAgreement.DoesNotExist:
+            messages.error(request, 'Forward RPF Agreement not found.')
+        except Exception as e:
+            messages.error(request, f'An error occurred: {str(e)}')
+
+        return redirect('portal:project_detail', pk=project_id)
+
+
+class ForwardRFPCreateView(LoginRequiredMixin, CreateView):
+    """Create a new Forward Remote Program Funding Agreement"""
+    model = ForwardRemoteProgramFundingAgreement
+    form_class = ForwardRemoteProgramFundingAgreementForm
+    template_name = "portal/forward_rpf_form.html"
+    success_url = reverse_lazy('portal:forward_rpf_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Forward RPF Agreement for {form.instance.council.name} created successfully!')
+        return super().form_valid(form)
+
+
+class ForwardRPFUpdateView(LoginRequiredMixin, UpdateView):
+    """Update an existing Forward Remote Program Funding Agreement"""
+    model = ForwardRemoteProgramFundingAgreement
+    form_class = ForwardRemoteProgramFundingAgreementForm
+    template_name = "portal/forward_rpf_form.html"
+
+    def get_success_url(self):
+        return reverse_lazy('portal:forward_rpf_detail', kwargs={'pk': self.object.pk})
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Forward RPF Agreement updated successfully!')
+        return super().form_valid(form)
+
+
+class ForwardRPFDetailView(LoginRequiredMixin, DetailView):
+    """Display Forward Remote Program Funding Agreement details"""
+    model = ForwardRemoteProgramFundingAgreement
+    template_name = "portal/forward_rpf_detail.html"
+    context_object_name = "agreement"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['projects'] = self.object.projects.all()
+        return context
+
+
+class ForwardRPFDeleteView(LoginRequiredMixin, DeleteView):
+    """Delete a Forward Remote Program Funding Agreement"""
+    model = ForwardRemoteProgramFundingAgreement
+    template_name = "portal/forward_rpf_confirm_delete.html"
+    success_url = reverse_lazy('portal:forward_rpf_list')
+
+    def form_valid(self, form):
+        agreement = self.get_object()
+        messages.success(self.request, f'Forward RPF Agreement for {agreement.council.name} has been deleted.')
+        return super().form_valid(form)
+
+
+# Interim Forward Program Funding Agreement CRUD Views
+class InterimFRPFListView(LoginRequiredMixin, ListView):
+    """List Interim Forward Remote Program Funding Agreements - RICD users only"""
+    model = InterimForwardProgramFundingAgreement
+    template_name = "portal/interim_frp_list.html"
+    context_object_name = "agreements"
+    paginate_by = 20
+
+    def dispatch(self, request, *args, **kwargs):
+        # Restrict access to RICD users only
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied. Only RICD staff can view interim FRP agreements.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        queryset = InterimForwardProgramFundingAgreement.objects.select_related('council')
+        search = self.request.GET.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(council__name__icontains=search) |
+                Q(date_council_signed__icontains=search) |
+                Q(date_delegate_signed__icontains=search)
+            )
+        return queryset.order_by('-date_council_signed')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        link_project = self.request.GET.get('link_project')
+        unlink_project = self.request.GET.get('unlink_project')
+
+        if link_project:
+            try:
+                project = Project.objects.get(pk=link_project)
+                context['link_project'] = project
+                # Check permissions - user should have access to this project
+                if not (self.request.user.is_staff or (hasattr(self.request.user, 'council') and self.request.user.council == project.council)):
+                    raise PermissionError("You don't have permission to modify this project.")
+            except Project.DoesNotExist:
+                pass  # Project doesn't exist, just don't show link functionality
+
+        if unlink_project:
+            try:
+                project = Project.objects.get(pk=unlink_project)
+                context['unlink_project'] = project
+                # Check permissions - user should have access to this project
+                if not (self.request.user.is_staff or (hasattr(self.request.user, 'council') and self.request.user.council == project.council)):
+                    raise PermissionError("You don't have permission to modify this project.")
+            except Project.DoesNotExist:
+                pass  # Project doesn't exist, just don't show unlink functionality
+
+        return context
+
+    def post(self, request, *args, **kwargs):
+        """Handle linking/unlinking projects to agreements"""
+        project_id = request.POST.get('project_id')
+        agreement_id = request.POST.get('agreement_id')
+        action = request.POST.get('action')
+
+        if not project_id:
+            messages.error(request, 'Project ID is required.')
+            return self.get(request)
+
+        try:
+            project = Project.objects.get(pk=project_id)
+
+            # Check permissions
+            if not (request.user.is_staff or (hasattr(request.user, 'council') and request.user.council == project.council)):
+                messages.error(request, "You don't have permission to modify this project.")
+                return redirect('portal:project_detail', pk=project_id)
+
+            if action == 'link' and agreement_id:
+                agreement = InterimForwardProgramFundingAgreement.objects.get(pk=agreement_id)
+
+                # Ensure project is not already linked to another agreement type
+                if project.funding_agreement or project.forward_rpf_agreement or project.funding_schedule:
+                    messages.error(request,
+                       'Project is already linked to another funding agreement. Remove existing link first.')
+                    return redirect('portal:project_detail', pk=project_id)
+
+                # Link the project
+                project.interim_fp_agreement = agreement
+                project.save()
+                messages.success(request, f'Project "{project.name}" linked to Interim FRP Agreement "{agreement}".')
+
+            elif action == 'unlink':
+                if not project.interim_fp_agreement:
+                    messages.warning(request, 'Project is not linked to any Interim FRP Agreement.')
+                else:
+                    agreement_name = str(project.interim_fp_agreement)
+                    project.interim_fp_agreement = None
+                    project.save()
+                    messages.success(request, f'Project "{project.name}" unlinked from Interim FRP Agreement "{agreement_name}".')
+
+        except Project.DoesNotExist:
+            messages.error(request, 'Project not found.')
+        except InterimForwardProgramFundingAgreement.DoesNotExist:
+            messages.error(request, 'Interim FRP Agreement not found.')
+        except Exception as e:
+            messages.error(request, f'An error occurred: {str(e)}')
+
+        return redirect('portal:project_detail', pk=project_id)
+
+
+class InterimFRPFCreateView(LoginRequiredMixin, CreateView):
+    """Create a new Interim Forward Remote Program Funding Agreement"""
+    model = InterimForwardProgramFundingAgreement
+    form_class = InterimForwardProgramFundingAgreementForm
+    template_name = "portal/interim_frp_form.html"
+    success_url = reverse_lazy('portal:interim_frp_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Interim FRP Agreement for {form.instance.council.name} created successfully!')
+        return super().form_valid(form)
+
+
+class InterimFRPFUpdateView(LoginRequiredMixin, UpdateView):
+    """Update an existing Interim Forward Remote Program Funding Agreement"""
+    model = InterimForwardProgramFundingAgreement
+    form_class = InterimForwardProgramFundingAgreementForm
+    template_name = "portal/interim_frp_form.html"
+
+    def get_success_url(self):
+        return reverse_lazy('portal:interim_frp_detail', kwargs={'pk': self.object.pk})
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Interim FRP Agreement updated successfully!')
+        return super().form_valid(form)
+
+
+class InterimFRPFDetailView(LoginRequiredMixin, DetailView):
+    """Display Interim Forward Remote Program Funding Agreement details"""
+    model = InterimForwardProgramFundingAgreement
+    template_name = "portal/interim_frp_detail.html"
+    context_object_name = "agreement"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['projects'] = self.object.projects.all()
+        return context
+
+
+class InterimFRPFDeleteView(LoginRequiredMixin, DeleteView):
+    """Delete an Interim Forward Remote Program Funding Agreement"""
+    model = InterimForwardProgramFundingAgreement
+    template_name = "portal/interim_frp_confirm_delete.html"
+    success_url = reverse_lazy('portal:interim_frp_list')
+
+    def form_valid(self, form):
+        agreement = self.get_object()
+        messages.success(self.request, f'Interim FRP Agreement for {agreement.council.name} has been deleted.')
+        return super().form_valid(form)
 
 
 # Funding Schedule Views for Projects
@@ -1344,21 +2528,27 @@ class AddProjectToFundingScheduleView(LoginRequiredMixin, CreateView):
         # Set the council from the project
         form.instance.council = self.project.council
 
+        # Set the program from the project (if not in form)
+        if not getattr(form.instance, 'program', None):
+            form.instance.program = self.project.program
+
         response = super().form_valid(form)
 
-        # Add the project to this funding schedule
-        self.object.projects.add(self.project)
+        # Link the project to this funding schedule
+        # Project has a foreign key to FundingSchedule, so we set it the other way around
+        self.project.funding_schedule = self.object
+        self.project.funding_schedule_amount = self.object.funding_amount
+        if self.object.contingency_amount:
+            self.project.contingency_amount = self.object.contingency_amount
 
         # Update project state to funded
         if self.project.state == 'prospective':
             self.project.state = 'funded'
-            self.project.funding_schedule_amount = self.object.funding_amount
-            if self.object.contingency_amount:
-                self.project.contingency_amount = self.object.contingency_amount
-            self.project.save()
 
-            messages.success(self.request,
-                f'Project "{self.project.name}" has been added to funding schedule and state updated to "Funded".')
+        self.project.save()
+
+        messages.success(self.request,
+            f'Project "{self.project.name}" has been added to funding schedule and state updated to "Funded".')
 
         return response
 
@@ -1366,8 +2556,8 @@ class AddProjectToFundingScheduleView(LoginRequiredMixin, CreateView):
 class FundingApprovalUpdateView(LoginRequiredMixin, UpdateView):
     """Update an existing funding approval"""
     model = FundingApproval
+    form_class = FundingApprovalForm
     template_name = "portal/funding_approval_form.html"
-    fields = ['mincor_reference', 'amount', 'approved_by_position', 'approved_date', 'projects']
 
     def get_success_url(self):
         return reverse_lazy('portal:funding_approval_detail', kwargs={'pk': self.object.pk})
@@ -1382,3 +2572,593 @@ class FundingApprovalUpdateView(LoginRequiredMixin, UpdateView):
                 messages.success(self.request,
                     f'Project "{project.name}" state updated to "Funded" due to funding approval.')
         return response
+
+
+# User and Officer Management Views
+class UserListView(LoginRequiredMixin, ListView):
+    """List users with filtering"""
+    model = User
+    template_name = "portal/user_list.html"
+    context_object_name = "users"
+    paginate_by = 20
+
+    def get_queryset(self):
+        queryset = User.objects.select_related().all()
+
+        # Filter users by council for council users
+        user_council = getattr(self.request.user, 'council', None)
+        if user_council:
+            queryset = queryset.filter(profile__council=user_council)
+
+        search = self.request.GET.get('search')
+        group_filter = self.request.GET.get('group')
+        active_filter = self.request.GET.get('active')
+
+        if search:
+            queryset = queryset.filter(
+                Q(username__icontains=search) |
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search) |
+                Q(email__icontains=search)
+            )
+        if group_filter and not user_council:  # Only allow group filter for RICD users
+            queryset = queryset.filter(groups__name=group_filter)
+        if active_filter == 'true':
+            queryset = queryset.filter(is_active=True)
+        elif active_filter == 'false':
+            queryset = queryset.filter(is_active=False)
+
+        return queryset.order_by('username')
+
+
+class UserCreateView(LoginRequiredMixin, CreateView):
+    """Create a new user"""
+    model = User
+    form_class = UserCreationForm
+    template_name = "portal/user_form.html"
+    success_url = reverse_lazy('portal:user_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, f'User "{form.instance.username}" created successfully!')
+        return super().form_valid(form)
+
+
+class UserUpdateView(LoginRequiredMixin, UpdateView):
+    """Update an existing user"""
+    model = User
+    template_name = "portal/user_form.html"
+
+    def get_form_class(self):
+        # For updates, use a simpler user form
+        if self.object:
+            class UserUpdateForm(forms.ModelForm):
+                groups = forms.ModelMultipleChoiceField(
+                    queryset=Group.objects.all(),
+                    required=False,
+                    widget=forms.SelectMultiple(attrs={'class': 'form-select'})
+                )
+
+                class Meta:
+                    model = User
+                    fields = ['username', 'first_name', 'last_name', 'email', 'is_active', 'is_staff']
+                    widgets = {
+                        'username': forms.TextInput(attrs={'class': 'form-control'}),
+                        'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+                        'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+                        'email': forms.EmailInput(attrs={'class': 'form-control'}),
+                        'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+                        'is_staff': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+                    }
+
+                def save(self, commit=True):
+                    user = super().save(commit=False)
+                    if commit:
+                        user.save()
+                        if self.cleaned_data.get('groups'):
+                            user.groups.set(self.cleaned_data['groups'])
+                    return user
+            return UserUpdateForm
+        return UserCreationForm
+
+    def get_success_url(self):
+        return reverse_lazy('portal:user_detail', kwargs={'pk': self.object.pk})
+
+    def form_valid(self, form):
+        messages.success(self.request, f'User "{form.instance.username}" updated successfully!')
+        return super().form_valid(form)
+
+
+class UserDetailView(LoginRequiredMixin, DetailView):
+    """Display user details"""
+    model = User
+    template_name = "portal/user_detail.html"
+    context_object_name = "user"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['user_groups'] = self.object.groups.all()
+        return context
+
+
+# Officer Management Views
+class OfficerListView(LoginRequiredMixin, ListView):
+    """List officers with filtering"""
+    model = Officer
+    template_name = "portal/officer_list.html"
+    context_object_name = "officers"
+    paginate_by = 20
+
+    def get_queryset(self):
+        queryset = Officer.objects.select_related('user').all()
+
+        # Filter officers by user's council for council users
+        user_council = getattr(self.request.user, 'council', None)
+        if user_council:
+            queryset = queryset.filter(user__profile__council=user_council)
+
+        search = self.request.GET.get('search')
+        council_filter = self.request.GET.get('council')
+        active_filter = self.request.GET.get('active')
+        role_filter = self.request.GET.get('role')
+
+        if search:
+            queryset = queryset.filter(
+                Q(user__username__icontains=search) |
+                Q(user__first_name__icontains=search) |
+                Q(user__last_name__icontains=search) |
+                Q(position__icontains=search)
+            )
+        if council_filter and not user_council:  # Only allow council filter for RICD users
+            queryset = queryset.filter(user__profile__council_id=council_filter)
+        if active_filter == 'true':
+            queryset = queryset.filter(is_active=True)
+        elif active_filter == 'false':
+            queryset = queryset.filter(is_active=False)
+        if role_filter:
+            if role_filter == 'principal':
+                queryset = queryset.filter(is_principal=True)
+            elif role_filter == 'senior':
+                queryset = queryset.filter(is_senior=True)
+            elif role_filter == 'both':
+                queryset = queryset.filter(is_principal=True, is_senior=True)
+
+        return queryset.order_by('user__last_name', 'user__first_name')
+
+
+class OfficerCreateView(LoginRequiredMixin, CreateView):
+    """Create a new officer"""
+    model = Officer
+    form_class = OfficerForm
+    template_name = "portal/officer_form.html"
+    success_url = reverse_lazy('portal:officer_list')
+
+    def form_valid(self, form):
+        officer_name = form.instance.user.get_full_name() or form.instance.user.username
+        messages.success(self.request, f'Officer for {officer_name} created successfully!')
+        return super().form_valid(form)
+
+
+class OfficerUpdateView(LoginRequiredMixin, UpdateView):
+    """Update an existing officer"""
+    model = Officer
+    form_class = OfficerForm
+    template_name = "portal/officer_form.html"
+
+    def get_success_url(self):
+        return reverse_lazy('portal:officer_detail', kwargs={'pk': self.object.pk})
+
+    def form_valid(self, form):
+        officer_name = form.instance.user.get_full_name() or form.instance.user.username
+        messages.success(self.request, f'Officer for {officer_name} updated successfully!')
+        return super().form_valid(form)
+
+
+class OfficerDetailView(LoginRequiredMixin, DetailView):
+    """Display officer details"""
+    model = Officer
+    template_name = "portal/officer_detail.html"
+    context_object_name = "officer"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Show projects where this officer is assigned
+        principal_projects = self.object.principal_projects.all()
+        senior_projects = self.object.senior_projects.all()
+        context['principal_projects'] = principal_projects
+        context['senior_projects'] = senior_projects
+        # Combine unique projects
+        all_projects = set(list(principal_projects) + list(senior_projects))
+        context['projects'] = all_projects
+        return context
+
+
+# Officer Assignment to Projects
+class OfficerAssignmentView(LoginRequiredMixin, UpdateView):
+    """View for assigning officers to projects"""
+    model = Project
+    form_class = OfficerAssignmentForm
+    template_name = "portal/officer_assignment_form.html"
+
+    def get_success_url(self):
+        return reverse_lazy('portal:project_detail', kwargs={'pk': self.object.pk})
+
+    def form_valid(self, form):
+        original_principal = self.get_object().principal_officer
+        original_senior = self.get_object().senior_officer
+
+        response = super().form_valid(form)
+
+        # Message about changes
+        messages.success(self.request, f'Officer assignments for project "{form.instance.name}" updated successfully!')
+# Defect CRUD Views
+class DefectListView(LoginRequiredMixin, ListView):
+    """List all defects with filtering"""
+    model = Defect
+    template_name = "portal/defect_list.html"
+    context_object_name = "defects"
+    paginate_by = 20
+
+    def get_queryset(self):
+        queryset = Defect.objects.select_related(
+            'work__address__project__council',
+            'work__address__project__program',
+            'work__work_type_id',
+            'work__output_type_id'
+        )
+
+        # Apply user-specific filtering (council users see only their defects)
+        user_council = getattr(self.request.user, 'council', None)
+        if user_council:
+            queryset = queryset.filter(work__address__project__council=user_council)
+
+        # Apply search/filtering
+        search = self.request.GET.get('search')
+        council_filter = self.request.GET.get('council')
+        status_filter = self.request.GET.get('status')  # rectified/unrectified/all
+        work_filter = self.request.GET.get('work')
+
+        if search:
+            queryset = queryset.filter(
+                Q(description__icontains=search) |
+                Q(work__address__street__icontains=search)
+            )
+        if council_filter:
+            queryset = queryset.filter(work__address__project__council_id=council_filter)
+        if work_filter:
+            queryset = queryset.filter(work_id=work_filter)
+        if status_filter == 'rectified':
+            queryset = queryset.exclude(rectified_date__isnull=True)
+        elif status_filter == 'unrectified':
+            queryset = queryset.filter(rectified_date__isnull=True)
+
+        return queryset.order_by('-identified_date')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['councils'] = Council.objects.all()
+        # Get works with defects for the dropdown
+        if hasattr(self.request.user, 'council') and self.request.user.council:
+            context['works'] = Work.objects.filter(
+                address__project__council=self.request.user.council
+            ).select_related('address', 'work_type_id', 'output_type_id')
+        else:
+            context['works'] = Work.objects.select_related('address', 'work_type_id', 'output_type_id')[:100]  # Limit for performance
+        return context
+
+
+class DefectCreateView(LoginRequiredMixin, CreateView):
+    """Create a new defect"""
+    model = Defect
+    form_class = DefectForm
+    template_name = "portal/defect_form.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        work_pk = self.kwargs.get('work_pk')
+        if work_pk:
+            self.work = get_object_or_404(Work, pk=work_pk)
+        else:
+            self.work = None
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        if self.work:
+            kwargs['initial'] = {'work': self.work}
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if self.work:
+            context['work'] = self.work
+        return context
+
+    def get_success_url(self):
+        if self.work and hasattr(self, 'object') and self.object:
+            # If we have a work and the object was created, return to the work detail
+            return reverse_lazy('portal:project_detail', kwargs={'pk': self.work.address.project.pk})
+        return reverse_lazy('portal:defect_list')
+
+    def form_valid(self, form):
+        if self.work:
+            form.instance.work = self.work
+        messages.success(self.request, f'Defect identified successfully!')
+        return super().form_valid(form)
+
+
+class DefectUpdateView(LoginRequiredMixin, UpdateView):
+    """Update an existing defect"""
+    model = Defect
+    form_class = DefectForm
+    template_name = "portal/defect_form.html"
+
+    def get_success_url(self):
+        return reverse_lazy('portal:defect_detail', kwargs={'pk': self.object.pk})
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['work'] = self.object.work
+        return context
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Defect updated successfully!')
+        return super().form_valid(form)
+
+
+class DefectDetailView(LoginRequiredMixin, DetailView):
+    """Display defect details"""
+    model = Defect
+    template_name = "portal/defect_detail.html"
+    context_object_name = "defect"
+
+
+class DefectDeleteView(LoginRequiredMixin, DeleteView):
+    """Delete a defect"""
+    model = Defect
+    template_name = "portal/defect_confirm_delete.html"
+
+    def get_success_url(self):
+        return reverse_lazy('portal:defect_list')
+
+    def form_valid(self, form):
+        defect = self.get_object()
+        messages.success(self.request, f'Defect has been deleted.')
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['work'] = self.object.work
+        return context
+
+
+# Defect rectification view
+class DefectRectifyView(LoginRequiredMixin, UpdateView):
+    """Mark a defect as rectified (set rectified_date)"""
+    model = Defect
+    fields = ['rectified_date']
+    template_name = "portal/defect_rectify.html"
+
+    def get_initial(self):
+        initial = super().get_initial()
+        if not self.object.rectified_date:
+            initial['rectified_date'] = timezone.now().date()
+        return initial
+
+    def get_success_url(self):
+        return reverse_lazy('portal:defect_detail', kwargs={'pk': self.object.pk})
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Defect marked as rectified on {form.instance.rectified_date}!')
+        return super().form_valid(form)
+
+
+class MoveAddressesWorksView(LoginRequiredMixin, DetailView):
+    """View for moving addresses and works from one project to another"""
+    model = Project
+    template_name = "portal/move_addresses_works.html"
+    context_object_name = "project"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Get addresses and works for this project
+        addresses = self.object.addresses.select_related(
+            'work_type_id', 'output_type_id'
+        ).prefetch_related('works__work_type_id', 'works__output_type_id')
+
+        context['addresses'] = addresses
+
+        # Get existing projects with same council for dropdown
+        existing_projects = Project.objects.filter(
+            council=self.object.council
+        ).exclude(pk=self.object.pk).select_related('council', 'program')
+
+        context['existing_projects'] = existing_projects
+        context['total_addresses'] = addresses.count()
+        context['total_works'] = sum(address.works.count() for address in addresses)
+
+        return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        action = request.POST.get('action')
+
+        # Check permissions
+        if not (request.user.is_staff or (hasattr(request.user, 'council') and request.user.council == self.object.council)):
+            messages.error(request, "You don't have permission to modify this project.")
+            return redirect('portal:project_detail', pk=self.object.pk)
+
+        if action == 'move_to_existing':
+            return self.move_to_existing(request)
+        elif action == 'move_to_new':
+            return self.move_to_new(request)
+        else:
+            messages.error(request, 'Invalid action specified.')
+            return redirect('portal:project_detail', pk=self.object.pk)
+
+    def move_to_existing(self, request):
+        """Move selected addresses and works to an existing project"""
+        target_project_id = request.POST.get('target_project')
+        selected_address_ids = request.POST.getlist('selected_addresses')
+
+        if not target_project_id or not selected_address_ids:
+            messages.error(request, 'Please select a target project and at least one address.')
+            return redirect('portal:project_detail', pk=self.object.pk)
+
+        try:
+            target_project = Project.objects.get(pk=target_project_id, council=self.object.council)
+
+            # Move selected addresses and their works
+            for address_id in selected_address_ids:
+                address = Address.objects.get(pk=address_id, project=self.object)
+
+                # Update project reference
+                address.project = target_project
+                address.save()
+
+                # Move all associated works (they should already be linked to address)
+                for work in address.works.all():
+                    # Update work.project through the address reference
+                    work.save()  # This triggers any signals
+
+            # Update funding amounts with notices
+            self.update_funding_amounts(target_project)
+
+            messages.success(request, f'Successfully moved {len(selected_address_ids)} addresses and their associated works to "{target_project.name}". Please review and update funding amounts as needed.')
+            return redirect('portal:project_detail', pk=self.object.pk)
+
+        except Project.DoesNotExist:
+            messages.error(request, 'Target project not found.')
+        except Address.DoesNotExist:
+            messages.error(request, 'Selected address not found.')
+
+        return redirect('portal:project_detail', pk=self.object.pk)
+
+    def move_to_new(self, request):
+        """Move selected addresses and works to a new project"""
+        project_name = request.POST.get('new_project_name')
+        selected_address_ids = request.POST.getlist('selected_addresses')
+
+        if not project_name or not selected_address_ids:
+            messages.error(request, 'Please provide a name for the new project and select at least one address.')
+            return redirect('portal:project_detail', pk=self.object.pk)
+
+        try:
+            # Create new project with same program and council
+            new_project = Project.objects.create(
+                name=project_name,
+                council=self.object.council,
+                program=self.object.program,
+                state='prospective',  # Start as prospective
+            )
+
+            # Copy some basic fields from original project
+            if self.object.principal_officer:
+                new_project.principal_officer = self.object.principal_officer
+            if self.object.senior_officer:
+                new_project.senior_officer = self.object.senior_officer
+            new_project.save()
+
+            # Move selected addresses and their works
+            total_budget_moved = 0
+            for address_id in selected_address_ids:
+                address = Address.objects.get(pk=address_id, project=self.object)
+                total_budget_moved += address.budget or 0
+
+                # Update project reference
+                address.project = new_project
+                address.save()
+
+            # Set funding amount based on moved budget
+            if total_budget_moved > 0:
+                new_project.funding_schedule_amount = Decimal(str(total_budget_moved))
+                new_project.contingency_amount = new_project.funding_schedule_amount * new_project.contingency_percentage
+                new_project.save()
+
+            messages.success(request, f'Successfully created new project "{new_project.name}" and moved {len(selected_address_ids)} addresses and their associated works. Please review funding amounts and contingency amounts.')
+            return redirect('portal:project_detail', pk=self.object.pk)
+
+        except Exception as e:
+            messages.error(request, f'Error creating new project: {str(e)}')
+
+        return redirect('portal:project_detail', pk=self.object.pk)
+
+    def update_funding_amounts(self, project):
+        """Update funding amounts after moving addresses/works and add warning messages"""
+        total_budget = sum(
+            address.budget or 0
+            for address in project.addresses.all()
+        )
+
+        current_funding = project.funding_schedule_amount or 0
+
+        if current_funding > 0 and abs(total_budget - current_funding) > 1:  # Allow for small differences
+            messages.warning(self.request,
+                f'Project "{project.name}": Current funding amount (${current_funding:,.0f}) may need adjustment. '
+                f'Total budget of addresses is now ${total_budget:,.0f}. Please review funding schedule and contingency amounts.')
+
+            # Recalculate contingency if needed
+            if project.contingency_percentage:
+                recommended_contingency = (project.funding_schedule_amount or total_budget) * project.contingency_percentage
+                if abs((project.contingency_amount or 0) - recommended_contingency) > 1:
+                    messages.info(self.request,
+                        f'Recommended contingency amount: ${recommended_contingency:,.0f} (based on {project.contingency_percentage:.1%} contingency rate).')
+
+
+# Work Type/Output Type Configuration View
+class WorkOutputTypeConfigView(LoginRequiredMixin, TemplateView):
+    """Configuration page for managing work type and output type relationships - RICD users only"""
+    template_name = "portal/work_output_type_config.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        # Restrict access to RICD users only
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied. Only RICD staff can access work/output type configuration.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Get all work types and output types
+        work_types = WorkType.objects.filter(is_active=True).prefetch_related('allowed_output_types')
+        output_types = OutputType.objects.filter(is_active=True)
+
+        context['work_types'] = work_types
+        context['output_types'] = output_types
+
+        # Create mapping for JavaScript
+        work_type_mappings = {}
+        for work_type in work_types:
+            work_type_mappings[str(work_type.id)] = list(work_type.allowed_output_types.values_list('id', flat=True))
+
+        context['work_type_mappings'] = json.dumps(work_type_mappings)
+
+        return context
+
+    def post(self, request, *args, **kwargs):
+        """Handle drag and drop updates"""
+        action = request.POST.get('action')
+        work_type_id = request.POST.get('work_type_id')
+        output_type_id = request.POST.get('output_type_id')
+
+        if not work_type_id or not output_type_id:
+            messages.error(request, 'Invalid request data.')
+            return redirect('portal:work_output_type_config')
+
+        try:
+            work_type = WorkType.objects.get(pk=work_type_id)
+            output_type = OutputType.objects.get(pk=output_type_id)
+
+            if action == 'add':
+                work_type.allowed_output_types.add(output_type)
+                messages.success(request, f'Added {output_type.name} to {work_type.name}')
+            elif action == 'remove':
+                work_type.allowed_output_types.remove(output_type)
+                messages.success(request, f'Removed {output_type.name} from {work_type.name}')
+            else:
+                messages.error(request, 'Invalid action specified.')
+
+        except (WorkType.DoesNotExist, OutputType.DoesNotExist):
+            messages.error(request, 'Work type or output type not found.')
+
+        return redirect('portal:work_output_type_config')

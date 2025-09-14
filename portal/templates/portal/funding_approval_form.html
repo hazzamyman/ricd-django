@@ -58,7 +58,7 @@
                             {% if form.approved_by_position.errors %}
                                 <div class="text-danger">{{ form.approved_by_position.errors.0 }}</div>
                             {% endif %}
-                            <div class="form-text">Name of the person/department that approved the funding</div>
+                            <div class="form-text">Name of the position that approved the funding such as DG DDG GM</div>
                         </div>
 
                         <div class="mb-3">
@@ -67,6 +67,7 @@
                             {% if form.projects.errors %}
                                 <div class="text-danger">{{ form.projects.errors.0 }}</div>
                             {% endif %}
+                            <div class="form-text">{{ form.projects.help_text }}</div>
                             <div class="form-text">Select the projects that this funding approval applies to. You can select multiple projects.</div>
                         </div>
 
@@ -104,16 +105,28 @@ document.addEventListener('DOMContentLoaded', function() {
     const projectSelect = document.getElementById('{{ form.projects.id_for_label }}');
 
     if (projectSelect) {
-        projectSelect.style.height = '200px';
+        projectSelect.style.height = '300px';
+        projectSelect.style.width = '100%';
         projectSelect.multiple = true;
+        projectSelect.style.fontSize = '14px';
+        projectSelect.style.padding = '8px';
 
-        // Add some visual feedback
+        // Improve option display with better formatting
+        const options = projectSelect.querySelectorAll('option');
+        options.forEach(option => {
+            option.style.padding = '4px 8px';
+            option.title = option.textContent; // Show full text on hover
+        });
+
+        // Add some visual feedback for selected count
+        const selectedFeedback = document.createElement('div');
+        selectedFeedback.className = 'selected-count text-muted small mt-2';
+        selectedFeedback.textContent = '0 projects selected';
+        projectSelect.parentNode.appendChild(selectedFeedback);
+
         projectSelect.addEventListener('change', function() {
             const selectedCount = this.selectedOptions.length;
-            const feedback = document.querySelector('.selected-count');
-            if (feedback) {
-                feedback.textContent = `${selectedCount} project${selectedCount !== 1 ? 's' : ''} selected`;
-            }
+            selectedFeedback.textContent = `${selectedCount} project${selectedCount !== 1 ? 's' : ''} selected`;
         });
     }
 });

@@ -1,5 +1,7 @@
 from django.contrib import admin
 from django.contrib.admin import TabularInline
+from django.contrib.auth.models import User, Group
+from django.contrib.auth.admin import UserAdmin, GroupAdmin
 
 # Register your models here.
 from .models import Council, Program, Project, Address, Work, FundingSchedule, Instalment, MonthlyTracker, QuarterlyReport, Stage1Report, Stage2Report, WorkProgress, Defect, Contact, StageReport, WorkStep, DefaultWorkStep, ReportAttachment, StepTask, StepTaskCompletion, WorkSchedule, PracticalCompletion, FundingApproval, MonthlyReport, CouncilQuarterlyReport
@@ -123,3 +125,46 @@ class QuarterlyReportAdmin(admin.ModelAdmin):
 admin.site.register(FundingApproval, FundingApprovalAdmin)
 admin.site.register(MonthlyReport, MonthlyReportAdmin)
 admin.site.register(CouncilQuarterlyReport, QuarterlyReportAdmin)
+
+# Custom User Admin to show council information
+class CustomUserAdmin(UserAdmin):
+    list_display = ('username', 'email', 'first_name', 'last_name', 'is_active', 'get_council', 'get_groups_display')
+    list_filter = ('is_staff', 'is_superuser', 'is_active', 'groups', 'profile__council')
+    search_fields = ('username', 'first_name', 'last_name', 'email')
+
+    def get_council(self, obj):
+        if hasattr(obj, 'profile') and obj.profile.council:
+            return obj.profile.council.name
+        return 'No Council'
+    get_council.short_description = 'Council'
+    get_council.admin_order_field = 'profile__council__name'
+
+    def get_groups_display(self, obj):
+        return ', '.join([group.name for group in obj.groups.all()])
+    get_groups_display.short_description = 'Groups'
+
+    # Add readonly fields for council info
+    readonly_fields = ('date_joined', 'last_login')
+
+    # Override fieldsets to include council info
+    fieldsets = UserAdmin.fieldsets + (
+        ('Council Information', {
+            'fields': ('get_council',),
+            'classes': ('collapse',),
+        }),
+    )
+
+# Custom Group Admin
+class CustomGroupAdmin(GroupAdmin):
+    list_display = ('name', 'get_user_count')
+    search_fields = ('name', 'user__username', 'user__first_name', 'user__last_name')
+
+    def get_user_count(self, obj):
+        return obj.user_set.count()
+    get_user_count.short_description = 'Users'
+
+# Register User and Group with custom admin classes
+admin.site.unregister(User)  # Unregister the default User admin
+admin.site.unregister(Group)  # Unregister the default Group admin
+admin.site.register(User, CustomUserAdmin)
+admin.site.register(Group, CustomGroupAdmin)

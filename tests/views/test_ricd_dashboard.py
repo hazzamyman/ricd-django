@@ -22,6 +22,7 @@ def add_middleware(request):
 class TestRICDDashboardView:
     """Test RICD Dashboard View"""
 
+    @pytest.mark.django_db
     def test_dashboard_view_context_data(self):
         """Test that dashboard view returns correct context data"""
         # Create test data
@@ -58,6 +59,7 @@ class TestRICDDashboardView:
             'stage': None
         }
 
+    @pytest.mark.django_db
     def test_dashboard_project_filtering(self):
         """Test dashboard filtering by program and council"""
         # Create test data
@@ -95,6 +97,7 @@ class TestRICDDashboardView:
         )
         assert projects_queryset.count() == 1
 
+    @pytest.mark.django_db
     def test_dashboard_stage_choices(self):
         """Test that stage choices are properly constructed"""
         view = RICDDashboardView()
@@ -120,24 +123,28 @@ class TestRICDDashboardView:
 class TestRICDDashboardMethods:
     """Test individual methods of RICDDashboardView"""
 
+    @pytest.mark.django_db
     def test_get_project_progress_no_reports(self, project):
         """Test get_project_progress when no quarterly reports exist"""
         view = RICDDashboardView()
         progress = view.get_project_progress(project)
         assert progress == 0
 
+    @pytest.mark.django_db
     def test_get_budget_vs_spent_no_agreement(self, project):
         """Test get_budget_vs_spent when project has no funding agreement"""
         view = RICDDashboardView()
         budget_spent = view.get_budget_vs_spent(project)
         assert budget_spent == "N/A"
 
+    @pytest.mark.django_db
     def test_get_stage1_status_no_reports(self, project):
         """Test get_stage1_status when no Stage1 reports exist"""
         view = RICDDashboardView()
         status = view.get_stage1_status(project)
         assert status == "Not Submitted"
 
+    @pytest.mark.django_db
     def test_get_stage2_status_no_reports(self, project):
         """Test get_stage2_status when no Stage2 reports exist"""
         view = RICDDashboardView()

@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.contrib.auth import views as auth_views
 from django.shortcuts import redirect
+from portal import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -25,11 +26,11 @@ urlpatterns = [
     path('ricd/', include('ricd.urls')),
 
     # Authentication URLs
-    path('accounts/login/', auth_views.LoginView.as_view(template_name='portal/login.html'), name='login'),
-    path('accounts/logout/', auth_views.LogoutView.as_view(next_page='/portal/ricd/'), name='logout'),
+    path('accounts/login/', views.CustomLoginView.as_view(), name='login'),
+    path('accounts/logout/', auth_views.LogoutView.as_view(next_page='/accounts/login/'), name='logout'),
     path('accounts/password_change/', auth_views.PasswordChangeView.as_view(template_name='portal/password_change.html'), name='password_change'),
     path('accounts/password_change/done/', auth_views.PasswordChangeDoneView.as_view(template_name='portal/password_change_done.html'), name='password_change_done'),
 
-    # Redirect root to RICD dashboard
-    path('', lambda request: redirect('portal:ricd_dashboard')),
+    # Redirect root to login
+    path('', lambda request: redirect('login')),
 ]

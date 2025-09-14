@@ -1,0 +1,88 @@
+{% extends "portal/base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h1 class="h4 mb-0">
+                        <i class="fas fa-file-export me-2"></i>Custom Excel Export
+                    </h1>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">
+                        Select the fields you want to include in your Excel export. The export will include all addresses and their associated works.
+                    </p>
+
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+
+                        <div class="mb-4">
+                            <label class="form-label fs-5">Available Fields:</label>
+                            <div class="row">
+                                {% for field_option in form.fields.field.choices %}
+                                <div class="col-md-6 col-lg-4 mb-3">
+                                    <div class="form-check">
+                                        <input type="checkbox"
+                                               name="fields"
+                                               value="{{ field_option.0 }}"
+                                               id="id_fields_{{ forloop.counter }}"
+                                               class="form-check-input"
+                                               {% if field_option.0 in form.fields.fields.initial %}checked{% endif %}>
+                                        <label class="form-check-label" for="id_fields_{{ forloop.counter }}">
+                                            {{ field_option.1 }}
+                                        </label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            {% if form.fields.errors %}
+                                <div class="text-danger small">{{ form.fields.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <button type="submit" class="btn btn-success w-100">
+                                    <i class="fas fa-download me-2"></i>Generate Export
+                                </button>
+                            </div>
+                            <div class="col-md-6">
+                                <a href="{% url 'portal:analytics_dashboard' %}" class="btn btn-secondary w-100">
+                                    <i class="fas fa-times me-2"></i>Cancel
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-select/deselect all checkbox functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Add select all button
+    const formContainer = document.querySelector('.card-body');
+    const selectAllDiv = document.createElement('div');
+    selectAllDiv.className = 'd-flex justify-content-between mb-3';
+    selectAllDiv.innerHTML = `
+        <button type="button" class="btn btn-sm btn-outline-primary me-2" onclick="selectAllFields()">Select All</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearAllFields()">Clear All</button>
+    `;
+    formContainer.insertBefore(selectAllDiv, formContainer.querySelector('.mb-4'));
+});
+
+function selectAllFields() {
+    const checkboxes = document.querySelectorAll('input[name="fields"]');
+    checkboxes.forEach(cb => cb.checked = true);
+}
+
+function clearAllFields() {
+    const checkboxes = document.querySelectorAll('input[name="fields"]');
+    checkboxes.forEach(cb => cb.checked = false);
+}
+</script>
+{% endblock %}
