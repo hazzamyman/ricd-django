@@ -7,178 +7,277 @@
             <h1><i class="fas fa-flag me-2"></i>Council Dashboard</h1>
             {% if user_council %}
                 <p class="text-muted">Managing projects for {{ user_council.name }}</p>
+                {% if user_is_council_user or user_is_council_manager %}
+                <div class="mt-2">
+                    <a href="{% url 'portal:council_detail' user_council.pk %}" class="btn btn-outline-info btn-sm">
+                        <i class="fas fa-building me-1"></i>View Council Details
+                    </a>
+                </div>
+                {% endif %}
             {% endif %}
         </div>
     </div>
 
-    <!-- Project Cards or Table -->
-    <div class="row">
-        {% for item in projects %}
-        <div class="col-lg-6 col-xl-4 mb-4">
-            <div class="card h-100 {% if item.is_overdue or item.required_reports_overdue %}border-danger{% elif item.progress_percentage >= 75 %}border-success{% else %}{% endif %}">
-                <div class="card-header bg-light">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">
-                            <a href="{% url 'portal:project_detail' item.project.pk %}" class="text-decoration-none">
-                                <i class="fas fa-building"></i> {{ item.project.name }}
-                            </a>
-                        </h5>
-                        {% if item.is_overdue %}
-                            <span class="badge bg-danger">Overdue</span>
-                        {% else %}
-                            <span class="badge bg-success">On Track</span>
-                        {% endif %}
-                    </div>
-                </div>
-
+    <!-- Search and Filter Form -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
                 <div class="card-body">
-                    <div class="mb-3">
-                        <strong>Funding Schedule:</strong> {{ item.funding_schedule_number }}
-                    </div>
-
-                    <div class="mb-3">
-                        <strong>Project Stage:</strong>
-                        <span class="badge {% if item.project.state == 'completed' %}bg-success
-                                           {% elif item.project.state == 'under_construction' %}bg-primary
-                                           {% elif item.project.state == 'commenced' %}bg-info
-                                           {% else %}bg-secondary{% endif %}">
-                            {{ item.project.get_state_display }}
-                        </span>
-                    </div>
-
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between mb-1">
-                            <span><strong>Progress: {{ item.progress_percentage }}%</strong></span>
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-6">
+                            <label for="search" class="form-label">
+                                <i class="fas fa-search"></i> Search Projects/Addresses
+                            </label>
+                            <input type="text" class="form-control" id="search" name="search"
+                                    placeholder="Project name, street, suburb, work type..."
+                                    value="{{ current_search }}">
                         </div>
-                        <div class="progress" style="height: 10px;">
-                            <div class="progress-bar {% if item.progress_percentage >= 75 %}bg-success
-                                                    {% elif item.progress_percentage >= 50 %}bg-info
-                                                    {% elif item.progress_percentage >= 25 %}bg-warning
-                                                    {% else %}bg-danger{% endif %}"
-                                 role="progressbar"
-                                 style="width: {{ item.progress_percentage }}%"
-                                 aria-valuenow="{{ item.progress_percentage }}"
-                                 aria-valuemin="0"
-                                 aria-valuemax="100">
+                        <div class="col-md-4">
+                            <label for="stage" class="form-label">
+                                <i class="fas fa-filter"></i> Project Status
+                            </label>
+                            <select class="form-select" id="stage" name="stage">
+                                <option value="">All Statuses</option>
+                                {% for stage_choice in stages %}
+                                <option value="{{ stage_choice.value }}" {% if current_stage == stage_choice.value %}selected{% endif %}>
+                                    {{ stage_choice.display }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search"></i> Search
+                                </button>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <strong>Latest Reports:</strong>
-                        <div class="small">
-                            {% if item.latest_quarterly_report %}
-                                <div class="text-success">
-                                    <i class="fas fa-check-circle"></i>
-                                    Quarterly: {{ item.latest_quarterly_report.quarter }}
-                                    ({{ item.latest_quarterly_report.submission_date|date:"M d, Y" }})
-                                </div>
-                            {% else %}
-                                <div class="text-danger">
-                                    <i class="fas fa-exclamation-circle"></i> No quarterly reports
-                                </div>
-                            {% endif %}
-
-                            {% if item.latest_monthly_report %}
-                                <div class="text-success">
-                                    <i class="fas fa-check-circle"></i>
-                                    Monthly: {{ item.latest_monthly_report.month|date:"M Y" }}
-                                </div>
-                            {% else %}
-                                <div class="text-warning">
-                                    <i class="fas fa-clock"></i> No monthly reports
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    {% if item.required_reports_overdue %}
-                    <div class="alert alert-danger py-2 small">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <strong>Reports Due:</strong> {{ item.required_reports_overdue|join:", " }}
+                    </form>
+                    {% if current_search or current_stage or current_program %}
+                    <div class="mt-2">
+                        <a href="{% url 'portal:council_dashboard' %}" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-times"></i> Clear Filters
+                        </a>
+                        {% if current_search %}
+                            <span class="badge bg-info ms-2">Search: "{{ current_search }}"</span>
+                        {% endif %}
+                        {% if current_stage %}
+                            {% for stage in stages %}
+                                {% if stage.value == current_stage %}
+                                    <span class="badge bg-primary ms-1">Status: {{ stage.display }}</span>
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
                     </div>
                     {% endif %}
                 </div>
-
-                <div class="card-footer bg-light">
-                    <div class="btn-group w-100">
-                        <a href="{% url 'portal:project_detail' item.project.pk %}" class="btn btn-primary btn-sm">
-                            <i class="fas fa-eye"></i> View Details
-                        </a>
-                        <a href="{% url 'portal:quarterly_report' %}?project={{ item.project.id }}" class="btn btn-success btn-sm">
-                            <i class="fas fa-plus"></i> Submit Report
-                        </a>
-                    </div>
-                </div>
             </div>
         </div>
-        {% empty %}
-        <div class="col-12">
-            <div class="alert alert-info">
-                <h4><i class="fas fa-info-circle"></i> No Projects Found</h4>
-                <p>You don't have any projects assigned to your council yet. Contact RICD administration if this seems incorrect.</p>
-            </div>
-        </div>
-        {% endfor %}
     </div>
 
-    <!-- Reports Overview -->
-    {% if user_council %}
-    <div class="row mt-4">
+    <!-- Projects Grid -->
+    <div class="row">
         <div class="col-12">
             <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0"><i class="fas fa-calendar-check"></i> Reports Overview</h5>
+                <div class="card-header bg-light">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-list"></i> Projects
+                            {% if projects %}
+                                <span class="badge bg-secondary ms-2">{{ projects|length }} project{{ projects|length|pluralize }}</span>
+                            {% endif %}
+                        </h5>
+                        <div class="btn-group" role="group">
+                            {% if user_is_ricd_staff or user_is_ricd_manager %}
+                            <a href="{% url 'portal:project_list' %}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-plus"></i> New Project
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
                 <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6 class="text-primary"><i class="fas fa-clock"></i> Due Reports</h6>
-                            <ul class="list-group list-group-flush">
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    Monthly Report
-                                    <span class="badge bg-warning">Due Soon</span>
-                                </li>
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    Quarterly Report
-                                    <span class="badge bg-info">Q4 2025</span>
-                                </li>
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    Stage 1 Report
-                                    <span class="badge bg-secondary">Not Due</span>
-                                </li>
-                            </ul>
-                        </div>
-                        <div class="col-md-6">
-                            <h6 class="text-success"><i class="fas fa-calendar-alt"></i> Upcoming Reports (Next Month)</h6>
-                            <ul class="list-group list-group-flush">
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    Monthly Report - October
-                                    <span class="badge bg-info">Oct 1, 2025</span>
-                                </li>
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    Quarterly Report - Q4
-                                    <span class="badge bg-info">Oct-Dec 2025</span>
-                                </li>
-                            </ul>
+                    {% if projects %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th><i class="fas fa-building"></i> Project Name</th>
+                                    <th><i class="fas fa-money-bill"></i> Funding Schedule</th>
+                                    <th><i class="fas fa-tasks"></i> State</th>
+                                    <th><i class="fas fa-chart-line"></i> Progress</th>
+                                    <th><i class="fas fa-balance-scale"></i> Budget vs Spent</th>
+                                    <th><i class="fas fa-flag-checkered"></i> Stage 1 Status</th>
+                                    <th><i class="fas fa-flag-checkered"></i> Stage 2 Status</th>
+                                    <th><i class="fas fa-clock"></i> Late</th>
+                                    <th><i class="fas fa-exclamation-triangle"></i> Overdue</th>
+                                    <th><i class="fas fa-file-alt"></i> Report Status</th>
+                                    <th><i class="fas fa-cogs"></i> Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in projects %}
+                                <tr class="{% if item.is_overdue or item.required_reports_overdue %}table-danger{% endif %}">
+                                    <td>
+                                        <a href="{% url 'portal:council_project_detail' item.project.pk %}"
+                                           class="text-decoration-none fw-bold">
+                                            {{ item.project.name }}
+                                        </a>
+                                    </td>
+                                    <td>{{ item.funding_schedule_number }}</td>
+                                    <td>
+                                        {% if item.project.state == 'prospective' %}
+                                            <span class="badge bg-secondary">Prospective</span>
+                                        {% elif item.project.state == 'programmed' %}
+                                            <span class="badge bg-info">Programmed</span>
+                                        {% elif item.project.state == 'funded' %}
+                                            <span class="badge bg-success">Funded</span>
+                                        {% elif item.project.state == 'commenced' %}
+                                            <span class="badge bg-warning text-dark">Commenced</span>
+                                        {% elif item.project.state == 'under_construction' %}
+                                            <span class="badge bg-primary">Under Construction</span>
+                                        {% elif item.project.state == 'completed' %}
+                                            <span class="badge bg-success">Completed</span>
+                                        {% elif item.project.state == 'cancelled' %}
+                                            <span class="badge bg-danger">Cancelled</span>
+                                        {% elif item.project.state == 'terminated' %}
+                                            <span class="badge bg-danger">Terminated</span>
+                                        {% elif item.project.state == 'varied' %}
+                                            <span class="badge bg-warning">Varied</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ item.project.get_state_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if item.progress_percentage > 0 %}
+                                            {{ item.progress_percentage }}%
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ item.budget_vs_spent }}</td>
+                                    {% if item.project.state == 'commenced' or item.project.state == 'under_construction' %}
+                                    <td class="text-center">
+                                        {% if item.stage1_status == 'Complete' %}
+                                            <span style="color: green; font-weight: bold;">{{ item.stage1_status }}</span>
+                                        {% elif item.stage1_status == 'Pending Acceptance' %}
+                                            <span style="color: orange;">{{ item.stage1_status }}</span>
+                                        {% else %}
+                                            <span style="color: red;">{{ item.stage1_status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if item.stage2_status == 'Complete' %}
+                                            <span style="color: green; font-weight: bold;">{{ item.stage2_status }}</span>
+                                        {% elif item.stage2_status == 'In Progress' %}
+                                            <span style="color: orange;">{{ item.stage2_status }}</span>
+                                        {% else %}
+                                            <span style="color: red;">{{ item.stage2_status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    {% else %}
+                                    <td class="text-center">-</td>
+                                    <td class="text-center">-</td>
+                                    {% endif %}
+                                    {% if item.project.state == 'commenced' or item.project.state == 'under_construction' %}
+                                    <td class="text-center">
+                                        {% if item.late_flag %}
+                                            <span style="color: red; font-weight: bold;">⚠️ Late</span>
+                                        {% else %}
+                                            <span style="color: green;">✓ On Time</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if item.overdue_flag %}
+                                            <span style="color: darkred; font-weight: bold;">🔴 Overdue</span>
+                                        {% else %}
+                                            <span style="color: green;">✓ Current</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if item.project.state == 'commenced' or item.project.state == 'under_construction' %}
+                                            {% if item.stage1_status == 'Not Submitted' %}
+                                                <span style="color: red;">⚠️ Stage 1</span>
+                                            {% else %}
+                                                <span style="color: green;">✓ Current</span>
+                                            {% endif %}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    {% else %}
+                                    <td class="text-center">-</td>
+                                    <td class="text-center">-</td>
+                                    <td class="text-center">-</td>
+                                    {% endif %}
+                                    <td>
+                                        {% if item.project.state == 'commenced' or item.project.state == 'under_construction' %}
+                                        <a href="{% url 'portal:quarterly_report' %}?project={{ item.project.id }}"
+                                           class="btn btn-success btn-sm">
+                                            <i class="fas fa-plus"></i> Submit Report
+                                        </a>
+                                        {% else %}
+                                        <span class="text-muted small">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <div class="alert alert-info">
+                            <h4><i class="fas fa-info-circle"></i> No Projects Found</h4>
+                            {% if current_search or current_stage %}
+                                <p>No projects match your current search and filter criteria.</p>
+                                <a href="{% url 'portal:council_dashboard' %}" class="btn btn-primary">
+                                    <i class="fas fa-times"></i> Clear Filters
+                                </a>
+                            {% else %}
+                                <p>You don't have any projects assigned to your council yet. Contact RICD administration if this seems incorrect.</p>
+                            {% endif %}
                         </div>
                     </div>
-                    <div class="mt-3">
-                        <div class="btn-group" role="group">
-                            <a href="{% url 'portal:monthly_report' %}" class="btn btn-primary">
-                                <i class="fas fa-calendar-week"></i> Submit Monthly Report
-                            </a>
-                            <a href="{% url 'portal:quarterly_report' %}" class="btn btn-success">
-                                <i class="fas fa-calendar-alt"></i> Submit Quarterly Report
-                            </a>
-                            <a href="{% url 'portal:stage1_report' %}" class="btn btn-info">
-                                <i class="fas fa-file-contract"></i> Stage 1 Report
-                            </a>
-                            <a href="{% url 'portal:stage2_report' %}" class="btn btn-secondary">
-                                <i class="fas fa-file-contract"></i> Stage 2 Report
-                            </a>
-                        </div>
-                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    {% if projects %}
+    <div class="row mt-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-primary">{{ projects|length }}</h3>
+                    <p class="text-muted mb-0">Total Projects</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-success">{{ projects|length|add:0 }}</h3>
+                    <p class="text-muted mb-0">Active Projects</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-info">{{ total_addresses }}</h3>
+                    <p class="text-muted mb-0">Total Addresses</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-warning">{{ total_works }}</h3>
+                    <p class="text-muted mb-0">Total Works</p>
                 </div>
             </div>
         </div>

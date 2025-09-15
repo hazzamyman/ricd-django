@@ -119,7 +119,8 @@
                 </div>
             </div>
 
-            {% if work and (work.is_within_defect_liability_period or work.get_practical_completion_date()) %}
+            {% if work %}
+            {% if work.is_within_defect_liability_period or work.get_practical_completion_date %}
             <!-- Defect Liability Information -->
             <div class="card mt-3">
                 <div class="card-body">
@@ -134,7 +135,7 @@
                             <strong>Defect Liability Period Expires:</strong>
                             {% load tz %}
                             {% timezone "UTC" %}
-                                {{ work.get_practical_completion_date|timezone:"UTC"|add:"months:12"|date:"M j, Y" }}
+                                {{ work.get_practical_completion_date|timezone:"UTC"|add:365|date:"M j, Y" }}
                             {% endtimezone %}
                         </p>
                         {% if work.is_within_defect_liability_period %}
@@ -156,6 +157,7 @@
                     {% endif %}
                 </div>
             </div>
+            {% endif %}
             {% endif %}
         </div>
     </div>

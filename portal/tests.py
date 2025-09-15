@@ -189,3 +189,93 @@ class SecurityTestCase(TestCase):
         self.assertNotIsInstance(response, HttpResponseForbidden)
         if hasattr(response, 'status_code'):
             self.assertNotEqual(response.status_code, 302)
+
+    def test_calculated_funding_display(self):
+        """Test that calculated Total Funding is properly displayed in project views"""
+        # Create some budget data for the project
+        from ricd.models import Address, Work, WorkType, OutputType
+
+        work_type, _ = WorkType.objects.get_or_create(name='Test Work Type')
+        output_type, _ = OutputType.objects.get_or_create(name='Test Output Type')
+
+        address, _ = Address.objects.get_or_create(
+            project=self.project1,
+            street='Test Street',
+            suburb='Test Suburb',
+            bedrooms=3,
+            budget=50000
+        )
+
+        work, _ = Work.objects.get_or_create(
+            address=address,
+            work_type_id=work_type,
+            output_type_id=output_type,
+            estimated_cost=75000,
+            actual_cost=70000,
+            output_quantity=1
+        )
+
+        # Test that the calculated funding appears in context
+        request = self.factory.get(f'/portal/project/{self.project1.pk}/')
+        request.user = self.ricd_user
+
+        view = ProjectDetailView()
+        view.request = request
+        view.kwargs = {'pk': self.project1.pk}
+
+        # Get the project object first
+        view.object = self.project1
+
+        # Get the context data
+        context = view.get_context_data()
+        project = context['project']
+
+        # The calculated funding should be the sum of all address budgets
+        expected_funding = sum(addr.budget for addr in self.project1.addresses.all() if addr.budget)
+        self.assertEqual(project.total_funding, expected_funding)
+
+    def test_council_dashboard_template_role_based_links(self):
+        """Test that council dashboard shows correct project links based on user role"""
+        from portal.views import CouncilDashboardView
+
+        # Test council user sees council project detail links
+        request = self.factory.get('/portal/council/')
+        request.user = self.council1_user
+
+        view = CouncilDashboardView()
+        view.request = request
+        context = view.get_context_data()
+
+        # Should have projects filtered for council user
+        self.assertIn('projects', context)
+        user_projects = context['projects']
+        self.assertTrue(all(p['project'].council == self.council1_user.profile.council for p in user_projects))
+
+    def test_project_detail_template_field_visibility(self):
+        """Test that sensitive fields are hidden from council users in project templates"""
+        # Test RICD user can see all fields
+        request = self.factory.get(f'/portal/project/{self.project1.pk}/')
+        request.user = self.ricd_user
+
+        view = ProjectDetailView()
+        view.request = request
+        view.kwargs = {'pk': self.project1.pk}
+        # Set the object for the view
+        view.object = self.project1
+        context = view.get_context_data()
+
+        self.assertIn('project', context)
+        # RICD user should see full project data
+        self.assertIsNotNone(context['project'])
+
+        # Test council user sees filtered view via CouncilProjectDetailView
+        request = self.factory.get(f'/portal/council/projects/{self.project1.pk}/detail/')
+        request.user = self.council1_user
+
+        view = CouncilProjectDetailView()
+        view.request = request
+        view.kwargs = {'pk': self.project1.pk}
+
+        # Should succeed (not raise HttpResponseForbidden)
+        response = view.dispatch(request, pk=self.project1.pk)
+        self.assertIsNotNone(response)

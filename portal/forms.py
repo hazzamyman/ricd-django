@@ -2440,7 +2440,7 @@ class DefectForm(forms.ModelForm):
     """Form for creating and editing Defects"""
 
     work = forms.ModelChoiceField(
-        queryset=None,  # Will be filtered based on user permissions
+        queryset=Work.objects.none(),  # Default empty queryset, will be filtered based on user permissions
         required=True,
         label="Work Item",
         widget=forms.Select(attrs={
@@ -2501,6 +2501,9 @@ class DefectForm(forms.ModelForm):
                 self.fields['work'].queryset = Work.objects.select_related(
                     'address__project', 'work_type_id', 'output_type_id'
                 )
+        else:
+            # No user provided - set empty queryset to prevent errors
+            self.fields['work'].queryset = Work.objects.none()
 
     def clean(self):
         cleaned_data = super().clean()
