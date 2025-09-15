@@ -267,27 +267,12 @@ class ProjectDetailView(DetailView):
             from django.http import HttpResponseForbidden
             return HttpResponseForbidden("Authentication required.")
 
-        # Check if user has permission to view this project
-        project = self.get_object()
+        # Only RICD Staff and RICD Managers can access this view
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied. Only RICD staff can view RICD project details.")
 
-        # RICD Staff and RICD Managers can access any project
-        if request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
-            return super().dispatch(request, *args, **kwargs)
-
-        # Council Users and Council Managers can only access their own council's projects
-        # Check profile directly to avoid property issues
-        try:
-            user_profile = request.user.profile
-            user_council = user_profile.council
-        except:
-            user_council = None
-
-        if user_council and project.council == user_council:
-            return super().dispatch(request, *args, **kwargs)
-
-        # Deny access for all other cases
-        from django.http import HttpResponseForbidden
-        return HttpResponseForbidden("You don't have permission to view this project.")
+        return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -307,6 +292,20 @@ class ProjectDetailView(DetailView):
             # For council users, still provide the calculated amount separately
             context['council_funding_amount'] = calculated_total_funding
 
+        # Add field visibility settings for council users
+        if self.request.user.is_authenticated and hasattr(self.request.user, 'profile'):
+            try:
+                user_profile = self.request.user.profile
+                user_council = user_profile.council
+                from ricd.models import get_field_visibility_settings
+                context['field_visibility'] = get_field_visibility_settings(user_council, self.request.user)
+            except:
+                # Default to visible if profile doesn't exist
+                context['field_visibility'] = {choice[0]: True for choice in FieldVisibilitySetting.FIELD_CHOICES}
+        else:
+            # For anonymous users or users without council, show all fields (though they shouldn't reach here)
+            context['field_visibility'] = {choice[0]: True for choice in FieldVisibilitySetting.FIELD_CHOICES}
+
         return context
 
 
@@ -322,17 +321,13 @@ class CouncilProjectDetailView(DetailView):
             from django.http import HttpResponseForbidden
             return HttpResponseForbidden("Authentication required.")
 
-        # Check if user has permission to view this project
-        project = self.get_object()
-
-        # RICD Staff and RICD Managers can access any project
-        if request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
-            return super().dispatch(request, *args, **kwargs)
-
         # Only Council Users and Council Managers can access this view
         if not request.user.groups.filter(name__in=['Council User', 'Council Manager']).exists():
             from django.http import HttpResponseForbidden
             return HttpResponseForbidden("Access denied. Only council users can view council project details.")
+
+        # Check if user has permission to view this project
+        project = self.get_object()
 
         # Council Users and Council Managers can only access their own council's projects
         # Check profile directly to avoid property issues
@@ -380,6 +375,20 @@ class CouncilProjectDetailView(DetailView):
 
         # Get defects for this project
         context['defects'] = Defect.objects.filter(work__address__project=project).select_related('work__address')
+
+        # Add field visibility settings for council users
+        if self.request.user.is_authenticated and hasattr(self.request.user, 'profile'):
+            try:
+                user_profile = self.request.user.profile
+                user_council = user_profile.council
+                from ricd.models import get_field_visibility_settings
+                context['field_visibility'] = get_field_visibility_settings(user_council, self.request.user)
+            except:
+                # Default to visible if profile doesn't exist
+                context['field_visibility'] = {choice[0]: True for choice in FieldVisibilitySetting.FIELD_CHOICES}
+        else:
+            # For anonymous users or users without council, show all fields (though they shouldn't reach here)
+            context['field_visibility'] = {choice[0]: True for choice in FieldVisibilitySetting.FIELD_CHOICES}
 
         return context
 
@@ -3428,3 +3437,33 @@ class WorkOutputTypeConfigView(LoginRequiredMixin, TemplateView):
             messages.error(request, 'Work type or output type not found.')
 
         return redirect('portal:work_output_type_config')
+
+
+class ProjectFieldVisibilityView(LoginRequiredMixin, TemplateView):
+    """Configure field visibility settings for a specific project - RICD users only"""
+    template_name = "portal/project_field_visibility.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        # Restrict access to RICD users only
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied. Only RICD staff can configure field visibility.")
+
+        self.project = get_object_or_404(Project, pk=self.kwargs['pk'])
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['project'] = self.project
+        context['form'] = ProjectFieldVisibilityForm(project=self.project)
+        return context
+
+    def post(self, request, *args, **kwargs):
+        form = ProjectFieldVisibilityForm(request.POST, project=self.project)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Field visibility settings for project "{self.project.name}" have been updated successfully!')
+            return redirect('portal:project_detail', pk=self.project.pk)
+        else:
+            messages.error(request, 'Please correct the errors below.')
+            return self.render_to_response({'form': form, 'project': self.project})

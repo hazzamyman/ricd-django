@@ -2510,3 +2510,67 @@ class DefectForm(forms.ModelForm):
             raise forms.ValidationError("You don't have permission to add defects to this work.")
 
         return cleaned_data
+
+
+class ProjectFieldVisibilityForm(forms.Form):
+    """Form for configuring field visibility settings for a specific project"""
+
+    def __init__(self, *args, **kwargs):
+        self.project = kwargs.pop('project', None)
+        super().__init__(*args, **kwargs)
+
+        if not self.project:
+            return
+
+        # Get current council settings for this project
+        from ricd.models import get_field_visibility_settings, FieldVisibilitySetting
+        council_settings = get_field_visibility_settings(self.project.council)
+
+        # Create checkboxes for each field
+        for field_code, field_name in FieldVisibilitySetting.FIELD_CHOICES:
+            # Check if there's a project-specific override
+            try:
+                override = self.project.field_visibility_overrides.get(field_name=field_code)
+                initial_value = override.visible_to_council_users
+            except self.project.field_visibility_overrides.model.DoesNotExist:
+                # Fall back to council default
+                initial_value = council_settings.get(field_code, True)
+
+            self.fields[field_code] = forms.BooleanField(
+                required=False,
+                initial=initial_value,
+                label=field_name,
+                widget=forms.CheckboxInput(attrs={
+                    'class': 'form-check-input'
+                })
+            )
+
+    def save(self):
+        """Save the form data as project-specific overrides"""
+        from ricd.models import ProjectFieldVisibilityOverride
+        from django.db import transaction
+
+        if not self.project:
+            return
+
+        with transaction.atomic():
+            # Delete existing overrides for this project
+            self.project.field_visibility_overrides.all().delete()
+
+            # Create new overrides for fields that differ from council defaults
+            from ricd.models import get_field_visibility_settings
+            council_settings = get_field_visibility_settings(self.project.council)
+
+            for field_code, field_name in ProjectFieldVisibilityOverride._meta.get_field('field_name').choices:
+                form_value = self.cleaned_data.get(field_code, True)
+                council_default = council_settings.get(field_code, True)
+
+                # Only create an override if it differs from the council default
+                if form_value != council_default:
+                    ProjectFieldVisibilityOverride.objects.create(
+                        project=self.project,
+                        field_name=field_code,
+                        visible_to_council_users=form_value
+                    )
+
+        return True
