@@ -111,6 +111,7 @@
                                                 <th>Email</th>
                                                 <th>Role</th>
                                                 <th>Status</th>
+                                                <th>Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -134,6 +135,19 @@
                                                     {% else %}
                                                         <span class="badge bg-danger">Inactive</span>
                                                     {% endif %}
+                                                </td>
+                                                <td>
+                                                    <a href="{% url 'portal:council_user_update' user.pk %}"
+                                                       class="btn btn-sm btn-outline-warning me-1"
+                                                       title="Edit User">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                    <a href="{% url 'portal:council_user_delete' user.pk %}"
+                                                       class="btn btn-sm btn-outline-danger"
+                                                       title="Delete User"
+                                                       onclick="return confirm('Are you sure you want to delete user {{ user.username }}? This action cannot be undone.')">
+                                                        <i class="fas fa-trash"></i>
+                                                    </a>
                                                 </td>
                                             </tr>
                                             {% endfor %}
