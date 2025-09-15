@@ -9,6 +9,16 @@ class UserProfile(models.Model):
     """User profile to extend Django's base User model"""
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     council = models.ForeignKey('Council', on_delete=models.SET_NULL, null=True, blank=True, related_name='users')
+    council_role = models.CharField(
+        max_length=20,
+        choices=[
+            ('manager', 'Manager'),
+            ('user', 'User'),
+        ],
+        null=True,
+        blank=True,
+        help_text="Role within the council (Manager or User)"
+    )
 
     def __str__(self):
         return f"{self.user.username} - {self.council.name if self.council else 'No Council'}"
@@ -243,6 +253,16 @@ class FundingSchedule(models.Model):
     def __str__(self):
         return f"{self.council} - {self.funding_schedule_number}"
 
+class ProjectManager(models.Manager):
+    def for_user(self, user):
+        if user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            return self.get_queryset()
+        council = getattr(user, 'council', None)
+        if council:
+            return self.get_queryset().filter(council=council)
+        return self.get_queryset().none()
+
+
 
 class Project(models.Model):
     STATE_CHOICES = [
@@ -333,6 +353,7 @@ class Project(models.Model):
 
     # Analytics: Track outputs cancelled/varied
     cancelled_outputs = models.PositiveIntegerField(default=0, help_text="Number of outputs cancelled")
+    objects = ProjectManager()
     varied_outputs = models.PositiveIntegerField(default=0, help_text="Number of outputs varied")
 
     # Indexes for performance

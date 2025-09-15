@@ -29,6 +29,8 @@ urlpatterns = [
     path('councils/<int:pk>/update/', views.CouncilUpdateView.as_view(), name='council_update'),
     path('councils/<int:pk>/delete/', views.CouncilDeleteView.as_view(), name='council_delete'),
     path('councils/<int:council_pk>/add-user/', views.CouncilUserCreateView.as_view(), name='council_add_user'),
+    path('councils/users/<int:pk>/update/', views.CouncilUserUpdateView.as_view(), name='council_user_update'),
+    path('councils/users/<int:pk>/delete/', views.CouncilUserDeleteView.as_view(), name='council_user_delete'),
 
     # Program CRUD URLs
     path('programs/', views.ProgramListView.as_view(), name='program_list'),
