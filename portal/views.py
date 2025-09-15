@@ -293,13 +293,19 @@ class ProjectDetailView(DetailView):
         context = super().get_context_data(**kwargs)
         context['funding_approvals'] = self.object.funding_approvals.all()
 
-        # Calculate funding amount for council users (sum of address budgets)
-        if hasattr(self.request.user, 'council') and self.request.user.council:
-            from django.db.models import Sum
-            total_budget = self.object.addresses.aggregate(
-                total=Sum('budget')
-            )['total'] or 0
-            context['council_funding_amount'] = total_budget
+        # Calculate total funding from addresses/works budgets for all users
+        from django.db.models import Sum
+        calculated_total_funding = self.object.addresses.aggregate(
+            total=Sum('budget')
+        )['total'] or 0
+
+        # For RICD users, override the stored total_funding with calculated value
+        if not hasattr(self.request.user, 'council') or not self.request.user.council:
+            # Temporarily override project.total_funding for template display
+            self.object.calculated_total_funding = calculated_total_funding
+        else:
+            # For council users, still provide the calculated amount separately
+            context['council_funding_amount'] = calculated_total_funding
 
         return context
 
