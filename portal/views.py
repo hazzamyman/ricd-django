@@ -37,11 +37,18 @@ class RICDDashboardView(LoginRequiredMixin, TemplateView):
     template_name = "portal/ricd_dashboard.html"
 
     def dispatch(self, request, *args, **kwargs):
-        # Restrict access to RICD users only
-        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
-            from django.http import HttpResponseForbidden
-            return HttpResponseForbidden("Access denied. Only RICD staff can view RICD dashboard.")
-        return super().dispatch(request, *args, **kwargs)
+        # Check if user is in RICD groups
+        if request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            return super().dispatch(request, *args, **kwargs)
+
+        # If user is a Council user, redirect to their council dashboard
+        if request.user.groups.filter(name__in=['Council User', 'Council Manager']).exists():
+            from django.shortcuts import redirect
+            return redirect('portal:council_dashboard')
+
+        # Otherwise, deny access
+        from django.http import HttpResponseForbidden
+        return HttpResponseForbidden("Access denied.")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -163,7 +170,16 @@ class CouncilDashboardView(TemplateView):
         context = super().get_context_data(**kwargs)
 
         # Filter projects by logged-in user's council
-        user_council = getattr(self.request.user, 'council', None) if self.request.user.is_authenticated else None
+        if self.request.user.is_authenticated:
+            # Check if user has a profile before accessing council
+            try:
+                user_profile = self.request.user.profile
+                user_council = user_profile.council
+            except:
+                user_council = None
+        else:
+            user_council = None
+
         if user_council:
             user_projects = Project.objects.filter(council=user_council)
         else:
@@ -246,20 +262,45 @@ class ProjectDetailView(DetailView):
     context_object_name = "project"
 
     def dispatch(self, request, *args, **kwargs):
+        # Check if user is authenticated
+        if not request.user.is_authenticated:
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Authentication required.")
+
         # Check if user has permission to view this project
         project = self.get_object()
-        user_council = getattr(request.user, 'council', None)
 
-        # If user has a council (council user), they can only view their own council's projects
-        if user_council and project.council != user_council:
-            from django.http import HttpResponseForbidden
-            return HttpResponseForbidden("You don't have permission to view this project.")
+        # RICD Staff and RICD Managers can access any project
+        if request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            return super().dispatch(request, *args, **kwargs)
 
-        return super().dispatch(request, *args, **kwargs)
+        # Council Users and Council Managers can only access their own council's projects
+        # Check profile directly to avoid property issues
+        try:
+            user_profile = request.user.profile
+            user_council = user_profile.council
+        except:
+            user_council = None
+
+        if user_council and project.council == user_council:
+            return super().dispatch(request, *args, **kwargs)
+
+        # Deny access for all other cases
+        from django.http import HttpResponseForbidden
+        return HttpResponseForbidden("You don't have permission to view this project.")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['funding_approvals'] = self.object.funding_approvals.all()
+
+        # Calculate funding amount for council users (sum of address budgets)
+        if hasattr(self.request.user, 'council') and self.request.user.council:
+            from django.db.models import Sum
+            total_budget = self.object.addresses.aggregate(
+                total=Sum('budget')
+            )['total'] or 0
+            context['council_funding_amount'] = total_budget
+
         return context
 
 
@@ -270,21 +311,37 @@ class CouncilProjectDetailView(DetailView):
     context_object_name = "project"
 
     def dispatch(self, request, *args, **kwargs):
+        # Check if user is authenticated
+        if not request.user.is_authenticated:
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Authentication required.")
+
         # Check if user has permission to view this project
         project = self.get_object()
-        user_council = getattr(request.user, 'council', None)
 
-        # Only council users and managers can access this view
+        # RICD Staff and RICD Managers can access any project
+        if request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            return super().dispatch(request, *args, **kwargs)
+
+        # Only Council Users and Council Managers can access this view
         if not request.user.groups.filter(name__in=['Council User', 'Council Manager']).exists():
             from django.http import HttpResponseForbidden
             return HttpResponseForbidden("Access denied. Only council users can view council project details.")
 
-        # If user has a council, they can only view their own council's projects
-        if user_council and project.council != user_council:
-            from django.http import HttpResponseForbidden
-            return HttpResponseForbidden("You don't have permission to view this project.")
+        # Council Users and Council Managers can only access their own council's projects
+        # Check profile directly to avoid property issues
+        try:
+            user_profile = request.user.profile
+            user_council = user_profile.council
+        except:
+            user_council = None
 
-        return super().dispatch(request, *args, **kwargs)
+        if user_council and project.council == user_council:
+            return super().dispatch(request, *args, **kwargs)
+
+        # Deny access for all other cases
+        from django.http import HttpResponseForbidden
+        return HttpResponseForbidden("You don't have permission to view this project.")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

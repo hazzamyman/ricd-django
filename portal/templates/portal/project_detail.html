@@ -24,12 +24,14 @@
                             {% else %}
                                 <span class="badge bg-success fs-6 px-3 py-2">On Track</span>
                             {% endif %}
+                            {% if not user.council %}
                             <a href="{% url 'portal:project_update' project.pk %}" class="btn btn-outline-light btn-sm me-2">
                                 <i class="fas fa-edit"></i> Edit Project
                             </a>
                             <button class="btn btn-outline-light btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#editStateModal">
                                 <i class="fas fa-edit"></i> Edit State
                             </button>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -39,6 +41,7 @@
                             <h6 class="text-muted">Council</h6>
                             <p class="mb-0"><strong>{{ project.council.name }} ({{ project.council.default_state }})</strong></p>
                         </div>
+                        {% if not user.council %}
                         <div class="col-md-4">
                             <h6 class="text-muted">Funding Schedule</h6>
                             <p class="mb-0"><strong>{{ project.funding_schedule_number }}</strong></p>
@@ -55,12 +58,33 @@
                             <p class="mb-0">
                                 <strong>{{ project.program.name }}</strong>
                                 {% comment %}Add quick defect report button{% endcomment %}
+                                {% if not user.council %}
                                 <a href="{% url 'portal:defect_create' %}" class="btn btn-warning btn-sm ms-2" title="Report a Defect">
                                     <i class="fas fa-exclamation-triangle"></i> Report Defect
                                 </a>
+                                {% endif %}
                             </p>
                         </div>
+                        {% else %}
+                        <div class="col-md-4">
+                            <h6 class="text-muted">Funding Amount</h6>
+                            <p class="mb-0">
+                                <strong>
+                                    {% if council_funding_amount %}
+                                        ${{ council_funding_amount|floatformat:0 }}
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </strong>
+                            </p>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="text-muted">Council</h6>
+                            <p class="mb-0"><strong>{{ project.council.name }} ({{ project.council.default_state }})</strong></p>
+                        </div>
+                        {% endif %}
                     </div>
+                    {% if not user.council %}
                     <div class="row mt-2">
                         {% if project.forward_rpf_agreement %}
                         <div class="col-md-6">
@@ -87,6 +111,7 @@
                         </div>
                         {% endif %}
                     </div>
+                    {% endif %}
                     <div class="row mt-2">
                         {% if not project.forward_rpf_agreement and not project.interim_fp_agreement %}
                         {% if not project.funding_agreement or project.funding_agreement.agreement_type != 'rcpf_agreement' %}
@@ -224,6 +249,7 @@
         <!-- Works & Addresses Tab -->
         <div class="tab-pane fade" id="works" role="tabpanel" aria-labelledby="works-tab">
             <!-- Add buttons -->
+            {% if not user.council %}
             <div class="mb-3">
                 <div class="btn-group me-2">
                     <a href="{% url 'portal:address_create' project_pk=project.pk %}" class="btn btn-primary btn-sm">
@@ -237,6 +263,7 @@
                     {% endif %}
                 </div>
             </div>
+            {% endif %}
 
             <div class="row">
                 {% for work in project.works.all %}
