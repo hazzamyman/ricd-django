@@ -9,6 +9,7 @@
     <!-- Font Awesome for icons -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     {% load static %}
+    {% load currency_filters %}
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     {% block extra_head %}{% endblock %}
 </head>
@@ -16,13 +17,22 @@
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container-fluid">
-            <a class="navbar-brand" href="{% if user.is_authenticated %}{% if user.council %}{% url 'portal:council_detail' user.council.pk %}{% else %}{% url 'portal:ricd_dashboard' %}{% endif %}{% else %}#{% endif %}">
+            <a class="navbar-brand" href="{% if user.is_authenticated %}{% if user.council %}{% url 'portal:council_dashboard' %}{% else %}{% url 'portal:ricd_dashboard' %}{% endif %}{% else %}#{% endif %}">
                 <i class="fas fa-home"></i> RICD Portal
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
+            <!-- Debug: Show user properties for troubleshooting -->
+            {% comment %}
+            Debug Info:
+            - user.is_authenticated: {{ user.is_authenticated }}
+            - user.is_staff: {{ user.is_staff }}
+            - user.council: {{ user.council }}
+            - user.groups: {% for group in user.groups.all %}{{ group.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+            {% endcomment %}
+
+            <div class="navbar-collapse show" id="navbarNav">
                 {% if user.is_authenticated %}
                 <ul class="navbar-nav me-auto">
                     {% if user.is_staff %}
@@ -33,6 +43,7 @@
                     </li>
                     {% endif %}
 
+                    <!-- Council Navigation (for Council Users and Managers) -->
                     {% if user.council %}
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'portal:council_dashboard' %}">
@@ -44,6 +55,36 @@
                             <i class="fas fa-building"></i> Council Details
                         </a>
                     </li>
+                    {% else %}
+                    <!-- Fallback: Check group membership directly -->
+                    {% for group in user.groups.all %}
+                        {% if group.name == 'Council User' or group.name == 'Council Manager' %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'portal:council_dashboard' %}">
+                                <i class="fas fa-flag"></i> Council Dashboard
+                            </a>
+                        </li>
+                        {% if user.profile.council %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'portal:council_detail' user.profile.council.pk %}">
+                                <i class="fas fa-building"></i> Council Details
+                            </a>
+                        </li>
+                        {% endif %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="reportsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-file-alt"></i> Reports
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="reportsDropdown">
+                                <li><a class="dropdown-item" href="{% url 'portal:monthly_report' %}">Submit Monthly</a></li>
+                                <li><a class="dropdown-item" href="{% url 'portal:quarterly_report' %}">Submit Quarterly</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{% url 'portal:stage1_report' %}">Stage 1 Report</a></li>
+                                <li><a class="dropdown-item" href="{% url 'portal:stage2_report' %}">Stage 2 Report</a></li>
+                            </ul>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
                     {% endif %}
 
                     {% if user.is_staff %}
@@ -113,8 +154,8 @@
                     </li>
                     {% endif %}
 
+                    <!-- Reports Dropdown for Council Users -->
                     {% if user.council %}
-                    <!-- Reports Dropdown -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="reportsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-file-alt"></i> Reports
@@ -128,6 +169,13 @@
                         </ul>
                     </li>
                     {% endif %}
+
+                    <!-- Debug: Show navigation status for Council Users -->
+                    {% comment %}
+                    For debugging navigation issues:
+                    - Council Users should see: Council Dashboard, Council Details, Reports
+                    - They should NOT see: RICD Dashboard, Management, Analytics
+                    {% endcomment %}
                 </ul>
                 {% endif %}
 
@@ -144,9 +192,10 @@
                                 <li><a class="dropdown-item" href="/admin/" target="_blank"><i class="fas fa-cog"></i> Admin Backend</a></li>
                                 {% endif %}
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="{% url 'portal:help_ricd' %}"><i class="fas fa-question-circle"></i> Help (RICD)</a></li>
                                 {% if user.council %}
                                 <li><a class="dropdown-item" href="{% url 'portal:help_council' %}"><i class="fas fa-question-circle"></i> Help (Council)</a></li>
+                                {% else %}
+                                <li><a class="dropdown-item" href="{% url 'portal:help_ricd' %}"><i class="fas fa-question-circle"></i> Help (RICD)</a></li>
                                 {% endif %}
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="{% url 'logout' %}"><i class="fas fa-sign-out-alt"></i> Logout</a></li>

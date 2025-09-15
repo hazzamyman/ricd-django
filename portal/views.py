@@ -21,7 +21,7 @@ from ricd.models import (
     Project, Program, Council, QuarterlyReport, MonthlyTracker, Stage1Report, Stage2Report,
     FundingSchedule, Address, Work, WorkStep, FundingApproval, WorkType, OutputType, ConstructionMethod, Officer,
     ForwardRemoteProgramFundingAgreement, InterimForwardProgramFundingAgreement,
-    RemoteCapitalProgramFundingAgreement, Defect, UserProfile
+    RemoteCapitalProgramFundingAgreement, Defect, UserProfile, FieldVisibilitySetting
 )
 from .forms import (
     MonthlyTrackerForm, QuarterlyReportForm, Stage1ReportForm, Stage2ReportForm,
@@ -180,19 +180,51 @@ class CouncilDashboardView(TemplateView):
         else:
             user_council = None
 
-        if user_council:
-            user_projects = Project.objects.filter(council=user_council)
+        # Add user group information to context for template use
+        if self.request.user.is_authenticated:
+            user_groups = [group.name for group in self.request.user.groups.all()]
+            context['user_groups'] = user_groups
+            context['user_is_ricd_staff'] = 'RICD Staff' in user_groups
+            context['user_is_ricd_manager'] = 'RICD Manager' in user_groups
+            context['user_is_council_user'] = 'Council User' in user_groups
+            context['user_is_council_manager'] = 'Council Manager' in user_groups
         else:
-            user_projects = Project.objects.none()
+            context['user_groups'] = []
+            context['user_is_ricd_staff'] = False
+            context['user_is_ricd_manager'] = False
+            context['user_is_council_user'] = False
+            context['user_is_council_manager'] = False
 
-        # Apply stage filter if provided
+        if user_council:
+            user_projects = Project.objects.filter(council=user_council).select_related('council', 'program', 'funding_schedule')
+        else:
+            user_projects = Project.objects.none().select_related('council', 'program', 'funding_schedule')
+
+        # Apply search filter
+        search_query = self.request.GET.get('search', '').strip()
+        if search_query:
+            # Search in project name, addresses, and works
+            user_projects = user_projects.filter(
+                Q(name__icontains=search_query) |
+                Q(addresses__street__icontains=search_query) |
+                Q(addresses__suburb__icontains=search_query) |
+                Q(works__work_type_id__name__icontains=search_query)
+            ).distinct()
+
+        # Apply stage filter
         stage_filter = self.request.GET.get('stage')
         if stage_filter:
             user_projects = user_projects.filter(state=stage_filter)
 
-        # Enhance projects with calculated data
+        # Enhance projects with calculated data and related addresses
         enhanced_projects = []
-        for project in user_projects.select_related('council', 'program', 'funding_schedule'):
+        for project in user_projects.prefetch_related('addresses'):
+            # Get addresses for display
+            addresses = list(project.addresses.all()[:3])  # Show first 3 addresses
+            address_display = ', '.join([f"{addr.street}, {addr.suburb}" for addr in addresses])
+            if project.addresses.count() > 3:
+                address_display += f" (+{project.addresses.count() - 3} more)"
+
             # Get latest monthly report through works relationship
             latest_monthly = MonthlyTracker.objects.filter(work__address__project=project).order_by('-month').first()
             # Get latest quarterly report through works relationship
@@ -213,26 +245,45 @@ class CouncilDashboardView(TemplateView):
                 'latest_monthly_report': latest_monthly,
                 'latest_quarterly_report': latest_quarterly,
                 'required_reports_overdue': self.get_required_reports_status(project),
+                'addresses': addresses,
+                'address_display': address_display or 'No addresses',
+                'work_types': list(set(work.work_type_id.name for work in project.works.all() if work.work_type_id)),
+                'total_addresses': project.addresses.count(),
+                'total_works': project.works.count(),
             }
             enhanced_projects.append(enhanced_project)
+
+        # Sort by project name for consistent display
+        enhanced_projects.sort(key=lambda x: x['project'].name)
 
         context['projects'] = enhanced_projects
         context['user_council'] = getattr(self.request.user, 'council', None) if self.request.user.is_authenticated else None
 
-        # Add only stage filter options
+        # Calculate summary statistics
+        total_addresses = sum(project.get('total_addresses', 0) for project in enhanced_projects)
+        total_works = sum(project.get('total_works', 0) for project in enhanced_projects)
+        context['total_addresses'] = total_addresses
+        context['total_works'] = total_works
+
+        # Add filter options
         context['stages'] = [{'value': choice[0], 'display': choice[1]} for choice in Project.STATE_CHOICES]
         context['current_stage'] = stage_filter
+        context['current_search'] = search_query
 
         return context
 
     def get_required_reports_status(self, project):
-        """Check if required reports are overdue"""
+        """Check if required reports are overdue - only for commenced/under construction projects"""
         from django.utils import timezone
         today = timezone.now().date()
 
         overdue_reports = []
 
-        # Check for monthly reports (typically monthly during construction)
+        # Only require reports for projects that are commenced or under construction
+        if project.state not in ['commenced', 'under_construction']:
+            return overdue_reports
+
+        # Check for monthly reports (required during construction)
         if project.state == 'under_construction':
             last_month = today.replace(day=1) - timezone.timedelta(days=1)
             latest_monthly = MonthlyTracker.objects.filter(
@@ -243,7 +294,7 @@ class CouncilDashboardView(TemplateView):
             if not latest_monthly:
                 overdue_reports.append('Monthly Report')
 
-        # Check for quarterly reports
+        # Check for quarterly reports (required for commenced and under construction projects)
         latest_quarterly = QuarterlyReport.objects.filter(work__address__project=project).order_by('-submission_date').first()
         if not latest_quarterly:
             overdue_reports.append('Quarterly Report')
@@ -267,39 +318,44 @@ class ProjectDetailView(DetailView):
             from django.http import HttpResponseForbidden
             return HttpResponseForbidden("Authentication required.")
 
-        # Check if user has permission to view this project
-        project = self.get_object()
+        # Only RICD Staff and RICD Managers can access this view
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied. Only RICD staff can view RICD project details.")
 
-        # RICD Staff and RICD Managers can access any project
-        if request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
-            return super().dispatch(request, *args, **kwargs)
-
-        # Council Users and Council Managers can only access their own council's projects
-        # Check profile directly to avoid property issues
-        try:
-            user_profile = request.user.profile
-            user_council = user_profile.council
-        except:
-            user_council = None
-
-        if user_council and project.council == user_council:
-            return super().dispatch(request, *args, **kwargs)
-
-        # Deny access for all other cases
-        from django.http import HttpResponseForbidden
-        return HttpResponseForbidden("You don't have permission to view this project.")
+        return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['funding_approvals'] = self.object.funding_approvals.all()
 
-        # Calculate funding amount for council users (sum of address budgets)
-        if hasattr(self.request.user, 'council') and self.request.user.council:
-            from django.db.models import Sum
-            total_budget = self.object.addresses.aggregate(
-                total=Sum('budget')
-            )['total'] or 0
-            context['council_funding_amount'] = total_budget
+        # Calculate total funding from addresses/works budgets for all users
+        from django.db.models import Sum
+        calculated_total_funding = self.object.addresses.aggregate(
+            total=Sum('budget')
+        )['total'] or 0
+
+        # For RICD users, override the stored total_funding with calculated value
+        if not hasattr(self.request.user, 'council') or not self.request.user.council:
+            # Temporarily override project.total_funding for template display
+            self.object.calculated_total_funding = calculated_total_funding
+        else:
+            # For council users, still provide the calculated amount separately
+            context['council_funding_amount'] = calculated_total_funding
+
+        # Add field visibility settings for council users
+        if self.request.user.is_authenticated and hasattr(self.request.user, 'profile'):
+            try:
+                user_profile = self.request.user.profile
+                user_council = user_profile.council
+                from ricd.models import get_field_visibility_settings
+                context['field_visibility'] = get_field_visibility_settings(user_council, self.request.user)
+            except:
+                # Default to visible if profile doesn't exist
+                context['field_visibility'] = {choice[0]: True for choice in FieldVisibilitySetting.FIELD_CHOICES}
+        else:
+            # For anonymous users or users without council, show all fields (though they shouldn't reach here)
+            context['field_visibility'] = {choice[0]: True for choice in FieldVisibilitySetting.FIELD_CHOICES}
 
         return context
 
@@ -316,17 +372,13 @@ class CouncilProjectDetailView(DetailView):
             from django.http import HttpResponseForbidden
             return HttpResponseForbidden("Authentication required.")
 
-        # Check if user has permission to view this project
-        project = self.get_object()
-
-        # RICD Staff and RICD Managers can access any project
-        if request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
-            return super().dispatch(request, *args, **kwargs)
-
         # Only Council Users and Council Managers can access this view
         if not request.user.groups.filter(name__in=['Council User', 'Council Manager']).exists():
             from django.http import HttpResponseForbidden
             return HttpResponseForbidden("Access denied. Only council users can view council project details.")
+
+        # Check if user has permission to view this project
+        project = self.get_object()
 
         # Council Users and Council Managers can only access their own council's projects
         # Check profile directly to avoid property issues
@@ -375,6 +427,20 @@ class CouncilProjectDetailView(DetailView):
         # Get defects for this project
         context['defects'] = Defect.objects.filter(work__address__project=project).select_related('work__address')
 
+        # Add field visibility settings for council users
+        if self.request.user.is_authenticated and hasattr(self.request.user, 'profile'):
+            try:
+                user_profile = self.request.user.profile
+                user_council = user_profile.council
+                from ricd.models import get_field_visibility_settings
+                context['field_visibility'] = get_field_visibility_settings(user_council, self.request.user)
+            except:
+                # Default to visible if profile doesn't exist
+                context['field_visibility'] = {choice[0]: True for choice in FieldVisibilitySetting.FIELD_CHOICES}
+        else:
+            # For anonymous users or users without council, show all fields (though they shouldn't reach here)
+            context['field_visibility'] = {choice[0]: True for choice in FieldVisibilitySetting.FIELD_CHOICES}
+
         return context
 
 
@@ -407,10 +473,27 @@ class CouncilListView(LoginRequiredMixin, ListView):
     paginate_by = 20
 
     def dispatch(self, request, *args, **kwargs):
-        # Restrict access to RICD users only
-        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+        # Allow RICD users and Council users to view councils
+        is_ricd = request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists()
+        is_council_user = request.user.groups.filter(name__in=['Council User', 'Council Manager']).exists()
+
+        if not (is_ricd or is_council_user):
             from django.http import HttpResponseForbidden
-            return HttpResponseForbidden("Access denied. Only RICD staff can view council list.")
+            return HttpResponseForbidden("Access denied.")
+
+        # For council users, check if they're viewing their own council
+        if is_council_user and not is_ricd:
+            council = self.get_object()
+            try:
+                user_profile = request.user.profile
+                user_council = user_profile.council
+                if user_council != council:
+                    from django.http import HttpResponseForbidden
+                    return HttpResponseForbidden("You can only view your own council.")
+            except:
+                from django.http import HttpResponseForbidden
+                return HttpResponseForbidden("Access denied. No council profile found.")
+
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
@@ -466,12 +549,30 @@ class CouncilDeleteView(LoginRequiredMixin, DeleteView):
 class CouncilDetailView(LoginRequiredMixin, DetailView):
     """Display council details"""
     model = Council
-    template_name = "portal/council_detail.html"
     context_object_name = "council"
+
+    def get_template_names(self):
+        # Use council-specific template for council users, general template for RICD users
+        if self.request.user.groups.filter(name__in=['Council User', 'Council Manager']).exists():
+            return ["portal/council_detail_council.html", "portal/council_detail.html"]
+        return ["portal/council_detail.html"]
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['projects'] = self.object.projects.all()
+
+        # Check if user is council user (not RICD)
+        is_council_user = self.request.user.groups.filter(name__in=['Council User', 'Council Manager']).exists()
+        is_ricd = self.request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists()
+
+        context['is_council_user'] = is_council_user
+        context['is_ricd'] = is_ricd
+
+        # For council users, only show their own projects
+        if is_council_user and not is_ricd:
+            context['projects'] = self.object.projects.filter(council=self.object)
+        else:
+            context['projects'] = self.object.projects.all()
+
         context['funding_schedules'] = self.object.funding_schedules.all()
 
         # Add council users with role information (only Council User and Council Manager groups)
@@ -2023,12 +2124,16 @@ class AnalyticsDashboardView(LoginRequiredMixin, TemplateView):
         return analytics
 
     def analyze_report_alerts(self, projects, analysis_date):
-        """Analyze overdue reports and missing stage reports"""
+        """Analyze overdue reports and missing stage reports - only for commenced/under construction projects"""
         alerts = []
         today = analysis_date
 
         for project in projects:
-            # Check monthly reports - required for under construction projects
+            # Only require reports for projects that are commenced or under construction
+            if project.state not in ['commenced', 'under_construction']:
+                continue
+
+            # Check monthly reports - required during construction
             if project.state == 'under_construction':
                 last_month = today.replace(day=1) - timezone.timedelta(days=1)
                 latest_monthly = MonthlyTracker.objects.filter(
@@ -2052,7 +2157,7 @@ class AnalyticsDashboardView(LoginRequiredMixin, TemplateView):
                         'project_id': project.id
                     })
 
-            # Check quarterly reports - required for all active projects
+            # Check quarterly reports - required for commenced and under construction projects
             latest_quarterly = QuarterlyReport.objects.filter(work__address__project=project).order_by('-submission_date').first()
 
             if not latest_quarterly:
@@ -2079,7 +2184,7 @@ class AnalyticsDashboardView(LoginRequiredMixin, TemplateView):
                                     'months_since_start': months_since_start,
                                     'project_id': project.id
                                 })
-                elif project.state in ['funded', 'commenced', 'under_construction']:
+                elif project.state in ['commenced', 'under_construction']:
                     # Project is active but has no quarterly report ever
                     if project.date_physically_commenced:
                         days_since_start = (today - project.date_physically_commenced).days
@@ -3095,11 +3200,17 @@ class DefectListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['councils'] = Council.objects.all()
-        # Get works with defects for the dropdown
-        if hasattr(self.request.user, 'council') and self.request.user.council:
+
+        # Only show council filter to RICD users, not council users
+        user_council = getattr(self.request.user, 'council', None)
+        is_ricd = self.request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists()
+        if is_ricd:
+            context['councils'] = Council.objects.all()
+
+        # Get works with defects for the dropdown - always filter by user's council if they have one
+        if user_council:
             context['works'] = Work.objects.filter(
-                address__project__council=self.request.user.council
+                address__project__council=user_council
             ).select_related('address', 'work_type_id', 'output_type_id')
         else:
             context['works'] = Work.objects.select_related('address', 'work_type_id', 'output_type_id')[:100]  # Limit for performance
@@ -3124,6 +3235,7 @@ class DefectCreateView(LoginRequiredMixin, CreateView):
         kwargs = super().get_form_kwargs()
         if self.work:
             kwargs['initial'] = {'work': self.work}
+        kwargs['user'] = self.request.user
         return kwargs
 
     def get_context_data(self, **kwargs):
@@ -3150,6 +3262,11 @@ class DefectUpdateView(LoginRequiredMixin, UpdateView):
     model = Defect
     form_class = DefectForm
     template_name = "portal/defect_form.html"
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
 
     def get_success_url(self):
         return reverse_lazy('portal:defect_detail', kwargs={'pk': self.object.pk})
@@ -3422,3 +3539,33 @@ class WorkOutputTypeConfigView(LoginRequiredMixin, TemplateView):
             messages.error(request, 'Work type or output type not found.')
 
         return redirect('portal:work_output_type_config')
+
+
+class ProjectFieldVisibilityView(LoginRequiredMixin, TemplateView):
+    """Configure field visibility settings for a specific project - RICD users only"""
+    template_name = "portal/project_field_visibility.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        # Restrict access to RICD users only
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied. Only RICD staff can configure field visibility.")
+
+        self.project = get_object_or_404(Project, pk=self.kwargs['pk'])
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['project'] = self.project
+        context['form'] = ProjectFieldVisibilityForm(project=self.project)
+        return context
+
+    def post(self, request, *args, **kwargs):
+        form = ProjectFieldVisibilityForm(request.POST, project=self.project)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Field visibility settings for project "{self.project.name}" have been updated successfully!')
+            return redirect('portal:project_detail', pk=self.project.pk)
+        else:
+            messages.error(request, 'Please correct the errors below.')
+            return self.render_to_response({'form': form, 'project': self.project})

@@ -33,6 +33,7 @@
                                         <option value="unrectified" {% if request.GET.status == 'unrectified' %}selected{% endif %}>Unrectified</option>
                                     </select>
                                 </div>
+                                {% if councils %}
                                 <div class="col-md-3">
                                     <label for="council" class="form-label">Council</label>
                                     <select name="council" id="council" class="form-select">
@@ -44,6 +45,7 @@
                                         {% endfor %}
                                     </select>
                                 </div>
+                                {% endif %}
                                 <div class="col-md-2">
                                     <label for="work" class="form-label">Work</label>
                                     <select name="work" id="work" class="form-select">

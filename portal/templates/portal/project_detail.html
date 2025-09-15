@@ -28,6 +28,9 @@
                             <a href="{% url 'portal:project_update' project.pk %}" class="btn btn-outline-light btn-sm me-2">
                                 <i class="fas fa-edit"></i> Edit Project
                             </a>
+                            <a href="{% url 'portal:project_field_visibility' project.pk %}" class="btn btn-outline-light btn-sm me-2">
+                                <i class="fas fa-eye"></i> Field Visibility
+                            </a>
                             <button class="btn btn-outline-light btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#editStateModal">
                                 <i class="fas fa-edit"></i> Edit State
                             </button>
@@ -177,7 +180,7 @@
                                 <div class="col-md-6">
                                     {% if not user.council %}{% comment %}Hide total funding and contingency from council users{% endcomment %}
                                     <h6 class="text-muted">Total Funding</h6>
-                                     <p class="h4 mb-3">{{ project.total_funding|currency:0 }}</p>
+                                     <p class="h4 mb-3">{{ project.calculated_total_funding|default:project.total_funding|currency:0 }}</p>
 
                                      <h6 class="text-muted">Contingency Amount</h6>
                                      <p class="mb-3">{{ project.contingency_amount|currency:0 }}</p>

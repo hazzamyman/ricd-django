@@ -377,7 +377,8 @@ class Project(models.Model):
 
     @property
     def total_funding(self):
-        return (self.funding_schedule_amount or 0) + (self.contingency_amount or 0)
+        # Sum all address budgets for the project
+        return sum(address.budget or 0 for address in self.addresses.all())
 
     @property
     def works(self):
@@ -1583,6 +1584,141 @@ class Variation(models.Model):
 
 
 # Remote Capital Program Funding Agreement model
+class FieldVisibilitySetting(models.Model):
+    """Controls which project fields are visible to Council Users per council"""
+
+    FIELD_CHOICES = [
+        # Financial fields
+        ('commitments', 'Commitments'),
+        ('contingency_amount', 'Contingency Amount'),
+        ('forecast_final_cost', 'Forecast Final Cost'),
+        ('final_cost', 'Final Cost'),
+        ('costs_finalised', 'Costs Finalised'),
+
+        # Management fields
+        ('project_manager', 'Project Manager'),
+        ('contractor', 'Contractor'),
+        ('contractor_address', 'Contractor Address'),
+        ('external_manager_name', 'External Manager Name'),
+        ('contractor_organisation', 'Contractor Organisation'),
+
+        # SAP/Project reference fields
+        ('sap_project', 'SAP Project'),
+        ('cli_no', 'CLI Number'),
+        ('sap_master_project', 'SAP Master Project'),
+
+        # Date fields
+        ('handover_forecast', 'Handover Forecast Date'),
+        ('handover_actual', 'Handover Actual Date'),
+        ('actual_completion', 'Actual Completion Date'),
+        ('estimated_completion', 'Estimated Completion Date'),
+
+        # Termination/Variation fields
+        ('termination_date', 'Termination Date'),
+        ('termination_reason', 'Termination Reason'),
+        ('variation_description', 'Variation Description'),
+    ]
+
+    council = models.ForeignKey(
+        Council,
+        on_delete=models.CASCADE,
+        related_name='field_visibility_settings',
+        help_text="Council these settings apply to"
+    )
+
+    field_name = models.CharField(
+        max_length=50,
+        choices=FIELD_CHOICES,
+        help_text="The field to control visibility for"
+    )
+
+    visible_to_council_users = models.BooleanField(
+        default=True,
+        help_text="Whether this field is visible to Council Users of this council"
+    )
+
+    class Meta:
+        unique_together = ('council', 'field_name')
+        verbose_name = "Field Visibility Setting"
+        verbose_name_plural = "Field Visibility Settings"
+
+    def __str__(self):
+        visibility = "Visible" if self.visible_to_council_users else "Hidden"
+        return f"{self.council.name} - {self.get_field_name_display()} ({visibility})"
+
+
+class ProjectFieldVisibilityOverride(models.Model):
+    """Project-specific overrides for field visibility settings"""
+
+    project = models.ForeignKey(
+        'Project',
+        on_delete=models.CASCADE,
+        related_name='field_visibility_overrides',
+        help_text="Project these settings apply to"
+    )
+
+    field_name = models.CharField(
+        max_length=50,
+        choices=FieldVisibilitySetting.FIELD_CHOICES,
+        help_text="The field to control visibility for"
+    )
+
+    visible_to_council_users = models.BooleanField(
+        help_text="Whether this field is visible to Council Users for this specific project"
+    )
+
+    class Meta:
+        unique_together = ('project', 'field_name')
+        verbose_name = "Project Field Visibility Override"
+        verbose_name_plural = "Project Field Visibility Overrides"
+
+    def __str__(self):
+        visibility = "Visible" if self.visible_to_council_users else "Hidden"
+        return f"{self.project.name} - {self.get_field_name_display()} ({visibility})"
+
+
+# Utility functions for field visibility
+def get_field_visibility_settings(council, user=None, project=None):
+    """
+    Get field visibility settings for a council.
+    If project is provided, check for project-specific overrides first.
+    If user is provided and is RICD staff, return all fields as visible.
+    Otherwise, return the configured settings.
+    """
+    from django.contrib.auth.models import Group
+
+    # RICD users can see all fields
+    if user and user.is_authenticated:
+        is_ricd = user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists()
+        if is_ricd:
+            return {choice[0]: True for choice in FieldVisibilitySetting.FIELD_CHOICES}
+
+    # Start with council-level settings
+    council_settings = FieldVisibilitySetting.objects.filter(council=council)
+    visibility_dict = {choice[0]: True for choice in FieldVisibilitySetting.FIELD_CHOICES}  # Default to visible
+
+    # Override with council configured settings
+    for setting in council_settings:
+        visibility_dict[setting.field_name] = setting.visible_to_council_users
+
+    # If project is provided, override with project-specific settings
+    if project:
+        project_overrides = ProjectFieldVisibilityOverride.objects.filter(project=project)
+        for override in project_overrides:
+            visibility_dict[override.field_name] = override.visible_to_council_users
+
+    return visibility_dict
+
+
+def is_field_visible(field_name, council, user=None, project=None):
+    """
+    Check if a specific field should be visible to a user for a council.
+    If project is provided, check for project-specific overrides.
+    """
+    settings = get_field_visibility_settings(council, user, project)
+    return settings.get(field_name, True)  # Default to visible if not configured
+
+
 class RemoteCapitalProgramFundingAgreement(BaseAgreement):
     """Remote Capital Program Funding Agreement"""
     council = models.OneToOneField(

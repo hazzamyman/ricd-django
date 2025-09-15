@@ -62,3 +62,27 @@ def currency_short(value):
             return f'${float_value:,.0f}'
     except (ValueError, TypeError):
         return '$0'
+
+
+@register.filter
+def has_group(user, group_name):
+    """
+    Check if a user belongs to a specific group.
+
+    Usage: {% if user|has_group:'RICD Staff' %}...{% endif %}
+    """
+    try:
+        if user and user.is_authenticated:
+            # Try to access groups directly
+            if hasattr(user, 'groups'):
+                return user.groups.filter(name=group_name).exists()
+            # Try to check groups by checking user permissions or profile
+            elif hasattr(user, 'user_permissions') or hasattr(user, 'is_superuser'):
+                # For superusers, return True for admin groups
+                if user.is_superuser and group_name in ['RICD Staff', 'RICD Manager']:
+                    return True
+                # Check if user has specific permissions that indicate group membership
+                return False
+        return False
+    except Exception:
+        return False

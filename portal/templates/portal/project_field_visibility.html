@@ -1,0 +1,88 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Field Visibility Configuration - {{ project.name }} - RICD Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2><i class="fas fa-eye"></i> Field Visibility Configuration</h2>
+                    <h4 class="text-muted">{{ project.name }} ({{ project.council.name }})</h4>
+                </div>
+                <a href="{% url 'portal:project_detail' project.pk %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Project
+                </a>
+            </div>
+
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                Configure which project fields are visible to council users for this specific project.
+                Settings here override the default council-level settings.
+            </div>
+
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0"><i class="fas fa-list-check"></i> Field Visibility Settings</h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="post">
+                                {% csrf_token %}
+
+                                <div class="row">
+                                    {% for field_name, field_value in form.fields.items %}
+                                    <div class="col-md-6 mb-3">
+                                        <div class="form-check">
+                                            {{ field_value }}
+                                            <label class="form-check-label" for="{{ field_value.id_for_label }}">
+                                                {{ field_value.label }}
+                                            </label>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+
+                                <div class="mt-4">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save"></i> Save Configuration
+                                    </button>
+                                    <a href="{% url 'portal:project_detail' project.pk %}" class="btn btn-secondary ms-2">
+                                        <i class="fas fa-times"></i> Cancel
+                                    </a>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0"><i class="fas fa-info-circle"></i> Help</h5>
+                        </div>
+                        <div class="card-body">
+                            <h6>Council Default Settings:</h6>
+                            <p class="small text-muted">
+                                The checkboxes show the current visibility settings for this project.
+                                If a field differs from your council's default settings, a project-specific override has been created.
+                            </p>
+
+                            <h6>Field Categories:</h6>
+                            <ul class="small">
+                                <li><strong>Financial:</strong> Budget, costs, contingencies</li>
+                                <li><strong>Management:</strong> Project managers, contractors</li>
+                                <li><strong>Reference:</strong> SAP numbers, CLI numbers</li>
+                                <li><strong>Dates:</strong> Handover, completion dates</li>
+                                <li><strong>Termination:</strong> Cancellation and variation details</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

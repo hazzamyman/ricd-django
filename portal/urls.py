@@ -46,6 +46,7 @@ urlpatterns = [
     path('projects/<int:pk>/update/', views.ProjectUpdateView.as_view(), name='project_update'),
     path('projects/<int:pk>/update-state/', views.ProjectStateUpdateView.as_view(), name='project_update_state'),
     path('projects/<int:pk>/delete/', views.ProjectDeleteView.as_view(), name='project_delete'),
+    path('projects/<int:pk>/field-visibility/', views.ProjectFieldVisibilityView.as_view(), name='project_field_visibility'),
 
     # Address and Work CRUD URLs
     path('works/', views.WorkListView.as_view(), name='work_list'),
