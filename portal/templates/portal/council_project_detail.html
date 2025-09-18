@@ -85,6 +85,11 @@
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="reports-tab" data-bs-toggle="tab" data-bs-target="#reports" type="button" role="tab" aria-controls="reports" aria-selected="false">
+                            <i class="fas fa-file-alt me-1"></i>Reports
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
                         <button class="nav-link" id="defects-tab" data-bs-toggle="tab" data-bs-target="#defects" type="button" role="tab" aria-controls="defects" aria-selected="false">
                             <i class="fas fa-exclamation-triangle me-1"></i>Defects
                         </button>
@@ -96,44 +101,8 @@
             
                     <!-- Works & Addresses Tab -->
                     <div class="tab-pane fade show active" id="works" role="tabpanel" aria-labelledby="works-tab">
-                        <div class="row">
-                            {% for work in project.works.all %}
-                            <div class="col-md-6 mb-4">
-                                <div class="card h-100">
-                                    <div class="card-header">
-                                        <h6 class="mb-0">
-                                            <i class="fas fa-toolbox me-2"></i>{{ work.work_type_id.name|title }} Work
-                                        </h6>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="row">
-                                            <div class="col-sm-6">
-                                                <h6>{{ work.output_type_id.name|title }}</h6>
-                                                <p class="text-muted mb-1">Quantity: {{ work.output_quantity }}</p>
-                                                <p class="text-muted mb-1">Estimated Cost: {{ work.estimated_cost|currency:0|default:"N/A" }}</p>
-                                            </div>
-                                            <div class="col-sm-6 text-end">
-                                                {% if work.actual_cost %}
-                                                <p class="mb-0"><strong>{{ work.actual_cost|currency:0 }}</strong></p>
-                                                <small class="text-muted">Actual Cost</small>
-                                                {% endif %}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            {% empty %}
-                            <div class="col-12">
-                                <div class="alert alert-info">
-                                    <h4>No Works Found</h4>
-                                    <p>No construction works have been defined for this project yet.</p>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-            
-                        <!-- Addresses Section -->
-                        <div class="card mt-4">
+                        <!-- Project Addresses & Work Details -->
+                        <div class="card">
                             <div class="card-header">
                                 <h5 class="mb-0"><i class="fas fa-map-marker-alt me-2"></i>Project Addresses</h5>
                             </div>
@@ -205,6 +174,65 @@
                         </div>
                     </div>
             
+                    <!-- Reports Tab -->
+                    <div class="tab-pane fade" id="reports" role="tabpanel" aria-labelledby="reports-tab">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Report Submissions</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="card border-primary mb-3">
+                                            <div class="card-body">
+                                                <h6 class="card-title">Stage 1 Report</h6>
+                                                <p class="card-text">Submit initial project documentation and planning reports.</p>
+                                                <a href="{% url 'portal:stage1_report' %}" class="btn btn-primary">
+                                                    <i class="fas fa-plus me-1"></i>Submit Stage 1 Report
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card border-success mb-3">
+                                            <div class="card-body">
+                                                <h6 class="card-title">Stage 2 Report</h6>
+                                                <p class="card-text">Submit completion and handover reports.</p>
+                                                <a href="{% url 'portal:stage2_report' %}" class="btn btn-success">
+                                                    <i class="fas fa-plus me-1"></i>Submit Stage 2 Report
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="card border-info mb-3">
+                                            <div class="card-body">
+                                                <h6 class="card-title">Monthly Tracker</h6>
+                                                <p class="card-text">Submit monthly progress tracking information.</p>
+                                                <a href="{% url 'portal:monthly_report' %}" class="btn btn-info">
+                                                    <i class="fas fa-plus me-1"></i>Submit Monthly Report
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card border-warning mb-3">
+                                            <div class="card-body">
+                                                <h6 class="card-title">Quarterly Report</h6>
+                                                <p class="card-text">Submit quarterly progress and expenditure reports.</p>
+                                                <a href="{% url 'portal:quarterly_report' %}" class="btn btn-warning">
+                                                    <i class="fas fa-plus me-1"></i>Submit Quarterly Report
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Defects Tab -->
                     <div class="tab-pane fade" id="defects" role="tabpanel" aria-labelledby="defects-tab">
                         <div class="mb-3">
@@ -212,7 +240,7 @@
                                 <i class="fas fa-plus"></i> Add Defect
                             </a>
                         </div>
-            
+
                         <div class="card">
                             <div class="card-header">
                                 <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Project Defects</h5>

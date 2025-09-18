@@ -31,6 +31,9 @@
                             <a href="{% url 'portal:project_field_visibility' project.pk %}" class="btn btn-outline-light btn-sm me-2">
                                 <i class="fas fa-eye"></i> Field Visibility
                             </a>
+                            <a href="{% url 'portal:project_report_configuration' %}?project={{ project.pk }}" class="btn btn-outline-light btn-sm me-2">
+                                <i class="fas fa-cog"></i> Reporting Config
+                            </a>
                             <button class="btn btn-outline-light btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#editStateModal">
                                 <i class="fas fa-edit"></i> Edit State
                             </button>
@@ -161,6 +164,11 @@
                 <i class="fas fa-dollar-sign me-1"></i>Funding Approvals
             </button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="reports-tab" data-bs-toggle="tab" data-bs-target="#reports" type="button" role="tab" aria-controls="reports" aria-selected="false">
+                <i class="fas fa-file-alt me-1"></i>Reports
+            </button>
+        </li>
         {% endif %}
     </ul>
 
@@ -211,15 +219,12 @@
                             <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Overall Progress</h5>
                         </div>
                         <div class="card-body">
-                            <h4 class="mb-3">{{ project.progress }}% Complete</h4>
+                            <h4 class="mb-3">{{ project.progress_percentage }}% Complete</h4>
                             <div class="progress mb-3" style="height: 25px;">
-                                <div class="progress-bar {% if project.progress >= 75 %}bg-success
-                                                      {% elif project.progress >= 50 %}bg-info
-                                                      {% elif project.progress >= 25 %}bg-warning
-                                                      {% else %}bg-danger{% endif %}"
+                                <div class="progress-bar {{ project.get_progress_class }}"
                                      role="progressbar"
-                                     style="width: {{ project.progress }}%"
-                                     aria-valuenow="{{ project.progress }}"
+                                     style="width: {{ project.progress_percentage }}%"
+                                     aria-valuenow="{{ project.progress_percentage }}"
                                      aria-valuemin="0"
                                      aria-valuemax="100">
                                 </div>
@@ -245,153 +250,156 @@
                         </div>
                     </div>
                 </div>
-
             </div>
-        </div>
+    
+            {% if not user.council %}{% comment %}Hide funding approvals tab content from council users{% endcomment %}
+            <!-- Funding Approvals Tab -->
+            <div class="tab-pane fade" id="approvals" role="tabpanel" aria-labelledby="approvals-tab">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-dollar-sign me-2"></i>Attached Funding Approvals</h5>
+                            {% if user.is_staff %}
+                            <a href="{% url 'portal:funding_approval_create' %}?project={{ project.pk }}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-plus"></i> Create Approval for this Project
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        {% if funding_approvals %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>MINCOR Reference</th>
+                                        <th>Amount</th>
+                                        <th>Approved By</th>
+                                        <th>Approval Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for approval in funding_approvals %}
+                                    <tr>
+                                        <td><strong>{{ approval.mincor_reference }}</strong></td>
+                                        <td>{{ approval.amount|currency:0 }}</td>
+                                        <td>{{ approval.approved_by_position }}</td>
+                                        <td>{{ approval.approved_date|date:"M d, Y" }}</td>
+                                        <td>
+                                            <a href="{% url 'portal:funding_approval_detail' approval.pk %}" class="btn btn-outline-info btn-sm">
+                                                <i class="fas fa-eye"></i> View
+                                            </a>
+                                            {% if user.is_staff %}
+                                            <a href="{% url 'portal:funding_approval_update' approval.pk %}" class="btn btn-outline-primary btn-sm">
+                                                <i class="fas fa-edit"></i> Edit
+                                            </a>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">
+                            <h4>No Funding Approvals</h4>
+                            <p>This project has no attached funding approvals.</p>
+                            {% if user.is_staff %}
+                            <p><a href="{% url 'portal:funding_approval_create' %}?project={{ project.pk }}" class="btn btn-primary">Create Funding Approval</a></p>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
 
+            <!-- Reports Tab -->
+            <div class="tab-pane fade" id="reports" role="tabpanel" aria-labelledby="reports-tab">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Report Submissions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card border-primary mb-3">
+                                    <div class="card-body">
+                                        <h6 class="card-title">Enhanced Monthly Tracker</h6>
+                                        <p class="card-text">View and submit monthly progress tracking data for all works.</p>
+                                        <a href="{% url 'portal:enhanced_monthly_tracker' %}" class="btn btn-primary">
+                                            <i class="fas fa-table me-1"></i>View Monthly Tracker
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card border-success mb-3">
+                                    <div class="card-body">
+                                        <h6 class="card-title">Stage 1 Report</h6>
+                                        <p class="card-text">Submit initial project documentation and planning reports.</p>
+                                        <a href="{% url 'portal:stage1_report' %}" class="btn btn-success">
+                                            <i class="fas fa-plus me-1"></i>Submit Stage 1 Report
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card border-info mb-3">
+                                    <div class="card-body">
+                                        <h6 class="card-title">Stage 2 Report</h6>
+                                        <p class="card-text">Submit completion and handover reports.</p>
+                                        <a href="{% url 'portal:stage2_report' %}" class="btn btn-info">
+                                            <i class="fas fa-plus me-1"></i>Submit Stage 2 Report
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card border-warning mb-3">
+                                    <div class="card-body">
+                                        <h6 class="card-title">Quarterly Reports</h6>
+                                        <p class="card-text">Submit quarterly progress and expenditure reports.</p>
+                                        <a href="{% url 'portal:quarterly_report' %}" class="btn btn-warning">
+                                            <i class="fas fa-plus me-1"></i>Submit Quarterly Report
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
         <!-- Works & Addresses Tab -->
         <div class="tab-pane fade" id="works" role="tabpanel" aria-labelledby="works-tab">
             <!-- Add buttons -->
             {% if not user.council %}
             <div class="mb-3">
-                <div class="btn-group me-2">
-                    <a href="{% url 'portal:address_create' project_pk=project.pk %}" class="btn btn-primary btn-sm">
-                        <i class="fas fa-plus"></i> Manage Addresses & Works
-                    </a>
-                    {% if user.is_staff or user.council == project.council %}
-                    <a href="{% url 'portal:move_addresses_works' project.pk %}" class="btn btn-warning btn-sm"
-                       title="Move addresses and works to another project">
-                        <i class="fas fa-exchange-alt"></i> Move Addresses & Works
-                    </a>
-                    {% endif %}
+                <div class="alert alert-info">
+                    <h6 class="mb-2"><i class="fas fa-info-circle me-2"></i>Address & Work Management</h6>
+                    <p class="mb-2">Addresses and works are managed together. Use the button below to add, edit, or update both addresses and their associated works.</p>
+                    <div class="btn-group me-2">
+                        <a href="{% url 'portal:address_create' project_pk=project.pk %}" class="btn btn-primary">
+                            <i class="fas fa-plus-circle me-2"></i>Add/Edit Addresses & Works
+                        </a>
+                        {% if user.is_staff or user.council == project.council %}
+                        <a href="{% url 'portal:move_addresses_works' project.pk %}" class="btn btn-warning"
+                            title="Move addresses and works to another project">
+                            <i class="fas fa-exchange-alt me-2"></i>Move Addresses & Works
+                        </a>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
             {% endif %}
 
-            <div class="row">
-                {% for work in project.works.all %}
-                <div class="col-md-6 mb-4">
-                    <div class="card h-100">
-                        <div class="card-header">
-                            <h6 class="mb-0">
-                                <i class="fas fa-toolbox me-2"></i>{{ work.get_work_type_display|title }} Work
-                            </h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-sm-6">
-                                    <h6>{{ work.output_type|title }}</h6>
-                                    <p class="text-muted mb-1">Quantity: {{ work.output_quantity }}</p>
-                                    <p class="text-muted mb-1">Estimated Cost: {{ work.estimated_cost|currency:0|default:"N/A" }}</p>
-                                    <!-- Quick defect buttons -->
-                                    <div class="mt-2">
-                                        <a href="{% url 'portal:work_defect_create' work.pk %}" class="btn btn-outline-danger btn-sm me-1" title="Report Defect for this Work">
-                                            <i class="fas fa-exclamation-triangle"></i> Report Defect
-                                        </a>
-                                    </div>
-                                </div>
-                                <div class="col-sm-6 text-end">
-                                    {% if work.actual_cost %}
-                                    <p class="mb-0"><strong>{{ work.actual_cost|currency:0 }}</strong></p>
-                                    <small class="text-muted">Actual Cost</small>
-                                    {% endif %}
-                        
-                                {% if not user.council %}{% comment %}Hide funding approvals tab content from council users{% endcomment %}
-                                <!-- Funding Approvals Tab -->
-                                <div class="tab-pane fade" id="approvals" role="tabpanel" aria-labelledby="approvals-tab">
-                                    <div class="card">
-                                        <div class="card-header">
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <h5 class="mb-0"><i class="fas fa-dollar-sign me-2"></i>Attached Funding Approvals</h5>
-                                                {% if user.is_staff %}
-                                                <a href="{% url 'portal:funding_approval_create' %}?project={{ project.pk }}" class="btn btn-primary btn-sm">
-                                                    <i class="fas fa-plus"></i> Create Approval for this Project
-                                                </a>
-                                                {% endif %}
-                                            </div>
-                                        </div>
-                                        <div class="card-body">
-                                            {% if funding_approvals %}
-                                            <div class="table-responsive">
-                                                <table class="table table-striped">
-                                                    <thead>
-                                                        <tr>
-                                                            <th>MINCOR Reference</th>
-                                                            <th>Amount</th>
-                                                            <th>Approved By</th>
-                                                            <th>Approval Date</th>
-                                                            <th>Actions</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {% for approval in funding_approvals %}
-                                                        <tr>
-                                                            <td><strong>{{ approval.mincor_reference }}</strong></td>
-                                                            <td>{{ approval.amount|currency:0 }}</td>
-                                                            <td>{{ approval.approved_by_position }}</td>
-                                                            <td>{{ approval.approved_date|date:"M d, Y" }}</td>
-                                                            <td>
-                                                                <a href="{% url 'portal:funding_approval_detail' approval.pk %}" class="btn btn-outline-info btn-sm">
-                                                                    <i class="fas fa-eye"></i> View
-                                                                </a>
-                                                                {% if user.is_staff %}
-                                                                <a href="{% url 'portal:funding_approval_update' approval.pk %}" class="btn btn-outline-primary btn-sm">
-                                                                    <i class="fas fa-edit"></i> Edit
-                                                                </a>
-                                                                {% endif %}
-                                                            </td>
-                                                        </tr>
-                                                        {% endfor %}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                            {% else %}
-                                            <div class="alert alert-info">
-                                                <h4>No Funding Approvals</h4>
-                                                <p>This project has no attached funding approvals.</p>
-                                                {% if user.is_staff %}
-                                                <p><a href="{% url 'portal:funding_approval_create' %}" class="btn btn-primary">Create Funding Approval</a></p>
-                                                {% endif %}
-                                            </div>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                </div>
-                                {% endif %}
-
-                            </div>
-                            <!-- Work Progress -->
-                            {% if work.progress %}
-                            <div class="mt-3">
-                                <div class="d-flex justify-content-between mb-1">
-                                    <span>Progress: {{ work.progress }}%</span>
-                                </div>
-                                <div class="progress" style="height: 8px;">
-                                    <div class="progress-bar {% if work.progress >= 75 %}bg-success
-                                                            {% elif work.progress >= 50 %}bg-info
-                                                            {% elif work.progress >= 25 %}bg-warning
-                                                            {% else %}bg-danger{% endif %}"
-                                         style="width: {{ work.progress }}%"
-                                         role="progressbar">
-                                    </div>
-                                </div>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-                {% empty %}
-                <div class="col-12">
-                    <div class="alert alert-info">
-                        <h4>No Works Found</h4>
-                        <p>No construction works have been defined for this project yet.</p>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-
-            <!-- Addresses Section -->
-            <div class="card mt-4">
+            <!-- Project Addresses & Work Details -->
+            <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0"><i class="fas fa-map-marker-alt me-2"></i>Project Addresses & Work Details</h5>
                 </div>
@@ -405,6 +413,8 @@
                                     <th>Output Type</th>
                                     <th>Details</th>
                                     <th>Budget</th>
+                                    <th>Progress</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -422,15 +432,15 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {% if address.work_type %}
-                                            <span class="badge bg-info">{{ address.get_work_type_display|title }}</span>
+                                        {% if address.work_type_id %}
+                                            <span class="badge bg-info">{{ address.work_type_id.name|title }}</span>
                                         {% else %}
                                             <span class="text-muted">-</span>
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {% if address.output_type %}
-                                            <span class="badge bg-secondary">{{ address.get_output_type_display|title }}</span>
+                                        {% if address.output_type_id %}
+                                            <span class="badge bg-secondary">{{ address.output_type_id.name|title }}</span>
                                         {% else %}
                                             <span class="text-muted">-</span>
                                         {% endif %}
@@ -438,6 +448,11 @@
                                     <td>
                                         {% if address.bedrooms %}{{ address.bedrooms }}BR{% endif %}
                                         {% if address.output_quantity and address.output_quantity > 1 %} × {{ address.output_quantity }}{% endif %}
+                                        {% if address.work_type_id and address.output_type_id %}
+                                        <br><small class="text-muted">Work defined</small>
+                                        {% else %}
+                                        <br><small class="text-warning">No work specified</small>
+                                        {% endif %}
                                     </td>
                                     <td>
                                         {% if address.budget %}
@@ -446,10 +461,63 @@
                                             <span class="text-muted">-</span>
                                         {% endif %}
                                     </td>
+                                    <td>
+                                        {% if address.works.exists %}
+                                        {% for work in address.works.all %}
+                                        {% if work.progress_percentage %}
+                                        <div class="d-flex align-items-center">
+                                            <small class="me-2">{{ work.progress_percentage }}%</small>
+                                            <div class="progress flex-grow-1" style="height: 6px; width: 60px;">
+                                                <div class="progress-bar {{ work.get_progress_class }}"
+                                                     role="progressbar"
+                                                     style="width: {{ work.progress_percentage }}%">
+                                                </div>
+                                            </div>
+                                    </div>
+                                    {% endif %}
+                                    {% if not forloop.last %}<br>{% endif %}
+                                {% endfor %}
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if not user.council %}
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{% url 'portal:address_update' project_pk=project.pk pk=address.pk %}" class="btn btn-outline-primary btn-sm" title="Edit Address & Work">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            {% if address.works.exists %}
+                                            {% for work in address.works.all %}
+                                            <a href="{% url 'portal:work_update' project_pk=project.pk pk=work.pk %}" class="btn btn-outline-info btn-sm" title="Edit Work Details">
+                                                <i class="fas fa-tools"></i>
+                                            </a>
+                                            {% if not forloop.last %}<br>{% endif %}
+                                            {% endfor %}
+                                            {% endif %}
+                                            <button class="btn btn-outline-danger btn-sm" title="Delete" data-bs-toggle="modal" data-bs-target="#deleteAddressModal{{ address.pk }}">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="5" class="text-center text-muted">No addresses defined for this project.</td>
+                                    <td colspan="7" class="text-center text-muted">
+                                        <div class="py-4">
+                                            <i class="fas fa-map-marker-alt fa-2x text-muted mb-2"></i>
+                                            <h5>No addresses defined</h5>
+                                            <p>No addresses have been added to this project yet.</p>
+                                            {% if not user.council %}
+                                            <a href="{% url 'portal:address_create' project_pk=project.pk %}" class="btn btn-primary">
+                                                <i class="fas fa-plus-circle me-2"></i>Add First Address
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -553,5 +621,51 @@
 </div>
 
 {% endif %}
+
+<!-- Address Delete Modals -->
+{% for address in project.addresses.all %}
+<div class="modal fade" id="deleteAddressModal{{ address.pk }}" tabindex="-1" aria-labelledby="deleteAddressModalLabel{{ address.pk }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteAddressModalLabel{{ address.pk }}">Delete Address</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this address?</p>
+                <p class="text-muted"><strong>{{ address.street }}, {{ address.suburb }}</strong></p>
+                <p class="text-danger"><small>This action cannot be undone and will also delete any associated works.</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="{% url 'portal:address_delete' project_pk=project.pk pk=address.pk %}" class="btn btn-danger">Delete Address</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Work Delete Modals -->
+{% for work in project.works.all %}
+<div class="modal fade" id="deleteWorkModal{{ work.pk }}" tabindex="-1" aria-labelledby="deleteWorkModalLabel{{ work.pk }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteWorkModalLabel{{ work.pk }}">Delete Work</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this work?</p>
+                <p class="text-muted"><strong>{{ work.work_type_id.name|title }} Work</strong></p>
+                <p class="text-danger"><small>This action cannot be undone.</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="{% url 'portal:work_delete' project_pk=project.pk pk=work.pk %}" class="btn btn-danger">Delete Work</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
 
 {% endblock %}

@@ -21,7 +21,10 @@ from ricd.models import (
     Project, Program, Council, QuarterlyReport, MonthlyTracker, Stage1Report, Stage2Report,
     FundingSchedule, Address, Work, WorkStep, FundingApproval, WorkType, OutputType, ConstructionMethod, Officer,
     ForwardRemoteProgramFundingAgreement, InterimForwardProgramFundingAgreement,
-    RemoteCapitalProgramFundingAgreement, Defect, UserProfile, FieldVisibilitySetting
+    RemoteCapitalProgramFundingAgreement, Defect, UserProfile, FieldVisibilitySetting,
+    MonthlyTrackerItem, MonthlyTrackerItemGroup, QuarterlyReportItem, QuarterlyReportItemGroup,
+    Stage1Step, Stage1StepGroup, Stage2Step, Stage2StepGroup, ProjectReportConfiguration,
+    MonthlyTrackerEntry, QuarterlyReportItemEntry, Stage1StepCompletion, Stage2StepCompletion
 )
 from .forms import (
     MonthlyTrackerForm, QuarterlyReportForm, Stage1ReportForm, Stage2ReportForm,
@@ -29,7 +32,10 @@ from .forms import (
     WorkTypeForm, OutputTypeForm, ConstructionMethodForm, ForwardRemoteProgramFundingAgreementForm,
     InterimForwardProgramFundingAgreementForm, RemoteCapitalProgramFundingAgreementForm,
     UserCreationForm, OfficerForm, OfficerAssignmentForm, FundingApprovalForm,
-    CustomExcelExportForm, DefectForm, CouncilUserCreationForm, CouncilUserUpdateForm
+    CustomExcelExportForm, DefectForm, CouncilUserCreationForm, CouncilUserUpdateForm,
+    MonthlyTrackerItemForm, MonthlyTrackerItemGroupForm, QuarterlyReportItemForm,
+    Stage1StepForm, Stage2StepForm, ProjectReportConfigurationForm,
+    MonthlyTrackerEntryForm, QuarterlyReportItemEntryForm, Stage1StepCompletionForm, Stage2StepCompletionForm
 )
 
 # RICD Dashboard
@@ -257,7 +263,13 @@ class CouncilDashboardView(TemplateView):
         enhanced_projects.sort(key=lambda x: x['project'].name)
 
         context['projects'] = enhanced_projects
-        context['user_council'] = getattr(self.request.user, 'council', None) if self.request.user.is_authenticated else None
+        # Get user council through profile
+        try:
+            user_profile = self.request.user.profile
+            user_council = user_profile.council
+        except:
+            user_council = None
+        context['user_council'] = user_council if self.request.user.is_authenticated else None
 
         # Calculate summary statistics
         total_addresses = sum(project.get('total_addresses', 0) for project in enhanced_projects)
@@ -356,6 +368,17 @@ class ProjectDetailView(DetailView):
         else:
             # For anonymous users or users without council, show all fields (though they shouldn't reach here)
             context['field_visibility'] = {choice[0]: True for choice in FieldVisibilitySetting.FIELD_CHOICES}
+
+        # Add context variables to help with work display logic
+        works_count = self.object.works.count()
+        addresses_with_work = self.object.addresses.filter(
+            work_type_id__isnull=False,
+            output_type_id__isnull=False
+        ).count()
+
+        context['has_works'] = works_count > 0
+        context['has_addresses_with_work'] = addresses_with_work > 0
+        context['has_any_work_content'] = works_count > 0 or addresses_with_work > 0
 
         return context
 
@@ -977,7 +1000,11 @@ class ProjectListView(LoginRequiredMixin, ListView):
         queryset = Project.objects.select_related('council', 'program', 'funding_schedule')
 
         # Apply user-specific filtering (council users see only their projects)
-        user_council = getattr(self.request.user, 'council', None)
+        try:
+            user_profile = self.request.user.profile
+            user_council = user_profile.council
+        except:
+            user_council = None
         import logging
         logger = logging.getLogger(__name__)
         logger.info(f"DEBUG: ProjectListView - User: {self.request.user.username}, User Council: {user_council}, Is Staff: {self.request.user.is_staff}, Groups: {[g.name for g in self.request.user.groups.all()]}")
@@ -1540,6 +1567,15 @@ class AddressCreateView(LoginRequiredMixin, CreateView):
 
     def dispatch(self, request, *args, **kwargs):
         self.project = get_object_or_404(Project, pk=self.kwargs['project_pk'])
+
+        # Check permissions - allow RICD users and council users for their own projects
+        is_ricd = request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists()
+        user_council = getattr(request.user, 'council', None)
+
+        if not (is_ricd or (user_council and self.project.council == user_council)):
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("You don't have permission to modify this project.")
+
         return super().dispatch(request, *args, **kwargs)
 
     def get_form_kwargs(self):
@@ -1576,6 +1612,23 @@ class AddressUpdateView(LoginRequiredMixin, UpdateView):
     form_class = AddressForm
     template_name = "portal/address_form.html"
 
+    def dispatch(self, request, *args, **kwargs):
+        address = self.get_object()
+
+        # Check permissions - allow RICD users and council users for their own projects
+        is_ricd = self.request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists()
+        try:
+            user_profile = self.request.user.profile
+            user_council = user_profile.council
+        except:
+            user_council = None
+
+        if not (is_ricd or (user_council and address.project.council == user_council)):
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("You don't have permission to modify this address.")
+
+        return super().dispatch(request, *args, **kwargs)
+
     def get_success_url(self):
         return reverse_lazy('portal:project_detail', kwargs={'pk': self.object.project.pk})
 
@@ -1602,6 +1655,23 @@ class AddressDeleteView(LoginRequiredMixin, DeleteView):
     model = Address
     template_name = "portal/address_confirm_delete.html"
 
+    def dispatch(self, request, *args, **kwargs):
+        address = self.get_object()
+
+        # Check permissions - allow RICD users and council users for their own projects
+        is_ricd = self.request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists()
+        try:
+            user_profile = self.request.user.profile
+            user_council = user_profile.council
+        except:
+            user_council = None
+
+        if not (is_ricd or (user_council and address.project.council == user_council)):
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("You don't have permission to delete this address.")
+
+        return super().dispatch(request, *args, **kwargs)
+
     def get_success_url(self):
         return reverse_lazy('portal:project_detail', kwargs={'pk': self.object.project.pk})
 
@@ -1621,6 +1691,15 @@ class WorkCreateView(LoginRequiredMixin, CreateView):
 
     def dispatch(self, request, *args, **kwargs):
         self.project = get_object_or_404(Project, pk=self.kwargs['project_pk'])
+
+        # Check permissions - allow RICD users and council users for their own projects
+        is_ricd = request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists()
+        user_council = getattr(request.user, 'council', None)
+
+        if not (is_ricd or (user_council and self.project.council == user_council)):
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("You don't have permission to modify this project.")
+
         return super().dispatch(request, *args, **kwargs)
 
     def get_form_kwargs(self):
@@ -1655,6 +1734,23 @@ class WorkUpdateView(LoginRequiredMixin, UpdateView):
     form_class = WorkForm
     template_name = "portal/work_form.html"
 
+    def dispatch(self, request, *args, **kwargs):
+        work = self.get_object()
+
+        # Check permissions - allow RICD users and council users for their own projects
+        is_ricd = self.request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists()
+        try:
+            user_profile = self.request.user.profile
+            user_council = user_profile.council
+        except:
+            user_council = None
+
+        if not (is_ricd or (user_council and work.address.project.council == user_council)):
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("You don't have permission to modify this work.")
+
+        return super().dispatch(request, *args, **kwargs)
+
     def get_success_url(self):
         return reverse_lazy('portal:project_detail', kwargs={'pk': self.object.project.pk})
 
@@ -1686,6 +1782,23 @@ class WorkDeleteView(LoginRequiredMixin, DeleteView):
     model = Work
     template_name = "portal/work_confirm_delete.html"
 
+    def dispatch(self, request, *args, **kwargs):
+        work = self.get_object()
+
+        # Check permissions - allow RICD users and council users for their own projects
+        is_ricd = self.request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists()
+        try:
+            user_profile = self.request.user.profile
+            user_council = user_profile.council
+        except:
+            user_council = None
+
+        if not (is_ricd or (user_council and work.address.project.council == user_council)):
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("You don't have permission to delete this work.")
+
+        return super().dispatch(request, *args, **kwargs)
+
     def get_success_url(self):
         return reverse_lazy('portal:project_detail', kwargs={'pk': self.object.project.pk})
 
@@ -1713,7 +1826,11 @@ class WorkListView(LoginRequiredMixin, ListView):
         )
 
         # Apply user-specific filtering (council users see only their works)
-        user_council = getattr(self.request.user, 'council', None)
+        try:
+            user_profile = self.request.user.profile
+            user_council = user_profile.council
+        except:
+            user_council = None
         if user_council:
             queryset = queryset.filter(address__project__council=user_council)
 
@@ -1753,7 +1870,11 @@ class WorkListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
 
         # Get filter options
-        user_council = getattr(self.request.user, 'council', None)
+        try:
+            user_profile = self.request.user.profile
+            user_council = user_profile.council
+        except:
+            user_council = None
         projects = Project.objects.select_related('council', 'program')
         if user_council:
             projects = projects.filter(council=user_council)
@@ -1892,7 +2013,11 @@ class AnalyticsDashboardView(LoginRequiredMixin, TemplateView):
         program_filter = self.request.GET.get('program')
 
         # Filter projects based on user permissions - capture all projects without date restrictions
-        user_council = getattr(self.request.user, 'council', None)
+        try:
+            user_profile = self.request.user.profile
+            user_council = user_profile.council
+        except:
+            user_council = None
         if user_council:
             projects = Project.objects.filter(council=user_council)
         else:
@@ -2951,7 +3076,11 @@ class UserListView(LoginRequiredMixin, ListView):
         queryset = User.objects.select_related().all()
 
         # Filter users by council for council users
-        user_council = getattr(self.request.user, 'council', None)
+        try:
+            user_profile = self.request.user.profile
+            user_council = user_profile.council
+        except:
+            user_council = None
         if user_council:
             queryset = queryset.filter(profile__council=user_council)
 
@@ -3057,7 +3186,11 @@ class OfficerListView(LoginRequiredMixin, ListView):
         queryset = Officer.objects.select_related('user').all()
 
         # Filter officers by user's council for council users
-        user_council = getattr(self.request.user, 'council', None)
+        try:
+            user_profile = self.request.user.profile
+            user_council = user_profile.council
+        except:
+            user_council = None
         if user_council:
             queryset = queryset.filter(user__profile__council=user_council)
 
@@ -3172,7 +3305,11 @@ class DefectListView(LoginRequiredMixin, ListView):
         )
 
         # Apply user-specific filtering (council users see only their defects)
-        user_council = getattr(self.request.user, 'council', None)
+        try:
+            user_profile = self.request.user.profile
+            user_council = user_profile.council
+        except:
+            user_council = None
         if user_council:
             queryset = queryset.filter(work__address__project__council=user_council)
 
@@ -3202,7 +3339,11 @@ class DefectListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
 
         # Only show council filter to RICD users, not council users
-        user_council = getattr(self.request.user, 'council', None)
+        try:
+            user_profile = self.request.user.profile
+            user_council = user_profile.council
+        except:
+            user_council = None
         is_ricd = self.request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists()
         if is_ricd:
             context['councils'] = Council.objects.all()
@@ -3569,3 +3710,1421 @@ class ProjectFieldVisibilityView(LoginRequiredMixin, TemplateView):
         else:
             messages.error(request, 'Please correct the errors below.')
             return self.render_to_response({'form': form, 'project': self.project})
+
+
+# Enhanced Reporting Management Views
+
+class MonthlyTrackerItemListView(LoginRequiredMixin, ListView):
+    """List all monthly tracker items - RICD users only"""
+    model = MonthlyTrackerItem
+    template_name = "portal/monthly_tracker_item_list.html"
+    context_object_name = "tracker_items"
+    paginate_by = 20
+
+    def dispatch(self, request, *args, **kwargs):
+        # Restrict access to RICD users only
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied. Only RICD staff can view monthly tracker items.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        queryset = MonthlyTrackerItem.objects.all()
+        search = self.request.GET.get('search')
+        active_filter = self.request.GET.get('active')
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) |
+                Q(description__icontains=search)
+            )
+        if active_filter:
+            queryset = queryset.filter(is_active=active_filter == 'true')
+        return queryset.order_by('order', 'name')
+
+
+class MonthlyTrackerItemCreateView(LoginRequiredMixin, CreateView):
+    """Create a new monthly tracker item"""
+    model = MonthlyTrackerItem
+    form_class = MonthlyTrackerItemForm
+    template_name = "portal/monthly_tracker_item_form.html"
+    success_url = reverse_lazy('portal:monthly_tracker_item_list')
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Monthly tracker item "{form.instance.name}" created successfully!')
+        return super().form_valid(form)
+
+
+class MonthlyTrackerItemUpdateView(LoginRequiredMixin, UpdateView):
+    """Update an existing monthly tracker item"""
+    model = MonthlyTrackerItem
+    form_class = MonthlyTrackerItemForm
+    template_name = "portal/monthly_tracker_item_form.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_success_url(self):
+        return reverse_lazy('portal:monthly_tracker_item_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Monthly tracker item "{form.instance.name}" updated successfully!')
+        return super().form_valid(form)
+
+
+class MonthlyTrackerItemDeleteView(LoginRequiredMixin, DeleteView):
+    """Delete a monthly tracker item"""
+    model = MonthlyTrackerItem
+    template_name = "portal/monthly_tracker_item_confirm_delete.html"
+    success_url = reverse_lazy('portal:monthly_tracker_item_list')
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        tracker_item = self.get_object()
+        messages.success(self.request, f'Monthly tracker item "{tracker_item.name}" has been deleted.')
+        return super().form_valid(form)
+
+
+class MonthlyTrackerItemGroupListView(LoginRequiredMixin, ListView):
+    """List all monthly tracker item groups - RICD users only"""
+    model = MonthlyTrackerItemGroup
+    template_name = "portal/monthly_tracker_item_group_list.html"
+    context_object_name = "tracker_item_groups"
+    paginate_by = 20
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        queryset = MonthlyTrackerItemGroup.objects.prefetch_related('tracker_items')
+        search = self.request.GET.get('search')
+        active_filter = self.request.GET.get('active')
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) |
+                Q(description__icontains=search)
+            )
+        if active_filter:
+            queryset = queryset.filter(is_active=active_filter == 'true')
+        return queryset.order_by('name')
+
+
+class MonthlyTrackerItemGroupCreateView(LoginRequiredMixin, CreateView):
+    """Create a new monthly tracker item group"""
+    model = MonthlyTrackerItemGroup
+    form_class = MonthlyTrackerItemGroupForm
+    template_name = "portal/monthly_tracker_item_group_form.html"
+    success_url = reverse_lazy('portal:monthly_tracker_item_group_list')
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Monthly tracker item group "{form.instance.name}" created successfully!')
+        return super().form_valid(form)
+
+
+class MonthlyTrackerItemGroupUpdateView(LoginRequiredMixin, UpdateView):
+    """Update an existing monthly tracker item group"""
+    model = MonthlyTrackerItemGroup
+    form_class = MonthlyTrackerItemGroupForm
+    template_name = "portal/monthly_tracker_item_group_form.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_success_url(self):
+        return reverse_lazy('portal:monthly_tracker_item_group_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Monthly tracker item group "{form.instance.name}" updated successfully!')
+        return super().form_valid(form)
+
+
+class MonthlyTrackerItemGroupDeleteView(LoginRequiredMixin, DeleteView):
+    """Delete a monthly tracker item group"""
+    model = MonthlyTrackerItemGroup
+    template_name = "portal/monthly_tracker_item_group_confirm_delete.html"
+    success_url = reverse_lazy('portal:monthly_tracker_item_group_list')
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        group = self.get_object()
+        messages.success(self.request, f'Monthly tracker item group "{group.name}" has been deleted.')
+        return super().form_valid(form)
+
+
+class MonthlyTrackerItemGroupCreateView(LoginRequiredMixin, CreateView):
+    """Create a new monthly tracker item group"""
+    model = MonthlyTrackerItemGroup
+    form_class = MonthlyTrackerItemGroupForm
+    template_name = "portal/monthly_tracker_item_group_form.html"
+    success_url = reverse_lazy('portal:monthly_tracker_item_group_list')
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Monthly tracker item group "{form.instance.name}" created successfully!')
+        return super().form_valid(form)
+
+
+class QuarterlyReportItemListView(LoginRequiredMixin, ListView):
+    """List all quarterly report items - RICD users only"""
+    model = QuarterlyReportItem
+    template_name = "portal/quarterly_report_item_list.html"
+    context_object_name = "report_items"
+    paginate_by = 20
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        queryset = QuarterlyReportItem.objects.all()
+        search = self.request.GET.get('search')
+        active_filter = self.request.GET.get('active')
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) |
+                Q(description__icontains=search)
+            )
+        if active_filter:
+            queryset = queryset.filter(is_active=active_filter == 'true')
+        return queryset.order_by('order', 'name')
+
+
+class QuarterlyReportItemCreateView(LoginRequiredMixin, CreateView):
+    """Create a new quarterly report item"""
+    model = QuarterlyReportItem
+    form_class = QuarterlyReportItemForm
+    template_name = "portal/quarterly_report_item_form.html"
+    success_url = reverse_lazy('portal:quarterly_report_item_list')
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Quarterly report item "{form.instance.name}" created successfully!')
+        return super().form_valid(form)
+
+
+class QuarterlyReportItemUpdateView(LoginRequiredMixin, UpdateView):
+    """Update an existing quarterly report item"""
+    model = QuarterlyReportItem
+    form_class = QuarterlyReportItemForm
+    template_name = "portal/quarterly_report_item_form.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_success_url(self):
+        return reverse_lazy('portal:quarterly_report_item_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Quarterly report item "{form.instance.name}" updated successfully!')
+        return super().form_valid(form)
+
+
+class QuarterlyReportItemDeleteView(LoginRequiredMixin, DeleteView):
+    """Delete a quarterly report item"""
+    model = QuarterlyReportItem
+    template_name = "portal/quarterly_report_item_confirm_delete.html"
+    success_url = reverse_lazy('portal:quarterly_report_item_list')
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        item = self.get_object()
+        messages.success(self.request, f'Quarterly report item "{item.name}" has been deleted.')
+        return super().form_valid(form)
+
+
+class Stage1StepListView(LoginRequiredMixin, ListView):
+    """List all Stage 1 steps - RICD users only"""
+    model = Stage1Step
+    template_name = "portal/stage1_step_list.html"
+    context_object_name = "steps"
+    paginate_by = 20
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        queryset = Stage1Step.objects.all()
+        search = self.request.GET.get('search')
+        active_filter = self.request.GET.get('active')
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) |
+                Q(description__icontains=search)
+            )
+        if active_filter:
+            queryset = queryset.filter(is_active=active_filter == 'true')
+        return queryset.order_by('order', 'name')
+
+
+class Stage1StepCreateView(LoginRequiredMixin, CreateView):
+    """Create a new Stage 1 step"""
+    model = Stage1Step
+    form_class = Stage1StepForm
+    template_name = "portal/stage1_step_form.html"
+    success_url = reverse_lazy('portal:stage1_step_list')
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Stage 1 step "{form.instance.name}" created successfully!')
+        return super().form_valid(form)
+
+
+class Stage1StepUpdateView(LoginRequiredMixin, UpdateView):
+    """Update an existing Stage 1 step"""
+    model = Stage1Step
+    form_class = Stage1StepForm
+    template_name = "portal/stage1_step_form.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_success_url(self):
+        return reverse_lazy('portal:stage1_step_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Stage 1 step "{form.instance.name}" updated successfully!')
+        return super().form_valid(form)
+
+
+class Stage1StepDeleteView(LoginRequiredMixin, DeleteView):
+    """Delete a Stage 1 step"""
+    model = Stage1Step
+    template_name = "portal/stage1_step_confirm_delete.html"
+    success_url = reverse_lazy('portal:stage1_step_list')
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        step = self.get_object()
+        messages.success(self.request, f'Stage 1 step "{step.name}" has been deleted.')
+        return super().form_valid(form)
+
+
+class Stage2StepListView(LoginRequiredMixin, ListView):
+    """List all Stage 2 steps - RICD users only"""
+    model = Stage2Step
+    template_name = "portal/stage2_step_list.html"
+    context_object_name = "steps"
+    paginate_by = 20
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        queryset = Stage2Step.objects.all()
+        search = self.request.GET.get('search')
+        active_filter = self.request.GET.get('active')
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) |
+                Q(description__icontains=search)
+            )
+        if active_filter:
+            queryset = queryset.filter(is_active=active_filter == 'true')
+        return queryset.order_by('order', 'name')
+
+
+class Stage2StepCreateView(LoginRequiredMixin, CreateView):
+    """Create a new Stage 2 step"""
+    model = Stage2Step
+    form_class = Stage2StepForm
+    template_name = "portal/stage2_step_form.html"
+    success_url = reverse_lazy('portal:stage2_step_list')
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Stage 2 step "{form.instance.name}" created successfully!')
+        return super().form_valid(form)
+
+
+class Stage2StepUpdateView(LoginRequiredMixin, UpdateView):
+    """Update an existing Stage 2 step"""
+    model = Stage2Step
+    form_class = Stage2StepForm
+    template_name = "portal/stage2_step_form.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_success_url(self):
+        return reverse_lazy('portal:stage2_step_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Stage 2 step "{form.instance.name}" updated successfully!')
+        return super().form_valid(form)
+
+
+class Stage2StepDeleteView(LoginRequiredMixin, DeleteView):
+    """Delete a Stage 2 step"""
+    model = Stage2Step
+    template_name = "portal/stage2_step_confirm_delete.html"
+    success_url = reverse_lazy('portal:stage2_step_list')
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("Access denied.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        step = self.get_object()
+        messages.success(self.request, f'Stage 2 step "{step.name}" has been deleted.')
+        return super().form_valid(form)
+
+
+class ProjectReportConfigurationView(LoginRequiredMixin, UpdateView):
+    """Configure report items and groups for a specific project"""
+
+    model = ProjectReportConfiguration
+    form_class = ProjectReportConfigurationForm
+    template_name = "portal/project_report_configuration.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        # Check permissions
+        project = Project.objects.get(pk=self.kwargs['pk'])
+        user_council = getattr(request.user, 'council', None)
+
+        if user_council and project.council != user_council:
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("You don't have permission to configure this project.")
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_object(self, queryset=None):
+        project = Project.objects.get(pk=self.kwargs['pk'])
+        obj, created = ProjectReportConfiguration.objects.get_or_create(project=project)
+        return obj
+
+    def get_success_url(self):
+        return reverse_lazy('portal:project_detail', kwargs={'pk': self.object.project.pk})
+
+    def form_valid(self, form):
+        messages.success(self.request, f'Report configuration for project "{self.object.project.name}" has been updated successfully!')
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['project'] = self.object.project
+        return context
+
+
+class EnhancedMonthlyTrackerView(LoginRequiredMixin, TemplateView):
+    """
+    Enhanced monthly tracker table view with the specific layout requested.
+
+    Key Features:
+    - Direct inline editing of tracker cells without opening separate forms
+    - Live updates: Council users can update data for any month at any time
+    - Dynamic work handling: Automatically adapts to new/removed work addresses each month
+    - Submission deadline awareness: Tracks 8th of month deadline but allows continuous updates
+    - Batch saving: Save button submits all form data at once
+    """
+
+    template_name = "portal/enhanced_monthly_tracker.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Get current user and their council
+        try:
+            user_profile = self.request.user.profile
+            user_council = user_profile.council
+        except:
+            user_council = None
+        is_ricd = self.request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists()
+
+        # Add submission deadline information
+        context['submission_deadline'] = self.get_submission_deadline_info()
+
+        # Add last submission information
+        context['last_submission_info'] = self.get_last_submission_info()
+
+        # Get all active projects (commenced or under construction)
+        if user_council:
+            active_projects = Project.objects.filter(
+                council=user_council,
+                state__in=['commenced', 'under_construction']
+            ).prefetch_related('addresses__works')
+        else:
+            active_projects = Project.objects.filter(
+                state__in=['commenced', 'under_construction']
+            ).prefetch_related('addresses__works')
+
+        # Group projects by their funding agreements
+        funding_agreements_data = self.group_projects_by_funding_agreements(active_projects)
+
+        # Create entry forms for workflow management
+        entry_forms = self.create_entry_forms(funding_agreements_data)
+
+        context.update({
+            'funding_agreements_data': funding_agreements_data,
+            'is_ricd': is_ricd,
+            'user_council': user_council,
+            'user': self.request.user,  # Add user for template workflow checks
+            'entry_forms': entry_forms,  # Add forms for workflow management
+        })
+
+        return context
+
+    def group_projects_by_funding_agreements(self, projects):
+        """Group projects by their funding agreements and prepare table data"""
+        from collections import defaultdict
+
+        # Get all monthly tracker items that are active
+        tracker_items = MonthlyTrackerItem.objects.filter(is_active=True).order_by('order')
+        tracker_items_list = list(tracker_items)
+
+        # Track active entries for cleanup
+        self._active_entry_ids = set()
+
+        funding_groups = defaultdict(list)
+
+        for project in projects:
+            # Determine which funding agreement this project belongs to
+            funding_agreement_name = self.get_funding_agreement_name(project)
+
+            # Get all addresses for this project
+            addresses_with_work = Address.objects.filter(
+                project=project
+            ).select_related('work_type_id', 'output_type_id')
+
+            # Prepare address work data with tracker items
+            work_data = []
+            for address in addresses_with_work:
+                # Skip addresses without work type information
+                if not address.work_type_id or not address.output_type_id:
+                    continue
+
+                # Get or create the Work object for this address
+                work = Work.objects.filter(address=address).first()
+                if not work:
+                    # Create Work from address data
+                    work = Work.objects.create(
+                        address=address,
+                        work_type_id=address.work_type_id,
+                        output_type_id=address.output_type_id,
+                        bedrooms=address.bedrooms,
+                        output_quantity=address.output_quantity or 1,
+                        estimated_cost=address.budget,
+                        actual_cost=None,
+                        start_date=project.date_physically_commenced,
+                        end_date=None
+                    )
+
+                work_info = {
+                    'work': work,  # Use the Work object
+                    'address': address,
+                    'tracker_values': {}
+                }
+
+                # For each tracker item, determine if it's applicable and get value
+                for item in tracker_items_list:
+                    tracker_value = self.get_tracker_value_for_address(address, item, project)
+                    work_info['tracker_values'][item.id] = tracker_value
+
+                    # Track active entries for cleanup of removed works
+                    if tracker_value.get('entry_id'):
+                        self._active_entry_ids.add(tracker_value['entry_id'])
+
+                work_data.append(work_info)
+
+            # Always include the project, even if it has no works (but only if it's active)
+            if work_data:
+                funding_groups[funding_agreement_name].extend(work_data)
+            else:
+                # Create a placeholder entry for projects without works
+                funding_groups[funding_agreement_name].append({
+                    'project': project,
+                    'work': None,
+                    'address': None,
+                    'tracker_values': {}
+                })
+
+        # Convert to list format for template
+        result = []
+        for agreement_name, works_list in funding_groups.items():
+            result.append({
+                'funding_agreement': agreement_name,
+                'works': works_list
+            })
+
+        # Clean up orphaned entries for removed works
+        self.cleanup_orphaned_entries()
+
+        return {
+            'tracker_items': tracker_items_list,
+            'funding_groups': result,
+            'total_columns': len(tracker_items_list) + 1  # +1 for the work address column
+        }
+
+    def get_funding_agreement_name(self, project):
+        """Get the funding agreement name for a project"""
+        if project.funding_schedule:
+            if project.funding_schedule.agreement_type == 'rcpf_agreement':
+                return f"Remote Capital Program Funding Agreement - {project.funding_schedule.funding_schedule_number}"
+            else:
+                return f"Funding Schedule {project.funding_schedule.funding_schedule_number}"
+        elif project.forward_rpf_agreement:
+            return "Forward Remote Program Funding Agreement"
+        elif project.interim_fp_agreement:
+            return "Interim Forward Remote Program Funding Agreement"
+        else:
+            return "No Funding Agreement"
+
+    def get_tracker_value_for_address(self, address, tracker_item, project):
+        """Determine the value to display for a specific address and tracker item"""
+        from datetime import date
+        from django.utils import timezone
+
+        # Check if this tracker item is configured for this project
+        try:
+            config = project.report_configuration
+            # Check if this tracker item is in any of the project's configured groups
+            applicable_groups = config.monthly_tracker_groups.all()
+            item_in_groups = any(
+                tracker_item in group.tracker_items.all()
+                for group in applicable_groups
+            )
+
+            if not item_in_groups:
+                # Item is not configured for this project
+                return {'value': '', 'display': '', 'applicable': False}
+
+        except Project.report_configuration.RelatedObjectDoesNotExist:
+            # No configuration exists, so item is applicable by default
+            # Fall through to check for actual data
+            pass
+
+        # Item is applicable, check if there's actual data
+        try:
+            # Get the Work for this address (should already exist from the main method)
+            work = Work.objects.filter(address=address).first()
+
+            if not work:
+                # This shouldn't happen, but handle it gracefully
+                return {
+                    'value': '',
+                    'display': '',
+                    'applicable': False
+                }
+
+            # Get the most recent monthly tracker for this work
+            latest_tracker = MonthlyTracker.objects.filter(work=work).order_by('-month').first()
+
+            # If no tracker exists, create one for the current month
+            if not latest_tracker:
+                # Get current month and year
+                current_date = timezone.now().date()
+                current_month = date(current_date.year, current_date.month, 1)
+
+                # Check if project has commenced
+                if project.state in ['commenced', 'under_construction'] and project.date_physically_commenced:
+                    # Create new monthly tracker for current month
+                    latest_tracker = MonthlyTracker.objects.create(
+                        work=work,
+                        month=current_month,
+                        # Set other default values as needed
+                        total_construction_cost=work.estimated_cost or 0,
+                        total_expenditure_council=0,
+                        total_expenditure_ricd=0,
+                        percentage_works_completed=0
+                    )
+
+            if latest_tracker:
+                # Try to get the value from the tracker entry
+                try:
+                    entry = MonthlyTrackerEntry.objects.get(
+                        monthly_tracker=latest_tracker,
+                        tracker_item=tracker_item
+                    )
+                    return {
+                        'value': entry.value,
+                        'display': self.format_tracker_value(entry.value, tracker_item),
+                        'applicable': True,
+                        'has_data': True,
+                        'entry': entry,
+                        'entry_id': entry.id
+                    }
+                except MonthlyTrackerEntry.DoesNotExist:
+                    # Create the entry if it doesn't exist and item is applicable
+                    if tracker_item.is_active:
+                        entry = MonthlyTrackerEntry.objects.create(
+                            monthly_tracker=latest_tracker,
+                            tracker_item=tracker_item,
+                            value=None,  # Start with no value
+                            workflow_status='draft'
+                        )
+                        return {
+                            'value': '',
+                            'display': '',
+                            'applicable': True,
+                            'has_data': False,
+                            'entry': entry,
+                            'entry_id': entry.id
+                        }
+        except Exception:
+            # Handle any exceptions gracefully
+            pass
+
+        # No data exists, return N/A if acceptable, otherwise blank
+        if tracker_item.na_acceptable:
+            return {
+                'value': 'N/A',
+                'display': 'N/A',
+                'applicable': True,
+                'has_data': False,
+                'entry': None,
+                'entry_id': None
+            }
+        else:
+            return {
+                'value': '',
+                'display': '',
+                'applicable': True,
+                'has_data': False,
+                'entry': None,
+                'entry_id': None
+            }
+
+    def create_entry_forms(self, funding_agreements_data):
+        """Create MonthlyTrackerEntryForm instances for all tracker entries"""
+        entry_forms = {}
+
+        for funding_group in funding_agreements_data['funding_groups']:
+            for work_info in funding_group['works']:
+                for tracker_id, tracker_value in work_info['tracker_values'].items():
+                    if tracker_value.get('entry'):
+                        # Create form with existing entry
+                        entry = tracker_value['entry']
+                        form = MonthlyTrackerEntryForm(instance=entry)
+                        entry_forms[entry.id] = form
+                    elif tracker_value.get('entry_id'):
+                        # Create form for entry with ID
+                        try:
+                            entry = MonthlyTrackerEntry.objects.get(id=tracker_value['entry_id'])
+                            form = MonthlyTrackerEntryForm(instance=entry)
+                            entry_forms[entry.id] = form
+                        except MonthlyTrackerEntry.DoesNotExist:
+                            pass  # Entry was deleted, skip form creation
+                    elif tracker_value.get('applicable') and tracker_value.get('has_data') == False:
+                        # Create a new entry for applicable items without data
+                        try:
+                            tracker_item = MonthlyTrackerItem.objects.get(id=tracker_id)
+                            work = work_info.get('work')
+                            if work and tracker_item.is_active:
+                                # Find the monthly tracker for this work
+                                latest_tracker = MonthlyTracker.objects.filter(work=work).order_by('-month').first()
+                                if latest_tracker:
+                                    entry = MonthlyTrackerEntry.objects.create(
+                                        monthly_tracker=latest_tracker,
+                                        tracker_item=tracker_item,
+                                        value=None,
+                                        workflow_status='draft'
+                                    )
+                                    form = MonthlyTrackerEntryForm(instance=entry)
+                                    entry_forms[entry.id] = form
+                        except (MonthlyTrackerItem.DoesNotExist, Exception):
+                            pass  # Skip if there are any issues
+
+        return entry_forms
+
+    def format_tracker_value(self, value, tracker_item):
+        """Format the tracker value for display based on data type"""
+        if not value:
+            return ''
+
+        if tracker_item.data_type == 'date' and value:
+            try:
+                from datetime import datetime
+                if isinstance(value, str):
+                    date_obj = datetime.fromisoformat(value.split('T')[0])
+                else:
+                    date_obj = value
+                return date_obj.strftime('%d/%m/%Y')
+            except:
+                return str(value)
+        elif tracker_item.data_type == 'currency' and value:
+            try:
+                return f"${float(value):,.2f}"
+            except:
+                return str(value)
+        elif tracker_item.data_type == 'checkbox':
+            return '✓' if value else '✗'
+        else:
+            return str(value)
+
+    def post(self, request, *args, **kwargs):
+        """Handle form submissions and workflow approvals for tracker entries"""
+        action = request.POST.get('action')
+
+        # Handle workflow approval actions
+        if action in ['approve_council_manager', 'approve_ricd_officer']:
+            return self.handle_workflow_approval(request, action)
+
+        # Handle regular form submissions
+        return self.handle_form_submission(request)
+
+    def handle_form_submission(self, request):
+        """Handle regular form submissions for tracker entries with submission status tracking"""
+        from django.utils import timezone
+
+        success_count = 0
+        error_count = 0
+        entry_forms = {}
+        current_time = timezone.now()
+
+        # Process each form entry in the POST data
+        for key in request.POST:
+            if key.startswith('form-'):
+                parts = key.split('-')
+                if len(parts) < 3:
+                    continue
+
+                entry_id = parts[1]
+                field_name = '-'.join(parts[2:])
+
+                # Initialize form data dictionary for this entry
+                if entry_id not in entry_forms:
+                    entry_forms[entry_id] = {'id': entry_id}
+
+                # Store the field value
+                entry_forms[entry_id][field_name] = request.POST[key]
+
+        # Process each entry form
+        for entry_id, data in entry_forms.items():
+            try:
+                # Get existing entry or prepare for new entry
+                if entry_id and entry_id != 'new':
+                    try:
+                        entry = MonthlyTrackerEntry.objects.get(id=entry_id)
+                        form = MonthlyTrackerEntryForm(data, instance=entry)
+                    except MonthlyTrackerEntry.DoesNotExist:
+                        form = MonthlyTrackerEntryForm(data)
+                else:
+                    form = MonthlyTrackerEntryForm(data)
+
+                if form.is_valid():
+                    saved_entry = form.save()
+                    # Set initial workflow status for new entries
+                    if saved_entry.workflow_status == 'draft':
+                        pass  # Keep as draft initially
+
+                    # Update submission timestamp for tracking
+                    if hasattr(saved_entry, 'monthly_tracker'):
+                        saved_entry.monthly_tracker.submission_date = current_time
+                        saved_entry.monthly_tracker.save()
+
+                    success_count += 1
+                else:
+                    error_count += 1
+                    # Log form errors for debugging
+                    print(f"Form errors for entry {entry_id}: {form.errors}")
+
+            except Exception as e:
+                error_count += 1
+                print(f"Error processing entry {entry_id}: {str(e)}")
+
+        # Check if this submission meets the deadline requirement (informational only)
+        try:
+            user_profile = request.user.profile
+            user_council = user_profile.council
+            submission_deadline = self.get_submission_deadline_info()
+
+            if user_council and success_count > 0:
+                # Always allow updates to previous months' data (live updates)
+                # Just provide informational feedback about deadlines
+                current_time = timezone.now()
+                if current_time.day <= 8:
+                    messages.info(request, f'Data updated. Monthly tracker remains open for live updates until the 8th of each month.')
+                else:
+                    messages.info(request, f'Data updated. You can continue to make live updates to previous months\' data.')
+
+                # Log the update for tracking purposes
+                print(f"Live update: User {request.user.username} updated {success_count} tracker entries on {current_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        except:
+            pass  # Ignore errors in deadline checking
+
+        # Set appropriate messages
+        if success_count > 0:
+            messages.success(request, f'Successfully updated {success_count} tracker entries.')
+        if error_count > 0:
+            messages.error(request, f'Failed to update {error_count} tracker entries. Please check the form for errors.')
+
+        # Redirect to prevent form resubmission
+        return redirect(request.path)
+
+    def handle_workflow_approval(self, request, action):
+        """Handle workflow approval actions"""
+        entry_id = request.POST.get('entry_id')
+        comments = request.POST.get('comments', '')
+
+        if not entry_id:
+            messages.error(request, 'No entry specified for approval.')
+            return redirect(request.path)
+
+        try:
+            entry = MonthlyTrackerEntry.objects.get(id=entry_id)
+
+            if action == 'approve_council_manager':
+                entry.approve_council_manager(request.user, comments)
+                messages.success(request, f'Tracker entry approved as Council Manager.')
+            elif action == 'approve_ricd_officer':
+                entry.approve_ricd_officer(request.user, comments)
+                messages.success(request, f'Tracker entry approved as RICD Officer.')
+
+        except MonthlyTrackerEntry.DoesNotExist:
+            messages.error(request, 'Tracker entry not found.')
+        except Exception as e:
+            messages.error(request, f'Error processing approval: {str(e)}')
+
+        return redirect(request.path)
+
+    def get_submission_deadline_info(self):
+        """Get information about the submission deadline for the current month"""
+        from django.utils import timezone
+        today = timezone.now().date()
+        current_day = today.day
+
+        # Calculate the deadline for the previous month (should be submitted by 8th of current month)
+        previous_month = today.replace(day=1) - timezone.timedelta(days=1)
+        deadline_date = today.replace(day=8)
+
+        # Check if we're past the 8th (deadline has passed for previous month)
+        is_past_deadline = current_day > 8
+
+        days_until_deadline = (deadline_date - today).days if not is_past_deadline else 0
+
+        return {
+            'deadline_date': deadline_date,
+            'is_past_deadline': is_past_deadline,
+            'days_until_deadline': days_until_deadline,
+            'previous_month': previous_month,
+            'current_day': current_day,
+            'deadline_day': 8
+        }
+
+    def get_last_submission_info(self):
+        """Get information about the last submission for the user's council"""
+        try:
+            user_profile = self.request.user.profile
+            user_council = user_profile.council
+
+            if user_council:
+                # Get the most recent monthly tracker submission for this council
+                last_submission = MonthlyTracker.objects.filter(
+                    work__address__project__council=user_council
+                ).order_by('-submission_date').first()
+
+                if last_submission:
+                    return {
+                        'date': last_submission.submission_date,
+                        'month': last_submission.month.strftime('%B %Y'),
+                        'has_submission': True
+                    }
+        except:
+            pass
+
+        return {
+            'date': None,
+            'month': None,
+            'has_submission': False
+        }
+
+    def cleanup_orphaned_entries(self):
+        """Clean up MonthlyTrackerEntry objects for removed works"""
+        try:
+            user_profile = self.request.user.profile
+            user_council = user_profile.council
+
+            if user_council and hasattr(self, '_active_entry_ids'):
+                # Get all entries for this council's works
+                all_entries = MonthlyTrackerEntry.objects.filter(
+                    monthly_tracker__work__address__project__council=user_council
+                ).values_list('id', flat=True)
+
+                # Find orphaned entries (entries that exist but aren't in active entries)
+                orphaned_entry_ids = set(all_entries) - self._active_entry_ids
+
+                if orphaned_entry_ids:
+                    # Mark orphaned entries as inactive rather than deleting them
+                    # This preserves data integrity and allows for recovery if needed
+                    MonthlyTrackerEntry.objects.filter(id__in=orphaned_entry_ids).update(
+                        workflow_status='archived'
+                    )
+                    print(f"Archived {len(orphaned_entry_ids)} orphaned tracker entries for council {user_council.name}")
+
+        except Exception as e:
+            # Log but don't fail the request if cleanup fails
+            print(f"Error during orphaned entry cleanup: {str(e)}")
+            pass
+
+
+class EnhancedQuarterlyReportView(LoginRequiredMixin, TemplateView):
+    """Enhanced quarterly report view with configurable items"""
+
+    template_name = "portal/enhanced_quarterly_report.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Get current user and their council
+        try:
+            user_profile = self.request.user.profile
+            user_council = user_profile.council
+        except:
+            user_council = None
+        is_ricd = self.request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists()
+
+        # Get active projects (commenced or under construction)
+        if user_council:
+            active_projects = Project.objects.filter(
+                council=user_council,
+                state__in=['commenced', 'under_construction']
+            ).prefetch_related('addresses__works')
+        else:
+            active_projects = Project.objects.filter(
+                state__in=['commenced', 'under_construction']
+            ).prefetch_related('addresses__works')
+
+        # Get quarterly report items
+        quarterly_items = QuarterlyReportItem.objects.filter(is_active=True).order_by('order')
+
+        # Prepare data for enhanced table view
+        quarterly_data = self.prepare_quarterly_data(active_projects, quarterly_items)
+
+        context.update({
+            'quarterly_data': quarterly_data,
+            'quarterly_items': quarterly_items,
+            'total_columns': len(quarterly_items) + 1,  # +1 for work address column
+            'is_ricd': is_ricd,
+            'user_council': user_council,
+        })
+
+        return context
+
+    def prepare_quarterly_data(self, projects, quarterly_items):
+        """Prepare quarterly data for enhanced table display"""
+        from collections import defaultdict
+
+        project_groups = []
+
+        for project in projects:
+            # Get all works for this project
+            works = Work.objects.filter(address__project=project).select_related(
+                'address', 'work_type_id', 'output_type_id'
+            )
+
+            # Prepare work data with quarterly report items
+            work_data = []
+            for work in works:
+                work_info = {
+                    'work': work,
+                    'address': work.address,
+                    'report_values': {}
+                }
+
+                # For each quarterly report item, determine if it's applicable and get value
+                for item in quarterly_items:
+                    work_info['report_values'][item.id] = self.get_quarterly_value_for_work(work, item, project)
+
+                work_data.append(work_info)
+
+            if work_data:  # Only add if there are works
+                project_groups.append({
+                    'project': project,
+                    'works': work_data
+                })
+
+        return project_groups
+
+    def get_quarterly_value_for_work(self, work, quarterly_item, project):
+        """Determine the value to display for a specific work and quarterly report item"""
+        # Check if this quarterly item is configured for this project
+        try:
+            config = project.report_configuration
+            # Check if this quarterly item is in any of the project's configured groups
+            applicable_groups = config.quarterly_report_groups.all()
+            item_in_groups = any(
+                quarterly_item in group.report_items.all()
+                for group in applicable_groups
+            )
+
+            if not item_in_groups:
+                # Item is not configured for this project
+                return {'value': '', 'display': '', 'applicable': False}
+
+        except Project.report_configuration.RelatedObjectDoesNotExist:
+            # No configuration exists, so item is not applicable
+            return {'value': '', 'display': '', 'applicable': False}
+
+        # Item is applicable, check if there's actual data
+        try:
+            # Get the most recent quarterly report for this work
+            latest_quarterly = QuarterlyReport.objects.filter(work=work).order_by('-submission_date').first()
+            if latest_quarterly:
+                # Try to get the value from the quarterly report item entry
+                try:
+                    entry = QuarterlyReportItemEntry.objects.get(
+                        quarterly_report=latest_quarterly,
+                        report_item=quarterly_item
+                    )
+                    return {
+                        'value': entry.value,
+                        'display': self.format_quarterly_value(entry.value, quarterly_item),
+                        'applicable': True,
+                        'has_data': True
+                    }
+                except QuarterlyReportItemEntry.DoesNotExist:
+                    pass
+        except QuarterlyReport.DoesNotExist:
+            pass
+
+        # No data exists, return N/A if acceptable, otherwise blank
+        if quarterly_item.na_acceptable:
+            return {
+                'value': 'N/A',
+                'display': 'N/A',
+                'applicable': True,
+                'has_data': False
+            }
+        else:
+            return {
+                'value': '',
+                'display': '',
+                'applicable': True,
+                'has_data': False
+            }
+
+    def format_quarterly_value(self, value, quarterly_item):
+        """Format the quarterly report value for display based on data type"""
+        if not value:
+            return ''
+
+        if quarterly_item.data_type == 'date' and value:
+            try:
+                from datetime import datetime
+                if isinstance(value, str):
+                    date_obj = datetime.fromisoformat(value.split('T')[0])
+                else:
+                    date_obj = value
+                return date_obj.strftime('%d/%m/%Y')
+            except:
+                return str(value)
+        elif quarterly_item.data_type == 'currency' and value:
+            try:
+                return f"${float(value):,.2f}"
+            except:
+                return str(value)
+        elif quarterly_item.data_type == 'checkbox':
+            return '✓' if value else '✗'
+        else:
+            return str(value)
+
+
+class EnhancedStage1ReportView(LoginRequiredMixin, TemplateView):
+    """Enhanced Stage 1 report view with configurable steps"""
+
+    template_name = "portal/enhanced_stage1_report.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Get current user and their council
+        try:
+            user_profile = self.request.user.profile
+            user_council = user_profile.council
+        except:
+            user_council = None
+        is_ricd = self.request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists()
+
+        # Get projects (for stage 1, we show all projects, not just active ones)
+        if user_council:
+            projects = Project.objects.filter(council=user_council).prefetch_related('addresses__works')
+        else:
+            projects = Project.objects.all().prefetch_related('addresses__works')
+
+        # Get Stage 1 steps
+        stage1_steps = Stage1Step.objects.filter(is_active=True).order_by('order')
+
+        # Prepare data for enhanced table view
+        stage1_data = self.prepare_stage1_data(projects, stage1_steps)
+
+        context.update({
+            'stage1_data': stage1_data,
+            'stage1_steps': stage1_steps,
+            'total_columns': len(stage1_steps) + 1,  # +1 for work address column
+            'is_ricd': is_ricd,
+            'user_council': user_council,
+        })
+
+        return context
+
+    def prepare_stage1_data(self, projects, stage1_steps):
+        """Prepare Stage 1 data for enhanced table display"""
+        from collections import defaultdict
+
+        project_groups = []
+
+        for project in projects:
+            # Get all works for this project
+            works = Work.objects.filter(address__project=project).select_related(
+                'address', 'work_type_id', 'output_type_id'
+            )
+
+            # Prepare work data with stage 1 steps
+            work_data = []
+            for work in works:
+                work_info = {
+                    'work': work,
+                    'address': work.address,
+                    'step_values': {}
+                }
+
+                # For each stage 1 step, determine completion status
+                for step in stage1_steps:
+                    work_info['step_values'][step.id] = self.get_stage1_value_for_work(work, step, project)
+
+                work_data.append(work_info)
+
+            if work_data:  # Only add if there are works
+                project_groups.append({
+                    'project': project,
+                    'works': work_data
+                })
+
+        return project_groups
+
+    def get_stage1_value_for_work(self, work, stage1_step, project):
+        """Determine the completion status for a specific work and stage 1 step"""
+        # Check if this stage 1 step is configured for this project
+        try:
+            config = project.report_configuration
+            # Check if this stage 1 step is in any of the project's configured groups
+            applicable_groups = config.stage1_step_groups.all()
+            step_in_groups = any(
+                stage1_step in group.steps.all()
+                for group in applicable_groups
+            )
+
+            if not step_in_groups:
+                # Step is not configured for this project
+                return {'completed': False, 'completion_date': None, 'applicable': False}
+
+        except Project.report_configuration.RelatedObjectDoesNotExist:
+            # No configuration exists, so step is not applicable
+            return {'completed': False, 'completion_date': None, 'applicable': False}
+
+        # Step is applicable, check if there's completion data
+        try:
+            # Get the completion status for this step and work
+            completion = Stage1StepCompletion.objects.get(
+                work=work,
+                step=stage1_step
+            )
+            return {
+                'completed': completion.completed,
+                'completion_date': completion.completion_date,
+                'applicable': True
+            }
+        except Stage1StepCompletion.DoesNotExist:
+            # No completion record exists
+            return {
+                'completed': False,
+                'completion_date': None,
+                'applicable': True
+            }
+
+
+class EnhancedStage2ReportView(LoginRequiredMixin, TemplateView):
+    """Enhanced Stage 2 report view with configurable steps"""
+
+    template_name = "portal/enhanced_stage2_report.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Get current user and their council
+        try:
+            user_profile = self.request.user.profile
+            user_council = user_profile.council
+        except:
+            user_council = None
+        is_ricd = self.request.user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists()
+
+        # Get projects (for stage 2, we show commenced, under construction, and completed projects)
+        if user_council:
+            projects = Project.objects.filter(
+                council=user_council,
+                state__in=['commenced', 'under_construction', 'completed']
+            ).prefetch_related('addresses__works')
+        else:
+            projects = Project.objects.filter(
+                state__in=['commenced', 'under_construction', 'completed']
+            ).prefetch_related('addresses__works')
+
+        # Get Stage 2 steps
+        stage2_steps = Stage2Step.objects.filter(is_active=True).order_by('order')
+
+        # Prepare data for enhanced table view
+        stage2_data = self.prepare_stage2_data(projects, stage2_steps)
+
+        context.update({
+            'stage2_data': stage2_data,
+            'stage2_steps': stage2_steps,
+            'total_columns': len(stage2_steps) + 1,  # +1 for work address column
+            'is_ricd': is_ricd,
+            'user_council': user_council,
+        })
+
+        return context
+
+    def prepare_stage2_data(self, projects, stage2_steps):
+        """Prepare Stage 2 data for enhanced table display"""
+        from collections import defaultdict
+
+        project_groups = []
+
+        for project in projects:
+            # Get all works for this project
+            works = Work.objects.filter(address__project=project).select_related(
+                'address', 'work_type_id', 'output_type_id'
+            )
+
+            # Prepare work data with stage 2 steps
+            work_data = []
+            for work in works:
+                work_info = {
+                    'work': work,
+                    'address': work.address,
+                    'step_values': {}
+                }
+
+                # For each stage 2 step, determine completion status
+                for step in stage2_steps:
+                    work_info['step_values'][step.id] = self.get_stage2_value_for_work(work, step, project)
+
+                work_data.append(work_info)
+
+            if work_data:  # Only add if there are works
+                project_groups.append({
+                    'project': project,
+                    'works': work_data
+                })
+
+        return project_groups
+
+    def get_stage2_value_for_work(self, work, stage2_step, project):
+        """Determine the completion status for a specific work and stage 2 step"""
+        # Check if this stage 2 step is configured for this project
+        try:
+            config = project.report_configuration
+            # Check if this stage 2 step is in any of the project's configured groups
+            applicable_groups = config.stage2_step_groups.all()
+            step_in_groups = any(
+                stage2_step in group.steps.all()
+                for group in applicable_groups
+            )
+
+            if not step_in_groups:
+                # Step is not configured for this project
+                return {'completed': False, 'completion_date': None, 'applicable': False}
+
+        except Project.report_configuration.RelatedObjectDoesNotExist:
+            # No configuration exists, so step is not applicable
+            return {'completed': False, 'completion_date': None, 'applicable': False}
+
+        # Step is applicable, check if there's completion data
+        try:
+            # Get the completion status for this step and work
+            completion = Stage2StepCompletion.objects.get(
+                work=work,
+                step=stage2_step
+            )
+            return {
+                'completed': completion.completed,
+                'completion_date': completion.completion_date,
+                'applicable': True
+            }
+        except Stage2StepCompletion.DoesNotExist:
+            # No completion record exists
+            return {
+                'completed': False,
+                'completion_date': None,
+                'applicable': True
+            }

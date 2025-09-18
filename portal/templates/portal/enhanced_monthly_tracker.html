@@ -1,0 +1,712 @@
+{% extends "portal/base.html" %}
+{% load template_filters %}
+
+{% block title %}Enhanced Monthly Tracker - RICD Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1><i class="fas fa-table me-2"></i>Enhanced Monthly Tracker</h1>
+                <div>
+                    {% if is_ricd %}
+                        <a href="{% url 'portal:monthly_tracker_item_list' %}" class="btn btn-outline-primary me-2">
+                            <i class="fas fa-cog"></i> Configure Items
+                        </a>
+                    {% endif %}
+                    <a href="{% url 'portal:council_dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar-check me-2"></i>
+                        Monthly Progress Tracker - {% if user_council %}{{ user_council.name }}{% else %}All Councils{% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if funding_agreements_data.funding_groups %}
+                        <form method="post">
+                        {% csrf_token %}
+                        <div class="table-responsive" style="max-height: 80vh; overflow: auto;">
+                            <table class="table table-bordered table-hover" id="monthly-tracker-table">
+                                <thead class="table-dark sticky-top">
+                                    <tr>
+                                        <th class="sticky-left bg-dark text-white" style="min-width: 300px; left: 0; z-index: 3;">
+                                            <strong>Work Address</strong>
+                                        </th>
+                                        {% for item in funding_agreements_data.tracker_items %}
+                                            <th class="text-center" style="min-width: 140px;">
+                                                <strong>{{ item.name }}</strong>
+                                                {% if item.data_type == 'date' %}
+                                                    <br><small class="text-muted">(DD/MM/YYYY)</small>
+                                                {% elif item.data_type == 'currency' %}
+                                                    <br><small class="text-muted">($)</small>
+                                                {% endif %}
+                                            </th>
+                                        {% endfor %}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for funding_group in funding_agreements_data.funding_groups %}
+                                        <!-- Funding Agreement Header Row -->
+                                        <tr class="table-info">
+                                            <td colspan="{{ funding_agreements_data.total_columns }}" class="sticky-left text-center fw-bold" style="left: 0; z-index: 2;">
+                                                <i class="fas fa-file-contract me-2"></i>
+                                                {{ funding_group.funding_agreement }}
+                                            </td>
+                                        </tr>
+
+                                        {% for work_info in funding_group.works %}
+                                            <tr>
+                                                <!-- Work Address Column -->
+                                                <td class="sticky-left bg-light fw-bold" style="left: 0; z-index: 2;">
+                                                    <div class="d-flex align-items-center">
+                                                        {% if work_info.work %}
+                                                            <i class="fas fa-map-marker-alt me-2 text-primary"></i>
+                                                            <div>
+                                                                <div>
+                                                                    {% if work_info.address.street and work_info.address.street != "TBA" %}
+                                                                        {{ work_info.address.street }}
+                                                                    {% elif work_info.address.lot_number and work_info.address.plan_number and work_info.address.lot_number != "TBA" and work_info.address.plan_number != "TBA" %}
+                                                                        Lot {{ work_info.address.lot_number }} {{ work_info.address.plan_number }}
+                                                                    {% elif work_info.address.lot_number and work_info.address.lot_number != "TBA" %}
+                                                                        Lot {{ work_info.address.lot_number }}
+                                                                    {% else %}
+                                                                        {{ work_info.address.street|default:"Address TBA" }}
+                                                                    {% endif %}
+                                                                    {% if work_info.work.output_type_id and work_info.work.bedrooms %}
+                                                                        ({{ work_info.work.bedrooms }}BR {{ work_info.work.output_type_id.name }})
+                                                                    {% elif work_info.work.output_type_id %}
+                                                                        ({{ work_info.work.output_type_id.name }})
+                                                                    {% endif %}
+                                                                </div>
+                                                                <small class="text-muted">{{ work_info.address.suburb }}, {{ work_info.address.state }} {{ work_info.address.postcode }}</small>
+                                                                {% if work_info.work.work_type_id %}
+                                                                    <br><small class="text-info">{{ work_info.work.work_type_id.name }}</small>
+                                                                {% endif %}
+                                                            </div>
+                                                        {% else %}
+                                                            <i class="fas fa-project-diagram me-2 text-secondary"></i>
+                                                            <div>
+                                                                <div>{{ work_info.project.name }}</div>
+                                                                <small class="text-muted">No works defined yet</small>
+                                                            </div>
+                                                        {% endif %}
+                                                    </div>
+                                                </td>
+
+                                                <!-- Tracker Item Data Columns -->
+                                                {% for item in funding_agreements_data.tracker_items %}
+                                                    <td class="text-center">
+                                                        {% if work_info.work %}
+                                                            {% with value_info=work_info.tracker_values|get_key:item.id %}
+                                                                {% if not value_info.applicable %}
+                                                                    <!-- Item not applicable to this work -->
+                                                                    <span class="text-muted">-</span>
+                                                                {% else %}
+                                                                    <!-- Check if we have a form for this entry -->
+                                                                    {% with form=entry_forms|get_key:value_info.entry_id %}
+                                                                        {% if form %}
+                                                                            <!-- Has form - show editable form -->
+                                                                            <span class="{% if value_info.value %}text-success{% else %}text-muted{% endif %}">
+                                                                                <div class="tracker-entry">
+                                                                                    {% if form.na_value %}
+                                                                                        <div class="form-check form-check-inline mb-2">
+                                                                                            {{ form.na_value }}
+                                                                                            {{ form.na_value.label }}
+                                                                                        </div>
+                                                                                    {% endif %}
+                                                                                    <div class="value-input">
+                                                                                        {{ form.value }}
+                                                                                    </div>
+                                                                                    {% if form.supporting_document %}
+                                                                                        <div class="mt-2">
+                                                                                            {{ form.supporting_document.label_tag }}
+                                                                                            {{ form.supporting_document }}
+                                                                                        </div>
+                                                                                    {% endif %}
+
+                                                                                    <!-- Workflow Status and Approval Buttons -->
+                                                                                    {% if form.instance.pk %}
+                                                                                        <div class="mt-2">
+                                                                                            <small class="text-muted">
+                                                                                                Status:
+                                                                                                {% if form.instance.workflow_status == 'draft' %}
+                                                                                                    <span class="badge bg-secondary">Draft</span>
+                                                                                                {% elif form.instance.workflow_status == 'council_manager' %}
+                                                                                                    <span class="badge bg-warning text-dark">Pending Council Manager</span>
+                                                                                                {% elif form.instance.workflow_status == 'ricd_officer' %}
+                                                                                                    <span class="badge bg-info">Pending RICD Officer</span>
+                                                                                                {% elif form.instance.workflow_status == 'approved' %}
+                                                                                                    <span class="badge bg-success">Approved</span>
+                                                                                                {% endif %}
+                                                                                            </small>
+
+                                                                                            <!-- Approval buttons based on user role and workflow status -->
+                                                                                            {% if form.instance.pk and form.instance.workflow_status == 'draft' %}
+                                                                                                {% if form.instance|can_approve_council_manager:user %}
+                                                                                                    <form method="post" action="{% url 'portal:enhanced_monthly_tracker' %}" class="d-inline">
+                                                                                                        {% csrf_token %}
+                                                                                                        <input type="hidden" name="action" value="approve_council_manager">
+                                                                                                        <input type="hidden" name="entry_id" value="{{ form.instance.pk }}">
+                                                                                                        <textarea name="comments" placeholder="Comments (optional)" rows="1" class="form-control form-control-sm mb-1" style="width: 200px;"></textarea>
+                                                                                                        <button type="submit" class="btn btn-warning btn-sm">
+                                                                                                            <i class="fas fa-check"></i> Approve as Council Manager
+                                                                                                        </button>
+                                                                                                    </form>
+                                                                                                {% endif %}
+                                                                                            {% endif %}
+
+                                                                                            {% if form.instance.pk and form.instance.workflow_status == 'council_manager' %}
+                                                                                                {% if form.instance|can_approve_ricd_officer:user %}
+                                                                                                    <form method="post" action="{% url 'portal:enhanced_monthly_tracker' %}" class="d-inline">
+                                                                                                        {% csrf_token %}
+                                                                                                        <input type="hidden" name="action" value="approve_ricd_officer">
+                                                                                                        <input type="hidden" name="entry_id" value="{{ form.instance.pk }}">
+                                                                                                        <textarea name="comments" placeholder="Comments (optional)" rows="1" class="form-control form-control-sm mb-1" style="width: 200px;"></textarea>
+                                                                                                        <button type="submit" class="btn btn-info btn-sm">
+                                                                                                            <i class="fas fa-check-double"></i> Approve as RICD Officer
+                                                                                                        </button>
+                                                                                                    </form>
+                                                                                                {% endif %}
+                                                                                            {% endif %}
+                                                                                        </div>
+                                                                                    {% endif %}
+                                                                                </div>
+                                                                            </span>
+                                                                        {% else %}
+                                                                            <!-- No form available - show N/A or blank -->
+                                                                            {% if value_info.has_data %}
+                                                                                <!-- Has actual data but no form -->
+                                                                                <span class="text-success">{{ value_info.display }}</span>
+                                                                            {% else %}
+                                                                                <!-- No data and no form -->
+                                                                                {% if item.na_acceptable %}
+                                                                                    <span class="text-warning">N/A</span>
+                                                                                {% else %}
+                                                                                    <span class="text-muted">-</span>
+                                                                                {% endif %}
+                                                                            {% endif %}
+                                                                        {% endif %}
+                                                                    {% endwith %}
+                                                                {% endif %}
+                                                            {% endwith %}
+                                                        {% else %}
+                                                            <!-- Project without works -->
+                                                            <span class="text-muted">-</span>
+                                                        {% endif %}
+                                                    </td>
+                                                {% endfor %}
+                                            </tr>
+                                        {% endfor %}
+
+                                        <!-- Empty row for spacing between funding agreements -->
+                                        <tr>
+                                            <td colspan="{{ funding_agreements_data.total_columns }}" style="height: 20px; background-color: #f8f9fa;"></td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Table Statistics -->
+                        <div class="row mt-3">
+                            <div class="col-md-4">
+                                <div class="card border-info">
+                                    <div class="card-body text-center">
+                                        <h5 class="text-info">{{ funding_agreements_data.funding_groups|length }}</h5>
+                                        <p class="mb-0">Funding Agreements</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card border-success">
+                                    <div class="card-body text-center">
+                                        <h5 class="text-success">
+                                            {% widthratio funding_agreements_data.tracker_items|length funding_agreements_data.funding_groups|length 1 %}
+                                        </h5>
+                                        <p class="mb-0">Tracker Items</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card border-primary">
+                                    <div class="card-body text-center">
+                                        <h5 class="text-primary">
+                                            {% for group in funding_agreements_data.funding_groups %}
+                                                {{ group.works|length }}{% if not forloop.last %} + {% endif %}
+                                            {% empty %}0{% endfor %}
+                                        </h5>
+                                        <p class="mb-0">Total Works</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+<div class="d-flex justify-content-between align-items-center mt-3">
+    <div class="submission-status">
+        {% if user_council %}
+            <small class="text-muted">
+                <i class="fas fa-info-circle"></i>
+                {% if last_submission_info.has_submission %}
+                    Last submission: {{ last_submission_info.month }} ({{ last_submission_info.date|date:'d/m/Y' }})
+                {% else %}
+                    No previous submissions found
+                {% endif %}
+            </small>
+            <div class="alert alert-info alert-dismissible fade show mt-2">
+                <i class="fas fa-info-circle"></i>
+                <strong>Live Updates Enabled:</strong> You can update tracker data for any month at any time. {% if submission_deadline.days_until_deadline >= 0 %}Next deadline: {{ submission_deadline.deadline_date|date:'jS F' }} for {{ submission_deadline.previous_month|date:'F Y' }} data.{% else %}Previous month's data can still be updated.{% endif %}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endif %}
+    </div>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-secondary" id="reset-changes">
+            <i class="fas fa-undo"></i> Reset Changes
+        </button>
+        <button type="submit" class="btn btn-success" id="save-tracker-btn">
+            <i class="fas fa-save"></i> Save Tracker Values
+            <span class="spinner-border spinner-border-sm ms-2 d-none" role="status"></span>
+        </button>
+    </div>
+</div>
+
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-calendar-times fa-4x text-muted mb-3"></i>
+                            <h4 class="text-muted">No Active Projects Found</h4>
+                            <p class="text-muted">
+                                There are currently no projects in "Commenced" or "Under Construction" status
+                                {% if user_council %}for {{ user_council.name }}{% endif %}.
+                            </p>
+                            {% if is_ricd %}
+                                <a href="{% url 'portal:project_list' %}" class="btn btn-primary">
+                                    <i class="fas fa-plus"></i> View All Projects
+                                </a>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Freeze row and column styles */
+.sticky-top {
+    position: sticky;
+    top: 0;
+}
+
+.sticky-left {
+    position: sticky;
+}
+
+/* Ensure proper z-index layering */
+.sticky-left {
+    background-color: inherit;
+}
+
+/* Improve table appearance */
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.075);
+}
+
+.table-info {
+    background-color: #e3f2fd !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .sticky-left {
+        position: static;
+    }
+
+    .table-responsive {
+        max-height: none;
+        overflow: visible;
+    }
+}
+
+/* Custom scrollbar for table */
+.table-responsive::-webkit-scrollbar {
+    height: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+</style>
+
+<script>
+// Enhanced monthly tracker functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const tableContainer = document.querySelector('.table-responsive');
+    const saveButton = document.getElementById('save-tracker-btn');
+    const resetButton = document.getElementById('reset-changes');
+    const form = document.querySelector('form');
+
+    let hasUnsavedChanges = false;
+
+    // Add mouse wheel horizontal scrolling
+    tableContainer.addEventListener('wheel', function(e) {
+        if (e.deltaY !== 0 && e.shiftKey) {
+            e.preventDefault();
+            tableContainer.scrollLeft += e.deltaY;
+        }
+    });
+
+    // Add keyboard navigation
+    document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+            e.preventDefault();
+            const scrollAmount = 200;
+            if (e.key === 'ArrowLeft') {
+                tableContainer.scrollLeft -= scrollAmount;
+            } else {
+                tableContainer.scrollLeft += scrollAmount;
+            }
+        }
+    });
+
+    // Track form changes
+    function markAsChanged() {
+        if (!hasUnsavedChanges) {
+            hasUnsavedChanges = true;
+            saveButton.innerHTML = '<i class="fas fa-save"></i> Save Changes <span class="badge bg-warning text-dark ms-1">*</span>';
+            saveButton.classList.add('btn-warning');
+            saveButton.classList.remove('btn-success');
+        }
+    }
+
+    // Track form input changes
+    form.addEventListener('input', markAsChanged);
+    form.addEventListener('change', markAsChanged);
+
+    // Enhanced N/A checkbox interactivity
+    document.querySelectorAll('.tracker-entry').forEach(entry => {
+        const naCheckbox = entry.querySelector('[name$="na_value"]');
+        const valueInput = entry.querySelector('.value-input input, .value-input select, .value-input textarea');
+
+        if (naCheckbox && valueInput) {
+            // Initialize state
+            valueInput.disabled = naCheckbox.checked;
+
+            // N/A checkbox change handler
+            naCheckbox.addEventListener('change', function() {
+                valueInput.disabled = this.checked;
+                if (this.checked) {
+                    valueInput.value = '';
+                    valueInput.style.opacity = '0.5';
+                } else {
+                    valueInput.style.opacity = '1';
+                }
+                markAsChanged();
+            });
+
+            // Value input change handler
+            valueInput.addEventListener('change', function() {
+                if (this.value.trim() !== '') {
+                    naCheckbox.checked = false;
+                    naCheckbox.dispatchEvent(new Event('change'));
+                }
+                markAsChanged();
+            });
+
+            // Add visual feedback on focus
+            valueInput.addEventListener('focus', function() {
+                this.closest('td').classList.add('table-active');
+            });
+
+            valueInput.addEventListener('blur', function() {
+                this.closest('td').classList.remove('table-active');
+            });
+        }
+    });
+
+    // Save button functionality
+    saveButton.addEventListener('click', function(e) {
+        e.preventDefault();
+
+        // Show loading state
+        saveButton.disabled = true;
+        saveButton.querySelector('.spinner-border').classList.remove('d-none');
+        saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+        // Submit form
+        form.submit();
+    });
+
+    // Reset button functionality
+    resetButton.addEventListener('click', function() {
+        if (hasUnsavedChanges) {
+            if (confirm('Are you sure you want to reset all changes? This will reload the page and lose any unsaved data.')) {
+                location.reload();
+            }
+        } else {
+            location.reload();
+        }
+    });
+
+    // Auto-save functionality (optional - can be enabled later)
+    /*
+    let autoSaveTimer;
+    function startAutoSave() {
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = setTimeout(function() {
+            if (hasUnsavedChanges) {
+                // Auto-save logic here
+                console.log('Auto-saving...');
+            }
+        }, 30000); // 30 seconds
+    }
+
+    form.addEventListener('input', startAutoSave);
+    form.addEventListener('change', startAutoSave);
+    */
+
+    // Add submission deadline warning
+    function checkSubmissionDeadline() {
+        const today = new Date();
+        const currentDay = today.getDate();
+
+        if (currentDay > 8) {
+            const deadlineDate = new Date(today.getFullYear(), today.getMonth() + 1, 8);
+            const daysUntilDeadline = Math.ceil((deadlineDate - today) / (1000 * 60 * 60 * 24));
+
+            if (daysUntilDeadline <= 7) {
+                const deadlineAlert = document.createElement('div');
+                deadlineAlert.className = 'alert alert-warning alert-dismissible fade show mt-3';
+                deadlineAlert.innerHTML = `
+                    <i class="fas fa-clock"></i>
+                    <strong>Submission Deadline:</strong> You have ${daysUntilDeadline} days to submit the tracker for the previous month (due by 8th of the month).
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+
+                const formContainer = document.querySelector('.card-body');
+                formContainer.insertBefore(deadlineAlert, formContainer.firstChild);
+            }
+        }
+    }
+
+    // Check deadline on page load
+    checkSubmissionDeadline();
+
+    // Load last submission date
+    fetchLastSubmissionDate();
+
+    function fetchLastSubmissionDate() {
+        // This would typically be an AJAX call to get the last submission date
+        // For now, we'll simulate it
+        const lastSubmissionElement = document.getElementById('last-submission-date');
+        if (lastSubmissionElement) {
+            // Simulate loading
+            setTimeout(() => {
+                const today = new Date();
+                const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 15);
+                lastSubmissionElement.textContent = `(${lastMonth.toLocaleDateString('en-AU')})`;
+            }, 1000);
+        }
+    }
+
+    // Enhanced inline editing functionality
+    console.log('Initializing enhanced inline editing...');
+
+    // Function to make cells editable
+    function makeCellEditable(cell) {
+        console.log('Processing cell:', cell.textContent.trim());
+
+        // Skip if cell already has complex form structure
+        if (cell.querySelector('.tracker-entry')) {
+            console.log('Skipping cell with tracker-entry');
+            return;
+        }
+
+        // Get or create span wrapper
+        let span = cell.querySelector('span');
+        let originalText = cell.textContent.trim();
+
+        if (!span) {
+            // Create span wrapper for consistency
+            cell.innerHTML = `<span>${originalText}</span>`;
+            span = cell.querySelector('span');
+            console.log('Created span wrapper for:', originalText);
+        } else {
+            originalText = span.textContent.trim();
+        }
+
+        // Create edit button
+        const editBtn = document.createElement('button');
+        editBtn.textContent = '✏️';
+        editBtn.className = 'btn btn-sm btn-outline-secondary ms-1';
+        editBtn.title = 'Click to edit';
+        editBtn.type = 'button';
+        editBtn.style.fontSize = '12px';
+        editBtn.style.padding = '2px 6px';
+
+        console.log('Adding edit button to cell with text:', originalText);
+
+        // Add click handler
+        editBtn.onclick = function(e) {
+            e.preventDefault();
+            console.log('Edit button clicked for:', originalText);
+
+            // Determine input type based on column header
+            const table = cell.closest('table');
+            if (table) {
+                const cellIndex = Array.from(cell.parentNode.children).indexOf(cell);
+                const headerCell = table.querySelector(`thead th:nth-child(${cellIndex + 1})`);
+                let inputType = 'text';
+
+                if (headerCell && headerCell.textContent.includes('DD/MM/YYYY')) {
+                    inputType = 'date';
+                }
+
+                // Replace span with input
+                const input = document.createElement('input');
+                input.type = inputType;
+                input.value = originalText;
+                input.className = 'form-control form-control-sm d-inline-block';
+                input.style.width = '120px';
+                input.placeholder = 'Enter value...';
+
+                // Replace span with input
+                span.replaceWith(input);
+                input.focus();
+
+                // Create save button
+                const saveBtn = document.createElement('button');
+                saveBtn.textContent = '✓';
+                saveBtn.className = 'btn btn-sm btn-success ms-1';
+                saveBtn.title = 'Save changes';
+                saveBtn.type = 'button';
+
+                // Create cancel button
+                const cancelBtn = document.createElement('button');
+                cancelBtn.textContent = '✕';
+                cancelBtn.className = 'btn btn-sm btn-outline-secondary ms-1';
+                cancelBtn.title = 'Cancel';
+                cancelBtn.type = 'button';
+
+                // Add save handler
+                saveBtn.onclick = function(e) {
+                    e.preventDefault();
+                    const newValue = input.value.trim();
+                    console.log('Saving value:', newValue);
+
+                    // Update the display
+                    input.replaceWith(span);
+                    span.textContent = newValue;
+                    span.classList.add('text-success', 'fw-bold');
+
+                    // Remove buttons
+                    saveBtn.remove();
+                    cancelBtn.remove();
+                    editBtn.style.display = 'inline-block';
+
+                    // Mark as changed
+                    markAsChanged();
+
+                    console.log('Cell updated successfully:', newValue);
+                };
+
+                // Add cancel handler
+                cancelBtn.onclick = function(e) {
+                    e.preventDefault();
+                    console.log('Cancelling edit');
+
+                    input.replaceWith(span);
+                    saveBtn.remove();
+                    cancelBtn.remove();
+                    editBtn.style.display = 'inline-block';
+                };
+
+                // Add buttons after input
+                input.parentNode.appendChild(saveBtn);
+                input.parentNode.appendChild(cancelBtn);
+
+                // Hide edit button temporarily
+                editBtn.style.display = 'none';
+
+                // Handle keyboard shortcuts
+                input.onkeydown = function(e) {
+                    if (e.key === 'Enter') {
+                        saveBtn.click();
+                    } else if (e.key === 'Escape') {
+                        cancelBtn.click();
+                    }
+                };
+            }
+        };
+
+        // Add edit button to cell
+        cell.appendChild(editBtn);
+        console.log('Edit button added successfully');
+    }
+
+    // Initialize inline editing for ALL data cells
+    console.log('Starting inline editing initialization...');
+
+    document.querySelectorAll('td.text-center').forEach(cell => {
+        console.log('Found cell:', cell.textContent.trim());
+
+        // Skip header cells
+        if (cell.closest('thead')) {
+            console.log('Skipping header cell');
+            return;
+        }
+
+        // Skip cells that already have complex forms
+        if (cell.querySelector('.tracker-entry')) {
+            console.log('Skipping cell with tracker-entry');
+            return;
+        }
+
+        // Skip cells with no meaningful content
+        const content = cell.textContent.trim();
+        if (content === '' || content === 'No works defined yet') {
+            console.log('Skipping empty or irrelevant cell');
+            return;
+        }
+
+        console.log('Making cell editable:', content);
+
+        // Create a span wrapper if one doesn't exist
+        let span = cell.querySelector('span');
+        if (!span) {
+            // Wrap cell content in span for consistency
+            cell.innerHTML = `<span>${content}</span>`;
+            span = cell.querySelector('span');
+        }
+
+        // Make this cell editable
+        makeCellEditable(cell);
+    });
+
+    console.log('Inline editing initialization complete');
+
+    console.log('Enhanced inline editing initialized');
+});
+
+</script>
+{% endblock %}

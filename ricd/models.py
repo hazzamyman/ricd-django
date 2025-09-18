@@ -356,6 +356,9 @@ class Project(models.Model):
     objects = ProjectManager()
     varied_outputs = models.PositiveIntegerField(default=0, help_text="Number of outputs varied")
 
+    # Progress field
+    progress_percentage = models.IntegerField(default=0, help_text="Overall progress percentage")
+
     # Indexes for performance
     class Meta:
         indexes = [
@@ -428,6 +431,17 @@ class Project(models.Model):
         if self.funding_schedule and self.funding_schedule.first_release_date:
             return str(self.funding_schedule.first_release_date.year)
         return str(timezone.now().year)
+
+    def get_progress_class(self):
+        """Return CSS class for progress bar color based on progress percentage"""
+        if self.progress_percentage >= 75:
+            return 'progress-bar-success'
+        elif self.progress_percentage >= 50:
+            return 'progress-bar-info'
+        elif self.progress_percentage >= 25:
+            return 'progress-bar-warning'
+        else:
+            return 'progress-bar-danger'
 
     def save(self, *args, **kwargs):
         # Pre-populate officers from council defaults for new projects
@@ -608,6 +622,9 @@ class Work(models.Model):
         help_text="Construction method used for this work"
     )
 
+    # Progress field
+    progress_percentage = models.IntegerField(default=0, help_text="Progress percentage for this work")
+
     @property
     def total_dwellings(self):
         # Simplified: for duplex/triplex, multiply
@@ -651,6 +668,17 @@ class Work(models.Model):
     def project(self):
         """Get project through associated address"""
         return self.address.project
+
+    def get_progress_class(self):
+        """Return CSS class for progress bar color based on progress percentage"""
+        if self.progress_percentage >= 75:
+            return 'progress-bar-success'
+        elif self.progress_percentage >= 50:
+            return 'progress-bar-info'
+        elif self.progress_percentage >= 25:
+            return 'progress-bar-warning'
+        else:
+            return 'progress-bar-danger'
 
     def __str__(self):
         return f"{self.work_type_id.name if self.work_type_id else 'No work type'} - {self.output_type_id.name if self.output_type_id else 'No output type'} ({self.address})"
@@ -1744,3 +1772,596 @@ class RemoteCapitalProgramFundingAgreement(BaseAgreement):
     class Meta:
         verbose_name = "Remote Capital Program Funding Agreement"
         verbose_name_plural = "Remote Capital Program Funding Agreements"
+
+
+# Enhanced Reporting System Models
+
+class MonthlyTrackerItem(models.Model):
+    """Configurable monthly tracker items with different data types"""
+
+    DATA_TYPE_CHOICES = [
+        ('date', 'Date'),
+        ('checkbox', 'Checkbox'),
+        ('text', 'Text Input'),
+        ('number', 'Number'),
+        ('currency', 'Currency'),
+        ('dropdown', 'Dropdown'),
+    ]
+
+    name = models.CharField(max_length=255, help_text="Display name for the tracker item")
+    description = models.TextField(blank=True, null=True, help_text="Description of what this tracker item measures")
+    data_type = models.CharField(
+        max_length=20,
+        choices=DATA_TYPE_CHOICES,
+        default='date',
+        help_text="Type of data this tracker item collects"
+    )
+
+    # Dropdown options for dropdown data type
+    dropdown_options = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Comma-separated list of options for dropdown type (e.g., 'Yes,No,N/A')"
+    )
+
+    # Validation settings
+    required = models.BooleanField(default=False, help_text="Whether this field is required")
+    na_acceptable = models.BooleanField(default=True, help_text="Whether N/A is an acceptable value")
+
+    # Ordering
+    order = models.PositiveIntegerField(default=1, help_text="Display order in reports")
+
+    # Status
+    is_active = models.BooleanField(default=True, help_text="Whether this tracker item is active")
+    created_date = models.DateTimeField(auto_now_add=True)
+    updated_date = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order', 'name']
+        verbose_name = "Monthly Tracker Item"
+        verbose_name_plural = "Monthly Tracker Items"
+
+    def __str__(self):
+        return f"{self.name} ({self.get_data_type_display()})"
+
+    def get_dropdown_options_list(self):
+        """Return dropdown options as a list"""
+        if self.dropdown_options:
+            return [option.strip() for option in self.dropdown_options.split(',')]
+        return []
+
+
+class MonthlyTrackerItemGroup(models.Model):
+    """Groups of monthly tracker items that can be applied together"""
+
+    name = models.CharField(max_length=255, help_text="Name of the tracker item group")
+    description = models.TextField(blank=True, null=True, help_text="Description of this group")
+    tracker_items = models.ManyToManyField(
+        MonthlyTrackerItem,
+        related_name='groups',
+        help_text="Tracker items included in this group"
+    )
+
+    # Status
+    is_active = models.BooleanField(default=True, help_text="Whether this group is active")
+    created_date = models.DateTimeField(auto_now_add=True)
+    updated_date = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = "Monthly Tracker Item Group"
+        verbose_name_plural = "Monthly Tracker Item Groups"
+
+    def __str__(self):
+        return self.name
+
+
+class QuarterlyReportItem(models.Model):
+    """Configurable quarterly report items with different data types"""
+
+    DATA_TYPE_CHOICES = [
+        ('number', 'Number'),
+        ('currency', 'Currency'),
+        ('text', 'Text Input'),
+        ('checkbox', 'Checkbox'),
+        ('date', 'Date'),
+        ('dropdown', 'Dropdown'),
+        ('yes_no', 'Yes/No'),
+    ]
+
+    name = models.CharField(max_length=255, help_text="Display name for the report item")
+    description = models.TextField(blank=True, null=True, help_text="Description of what this report item measures")
+    data_type = models.CharField(
+        max_length=20,
+        choices=DATA_TYPE_CHOICES,
+        default='number',
+        help_text="Type of data this report item collects"
+    )
+
+    # Dropdown options for dropdown data type
+    dropdown_options = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Comma-separated list of options for dropdown type"
+    )
+
+    # Validation settings
+    required = models.BooleanField(default=False, help_text="Whether this field is required")
+    na_acceptable = models.BooleanField(default=True, help_text="Whether N/A is an acceptable value")
+
+    # Ordering
+    order = models.PositiveIntegerField(default=1, help_text="Display order in reports")
+
+    # Status
+    is_active = models.BooleanField(default=True, help_text="Whether this report item is active")
+    created_date = models.DateTimeField(auto_now_add=True)
+    updated_date = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order', 'name']
+        verbose_name = "Quarterly Report Item"
+        verbose_name_plural = "Quarterly Report Items"
+
+    def __str__(self):
+        return f"{self.name} ({self.get_data_type_display()})"
+
+    def get_dropdown_options_list(self):
+        """Return dropdown options as a list"""
+        if self.dropdown_options:
+            return [option.strip() for option in self.dropdown_options.split(',')]
+        return []
+
+
+class QuarterlyReportItemGroup(models.Model):
+    """Groups of quarterly report items that can be applied together"""
+
+    name = models.CharField(max_length=255, help_text="Name of the report item group")
+    description = models.TextField(blank=True, null=True, help_text="Description of this group")
+    report_items = models.ManyToManyField(
+        QuarterlyReportItem,
+        related_name='groups',
+        help_text="Report items included in this group"
+    )
+
+    # Status
+    is_active = models.BooleanField(default=True, help_text="Whether this group is active")
+    created_date = models.DateTimeField(auto_now_add=True)
+    updated_date = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = "Quarterly Report Item Group"
+        verbose_name_plural = "Quarterly Report Item Groups"
+
+    def __str__(self):
+        return self.name
+
+
+class Stage1Step(models.Model):
+    """Configurable Stage 1 steps for project completion"""
+
+    name = models.CharField(max_length=255, help_text="Name of the Stage 1 step")
+    description = models.TextField(blank=True, null=True, help_text="Detailed description of this step")
+    required_evidence = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Description of evidence required for this step"
+    )
+
+    # Document requirements
+    document_required = models.BooleanField(
+        default=False,
+        help_text="Whether a document upload is required for this step"
+    )
+    document_description = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Description of what document should be uploaded"
+    )
+
+    # Ordering
+    order = models.PositiveIntegerField(default=1, help_text="Display order in reports")
+
+    # Status
+    is_active = models.BooleanField(default=True, help_text="Whether this step is active")
+    created_date = models.DateTimeField(auto_now_add=True)
+    updated_date = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order', 'name']
+        verbose_name = "Stage 1 Step"
+        verbose_name_plural = "Stage 1 Steps"
+
+    def __str__(self):
+        return self.name
+
+
+class Stage1StepGroup(models.Model):
+    """Groups of Stage 1 steps that can be applied together"""
+
+    name = models.CharField(max_length=255, help_text="Name of the step group")
+    description = models.TextField(blank=True, null=True, help_text="Description of this group")
+    steps = models.ManyToManyField(
+        Stage1Step,
+        related_name='groups',
+        help_text="Steps included in this group"
+    )
+
+    # Status
+    is_active = models.BooleanField(default=True, help_text="Whether this group is active")
+    created_date = models.DateTimeField(auto_now_add=True)
+    updated_date = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = "Stage 1 Step Group"
+        verbose_name_plural = "Stage 1 Step Groups"
+
+    def __str__(self):
+        return self.name
+
+
+class Stage2Step(models.Model):
+    """Configurable Stage 2 steps for project completion"""
+
+    name = models.CharField(max_length=255, help_text="Name of the Stage 2 step")
+    description = models.TextField(blank=True, null=True, help_text="Detailed description of this step")
+    required_evidence = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Description of evidence required for this step"
+    )
+
+    # Document requirements
+    document_required = models.BooleanField(
+        default=False,
+        help_text="Whether a document upload is required for this step"
+    )
+    document_description = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Description of what document should be uploaded"
+    )
+
+    # Ordering
+    order = models.PositiveIntegerField(default=1, help_text="Display order in reports")
+
+    # Status
+    is_active = models.BooleanField(default=True, help_text="Whether this step is active")
+    created_date = models.DateTimeField(auto_now_add=True)
+    updated_date = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order', 'name']
+        verbose_name = "Stage 2 Step"
+        verbose_name_plural = "Stage 2 Steps"
+
+    def __str__(self):
+        return self.name
+
+
+class Stage2StepGroup(models.Model):
+    """Groups of Stage 2 steps that can be applied together"""
+
+    name = models.CharField(max_length=255, help_text="Name of the step group")
+    description = models.TextField(blank=True, null=True, help_text="Description of this group")
+    steps = models.ManyToManyField(
+        Stage2Step,
+        related_name='groups',
+        help_text="Steps included in this group"
+    )
+
+    # Status
+    is_active = models.BooleanField(default=True, help_text="Whether this group is active")
+    created_date = models.DateTimeField(auto_now_add=True)
+    updated_date = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = "Stage 2 Step Group"
+        verbose_name_plural = "Stage 2 Step Groups"
+
+    def __str__(self):
+        return self.name
+
+
+# Enhanced Monthly Tracker Entry Model
+class MonthlyTrackerEntry(models.Model):
+    """Individual entry for a monthly tracker item"""
+
+    WORKFLOW_STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('council_manager', 'Pending Council Manager Approval'),
+        ('ricd_officer', 'Pending RICD Officer Approval'),
+        ('approved', 'Approved'),
+    ]
+
+    monthly_tracker = models.ForeignKey(
+        MonthlyTracker,
+        on_delete=models.CASCADE,
+        related_name='entries'
+    )
+    tracker_item = models.ForeignKey(
+        MonthlyTrackerItem,
+        on_delete=models.CASCADE,
+        related_name='entries'
+    )
+
+    # Value storage - using JSON to handle different data types
+    value = models.JSONField(
+        blank=True,
+        null=True,
+        help_text="Value for this tracker item entry"
+    )
+
+    # For file uploads if needed
+    supporting_document = models.FileField(
+        upload_to="reports/monthly_tracker/%Y/%m/",
+        blank=True,
+        null=True,
+        help_text="Supporting document for this entry"
+    )
+
+    # Workflow status
+    workflow_status = models.CharField(
+        max_length=20,
+        choices=WORKFLOW_STATUS_CHOICES,
+        default='draft',
+        help_text="Current workflow status of this entry"
+    )
+
+    # Council Manager approval fields
+    council_manager_approved = models.BooleanField(default=False, help_text="Council Manager approval status")
+    council_manager_approved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='council_manager_approvals',
+        help_text="Council Manager who approved this entry"
+    )
+    council_manager_approved_date = models.DateTimeField(null=True, blank=True, help_text="Date of Council Manager approval")
+    council_manager_comments = models.TextField(blank=True, null=True, help_text="Council Manager comments")
+
+    # RICD Officer approval fields
+    ricd_officer_approved = models.BooleanField(default=False, help_text="RICD Officer approval status")
+    ricd_officer_approved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ricd_officer_approvals',
+        help_text="RICD Officer who approved this entry"
+    )
+    ricd_officer_approved_date = models.DateTimeField(null=True, blank=True, help_text="Date of RICD Officer approval")
+    ricd_officer_comments = models.TextField(blank=True, null=True, help_text="RICD Officer comments")
+
+    created_date = models.DateTimeField(auto_now_add=True)
+    updated_date = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ['monthly_tracker', 'tracker_item']
+        verbose_name = "Monthly Tracker Entry"
+        verbose_name_plural = "Monthly Tracker Entries"
+
+    def __str__(self):
+        return f"{self.monthly_tracker} - {self.tracker_item}"
+
+    def can_approve_council_manager(self, user):
+        """Check if user can approve as Council Manager"""
+        if not user.is_authenticated:
+            return False
+        # Check if user is Council Manager for this council
+        if hasattr(user, 'profile') and user.profile.council == self.monthly_tracker.work.project.council:
+            return user.profile.council_role == 'manager'
+        return False
+
+    def can_approve_ricd_officer(self, user):
+        """Check if user can approve as RICD Officer"""
+        if not user.is_authenticated:
+            return False
+        # Check if user is RICD staff/manager
+        return user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists()
+
+    def approve_council_manager(self, user, comments=None):
+        """Approve as Council Manager"""
+        if self.can_approve_council_manager(user):
+            self.workflow_status = 'ricd_officer'
+            self.council_manager_approved = True
+            self.council_manager_approved_by = user
+            self.council_manager_approved_date = timezone.now()
+            if comments:
+                self.council_manager_comments = comments
+            self.save()
+
+    def approve_ricd_officer(self, user, comments=None):
+        """Approve as RICD Officer"""
+        if self.can_approve_ricd_officer(user):
+            self.workflow_status = 'approved'
+            self.ricd_officer_approved = True
+            self.ricd_officer_approved_by = user
+            self.ricd_officer_approved_date = timezone.now()
+            if comments:
+                self.ricd_officer_comments = comments
+            self.save()
+
+
+# Enhanced Quarterly Report Item Entry Model
+class QuarterlyReportItemEntry(models.Model):
+    """Individual entry for a quarterly report item"""
+
+    quarterly_report = models.ForeignKey(
+        QuarterlyReport,
+        on_delete=models.CASCADE,
+        related_name='item_entries'
+    )
+    report_item = models.ForeignKey(
+        QuarterlyReportItem,
+        on_delete=models.CASCADE,
+        related_name='entries'
+    )
+
+    # Value storage - using JSON to handle different data types
+    value = models.JSONField(
+        blank=True,
+        null=True,
+        help_text="Value for this report item entry"
+    )
+
+    # For file uploads if needed
+    supporting_document = models.FileField(
+        upload_to="reports/quarterly/%Y/%m/",
+        blank=True,
+        null=True,
+        help_text="Supporting document for this entry"
+    )
+
+    created_date = models.DateTimeField(auto_now_add=True)
+    updated_date = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ['quarterly_report', 'report_item']
+        verbose_name = "Quarterly Report Item Entry"
+        verbose_name_plural = "Quarterly Report Item Entries"
+
+    def __str__(self):
+        return f"{self.quarterly_report} - {self.report_item}"
+
+
+# Enhanced Stage 1 Step Completion Model
+class Stage1StepCompletion(models.Model):
+    """Completion status for Stage 1 steps"""
+
+    stage1_report = models.ForeignKey(
+        Stage1Report,
+        on_delete=models.CASCADE,
+        related_name='step_completions'
+    )
+    step = models.ForeignKey(
+        Stage1Step,
+        on_delete=models.CASCADE,
+        related_name='completions'
+    )
+
+    completed = models.BooleanField(default=False, help_text="Whether this step is completed")
+    completed_date = models.DateField(blank=True, null=True, help_text="Date when step was completed")
+    evidence_notes = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Notes about evidence provided for this step"
+    )
+
+    # Supporting documents
+    supporting_document = models.FileField(
+        upload_to="reports/stage1/%Y/%m/",
+        blank=True,
+        null=True,
+        help_text="Supporting document for this step"
+    )
+
+    created_date = models.DateTimeField(auto_now_add=True)
+    updated_date = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ['stage1_report', 'step']
+        verbose_name = "Stage 1 Step Completion"
+        verbose_name_plural = "Stage 1 Step Completions"
+
+    def __str__(self):
+        return f"{self.stage1_report} - {self.step}"
+
+
+# Enhanced Stage 2 Step Completion Model
+class Stage2StepCompletion(models.Model):
+    """Completion status for Stage 2 steps"""
+
+    stage2_report = models.ForeignKey(
+        Stage2Report,
+        on_delete=models.CASCADE,
+        related_name='step_completions'
+    )
+    step = models.ForeignKey(
+        Stage2Step,
+        on_delete=models.CASCADE,
+        related_name='completions'
+    )
+
+    completed = models.BooleanField(default=False, help_text="Whether this step is completed")
+    completed_date = models.DateField(blank=True, null=True, help_text="Date when step was completed")
+    evidence_notes = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Notes about evidence provided for this step"
+    )
+
+    # Supporting documents
+    supporting_document = models.FileField(
+        upload_to="reports/stage2/%Y/%m/",
+        blank=True,
+        null=True,
+        help_text="Supporting document for this step"
+    )
+
+    created_date = models.DateTimeField(auto_now_add=True)
+    updated_date = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ['stage2_report', 'step']
+        verbose_name = "Stage 2 Step Completion"
+        verbose_name_plural = "Stage 2 Step Completions"
+
+    def __str__(self):
+        return f"{self.stage2_report} - {self.step}"
+
+
+# Project Report Configuration Model
+class ProjectReportConfiguration(models.Model):
+    """Configuration for which report items and groups apply to specific projects"""
+
+    project = models.OneToOneField(
+        Project,
+        on_delete=models.CASCADE,
+        related_name='report_configuration'
+    )
+
+    # Monthly tracker configuration
+    monthly_tracker_groups = models.ManyToManyField(
+        MonthlyTrackerItemGroup,
+        blank=True,
+        related_name='project_configurations',
+        help_text="Monthly tracker item groups applicable to this project"
+    )
+
+    # Quarterly report configuration
+    quarterly_report_groups = models.ManyToManyField(
+        QuarterlyReportItemGroup,
+        blank=True,
+        related_name='project_configurations',
+        help_text="Quarterly report item groups applicable to this project"
+    )
+
+    # Stage 1 configuration
+    stage1_step_groups = models.ManyToManyField(
+        Stage1StepGroup,
+        blank=True,
+        related_name='project_configurations',
+        help_text="Stage 1 step groups applicable to this project"
+    )
+
+    # Stage 2 configuration
+    stage2_step_groups = models.ManyToManyField(
+        Stage2StepGroup,
+        blank=True,
+        related_name='project_configurations',
+        help_text="Stage 2 step groups applicable to this project"
+    )
+
+    created_date = models.DateTimeField(auto_now_add=True)
+    updated_date = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Project Report Configuration"
+        verbose_name_plural = "Project Report Configurations"
+
+    def __str__(self):
+        return f"Report Configuration for {self.project}"

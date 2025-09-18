@@ -4,7 +4,10 @@ from ricd.models import (
     Project, FundingSchedule, QuarterlyReport, MonthlyTracker,
     Stage1Report, Stage2Report, Work, ReportAttachment, Council, Program, Address,
     WorkType, OutputType, ConstructionMethod, Officer, ForwardRemoteProgramFundingAgreement,
-    InterimForwardProgramFundingAgreement, RemoteCapitalProgramFundingAgreement, FundingApproval, Defect, UserProfile
+    InterimForwardProgramFundingAgreement, RemoteCapitalProgramFundingAgreement, FundingApproval, Defect, UserProfile,
+    MonthlyTrackerItem, MonthlyTrackerItemGroup, QuarterlyReportItem, QuarterlyReportItemGroup,
+    Stage1Step, Stage1StepGroup, Stage2Step, Stage2StepGroup, ProjectReportConfiguration,
+    MonthlyTrackerEntry, QuarterlyReportItemEntry, Stage1StepCompletion, Stage2StepCompletion
 )
 from django.utils import timezone
 
@@ -2577,3 +2580,519 @@ class ProjectFieldVisibilityForm(forms.Form):
                     )
 
         return True
+
+
+# Enhanced Reporting Forms
+
+class MonthlyTrackerItemForm(forms.ModelForm):
+    """Form for creating and editing monthly tracker items"""
+
+    class Meta:
+        model = MonthlyTrackerItem
+        fields = [
+            'name', 'description', 'data_type', 'dropdown_options',
+            'required', 'na_acceptable', 'order', 'is_active'
+        ]
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter tracker item name'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Describe what this tracker item measures'
+            }),
+            'data_type': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'dropdown_options': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 2,
+                'placeholder': 'Comma-separated options (e.g., Yes,No,N/A)'
+            }),
+            'required': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'na_acceptable': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'order': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 1
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+        }
+
+
+class MonthlyTrackerItemGroupForm(forms.ModelForm):
+    """Form for creating and editing monthly tracker item groups"""
+
+    tracker_items = forms.ModelMultipleChoiceField(
+        queryset=MonthlyTrackerItem.objects.filter(is_active=True),
+        widget=forms.SelectMultiple(attrs={
+            'class': 'form-select',
+            'style': 'width: 100%;'
+        }),
+        required=False,
+        help_text="Select the tracker items to include in this group"
+    )
+
+    class Meta:
+        model = MonthlyTrackerItemGroup
+        fields = ['name', 'description', 'tracker_items', 'is_active']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter group name'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Describe this group of tracker items'
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+        }
+
+
+class QuarterlyReportItemForm(forms.ModelForm):
+    """Form for creating and editing quarterly report items"""
+
+    class Meta:
+        model = QuarterlyReportItem
+        fields = [
+            'name', 'description', 'data_type', 'dropdown_options',
+            'required', 'na_acceptable', 'order', 'is_active'
+        ]
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter report item name'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Describe what this report item measures'
+            }),
+            'data_type': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'dropdown_options': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 2,
+                'placeholder': 'Comma-separated options (e.g., Yes,No,N/A)'
+            }),
+            'required': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'na_acceptable': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'order': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 1
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+        }
+
+
+class QuarterlyReportItemGroupForm(forms.ModelForm):
+    """Form for creating and editing quarterly report item groups"""
+
+    report_items = forms.ModelMultipleChoiceField(
+        queryset=QuarterlyReportItem.objects.filter(is_active=True),
+        widget=forms.SelectMultiple(attrs={
+            'class': 'form-select',
+            'style': 'width: 100%;'
+        }),
+        required=False,
+        help_text="Select the report items to include in this group"
+    )
+
+    class Meta:
+        model = QuarterlyReportItemGroup
+        fields = ['name', 'description', 'report_items', 'is_active']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter group name'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Describe this group of report items'
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+        }
+
+
+class Stage1StepForm(forms.ModelForm):
+    """Form for creating and editing Stage 1 steps"""
+
+    class Meta:
+        model = Stage1Step
+        fields = [
+            'name', 'description', 'required_evidence', 'document_required',
+            'document_description', 'order', 'is_active'
+        ]
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter step name'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Describe this stage 1 step'
+            }),
+            'required_evidence': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Describe evidence required for this step'
+            }),
+            'document_required': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'document_description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 2,
+                'placeholder': 'Describe what document should be uploaded'
+            }),
+            'order': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 1
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+        }
+
+
+class Stage1StepGroupForm(forms.ModelForm):
+    """Form for creating and editing Stage 1 step groups"""
+
+    steps = forms.ModelMultipleChoiceField(
+        queryset=Stage1Step.objects.filter(is_active=True),
+        widget=forms.SelectMultiple(attrs={
+            'class': 'form-select',
+            'style': 'width: 100%;'
+        }),
+        required=False,
+        help_text="Select the steps to include in this group"
+    )
+
+    class Meta:
+        model = Stage1StepGroup
+        fields = ['name', 'description', 'steps', 'is_active']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter group name'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Describe this group of steps'
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+        }
+
+
+class Stage2StepForm(forms.ModelForm):
+    """Form for creating and editing Stage 2 steps"""
+
+    class Meta:
+        model = Stage2Step
+        fields = [
+            'name', 'description', 'required_evidence', 'document_required',
+            'document_description', 'order', 'is_active'
+        ]
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter step name'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Describe this stage 2 step'
+            }),
+            'required_evidence': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Describe evidence required for this step'
+            }),
+            'document_required': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'document_description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 2,
+                'placeholder': 'Describe what document should be uploaded'
+            }),
+            'order': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 1
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+        }
+
+
+class Stage2StepGroupForm(forms.ModelForm):
+    """Form for creating and editing Stage 2 step groups"""
+
+    steps = forms.ModelMultipleChoiceField(
+        queryset=Stage2Step.objects.filter(is_active=True),
+        widget=forms.SelectMultiple(attrs={
+            'class': 'form-select',
+            'style': 'width: 100%;'
+        }),
+        required=False,
+        help_text="Select the steps to include in this group"
+    )
+
+    class Meta:
+        model = Stage2StepGroup
+        fields = ['name', 'description', 'steps', 'is_active']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter group name'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Describe this group of steps'
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+        }
+
+
+class ProjectReportConfigurationForm(forms.ModelForm):
+    """Form for configuring report items and groups for a specific project"""
+
+    monthly_tracker_groups = forms.ModelMultipleChoiceField(
+        queryset=MonthlyTrackerItemGroup.objects.filter(is_active=True),
+        widget=forms.SelectMultiple(attrs={
+            'class': 'form-select',
+            'style': 'width: 100%;'
+        }),
+        required=False,
+        help_text="Select monthly tracker item groups for this project"
+    )
+
+    quarterly_report_groups = forms.ModelMultipleChoiceField(
+        queryset=QuarterlyReportItemGroup.objects.filter(is_active=True),
+        widget=forms.SelectMultiple(attrs={
+            'class': 'form-select',
+            'style': 'width: 100%;'
+        }),
+        required=False,
+        help_text="Select quarterly report item groups for this project"
+    )
+
+    stage1_step_groups = forms.ModelMultipleChoiceField(
+        queryset=Stage1StepGroup.objects.filter(is_active=True),
+        widget=forms.SelectMultiple(attrs={
+            'class': 'form-select',
+            'style': 'width: 100%;'
+        }),
+        required=False,
+        help_text="Select Stage 1 step groups for this project"
+    )
+
+    stage2_step_groups = forms.ModelMultipleChoiceField(
+        queryset=Stage2StepGroup.objects.filter(is_active=True),
+        widget=forms.SelectMultiple(attrs={
+            'class': 'form-select',
+            'style': 'width: 100%;'
+        }),
+        required=False,
+        help_text="Select Stage 2 step groups for this project"
+    )
+
+    class Meta:
+        model = ProjectReportConfiguration
+        fields = [
+            'monthly_tracker_groups', 'quarterly_report_groups',
+            'stage1_step_groups', 'stage2_step_groups'
+        ]
+
+
+class MonthlyTrackerEntryForm(forms.ModelForm):
+    """Dynamic form for individual monthly tracker item entries with data type-specific fields"""
+
+    class Meta:
+        model = MonthlyTrackerEntry
+        fields = ['supporting_document']
+        widgets = {
+            'supporting_document': forms.FileInput(attrs={
+                'class': 'form-control'
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Remove the value field from Meta fields so we can dynamically create it
+        if 'value' in self.fields:
+            del self.fields['value']
+            
+        if self.instance and self.instance.tracker_item:
+            tracker_item = self.instance.tracker_item
+            data_type = tracker_item.data_type
+            required = tracker_item.required and not tracker_item.na_acceptable
+            
+            # Create appropriate field based on data type
+            if data_type == 'date':
+                self.fields['value'] = forms.DateField(
+                    required=required,
+                    widget=forms.DateInput(attrs={
+                        'type': 'date',
+                        'class': 'form-control'
+                    }),
+                    label=tracker_item.name
+                )
+            elif data_type == 'checkbox':
+                self.fields['value'] = forms.BooleanField(
+                    required=False,
+                    widget=forms.CheckboxInput(attrs={
+                        'class': 'form-check-input'
+                    }),
+                    label=tracker_item.name,
+                    initial=False
+                )
+            elif data_type == 'text':
+                self.fields['value'] = forms.CharField(
+                    required=required,
+                    widget=forms.TextInput(attrs={
+                        'class': 'form-control',
+                        'placeholder': f'Enter {tracker_item.name.lower()}'
+                    }),
+                    label=tracker_item.name
+                )
+            elif data_type in ['number', 'currency']:
+                self.fields['value'] = forms.DecimalField(
+                    required=required,
+                    widget=forms.NumberInput(attrs={
+                        'class': 'form-control',
+                        'step': 'any'
+                    }),
+                    label=tracker_item.name
+                )
+            elif data_type == 'dropdown':
+                choices = [(opt, opt) for opt in tracker_item.get_dropdown_options_list()]
+                if tracker_item.na_acceptable:
+                    choices.append(('N/A', 'N/A'))
+                self.fields['value'] = forms.ChoiceField(
+                    choices=choices,
+                    required=required,
+                    widget=forms.Select(attrs={
+                        'class': 'form-select'
+                    }),
+                    label=tracker_item.name
+                )
+            
+            # Add N/A checkbox if applicable
+            if tracker_item.na_acceptable and data_type != 'dropdown':
+                self.fields['na_value'] = forms.BooleanField(
+                    required=False,
+                    label='N/A',
+                    widget=forms.CheckboxInput(attrs={
+                        'class': 'form-check-input na-checkbox',
+                        'data-target': f'id_value_{self.instance.id}'
+                    }),
+                    initial=(self.instance.value == 'N/A')
+                )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        tracker_item = self.instance.tracker_item if self.instance else None
+        
+        if tracker_item and tracker_item.na_acceptable:
+            na_value = cleaned_data.get('na_value', False)
+            if na_value:
+                cleaned_data['value'] = 'N/A'
+                
+        return cleaned_data
+
+
+class QuarterlyReportItemEntryForm(forms.ModelForm):
+    """Form for individual quarterly report item entries"""
+
+    class Meta:
+        model = QuarterlyReportItemEntry
+        fields = ['value', 'supporting_document']
+        widgets = {
+            'value': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter value'
+            }),
+            'supporting_document': forms.FileInput(attrs={
+                'class': 'form-control'
+            }),
+        }
+
+
+class Stage1StepCompletionForm(forms.ModelForm):
+    """Form for Stage 1 step completion"""
+
+    class Meta:
+        model = Stage1StepCompletion
+        fields = ['completed', 'completed_date', 'evidence_notes', 'supporting_document']
+        widgets = {
+            'completed': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'completed_date': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+            'evidence_notes': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Notes about evidence provided'
+            }),
+            'supporting_document': forms.FileInput(attrs={
+                'class': 'form-control'
+            }),
+        }
+
+
+class Stage2StepCompletionForm(forms.ModelForm):
+    """Form for Stage 2 step completion"""
+
+    class Meta:
+        model = Stage2StepCompletion
+        fields = ['completed', 'completed_date', 'evidence_notes', 'supporting_document']
+        widgets = {
+            'completed': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'completed_date': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+            'evidence_notes': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Notes about evidence provided'
+            }),
+            'supporting_document': forms.FileInput(attrs={
+                'class': 'form-control'
+            }),
+        }
