@@ -1,7 +1,8 @@
 from django import forms
 from ricd.models import (
     Project, Work, Address, WorkType, OutputType, ConstructionMethod,
-    FundingSchedule, ForwardRemoteProgramFundingAgreement, InterimForwardProgramFundingAgreement
+    FundingSchedule, ForwardRemoteProgramFundingAgreement, InterimForwardProgramFundingAgreement,
+    Council, Officer
 )
 
 
