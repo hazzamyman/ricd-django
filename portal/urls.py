@@ -19,8 +19,10 @@ urlpatterns = [
     # Report submission URLs
     path('reports/monthly/', views.MonthlyReportView.as_view(), name='monthly_report'),
     path('reports/quarterly/', views.QuarterlyReportView.as_view(), name='quarterly_report'),
-    path('reports/stage1/', views.Stage1ReportView.as_view(), name='stage1_report'),
-    path('reports/stage2/', views.Stage2ReportView.as_view(), name='stage2_report'),
+    # path('reports/stage1/', views.Stage1ReportView.as_view(), name='stage1_report'),
+    # path('reports/stage1/project/<int:project_pk>/', views.Stage1ReportView.as_view(), name='project_stage1_report'),
+    # path('reports/stage2/', views.Stage2ReportView.as_view(), name='stage2_report'),
+    # path('reports/stage2/project/<int:project_pk>/', views.Stage2ReportView.as_view(), name='project_stage2_report'),
 
     # Council CRUD URLs
     path('councils/', views.CouncilListView.as_view(), name='council_list'),
@@ -174,6 +176,9 @@ urlpatterns = [
 
     # Project Report Configuration
     path('projects/<int:pk>/report-configuration/', views.ProjectReportConfigurationView.as_view(), name='project_report_configuration'),
+
+    # Site Configuration
+    path('maintenance/site-configuration/', views.SiteConfigurationView.as_view(), name='site_configuration'),
 
     # Enhanced Report Views
     path('reports/enhanced-monthly/', views.EnhancedMonthlyTrackerView.as_view(), name='enhanced_monthly_tracker'),

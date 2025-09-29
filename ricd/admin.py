@@ -4,7 +4,7 @@ from django.contrib.auth.models import User, Group
 from django.contrib.auth.admin import UserAdmin, GroupAdmin
 
 # Register your models here.
-from .models import Council, Program, Project, Address, Work, FundingSchedule, Instalment, MonthlyTracker, QuarterlyReport, Stage1Report, Stage2Report, WorkProgress, Defect, Contact, StageReport, WorkStep, DefaultWorkStep, ReportAttachment, StepTask, StepTaskCompletion, WorkSchedule, PracticalCompletion, FundingApproval, MonthlyReport, CouncilQuarterlyReport
+from .models import Council, Program, Project, Address, Work, FundingSchedule, Instalment, MonthlyTracker, QuarterlyReport, Contact, StageReport, WorkStep, DefaultWorkStep, ReportAttachment, FundingApproval, MonthlyReport, CouncilQuarterlyReport
 
 class AddressInline(TabularInline):
     model = Address
@@ -18,8 +18,6 @@ class WorkStepInline(TabularInline):
     model = WorkStep
     extra = 0
 
-class DefectAdmin(admin.ModelAdmin):
-    readonly_fields = ('expiry_date',)
 
 class WorkAdmin(admin.ModelAdmin):
     inlines = [WorkStepInline]
@@ -97,18 +95,10 @@ admin.site.register(FundingSchedule, FundingScheduleAdmin)
 admin.site.register(Instalment)
 admin.site.register(MonthlyTracker)
 admin.site.register(QuarterlyReport)
-admin.site.register(Stage1Report)
-admin.site.register(Stage2Report)
-admin.site.register(WorkProgress)
-admin.site.register(Defect, DefectAdmin)
 admin.site.register(Contact)
 admin.site.register(StageReport)
 admin.site.register(DefaultWorkStep)
 admin.site.register(ReportAttachment)
-admin.site.register(StepTask)
-admin.site.register(StepTaskCompletion)
-admin.site.register(WorkSchedule)
-admin.site.register(PracticalCompletion)
 
 class FundingApprovalAdmin(admin.ModelAdmin):
     list_display = ('mincor_reference', 'amount', 'approved_date')

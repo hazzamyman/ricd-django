@@ -1,0 +1,622 @@
+from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator, MaxValueValidator
+from django.db import models
+from django.utils import timezone
+from decimal import Decimal
+from dateutil.relativedelta import relativedelta
+
+
+class ProjectManager(models.Manager):
+    def for_user(self, user):
+        if user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists():
+            return self.get_queryset()
+        council = getattr(user, 'council', None)
+        if council:
+            return self.get_queryset().filter(council=council)
+        return self.get_queryset().none()
+
+
+class Project(models.Model):
+    STATE_CHOICES = [
+        ("prospective", "Prospective"),
+        ("programmed", "Programmed"),
+        ("funded", "Funded"),
+        ("commenced", "Commenced"),
+        ("under_construction", "Under Construction"),
+        ("completed", "Completed"),
+        ("cancelled", "Cancelled"),
+        ("terminated", "Terminated"),
+        ("varied", "Varied"),
+    ]
+
+    council = models.ForeignKey('core.Council', on_delete=models.CASCADE, related_name="projects")
+    program = models.ForeignKey('core.Program', on_delete=models.CASCADE, related_name="projects")
+
+    # Funding agreement options
+    funding_schedule = models.ForeignKey('funding.FundingSchedule', on_delete=models.SET_NULL, null=True, blank=True, related_name="projects")
+    forward_rpf_agreement = models.ForeignKey('funding.ForwardRemoteProgramFundingAgreement', on_delete=models.SET_NULL, null=True, blank=True, related_name="projects")
+    interim_fp_agreement = models.ForeignKey('funding.InterimForwardProgramFundingAgreement', on_delete=models.SET_NULL, null=True, blank=True, related_name="projects")
+
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    funding_schedule_amount = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True, validators=[MinValueValidator(Decimal('0.01'))])
+    contingency_amount = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True, validators=[MinValueValidator(Decimal('0.01'))])
+    principal_officer = models.ForeignKey('core.Officer', on_delete=models.SET_NULL, null=True, blank=True, related_name='principal_projects')
+    senior_officer = models.ForeignKey('core.Officer', on_delete=models.SET_NULL, null=True, blank=True, related_name='senior_projects')
+    start_date = models.DateField(blank=True, null=True)
+    stage1_target = models.DateField(blank=True, null=True)
+    stage1_sunset = models.DateField(blank=True, null=True)
+    stage2_target = models.DateField(blank=True, null=True)
+    stage2_sunset = models.DateField(blank=True, null=True)
+    state = models.CharField(max_length=30, choices=STATE_CHOICES, default="prospective")
+
+    # Essential project fields based on master data requirements
+    sap_project = models.CharField(max_length=255, blank=True, null=True)
+    cli_no = models.CharField(max_length=255, blank=True, null=True, help_text="CLI Number")
+    sap_master_project = models.CharField(max_length=255, blank=True, null=True)
+
+    # Management and contractor fields
+    PROJECT_MANAGER_CHOICES = [
+        ('council', 'Council'),
+        ('qbuild', 'QBuild'),
+        ('external', 'External Project Manager'),
+    ]
+    CONTRACTOR_CHOICES = [
+        ('council', 'Council'),
+        ('qbuild', 'QBuild'),
+        ('third_party', 'Third Party Contractor'),
+    ]
+    project_manager = models.CharField(max_length=50, choices=PROJECT_MANAGER_CHOICES, blank=True, null=True)
+    contractor = models.CharField(max_length=50, choices=CONTRACTOR_CHOICES, blank=True, null=True)
+    contractor_address = models.TextField(blank=True, null=True)
+
+    # Financial fields
+    commitments = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True, help_text="Total funding obtained")
+    contingency_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.10'), validators=[MinValueValidator(0), MaxValueValidator(1)], help_text="Contingency percentage (default 10%)")
+    external_manager_name = models.CharField(max_length=255, blank=True, null=True, help_text="Name of external project manager")
+    contractor_organisation = models.CharField(max_length=255, blank=True, null=True, help_text="Name of third party contractor organisation")
+    forecast_final_cost = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True, validators=[MinValueValidator(Decimal('0.01'))])
+    final_cost = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True, validators=[MinValueValidator(Decimal('0.01'))])
+    costs_finalised = models.BooleanField(default=False, help_text="Yes/No for finalised costs")
+
+    # Temporal fields
+    handover_forecast = models.DateField(blank=True, null=True)
+    handover_actual = models.DateField(blank=True, null=True)
+    commencement_loa_forecast = models.DateField(blank=True, null=True)
+    commencement_loa_actual = models.DateField(blank=True, null=True)
+    date_physically_commenced = models.DateField(blank=True, null=True)
+    estimated_completion = models.DateField(blank=True, null=True)
+    actual_completion = models.DateField(blank=True, null=True)
+
+    # Project termination/cancellation fields
+    termination_date = models.DateField(blank=True, null=True, help_text="Date project was terminated or cancelled")
+    termination_reason = models.TextField(blank=True, null=True, help_text="Reason for termination or cancellation")
+
+    # Variation fields
+    variation_description = models.TextField(blank=True, null=True, help_text="Description of what was varied")
+    replacement_funding_schedule = models.ForeignKey(
+        'funding.FundingSchedule',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Replacement or additional funding schedule",
+        related_name='project_replacements'
+    )
+
+    # Analytics: Track outputs cancelled/varied
+    cancelled_outputs = models.PositiveIntegerField(default=0, validators=[MinValueValidator(0)], help_text="Number of outputs cancelled")
+    objects = ProjectManager()
+    varied_outputs = models.PositiveIntegerField(default=0, validators=[MinValueValidator(0)], help_text="Number of outputs varied")
+
+    # Progress field
+    progress_percentage = models.IntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(100)], help_text="Overall progress percentage")
+
+    # Indexes for performance
+    class Meta:
+        indexes = [
+            models.Index(fields=['sap_project']),
+            models.Index(fields=['contractor']),
+            models.Index(fields=['state']),  # For status filtering
+        ]
+
+    def clean(self):
+        """Validate Project fields"""
+        if not self.name.strip():
+            raise ValidationError({'name': 'Project name is required'})
+
+        # State validation
+        if self.state not in [choice[0] for choice in self.STATE_CHOICES]:
+            raise ValidationError({'state': 'Invalid project state'})
+
+        # Financial validations
+        if self.funding_schedule_amount is not None and self.funding_schedule_amount <= 0:
+            raise ValidationError({'funding_schedule_amount': 'Funding schedule amount must be positive'})
+
+        if self.contingency_amount is not None and self.contingency_amount <= 0:
+            raise ValidationError({'contingency_amount': 'Contingency amount must be positive'})
+
+        if self.contingency_percentage is not None and (self.contingency_percentage <= 0 or self.contingency_percentage > 1):
+            raise ValidationError({'contingency_percentage': 'Contingency percentage must be between 0 and 1 (0-100%)'})
+
+        if self.forecast_final_cost is not None and self.forecast_final_cost <= 0:
+            raise ValidationError({'forecast_final_cost': 'Forecast final cost must be positive'})
+
+        if self.final_cost is not None and self.final_cost <= 0:
+            raise ValidationError({'final_cost': 'Final cost must be positive'})
+
+        # Date validations
+        today = timezone.now().date()
+
+        if self.start_date and self.start_date > today + relativedelta(years=5):
+            raise ValidationError({'start_date': 'Start date cannot be more than 5 years in the future'})
+
+        # Stage date logic validations
+        if self.start_date:
+            if self.stage1_target and self.stage1_target < self.start_date:
+                raise ValidationError({'stage1_target': 'Stage 1 target cannot be before start date'})
+
+            if self.stage1_sunset and self.stage1_sunset < self.start_date:
+                raise ValidationError({'stage1_sunset': 'Stage 1 sunset cannot be before start date'})
+
+            if self.stage2_target and self.stage2_target < self.start_date:
+                raise ValidationError({'stage2_target': 'Stage 2 target cannot be before start date'})
+
+            if self.stage2_sunset and self.stage2_sunset < self.start_date:
+                raise ValidationError({'stage2_sunset': 'Stage 2 sunset cannot be before start date'})
+
+            # Stage 1 dates should be before stage 2 dates
+            if self.stage1_target and self.stage2_target and self.stage1_target > self.stage2_target:
+                raise ValidationError({'stage2_target': 'Stage 2 target must be after stage 1 target'})
+
+            if self.stage1_sunset and self.stage2_sunset and self.stage1_sunset > self.stage2_sunset:
+                raise ValidationError({'stage2_sunset': 'Stage 2 sunset must be after stage 1 sunset'})
+
+        # Officer validations
+        if self.principal_officer and not self.principal_officer.is_principal:
+            raise ValidationError({'principal_officer': 'Selected officer must be designated as a principal officer'})
+
+        if self.senior_officer and not self.senior_officer.is_senior:
+            raise ValidationError({'senior_officer': 'Selected officer must be designated as a senior officer'})
+
+        # Choice field validations
+        if self.project_manager and self.project_manager not in [choice[0] for choice in self.PROJECT_MANAGER_CHOICES]:
+            raise ValidationError({'project_manager': 'Invalid project manager choice'})
+
+        if self.contractor and self.contractor not in [choice[0] for choice in self.CONTRACTOR_CHOICES]:
+            raise ValidationError({'contractor': 'Invalid contractor choice'})
+
+        # Termination validations
+        if self.termination_date and not self.termination_reason:
+            raise ValidationError({'termination_reason': 'Termination reason is required when termination date is set'})
+
+        if self.termination_reason and not self.termination_date:
+            raise ValidationError({'termination_date': 'Termination date is required when termination reason is set'})
+
+        # Progress validation
+        if self.progress_percentage < 0 or self.progress_percentage > 100:
+            raise ValidationError({'progress_percentage': 'Progress percentage must be between 0 and 100'})
+
+        # Analytics validations
+        if self.cancelled_outputs < 0:
+            raise ValidationError({'cancelled_outputs': 'Cancelled outputs cannot be negative'})
+
+        if self.varied_outputs < 0:
+            raise ValidationError({'varied_outputs': 'Varied outputs cannot be negative'})
+
+    @property
+    def funding_agreement(self):
+        """Get the specific funding agreement linked to this project"""
+        if self.funding_schedule:
+            return self.funding_schedule
+        elif self.forward_rpf_agreement:
+            return self.forward_rpf_agreement
+        elif self.interim_fp_agreement:
+            return self.interim_fp_agreement
+        return None
+
+    @property
+    def total_funding(self):
+        # Sum all address budgets for the project
+        return sum(address.budget or 0 for address in self.addresses.all())
+
+    @property
+    def works(self):
+        """Get all works for this project's addresses"""
+        return Work.objects.filter(address__project=self)
+
+    @property
+    def calculated_commitments(self):
+        """Calculate commitments from funding schedule or estimated amounts"""
+        if self.funding_agreement:
+            if hasattr(self.funding_agreement, 'funding_amount'):
+                return self.funding_agreement.funding_amount
+        return self.contingency_amount or 0  # Fallback to contingency if no funding agreement
+
+    @property
+    def calculated_contingency(self):
+        """Calculate contingency from commitments and percentage"""
+        if self.commitments and self.contingency_percentage:
+            return (self.commitments * self.contingency_percentage).quantize(Decimal('0.01'))
+        return self.contingency_amount or 0
+
+    @property
+    def is_late(self):
+        today = timezone.now().date()
+        if self.state == 'commenced' and self.stage1_target and today > self.stage1_target:
+            return True
+        if self.state == 'under_construction' and self.stage2_target and today > self.stage2_target:
+            return True
+        return False
+
+    @property
+    def is_overdue(self):
+        today = timezone.now().date()
+        if self.state == 'commenced' and self.stage1_sunset and today > self.stage1_sunset:
+            return True
+        if self.state == 'under_construction' and self.stage2_sunset and today > self.stage2_sunset:
+            return True
+        return False
+
+    @property
+    def is_on_time(self):
+        return not self.is_late and not self.is_overdue
+
+    @property
+    def program_year(self):
+        """Auto-calculate program year from funding schedule first release date"""
+        if self.funding_schedule and self.funding_schedule.first_release_date:
+            return str(self.funding_schedule.first_release_date.year)
+        return str(timezone.now().year)
+
+    def get_progress_class(self):
+        """Return CSS class for progress bar color based on progress percentage"""
+        if self.progress_percentage >= 75:
+            return 'progress-bar-success'
+        elif self.progress_percentage >= 50:
+            return 'progress-bar-info'
+        elif self.progress_percentage >= 25:
+            return 'progress-bar-warning'
+        else:
+            return 'progress-bar-danger'
+
+    def save(self, *args, **kwargs):
+        # Pre-populate officers from council defaults for new projects
+        if not self.pk and self.council:
+            if not self.principal_officer and self.council.default_principal_officer:
+                self.principal_officer = self.council.default_principal_officer
+            if not self.senior_officer and self.council.default_senior_officer:
+                self.senior_officer = self.council.default_senior_officer
+
+        """Auto-calculate stage dates when start_date is set"""
+        if self.start_date:
+            # Calculate stage dates only if they haven't been manually set
+            if not self.stage1_target:
+                self.stage1_target = self.start_date + relativedelta(months=12)
+
+            if not self.stage1_sunset:
+                self.stage1_sunset = self.start_date + relativedelta(months=18)
+
+            if not self.stage2_target:
+                if self.stage1_target:
+                    self.stage2_target = self.stage1_target + relativedelta(months=12)
+                else:
+                    self.stage2_target = self.start_date + relativedelta(months=24)
+
+            if not self.stage2_sunset:
+                if self.stage1_sunset:
+                    self.stage2_sunset = self.stage1_sunset + relativedelta(months=12)
+                else:
+                    self.stage2_sunset = self.start_date + relativedelta(months=30)
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.name} ({self.council})"
+
+
+class Variation(models.Model):
+    """Model for documenting variations to funding agreements"""
+    agreement_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('funding_schedule', 'Funding Schedule'),
+            ('frpf_agreement', 'Forward Remote Program Funding Agreement'),
+            ('ifrpf_agreement', 'Interim Forward Remote Program Funding Agreement'),
+            ('rcpf_agreement', 'Remote Capital Program Funding Agreement'),
+        ],
+        help_text="Type of agreement being varied"
+    )
+    agreement_id = models.PositiveIntegerField(validators=[MinValueValidator(1)], help_text="ID of the agreement being varied")
+
+    # Variation details
+    variation_description = models.TextField(help_text="Description of what was varied")
+    variation_date = models.DateField(help_text="Date the variation was made")
+    date_sent_to_council = models.DateField(blank=True, null=True, help_text="Date variation sent to council")
+    date_council_signed = models.DateField(blank=True, null=True, help_text="Date council signed variation")
+    date_delegate_signed = models.DateField(blank=True, null=True, help_text="Date delegate signed variation")
+    executed_date = models.DateField(blank=True, null=True, help_text="Date variation executed (calculated)")
+
+    # Financial impact
+    additional_funding = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True, validators=[MinValueValidator(Decimal('0.01'))], help_text="Additional funding amount")
+    adjusted_budget = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True, validators=[MinValueValidator(Decimal('0.01'))], help_text="Adjusted total budget")
+
+    # For project variations (cancelled/terminated case)
+    replacement_funding_schedule = models.ForeignKey(
+        'funding.FundingSchedule',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Replacement or additional funding schedule",
+        related_name='variation_replacements'
+    )
+
+    notes = models.TextField(blank=True, null=True, help_text="Additional notes about the variation")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def executed_date_calc(self):
+        """Calculate executed date as the latest of council or delegate signed"""
+        dates = [date for date in [self.date_council_signed, self.date_delegate_signed] if date is not None]
+        return max(dates) if dates else None
+
+    def save(self, *args, **kwargs):
+        # Auto-set executed_date if not manually set
+        if not self.executed_date:
+            self.executed_date = self.executed_date_calc
+        super().save(*args, **kwargs)
+
+    def clean(self):
+        """Validate Variation fields"""
+        if self.agreement_type not in ['funding_schedule', 'frpf_agreement', 'ifrpf_agreement', 'rcpf_agreement']:
+            raise ValidationError({'agreement_type': 'Invalid agreement type'})
+
+        if self.agreement_id <= 0:
+            raise ValidationError({'agreement_id': 'Agreement ID must be positive'})
+
+        if not self.variation_description.strip():
+            raise ValidationError({'variation_description': 'Variation description is required'})
+
+        # Date validations
+        if self.variation_date > timezone.now().date():
+            raise ValidationError({'variation_date': 'Variation date cannot be in the future'})
+
+        if self.date_sent_to_council and self.date_sent_to_council > timezone.now().date():
+            raise ValidationError({'date_sent_to_council': 'Date sent to council cannot be in the future'})
+
+        if self.date_council_signed and self.date_council_signed > timezone.now().date():
+            raise ValidationError({'date_council_signed': 'Date council signed cannot be in the future'})
+
+        if self.date_delegate_signed and self.date_delegate_signed > timezone.now().date():
+            raise ValidationError({'date_delegate_signed': 'Date delegate signed cannot be in the future'})
+
+        # Date sequence validation
+        if self.date_sent_to_council and self.date_council_signed and self.date_sent_to_council > self.date_council_signed:
+            raise ValidationError({'date_council_signed': 'Council signed date cannot be before date sent to council'})
+
+        if self.date_sent_to_council and self.date_delegate_signed and self.date_sent_to_council > self.date_delegate_signed:
+            raise ValidationError({'date_delegate_signed': 'Delegate signed date cannot be before date sent to council'})
+
+        if self.date_council_signed and self.date_delegate_signed and self.date_council_signed > self.date_delegate_signed:
+            raise ValidationError({'date_delegate_signed': 'Delegate signed date cannot be before council signed date'})
+
+        # Financial validations
+        if self.additional_funding is not None and self.additional_funding <= 0:
+            raise ValidationError({'additional_funding': 'Additional funding must be positive'})
+
+        if self.adjusted_budget is not None and self.adjusted_budget <= 0:
+            raise ValidationError({'adjusted_budget': 'Adjusted budget must be positive'})
+
+    def __str__(self):
+        return f"Variation to {self.agreement_type} #{self.agreement_id} - {self.variation_date}"
+
+    class Meta:
+        ordering = ['-variation_date', '-created_at']
+
+
+class FieldVisibilitySetting(models.Model):
+    """Controls which project fields are visible to Council Users per council"""
+
+    FIELD_CHOICES = [
+        # Financial fields
+        ('commitments', 'Commitments'),
+        ('contingency_amount', 'Contingency Amount'),
+        ('forecast_final_cost', 'Forecast Final Cost'),
+        ('final_cost', 'Final Cost'),
+        ('costs_finalised', 'Costs Finalised'),
+
+        # Management fields
+        ('project_manager', 'Project Manager'),
+        ('contractor', 'Contractor'),
+        ('contractor_address', 'Contractor Address'),
+        ('external_manager_name', 'External Manager Name'),
+        ('contractor_organisation', 'Contractor Organisation'),
+
+        # SAP/Project reference fields
+        ('sap_project', 'SAP Project'),
+        ('cli_no', 'CLI Number'),
+        ('sap_master_project', 'SAP Master Project'),
+
+        # Date fields
+        ('handover_forecast', 'Handover Forecast Date'),
+        ('handover_actual', 'Handover Actual Date'),
+        ('actual_completion', 'Actual Completion Date'),
+        ('estimated_completion', 'Estimated Completion Date'),
+
+        # Termination/Variation fields
+        ('termination_date', 'Termination Date'),
+        ('termination_reason', 'Termination Reason'),
+        ('variation_description', 'Variation Description'),
+    ]
+
+    council = models.ForeignKey(
+        'core.Council',
+        on_delete=models.CASCADE,
+        related_name='field_visibility_settings',
+        help_text="Council these settings apply to"
+    )
+
+    field_name = models.CharField(
+        max_length=50,
+        choices=FIELD_CHOICES,
+        help_text="The field to control visibility for"
+    )
+
+    visible_to_council_users = models.BooleanField(
+        default=True,
+        help_text="Whether this field is visible to Council Users of this council"
+    )
+
+    def clean(self):
+        """Validate FieldVisibilitySetting fields"""
+        if self.field_name not in [choice[0] for choice in self.FIELD_CHOICES]:
+            raise ValidationError({'field_name': 'Invalid field name'})
+
+    class Meta:
+        unique_together = ('council', 'field_name')
+        verbose_name = "Field Visibility Setting"
+        verbose_name_plural = "Field Visibility Settings"
+
+    def __str__(self):
+        visibility = "Visible" if self.visible_to_council_users else "Hidden"
+        return f"{self.council.name} - {self.get_field_name_display()} ({visibility})"
+
+
+class ProjectFieldVisibilityOverride(models.Model):
+    """Project-specific overrides for field visibility settings"""
+
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name='field_visibility_overrides',
+        help_text="Project these settings apply to"
+    )
+
+    field_name = models.CharField(
+        max_length=50,
+        choices=FieldVisibilitySetting.FIELD_CHOICES,
+        help_text="The field to control visibility for"
+    )
+
+    visible_to_council_users = models.BooleanField(
+        help_text="Whether this field is visible to Council Users for this specific project"
+    )
+
+    def clean(self):
+        """Validate ProjectFieldVisibilityOverride fields"""
+        if self.field_name not in [choice[0] for choice in FieldVisibilitySetting.FIELD_CHOICES]:
+            raise ValidationError({'field_name': 'Invalid field name'})
+
+    class Meta:
+        unique_together = ('project', 'field_name')
+        verbose_name = "Project Field Visibility Override"
+        verbose_name_plural = "Project Field Visibility Overrides"
+
+    def __str__(self):
+        visibility = "Visible" if self.visible_to_council_users else "Hidden"
+        return f"{self.project.name} - {self.get_field_name_display()} ({visibility})"
+
+
+# Utility functions for field visibility
+def get_field_visibility_settings(council, user=None, project=None):
+    """
+    Get field visibility settings for a council.
+    If project is provided, check for project-specific overrides first.
+    If user is provided and is RICD staff, return all fields as visible.
+    Otherwise, return the configured settings.
+    """
+    from django.contrib.auth.models import Group
+
+    # RICD users can see all fields
+    if user and user.is_authenticated:
+        is_ricd = user.groups.filter(name__in=['RICD Staff', 'RICD Manager']).exists()
+        if is_ricd:
+            return {choice[0]: True for choice in FieldVisibilitySetting.FIELD_CHOICES}
+
+    # Start with council-level settings
+    council_settings = FieldVisibilitySetting.objects.filter(council=council)
+    visibility_dict = {choice[0]: True for choice in FieldVisibilitySetting.FIELD_CHOICES}  # Default to visible
+
+    # Override with council configured settings
+    for setting in council_settings:
+        visibility_dict[setting.field_name] = setting.visible_to_council_users
+
+    # If project is provided, override with project-specific settings
+    if project:
+        project_overrides = ProjectFieldVisibilityOverride.objects.filter(project=project)
+        for override in project_overrides:
+            visibility_dict[override.field_name] = override.visible_to_council_users
+
+    return visibility_dict
+
+
+def is_field_visible(field_name, council, user=None, project=None):
+    """
+    Check if a specific field should be visible to a user for a council.
+    If project is provided, check for project-specific overrides.
+    """
+    settings = get_field_visibility_settings(council, user, project)
+    return settings.get(field_name, True)  # Default to visible if not configured
+
+
+class ProjectReportConfiguration(models.Model):
+    """Configuration for which report items and groups apply to specific projects"""
+
+    project = models.OneToOneField(
+        Project,
+        on_delete=models.CASCADE,
+        related_name='report_configuration'
+    )
+
+    # Monthly tracker configuration
+    monthly_tracker_groups = models.ManyToManyField(
+        'reporting.MonthlyTrackerItemGroup',
+        blank=True,
+        related_name='project_configurations',
+        help_text="Monthly tracker item groups applicable to this project"
+    )
+
+    # Quarterly report configuration
+    quarterly_report_groups = models.ManyToManyField(
+        'reporting.QuarterlyReportItemGroup',
+        blank=True,
+        related_name='project_configurations',
+        help_text="Quarterly report item groups applicable to this project"
+    )
+
+    # Stage 1 configuration
+    stage1_step_groups = models.ManyToManyField(
+        'reporting.Stage1StepGroup',
+        blank=True,
+        related_name='project_configurations',
+        help_text="Stage 1 step groups applicable to this project"
+    )
+
+    # Stage 2 configuration
+    stage2_step_groups = models.ManyToManyField(
+        'reporting.Stage2StepGroup',
+        blank=True,
+        related_name='project_configurations',
+        help_text="Stage 2 step groups applicable to this project"
+    )
+
+    created_date = models.DateTimeField(auto_now_add=True)
+    updated_date = models.DateTimeField(auto_now=True)
+
+    def clean(self):
+        """Validate ProjectReportConfiguration fields"""
+        # Ensure at least one report group is configured
+        if (not self.monthly_tracker_groups.exists() and
+            not self.quarterly_report_groups.exists() and
+            not self.stage1_step_groups.exists() and
+            not self.stage2_step_groups.exists()):
+            raise ValidationError('At least one report group must be configured for the project')
+
+    class Meta:
+        verbose_name = "Project Report Configuration"
+        verbose_name_plural = "Project Report Configurations"
+
+    def __str__(self):
+        return f"Report Configuration for {self.project}"

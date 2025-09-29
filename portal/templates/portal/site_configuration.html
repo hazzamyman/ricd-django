@@ -1,0 +1,327 @@
+{% extends "portal/base.html" %}
+{% load static %}
+
+{% block title %}Site Configuration - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-0">Site Configuration</h1>
+                    <p class="text-muted">Manage global site settings including formatting, appearance, and system behavior</p>
+                </div>
+                <div>
+                    <a href="{% url 'portal:ricd_dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Configuration Settings</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <!-- Date and Time Settings -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="fw-bold text-primary mb-3">
+                                    <i class="fas fa-calendar me-2"></i>Date & Time Settings
+                                </h6>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.date_format.id_for_label }}" class="form-label">Date Format</label>
+                                    {{ form.date_format }}
+                                    <div class="form-text">How dates are displayed throughout the site</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.time_format.id_for_label }}" class="form-label">Time Format</label>
+                                    {{ form.time_format }}
+                                    <div class="form-text">How times are displayed throughout the site</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Currency Settings -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="fw-bold text-primary mb-3">
+                                    <i class="fas fa-dollar-sign me-2"></i>Currency Settings
+                                </h6>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="{{ form.default_currency.id_for_label }}" class="form-label">Default Currency</label>
+                                    {{ form.default_currency }}
+                                    <div class="form-text">Default currency for the site</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="{{ form.currency_symbol.id_for_label }}" class="form-label">Currency Symbol</label>
+                                    {{ form.currency_symbol }}
+                                    <div class="form-text">Symbol to display before/after amounts</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="{{ form.currency_position.id_for_label }}" class="form-label">Currency Position</label>
+                                    {{ form.currency_position }}
+                                    <div class="form-text">Position of currency symbol</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="{{ form.decimal_places.id_for_label }}" class="form-label">Decimal Places</label>
+                                    {{ form.decimal_places }}
+                                    <div class="form-text">Number of decimal places for currency</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Number Formatting -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="fw-bold text-primary mb-3">
+                                    <i class="fas fa-calculator me-2"></i>Number Formatting
+                                </h6>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.thousands_separator.id_for_label }}" class="form-label">Thousands Separator</label>
+                                    {{ form.thousands_separator }}
+                                    <div class="form-text">Character used to separate thousands</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.decimal_separator.id_for_label }}" class="form-label">Decimal Separator</label>
+                                    {{ form.decimal_separator }}
+                                    <div class="form-text">Character used as decimal separator</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Language and Localization -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="fw-bold text-primary mb-3">
+                                    <i class="fas fa-language me-2"></i>Language & Localization
+                                </h6>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.default_language.id_for_label }}" class="form-label">Default Language</label>
+                                    {{ form.default_language }}
+                                    <div class="form-text">Default language for the site</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.timezone.id_for_label }}" class="form-label">Timezone</label>
+                                    {{ form.timezone }}
+                                    <div class="form-text">Default timezone for the site</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Appearance Settings -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="fw-bold text-primary mb-3">
+                                    <i class="fas fa-palette me-2"></i>Appearance Settings
+                                </h6>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check mb-3">
+                                    {{ form.enable_dark_mode }}
+                                    <label class="form-check-label" for="{{ form.enable_dark_mode.id_for_label }}">
+                                        Enable Dark Mode
+                                    </label>
+                                    <div class="form-text">Allow users to switch to dark theme</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check mb-3">
+                                    {{ form.enable_animations }}
+                                    <label class="form-check-label" for="{{ form.enable_animations.id_for_label }}">
+                                        Enable Animations
+                                    </label>
+                                    <div class="form-text">Enable UI animations and transitions</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Site Information -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="fw-bold text-primary mb-3">
+                                    <i class="fas fa-info-circle me-2"></i>Site Information
+                                </h6>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.site_title.id_for_label }}" class="form-label">Site Title</label>
+                                    {{ form.site_title }}
+                                    <div class="form-text">Main title displayed in the browser tab and header</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.support_email.id_for_label }}" class="form-label">Support Email</label>
+                                    {{ form.support_email }}
+                                    <div class="form-text">Email address for user support</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.support_phone.id_for_label }}" class="form-label">Support Phone</label>
+                                    {{ form.support_phone }}
+                                    <div class="form-text">Phone number for user support</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Site Description -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="mb-3">
+                                    <label for="{{ form.site_description.id_for_label }}" class="form-label">Site Description</label>
+                                    {{ form.site_description }}
+                                    <div class="form-text">Description of the site (displayed in meta tags and about pages)</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- System Settings -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="fw-bold text-primary mb-3">
+                                    <i class="fas fa-cog me-2"></i>System Settings
+                                </h6>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check mb-3">
+                                    {{ form.maintenance_mode }}
+                                    <label class="form-check-label" for="{{ form.maintenance_mode.id_for_label }}">
+                                        Maintenance Mode
+                                    </label>
+                                    <div class="form-text">Put the site in maintenance mode (users will see maintenance message)</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Maintenance Message -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="mb-3">
+                                    <label for="{{ form.maintenance_message.id_for_label }}" class="form-label">Maintenance Message</label>
+                                    {{ form.maintenance_message }}
+                                    <div class="form-text">Message to display when site is in maintenance mode</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between">
+                                    <a href="{% url 'portal:ricd_dashboard' %}" class="btn btn-outline-secondary">
+                                        Cancel
+                                    </a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save me-2"></i>Save Configuration
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Current Configuration Display -->
+{% if current_config %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Current Configuration Preview</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Date Format Preview:</h6>
+                        <p class="text-muted">{{ current_config.date_format|default:"Not set" }}</p>
+
+                        <h6>Time Format Preview:</h6>
+                        <p class="text-muted">{{ current_config.time_format|default:"Not set" }}</p>
+
+                        <h6>Currency Format Preview:</h6>
+                        <p class="text-muted">
+                            {% if current_config.currency_position == 'before' %}
+                                {{ current_config.currency_symbol|default:"$" }}1,234.56
+                            {% else %}
+                                1,234.56{{ current_config.currency_symbol|default:"$" }}
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Number Format Preview:</h6>
+                        <p class="text-muted">1{{ current_config.thousands_separator|default:"," }}234{{ current_config.decimal_separator|default:"." }}56</p>
+
+                        <h6>Timezone:</h6>
+                        <p class="text-muted">{{ current_config.timezone|default:"Not set" }}</p>
+
+                        <h6>Language:</h6>
+                        <p class="text-muted">{{ current_config.default_language|default:"Not set" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+// Add form validation and UX enhancements
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const maintenanceMode = document.getElementById('{{ form.maintenance_mode.id_for_label }}');
+    const maintenanceMessage = document.getElementById('{{ form.maintenance_message.id_for_label }}');
+
+    // Show/hide maintenance message field based on maintenance mode
+    if (maintenanceMode && maintenanceMessage) {
+        function toggleMaintenanceMessage() {
+            maintenanceMessage.closest('.mb-3').style.display = maintenanceMode.checked ? 'block' : 'none';
+        }
+
+        maintenanceMode.addEventListener('change', toggleMaintenanceMessage);
+        toggleMaintenanceMessage(); // Initial state
+    }
+
+    // Add visual feedback for form submission
+    form.addEventListener('submit', function(e) {
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
+        }
+    });
+});
+</script>
+{% endblock %}
