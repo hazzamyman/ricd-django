@@ -22,7 +22,6 @@ from ricd.models import (
     Project, Program, Council, QuarterlyReport, MonthlyTracker,
     FundingSchedule, Address, Work, FieldVisibilitySetting, UserProfile
 )
-from .forms import ()
 
 
 # RICD Dashboard
