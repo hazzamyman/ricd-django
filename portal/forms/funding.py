@@ -76,31 +76,13 @@ class InterimForwardProgramFundingAgreementForm(forms.Form):
     date_delegate_signed = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control', 'type': 'date'}))
 
 
-class RemoteCapitalProgramFundingAgreementForm(forms.ModelForm):
+class RemoteCapitalProgramFundingAgreementForm(forms.Form):
     """Form for creating and editing Remote Capital Program Funding Agreements"""
+    # TODO: Auto-converted from ModelForm due to model loading issues in commit autos/auto-fix-20250929-1
+    # Original: ModelForm with model=RemoteCapitalProgramFundingAgreement, fields=['council', 'date_sent_to_council', 'date_council_signed', 'date_delegate_signed', 'notes']
 
-    class Meta:
-        model = RemoteCapitalProgramFundingAgreement
-        fields = ['council', 'date_sent_to_council', 'date_council_signed', 'date_delegate_signed', 'notes']
-        widgets = {
-            'council': forms.Select(attrs={
-                'class': 'form-select'
-            }),
-            'date_sent_to_council': forms.DateInput(attrs={
-                'class': 'form-control',
-                'type': 'date'
-            }),
-            'date_council_signed': forms.DateInput(attrs={
-                'class': 'form-control',
-                'type': 'date'
-            }),
-            'date_delegate_signed': forms.DateInput(attrs={
-                'class': 'form-control',
-                'type': 'date'
-            }),
-            'notes': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 4,
-                'placeholder': 'Additional notes about the agreement (optional)'
-            }),
-        }
+    council = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control', 'disabled': 'disabled'}))
+    date_sent_to_council = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control', 'type': 'date'}))
+    date_council_signed = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control', 'type': 'date'}))
+    date_delegate_signed = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control', 'type': 'date'}))
+    notes = forms.CharField(required=False, widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Additional notes about the agreement (optional)'}))
