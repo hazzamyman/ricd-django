@@ -1,6 +1,7 @@
 from django.urls import path
 from django.views.generic.base import RedirectView
 from . import views
+from .dashboards import RICDDashboardView, CouncilDashboardView
 
 app_name = 'portal'
 
@@ -9,8 +10,8 @@ urlpatterns = [
     path('', RedirectView.as_view(url='accounts/login/'), name='root_redirect'),
     
     # Dashboard URLs
-    path('ricd/', views.RICDDashboardView.as_view(), name='ricd_dashboard'),
-    path('council/', views.CouncilDashboardView.as_view(), name='council_dashboard'),
+    path('ricd/', RICDDashboardView.as_view(), name='ricd_dashboard'),
+    path('council/', CouncilDashboardView.as_view(), name='council_dashboard'),
 
     # Project detail
     path('project/<int:pk>/', views.ProjectDetailView.as_view(), name='project_detail'),
