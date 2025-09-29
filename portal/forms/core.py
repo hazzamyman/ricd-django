@@ -1,5 +1,5 @@
 from django import forms
-from ricd.models import Council, Program, Officer, SiteConfiguration
+from ricd.models import Council, Program, Officer, SiteConfiguration, Defect
 
 
 class CouncilForm(forms.ModelForm):
@@ -141,4 +141,17 @@ class SiteConfigurationForm(forms.ModelForm):
             'site_description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'support_email': forms.EmailInput(attrs={'class': 'form-control'}),
             'support_phone': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+# Defect Form
+class DefectForm(forms.ModelForm):
+    """Form for creating and editing defects"""
+
+    class Meta:
+        model = Defect
+        fields = ['work', 'description', 'identified_date', 'rectified_date']
+        widgets = {
+            'work': forms.Select(attrs={'class': 'form-select'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'identified_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'rectified_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
         }

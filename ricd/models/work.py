@@ -427,6 +427,28 @@ class Work(models.Model):
         return f"{self.work_type_id.name if self.work_type_id else 'No work type'} - {self.output_type_id.name if self.output_type_id else 'No output type'} ({self.address})"
 
 
+class Defect(models.Model):
+    """Defects identified during construction or within defect liability period"""
+    work = models.ForeignKey(Work, on_delete=models.CASCADE, related_name='defects')
+    description = models.TextField(help_text="Description of the defect")
+    identified_date = models.DateField(default=timezone.now, help_text="Date defect was identified")
+    rectified_date = models.DateField(blank=True, null=True, help_text="Date defect was rectified")
+
+    def clean(self):
+        """Validate Defect fields"""
+        if not self.description.strip():
+            raise ValidationError({'description': 'Defect description is required'})
+
+        if self.rectified_date and self.rectified_date < self.identified_date:
+            raise ValidationError({'rectified_date': 'Rectified date cannot be before identified date'})
+
+        if self.rectified_date and self.rectified_date > timezone.now().date():
+            raise ValidationError({'rectified_date': 'Rectified date cannot be in the future'})
+
+    def __str__(self):
+        return f"Defect for {self.work} - {self.description[:50]}..."
+
+
 class WorkStep(models.Model):
     work = models.ForeignKey(Work, on_delete=models.CASCADE, related_name="work_steps")
     order = models.PositiveIntegerField(default=1)

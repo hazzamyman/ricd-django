@@ -24,7 +24,7 @@ from ricd.models import (
     ForwardRemoteProgramFundingAgreement, InterimForwardProgramFundingAgreement,
     RemoteCapitalProgramFundingAgreement, UserProfile, FieldVisibilitySetting,
     ProjectReportConfiguration,
-    SiteConfiguration
+    SiteConfiguration, Defect
 )
 
 from .forms import (
@@ -33,7 +33,7 @@ from .forms import (
     OfficerForm, OfficerAssignmentForm, CouncilUserCreationForm, CouncilUserUpdateForm,
     UserCreationForm, FundingApprovalForm, ForwardRemoteProgramFundingAgreementForm,
     InterimForwardProgramFundingAgreementForm, RemoteCapitalProgramFundingAgreementForm,
-    SiteConfigurationForm,
+    SiteConfigurationForm, DefectForm,
     MonthlyTrackerForm, QuarterlyReportForm, Stage1ReportForm, Stage2ReportForm
 )
 
