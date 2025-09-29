@@ -109,7 +109,7 @@ class ConstructionMethod(models.Model):
 
 
 class DefaultWorkStep(models.Model):
-    program = models.ForeignKey('core.Program', on_delete=models.CASCADE, related_name="default_work_steps")
+    program = models.ForeignKey('ricd.Program', on_delete=models.CASCADE, related_name="default_work_steps")
     work_type_id = models.ForeignKey(
         WorkType,
         on_delete=models.CASCADE,

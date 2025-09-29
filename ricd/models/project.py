@@ -30,8 +30,8 @@ class Project(models.Model):
         ("varied", "Varied"),
     ]
 
-    council = models.ForeignKey('core.Council', on_delete=models.CASCADE, related_name="projects")
-    program = models.ForeignKey('core.Program', on_delete=models.CASCADE, related_name="projects")
+    council = models.ForeignKey('ricd.Council', on_delete=models.CASCADE, related_name="projects")
+    program = models.ForeignKey('ricd.Program', on_delete=models.CASCADE, related_name="projects")
 
     # Funding agreement options
     funding_schedule = models.ForeignKey('funding.FundingSchedule', on_delete=models.SET_NULL, null=True, blank=True, related_name="projects")
@@ -42,8 +42,8 @@ class Project(models.Model):
     description = models.TextField(blank=True, null=True)
     funding_schedule_amount = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True, validators=[MinValueValidator(Decimal('0.01'))])
     contingency_amount = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True, validators=[MinValueValidator(Decimal('0.01'))])
-    principal_officer = models.ForeignKey('core.Officer', on_delete=models.SET_NULL, null=True, blank=True, related_name='principal_projects')
-    senior_officer = models.ForeignKey('core.Officer', on_delete=models.SET_NULL, null=True, blank=True, related_name='senior_projects')
+    principal_officer = models.ForeignKey('ricd.Officer', on_delete=models.SET_NULL, null=True, blank=True, related_name='principal_projects')
+    senior_officer = models.ForeignKey('ricd.Officer', on_delete=models.SET_NULL, null=True, blank=True, related_name='senior_projects')
     start_date = models.DateField(blank=True, null=True)
     stage1_target = models.DateField(blank=True, null=True)
     stage1_sunset = models.DateField(blank=True, null=True)
@@ -452,7 +452,7 @@ class FieldVisibilitySetting(models.Model):
     ]
 
     council = models.ForeignKey(
-        'core.Council',
+        'ricd.Council',
         on_delete=models.CASCADE,
         related_name='field_visibility_settings',
         help_text="Council these settings apply to"
@@ -572,7 +572,7 @@ class ProjectReportConfiguration(models.Model):
 
     # Monthly tracker configuration
     monthly_tracker_groups = models.ManyToManyField(
-        'reporting.MonthlyTrackerItemGroup',
+        'ricd.MonthlyTrackerItemGroup',
         blank=True,
         related_name='project_configurations',
         help_text="Monthly tracker item groups applicable to this project"
@@ -580,7 +580,7 @@ class ProjectReportConfiguration(models.Model):
 
     # Quarterly report configuration
     quarterly_report_groups = models.ManyToManyField(
-        'reporting.QuarterlyReportItemGroup',
+        'ricd.QuarterlyReportItemGroup',
         blank=True,
         related_name='project_configurations',
         help_text="Quarterly report item groups applicable to this project"
@@ -588,7 +588,7 @@ class ProjectReportConfiguration(models.Model):
 
     # Stage 1 configuration
     stage1_step_groups = models.ManyToManyField(
-        'reporting.Stage1StepGroup',
+        'ricd.Stage1StepGroup',
         blank=True,
         related_name='project_configurations',
         help_text="Stage 1 step groups applicable to this project"
@@ -596,7 +596,7 @@ class ProjectReportConfiguration(models.Model):
 
     # Stage 2 configuration
     stage2_step_groups = models.ManyToManyField(
-        'reporting.Stage2StepGroup',
+        'ricd.Stage2StepGroup',
         blank=True,
         related_name='project_configurations',
         help_text="Stage 2 step groups applicable to this project"

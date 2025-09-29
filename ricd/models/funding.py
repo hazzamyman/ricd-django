@@ -22,8 +22,8 @@ class BaseAgreement(models.Model):
 
 
 class FundingSchedule(models.Model):
-    council = models.ForeignKey('core.Council', on_delete=models.CASCADE, related_name="funding_schedules", null=True, blank=True)
-    program = models.ForeignKey('core.Program', on_delete=models.CASCADE, related_name="funding_schedules", null=True, blank=True)
+    council = models.ForeignKey('ricd.Council', on_delete=models.CASCADE, related_name="funding_schedules", null=True, blank=True)
+    program = models.ForeignKey('ricd.Program', on_delete=models.CASCADE, related_name="funding_schedules", null=True, blank=True)
     funding_schedule_number = models.IntegerField(validators=[MinValueValidator(1)])
     # Simplified funding structure
     funding_amount = models.DecimalField(max_digits=15, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))], help_text="Total funding amount allocated")
@@ -143,7 +143,7 @@ class FundingSchedule(models.Model):
 class ForwardRemoteProgramFundingAgreement(BaseAgreement):
     """Forward Remote Program Funding Agreement"""
     council = models.OneToOneField(
-        'core.Council',
+        'ricd.Council',
         on_delete=models.CASCADE,
         null=True,
         related_name="forward_rpf_agreement",
@@ -169,7 +169,7 @@ class ForwardRemoteProgramFundingAgreement(BaseAgreement):
 class InterimForwardProgramFundingAgreement(BaseAgreement):
     """Interim Forward Remote Program Funding Agreement"""
     council = models.OneToOneField(
-        'core.Council',
+        'ricd.Council',
         on_delete=models.CASCADE,
         null=True,
         related_name="interim_fp_agreement",
@@ -195,7 +195,7 @@ class InterimForwardProgramFundingAgreement(BaseAgreement):
 class RemoteCapitalProgramFundingAgreement(BaseAgreement):
     """Remote Capital Program Funding Agreement"""
     council = models.OneToOneField(
-        'core.Council',
+        'ricd.Council',
         on_delete=models.CASCADE,
         related_name="remote_capital_program_agreement",
         help_text="Council this agreement applies to"
