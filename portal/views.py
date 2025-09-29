@@ -33,7 +33,7 @@ from .forms import (
     OfficerForm, OfficerAssignmentForm, CouncilUserCreationForm, CouncilUserUpdateForm,
     UserCreationForm, FundingApprovalForm, ForwardRemoteProgramFundingAgreementForm,
     InterimForwardProgramFundingAgreementForm, RemoteCapitalProgramFundingAgreementForm,
-    ProjectReportConfigurationForm, SiteConfigurationForm,
+    SiteConfigurationForm,
     MonthlyTrackerForm, QuarterlyReportForm, Stage1ReportForm, Stage2ReportForm
 )
 
