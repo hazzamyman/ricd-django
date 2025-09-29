@@ -34,9 +34,9 @@ class Project(models.Model):
     program = models.ForeignKey('ricd.Program', on_delete=models.CASCADE, related_name="projects")
 
     # Funding agreement options
-    funding_schedule = models.ForeignKey('funding.FundingSchedule', on_delete=models.SET_NULL, null=True, blank=True, related_name="projects")
-    forward_rpf_agreement = models.ForeignKey('funding.ForwardRemoteProgramFundingAgreement', on_delete=models.SET_NULL, null=True, blank=True, related_name="projects")
-    interim_fp_agreement = models.ForeignKey('funding.InterimForwardProgramFundingAgreement', on_delete=models.SET_NULL, null=True, blank=True, related_name="projects")
+    funding_schedule = models.ForeignKey('ricd.FundingSchedule', on_delete=models.SET_NULL, null=True, blank=True, related_name="projects")
+    forward_rpf_agreement = models.ForeignKey('ricd.ForwardRemoteProgramFundingAgreement', on_delete=models.SET_NULL, null=True, blank=True, related_name="projects")
+    interim_fp_agreement = models.ForeignKey('ricd.InterimForwardProgramFundingAgreement', on_delete=models.SET_NULL, null=True, blank=True, related_name="projects")
 
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
@@ -96,7 +96,7 @@ class Project(models.Model):
     # Variation fields
     variation_description = models.TextField(blank=True, null=True, help_text="Description of what was varied")
     replacement_funding_schedule = models.ForeignKey(
-        'funding.FundingSchedule',
+        'ricd.FundingSchedule',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -343,7 +343,7 @@ class Variation(models.Model):
 
     # For project variations (cancelled/terminated case)
     replacement_funding_schedule = models.ForeignKey(
-        'funding.FundingSchedule',
+        'ricd.FundingSchedule',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

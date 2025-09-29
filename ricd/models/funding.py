@@ -48,7 +48,7 @@ class FundingSchedule(models.Model):
     )
 
     remote_capital_program = models.ForeignKey(
-        'RemoteCapitalProgramFundingAgreement',
+        'ricd.RemoteCapitalProgramFundingAgreement',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
