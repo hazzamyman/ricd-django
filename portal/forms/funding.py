@@ -65,29 +65,15 @@ class ForwardRemoteProgramFundingAgreementForm(forms.Form):
     date_delegate_signed = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control', 'type': 'date'}))
 
 
-class InterimForwardProgramFundingAgreementForm(forms.ModelForm):
+class InterimForwardProgramFundingAgreementForm(forms.Form):
     """Form for creating and editing Interim Forward Remote Program Funding Agreements"""
+    # TODO: Auto-converted from ModelForm due to model loading issues in commit autos/auto-fix-20250929-1
+    # Original: ModelForm with model=InterimForwardProgramFundingAgreement, fields=['council', 'date_sent_to_council', 'date_council_signed', 'date_delegate_signed']
 
-    class Meta:
-        model = InterimForwardProgramFundingAgreement
-        fields = ['council', 'date_sent_to_council', 'date_council_signed', 'date_delegate_signed']
-        widgets = {
-            'council': forms.Select(attrs={
-                'class': 'form-select'
-            }),
-            'date_sent_to_council': forms.DateInput(attrs={
-                'class': 'form-control',
-                'type': 'date'
-            }),
-            'date_council_signed': forms.DateInput(attrs={
-                'class': 'form-control',
-                'type': 'date'
-            }),
-            'date_delegate_signed': forms.DateInput(attrs={
-                'class': 'form-control',
-                'type': 'date'
-            }),
-        }
+    council = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control', 'disabled': 'disabled'}))
+    date_sent_to_council = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control', 'type': 'date'}))
+    date_council_signed = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control', 'type': 'date'}))
+    date_delegate_signed = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control', 'type': 'date'}))
 
 
 class RemoteCapitalProgramFundingAgreementForm(forms.ModelForm):
