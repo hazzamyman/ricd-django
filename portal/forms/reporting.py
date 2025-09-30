@@ -2,7 +2,7 @@ from django import forms
 from django.utils import timezone
 
 # Import models normally
-from ricd.models import Work, Project, FundingSchedule, Address, QuarterlyReport, MonthlyTracker, Stage1Report, Stage2Report
+from ricd.models import Work, Project, FundingSchedule, Address, QuarterlyReport, MonthlyTracker, Stage1Report, Stage2Report, MonthlyTrackerItem, QuarterlyReportItem, Stage1Step, Stage2Step, MonthlyTrackerItemGroup, QuarterlyReportItemGroup, MonthlyTrackerEntry, QuarterlyReportItemEntry, Stage1StepCompletion, Stage2StepCompletion
 
 
 class QuarterlyReportForm(forms.ModelForm):
@@ -223,7 +223,7 @@ class QuarterlyReportForm(forms.ModelForm):
             user_council = getattr(user, 'council', None)
             if user_council:
                 # Council user - filter works and make ricd fields readonly
-                self.fields['work'].queryset = Work.objects.filter(project__council=user_council)
+                self.fields['work'].queryset = Work.objects.filter(address__project__council=user_council)
                 self.fields['ricd_status'].widget.attrs['disabled'] = 'disabled'
                 self.fields['ricd_comments'].widget.attrs['readonly'] = 'readonly'
             else:
@@ -379,7 +379,7 @@ class MonthlyTrackerForm(forms.ModelForm):
             user_council = getattr(user, 'council', None)
             if user_council:
                 # Council user - filter works and make ricd fields readonly
-                self.fields['work'].queryset = Work.objects.filter(project__council=user_council)
+                self.fields['work'].queryset = Work.objects.filter(address__project__council=user_council)
                 self.fields['ricd_status'].widget.attrs['disabled'] = 'disabled'
                 self.fields['ricd_comments'].widget.attrs['readonly'] = 'readonly'
             else:
@@ -1101,3 +1101,107 @@ class Stage2ReportForm(forms.ModelForm):
             if self.instance.project.addresses.first():
                 addr = self.instance.project.addresses.first()
                 self.fields['project_address_display'].initial = str(addr)
+
+class MonthlyTrackerItemForm(forms.ModelForm):
+    """Form for monthly tracker items"""
+    class Meta:
+        model = MonthlyTrackerItem
+        fields = '__all__'
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'data_type': forms.Select(attrs={'class': 'form-select'}),
+            'dropdown_options': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'required': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'na_acceptable': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'order': forms.NumberInput(attrs={'class': 'form-control'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+class QuarterlyReportItemForm(forms.ModelForm):
+    """Form for quarterly report items"""
+    class Meta:
+        model = QuarterlyReportItem
+        fields = '__all__'
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'data_type': forms.Select(attrs={'class': 'form-select'}),
+            'dropdown_options': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'required': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'na_acceptable': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'order': forms.NumberInput(attrs={'class': 'form-control'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+class Stage1StepForm(forms.ModelForm):
+    """Form for Stage 1 steps"""
+    class Meta:
+        model = Stage1Step
+        fields = '__all__'
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'required_evidence': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'document_required': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'document_description': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'order': forms.NumberInput(attrs={'class': 'form-control'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+class Stage2StepForm(forms.ModelForm):
+    """Form for Stage 2 steps"""
+    class Meta:
+        model = Stage2Step
+        fields = '__all__'
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'required_evidence': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'document_required': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'document_description': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'order': forms.NumberInput(attrs={'class': 'form-control'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+class MonthlyTrackerItemGroupForm(forms.ModelForm):
+    """Form for monthly tracker item groups"""
+    class Meta:
+        model = MonthlyTrackerItemGroup
+        fields = '__all__'
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'tracker_items': forms.SelectMultiple(attrs={'class': 'form-select'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+class QuarterlyReportItemGroupForm(forms.ModelForm):
+    """Form for quarterly report item groups"""
+    class Meta:
+        model = QuarterlyReportItemGroup
+        fields = '__all__'
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'report_items': forms.SelectMultiple(attrs={'class': 'form-select'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+class MonthlyTrackerEntryForm(forms.ModelForm):
+    """Form for monthly tracker entries"""
+    class Meta:
+        model = MonthlyTrackerEntry
+        fields = ['value']
+        widgets = {
+            'value': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+class QuarterlyReportItemEntryForm(forms.ModelForm):
+    """Form for quarterly report item entries"""
+    class Meta:
+        model = QuarterlyReportItemEntry
+        fields = ['value']
+        widgets = {
+            'value': forms.TextInput(attrs={'class': 'form-control'}),
+        }

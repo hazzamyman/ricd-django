@@ -30,20 +30,20 @@ class Project(models.Model):
         ("varied", "Varied"),
     ]
 
-    council = models.ForeignKey('ricd.Council', on_delete=models.CASCADE, related_name="projects")
-    program = models.ForeignKey('ricd.Program', on_delete=models.CASCADE, related_name="projects")
+    council = models.ForeignKey('core.Council', on_delete=models.CASCADE, related_name="projects")
+    program = models.ForeignKey('core.Program', on_delete=models.CASCADE, related_name="projects")
 
     # Funding agreement options
-    funding_schedule = models.ForeignKey('ricd.FundingSchedule', on_delete=models.SET_NULL, null=True, blank=True, related_name="projects")
-    forward_rpf_agreement = models.ForeignKey('ricd.ForwardRemoteProgramFundingAgreement', on_delete=models.SET_NULL, null=True, blank=True, related_name="projects")
-    interim_fp_agreement = models.ForeignKey('ricd.InterimForwardProgramFundingAgreement', on_delete=models.SET_NULL, null=True, blank=True, related_name="projects")
+    funding_schedule = models.ForeignKey('funding.FundingSchedule', on_delete=models.SET_NULL, null=True, blank=True, related_name="projects")
+    forward_rpf_agreement = models.ForeignKey('funding.ForwardRemoteProgramFundingAgreement', on_delete=models.SET_NULL, null=True, blank=True, related_name="projects")
+    interim_fp_agreement = models.ForeignKey('funding.InterimForwardProgramFundingAgreement', on_delete=models.SET_NULL, null=True, blank=True, related_name="projects")
 
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     funding_schedule_amount = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True, validators=[MinValueValidator(Decimal('0.01'))])
     contingency_amount = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True, validators=[MinValueValidator(Decimal('0.01'))])
-    principal_officer = models.ForeignKey('ricd.Officer', on_delete=models.SET_NULL, null=True, blank=True, related_name='principal_projects')
-    senior_officer = models.ForeignKey('ricd.Officer', on_delete=models.SET_NULL, null=True, blank=True, related_name='senior_projects')
+    principal_officer = models.ForeignKey('core.Officer', on_delete=models.SET_NULL, null=True, blank=True, related_name='principal_projects')
+    senior_officer = models.ForeignKey('core.Officer', on_delete=models.SET_NULL, null=True, blank=True, related_name='senior_projects')
     start_date = models.DateField(blank=True, null=True)
     stage1_target = models.DateField(blank=True, null=True)
     stage1_sunset = models.DateField(blank=True, null=True)
@@ -96,7 +96,7 @@ class Project(models.Model):
     # Variation fields
     variation_description = models.TextField(blank=True, null=True, help_text="Description of what was varied")
     replacement_funding_schedule = models.ForeignKey(
-        'ricd.FundingSchedule',
+        'funding.FundingSchedule',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -223,7 +223,6 @@ class Project(models.Model):
     @property
     def works(self):
         """Get all works for this project's addresses"""
-        from .work import Work
         return Work.objects.filter(address__project=self)
 
     @property
@@ -344,7 +343,7 @@ class Variation(models.Model):
 
     # For project variations (cancelled/terminated case)
     replacement_funding_schedule = models.ForeignKey(
-        'ricd.FundingSchedule',
+        'funding.FundingSchedule',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -453,7 +452,7 @@ class FieldVisibilitySetting(models.Model):
     ]
 
     council = models.ForeignKey(
-        'ricd.Council',
+        'core.Council',
         on_delete=models.CASCADE,
         related_name='field_visibility_settings',
         help_text="Council these settings apply to"

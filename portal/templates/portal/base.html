@@ -36,136 +36,181 @@
             <div class="navbar-collapse show" id="navbarNav">
                 {% if user.is_authenticated %}
                 <ul class="navbar-nav me-auto">
-                   <!-- Council Navigation -->
-                   {% for group in user.groups.all %}
-                     {% if group.name == 'Council User' or group.name == 'Council Manager' %}
-                       {% if user.profile.council %}
-                       <li class="nav-item">
-                           <a class="nav-link" href="{% url 'portal:council_detail' user.profile.council.pk %}">
-                               <i class="fas fa-building"></i> Council Details
-                           </a>
-                       </li>
-                       {% endif %}
-                       <li class="nav-item dropdown">
-                           <a class="nav-link dropdown-toggle" href="#" id="reportsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                               <i class="fas fa-file-alt"></i> Reports
-                           </a>
-                           <ul class="dropdown-menu" aria-labelledby="reportsDropdown">
-                               <li><h6 class="dropdown-header">Enhanced Report Tables</h6></li>
-                               <li><a class="dropdown-item" href="{% url 'portal:enhanced_monthly_tracker' %}">
-                                   <i class="fas fa-table"></i> Monthly Tracker
-                               </a></li>
-                               <li><a class="dropdown-item" href="{% url 'portal:enhanced_quarterly_report' %}">
-                                   <i class="fas fa-calendar-week"></i> Quarterly Report
-                               </a></li>
-                               <li><a class="dropdown-item" href="{% url 'portal:enhanced_stage1_report' %}">
-                                   <i class="fas fa-clipboard-list"></i> Stage 1 Report
-                               </a></li>
-                               <li><a class="dropdown-item" href="{% url 'portal:enhanced_stage2_report' %}">
-                                   <i class="fas fa-clipboard-check"></i> Stage 2 Report
-                               </a></li>
-                               <li><hr class="dropdown-divider"></li>
-                               <li><h6 class="dropdown-header">Individual Report Forms</h6></li>
-                               <li><a class="dropdown-item" href="{% url 'portal:monthly_report' %}">Submit Monthly Report</a></li>
-                               <li><a class="dropdown-item" href="{% url 'portal:quarterly_report' %}">Submit Quarterly Report</a></li>
-                               <li><a class="dropdown-item" href="{% url 'portal:enhanced_stage1_report' %}">Submit Stage 1 Report</a></li>
-                               <li><a class="dropdown-item" href="{% url 'portal:enhanced_stage2_report' %}">Submit Stage 2 Report</a></li>
-                           </ul>
-                       </li>
-                     {% endif %}
-                   {% endfor %}
-
-                    <!-- RICD Navigation -->
+                    {% comment %} Determine user type once to avoid duplicates {% endcomment %}
+                    {% with ricd=false council=false %}
                     {% for group in user.groups.all %}
-                      {% if group.name == 'RICD Staff' or group.name == 'RICD Manager' %}
-                        {% if user.is_staff %}
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="managementDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fas fa-cogs"></i> Management
-                            </a>
-                            <ul class="dropdown-menu" aria-labelledby="managementDropdown">
-                                <!-- Council Management -->
-                                <li><h6 class="dropdown-header">Councils</h6></li>
-                                <li><a class="dropdown-item" href="{% url 'portal:council_list' %}">All Councils</a></li>
-                                <li><a class="dropdown-item" href="{% url 'portal:officer_list' %}">Officers</a></li>
-                                <li><hr class="dropdown-divider"></li>
+                      {% if not ricd and (group.name == 'RICD Staff' or group.name == 'RICD Manager') %}
+                        {% with ricd=true %}
+                          <!-- RICD Dashboard -->
+                          {% if user.is_staff %}
+                          <li class="nav-item">
+                              <a class="nav-link" href="{% url 'portal:ricd_dashboard' %}">
+                                  <i class="fas fa-tachometer-alt"></i> RICD Dashboard
+                              </a>
+                          </li>
+                          {% endif %}
 
-                                <!-- Program & Project Management -->
-                                <li><h6 class="dropdown-header">Programs & Projects</h6></li>
-                                <li><a class="dropdown-item" href="{% url 'portal:program_list' %}">Programs</a></li>
-                                <li><a class="dropdown-item" href="{% url 'portal:project_list' %}">Projects</a></li>
-                                <li><hr class="dropdown-divider"></li>
+                          <!-- Reports for RICD -->
+                          <li class="nav-item dropdown">
+                              <a class="nav-link dropdown-toggle" href="#" id="reportsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                  <i class="fas fa-file-alt"></i> Reports
+                              </a>
+                              <ul class="dropdown-menu" aria-labelledby="reportsDropdown">
+                                  <li><h6 class="dropdown-header">Enhanced Report Tables</h6></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:enhanced_monthly_tracker' %}">
+                                      <i class="fas fa-table"></i> Monthly Tracker
+                                  </a></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:enhanced_quarterly_report' %}">
+                                      <i class="fas fa-calendar-week"></i> Quarterly Report
+                                  </a></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:enhanced_stage1_report' %}">
+                                      <i class="fas fa-clipboard-list"></i> Stage 1 Report
+                                  </a></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:enhanced_stage2_report' %}">
+                                      <i class="fas fa-clipboard-check"></i> Stage 2 Report
+                                  </a></li>
+                                  <li><hr class="dropdown-divider"></li>
+                                  <li><h6 class="dropdown-header">Individual Report Forms</h6></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:monthly_report' %}">Submit Monthly Report</a></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:quarterly_report' %}">Submit Quarterly Report</a></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:enhanced_stage1_report' %}">Submit Stage 1 Report</a></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:enhanced_stage2_report' %}">Submit Stage 2 Report</a></li>
+                              </ul>
+                          </li>
 
-                                <!-- Defect Management -->
-                                <li><h6 class="dropdown-header">Defects & Quality</h6></li>
-                                <li><a class="dropdown-item" href="{% url 'portal:defect_list' %}">
-                                    <i class="fas fa-exclamation-triangle"></i> All Defects
-                                </a></li>
-                                <li><a class="dropdown-item" href="{% url 'portal:defect_create' %}">
-                                    <i class="fas fa-plus"></i> Report Defect
-                                </a></li>
-                                <li><hr class="dropdown-divider"></li>
+                          <!-- Management for RICD -->
+                          {% if user.is_staff %}
+                          <li class="nav-item dropdown">
+                              <a class="nav-link dropdown-toggle" href="#" id="managementDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                  <i class="fas fa-cogs"></i> Management
+                              </a>
+                              <ul class="dropdown-menu" aria-labelledby="managementDropdown">
+                                  <!-- Council Management -->
+                                  <li><h6 class="dropdown-header">Councils</h6></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:council_list' %}">All Councils</a></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:officer_list' %}">Officers</a></li>
+                                  <li><hr class="dropdown-divider"></li>
 
-                                <!-- User Management -->
-                                <li><h6 class="dropdown-header">Users</h6></li>
-                                <li><a class="dropdown-item" href="{% url 'portal:user_list' %}">User Management</a></li>
-                                <li><hr class="dropdown-divider"></li>
+                                  <!-- Program & Project Management -->
+                                  <li><h6 class="dropdown-header">Programs & Projects</h6></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:program_list' %}">Programs</a></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:project_list' %}">Projects</a></li>
+                                  <li><hr class="dropdown-divider"></li>
 
-                                <!-- Funding & Agreements -->
-                                <li><h6 class="dropdown-header">Funding</h6></li>
-                                <li><a class="dropdown-item" href="{% url 'portal:funding_approval_list' %}">Funding Approvals</a></li>
-                                <li><a class="dropdown-item" href="{% url 'portal:remote_capital_program_list' %}">Remote Capital Agreements</a></li>
-                                <li><a class="dropdown-item" href="{% url 'portal:forward_rpf_list' %}">Forward RPF Agreements</a></li>
-                                <li><a class="dropdown-item" href="{% url 'portal:interim_frp_list' %}">Interim FRP Agreements</a></li>
-                                <li><hr class="dropdown-divider"></li>
+                                  <!-- Defect Management -->
+                                  <li><h6 class="dropdown-header">Defects & Quality</h6></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:defect_list' %}">
+                                      <i class="fas fa-exclamation-triangle"></i> All Defects
+                                  </a></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:defect_create' %}">
+                                      <i class="fas fa-plus"></i> Report Defect
+                                  </a></li>
+                                  <li><hr class="dropdown-divider"></li>
 
-                                <!-- Types & Classifications -->
-                                <li><h6 class="dropdown-header">Types</h6></li>
-                                <li><a class="dropdown-item" href="{% url 'portal:work_type_list' %}">Work Types</a></li>
-                                <li><a class="dropdown-item" href="{% url 'portal:output_type_list' %}">Output Types</a></li>
-                                <li><a class="dropdown-item" href="{% url 'portal:work_output_type_config' %}">Work/Output Config</a></li>
-                                <li><hr class="dropdown-divider"></li>
+                                  <!-- User Management -->
+                                  <li><h6 class="dropdown-header">Users</h6></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:user_list' %}">User Management</a></li>
+                                  <li><hr class="dropdown-divider"></li>
 
-                                <!-- Maintenance -->
-                                <li><h6 class="dropdown-header">Maintenance</h6></li>
-                                <li><a class="dropdown-item" href="{% url 'portal:construction_method_list' %}">
-                                    <i class="fas fa-tools"></i> Construction Methods
-                                </a></li>
-                                <li><a class="dropdown-item" href="{% url 'portal:site_configuration' %}">
-                                    <i class="fas fa-cog"></i> Site Configuration
-                                </a></li>
-                                <li><hr class="dropdown-divider"></li>
+                                  <!-- Funding & Agreements -->
+                                  <li><h6 class="dropdown-header">Funding</h6></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:funding_approval_list' %}">Funding Approvals</a></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:remote_capital_program_list' %}">Remote Capital Agreements</a></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:forward_rpf_list' %}">Forward RPF Agreements</a></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:interim_frp_list' %}">Interim FRP Agreements</a></li>
+                                  <li><hr class="dropdown-divider"></li>
 
-                                <!-- Enhanced Reporting Configuration -->
-                                <li><h6 class="dropdown-header">Enhanced Reporting</h6></li>
-                                <li><a class="dropdown-item" href="{% url 'portal:monthly_tracker_item_list' %}">
-                                    <i class="fas fa-list"></i> Monthly Tracker Items
-                                </a></li>
-                                <li><a class="dropdown-item" href="{% url 'portal:monthly_tracker_item_group_list' %}">
-                                    <i class="fas fa-layer-group"></i> Tracker Item Groups
-                                </a></li>
-                                <li><a class="dropdown-item" href="{% url 'portal:quarterly_report_item_list' %}">
-                                    <i class="fas fa-calendar-alt"></i> Quarterly Report Items
-                                </a></li>
-                                <li><a class="dropdown-item" href="{% url 'portal:stage1_step_list' %}">
-                                    <i class="fas fa-clipboard-list"></i> Stage 1 Steps
-                                </a></li>
-                                <li><a class="dropdown-item" href="{% url 'portal:stage2_step_list' %}">
-                                    <i class="fas fa-clipboard-check"></i> Stage 2 Steps
-                                </a></li>
-                            </ul>
-                        </li>
+                                  <!-- Types & Classifications -->
+                                  <li><h6 class="dropdown-header">Types</h6></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:work_type_list' %}">Work Types</a></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:output_type_list' %}">Output Types</a></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:work_output_type_config' %}">Work/Output Config</a></li>
+                                  <li><hr class="dropdown-divider"></li>
 
-                        <!-- Analytics Menu Item - Only for RICD users -->
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'portal:analytics_dashboard' %}">
-                                <i class="fas fa-chart-line"></i> Analytics
-                            </a>
-                        </li>
-                        {% endif %}
+                                  <!-- Maintenance -->
+                                  <li><h6 class="dropdown-header">Maintenance</h6></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:construction_method_list' %}">
+                                      <i class="fas fa-tools"></i> Construction Methods
+                                  </a></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:site_configuration' %}">
+                                      <i class="fas fa-cog"></i> Site Configuration
+                                  </a></li>
+                                  <li><hr class="dropdown-divider"></li>
+
+                                  <!-- Enhanced Reporting Configuration -->
+                                  <li><h6 class="dropdown-header">Enhanced Reporting</h6></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:monthly_tracker_item_list' %}">
+                                      <i class="fas fa-list"></i> Monthly Tracker Items
+                                  </a></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:monthly_tracker_item_group_list' %}">
+                                      <i class="fas fa-layer-group"></i> Tracker Item Groups
+                                  </a></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:quarterly_report_item_list' %}">
+                                      <i class="fas fa-calendar-alt"></i> Quarterly Report Items
+                                  </a></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:stage1_step_list' %}">
+                                      <i class="fas fa-clipboard-list"></i> Stage 1 Steps
+                                  </a></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:stage2_step_list' %}">
+                                      <i class="fas fa-clipboard-check"></i> Stage 2 Steps
+                                  </a></li>
+                              </ul>
+                          </li>
+
+                          <!-- Analytics for RICD -->
+                          <li class="nav-item">
+                              <a class="nav-link" href="{% url 'portal:analytics_dashboard' %}">
+                                  <i class="fas fa-chart-line"></i> Analytics
+                              </a>
+                          </li>
+                        {% endwith %}
+                      {% elif not council and (group.name == 'Council User' or group.name == 'Council Manager') %}
+                        {% with council=true %}
+                          <!-- Council Dashboard (brand handles, but explicit if needed) -->
+                          <li class="nav-item">
+                              <a class="nav-link" href="{% url 'portal:council_dashboard' %}">
+                                  <i class="fas fa-flag"></i> Council Dashboard
+                              </a>
+                          </li>
+                          {% if user.profile.council %}
+                          <li class="nav-item">
+                              <a class="nav-link" href="{% url 'portal:council_detail' user.profile.council.pk %}">
+                                  <i class="fas fa-building"></i> Council Details
+                              </a>
+                          </li>
+                          {% endif %}
+
+                          <!-- Reports for Council -->
+                          <li class="nav-item dropdown">
+                              <a class="nav-link dropdown-toggle" href="#" id="reportsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                  <i class="fas fa-file-alt"></i> Reports
+                              </a>
+                              <ul class="dropdown-menu" aria-labelledby="reportsDropdown">
+                                  <li><h6 class="dropdown-header">Enhanced Report Tables</h6></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:enhanced_monthly_tracker' %}">
+                                      <i class="fas fa-table"></i> Monthly Tracker
+                                  </a></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:enhanced_quarterly_report' %}">
+                                      <i class="fas fa-calendar-week"></i> Quarterly Report
+                                  </a></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:enhanced_stage1_report' %}">
+                                      <i class="fas fa-clipboard-list"></i> Stage 1 Report
+                                  </a></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:enhanced_stage2_report' %}">
+                                      <i class="fas fa-clipboard-check"></i> Stage 2 Report
+                                  </a></li>
+                                  <li><hr class="dropdown-divider"></li>
+                                  <li><h6 class="dropdown-header">Individual Report Forms</h6></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:monthly_report' %}">Submit Monthly Report</a></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:quarterly_report' %}">Submit Quarterly Report</a></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:enhanced_stage1_report' %}">Submit Stage 1 Report</a></li>
+                                  <li><a class="dropdown-item" href="{% url 'portal:enhanced_stage2_report' %}">Submit Stage 2 Report</a></li>
+                              </ul>
+                          </li>
+                        {% endwith %}
                       {% endif %}
                     {% endfor %}
-
+                    {% endwith %}
 
                     <!-- Debug: Show navigation status for Council Users -->
                     {% comment %}

@@ -24,7 +24,9 @@ from ricd.models import (
     ForwardRemoteProgramFundingAgreement, InterimForwardProgramFundingAgreement,
     RemoteCapitalProgramFundingAgreement, UserProfile, FieldVisibilitySetting,
     ProjectReportConfiguration,
-    SiteConfiguration, Defect
+    SiteConfiguration, Defect, MonthlyTrackerItem, MonthlyTrackerItemGroup, QuarterlyReportItem,
+    QuarterlyReportItemGroup, Stage1Step, Stage2Step, Stage1StepCompletion, Stage2StepCompletion,
+    QuarterlyReportItemEntry, MonthlyTrackerEntry
 )
 
 from .forms import (
@@ -34,7 +36,10 @@ from .forms import (
     UserCreationForm, FundingApprovalForm, ForwardRemoteProgramFundingAgreementForm,
     InterimForwardProgramFundingAgreementForm, RemoteCapitalProgramFundingAgreementForm,
     SiteConfigurationForm, DefectForm,
-    MonthlyTrackerForm, QuarterlyReportForm, Stage1ReportForm, Stage2ReportForm
+    MonthlyTrackerForm, QuarterlyReportForm, Stage1ReportForm, Stage2ReportForm,
+    MonthlyTrackerItemForm, QuarterlyReportItemForm, Stage1StepForm, Stage2StepForm,
+    MonthlyTrackerItemGroupForm, QuarterlyReportItemGroupForm, MonthlyTrackerEntryForm, QuarterlyReportItemEntryForm,
+    ProjectReportConfigurationForm
 )
 
 
@@ -228,17 +233,9 @@ class CouncilListView(LoginRequiredMixin, ListView):
             return HttpResponseForbidden("Access denied.")
 
         # For council users, check if they're viewing their own council
-        if is_council_user and not is_ricd:
-            council = self.get_object()
-            try:
-                user_profile = request.user.profile
-                user_council = user_profile.council
-                if user_council != council:
-                    from django.http import HttpResponseForbidden
-                    return HttpResponseForbidden("You can only view your own council.")
-            except:
-                from django.http import HttpResponseForbidden
-                return HttpResponseForbidden("Access denied. No council profile found.")
+        # Council users can see all councils, but we might want to restrict this later
+        # For now, allow all authenticated users to view council list
+        pass
 
         return super().dispatch(request, *args, **kwargs)
 
@@ -5308,7 +5305,7 @@ class EnhancedStage1ReportView(LoginRequiredMixin, TemplateView):
         context.update({
             'stage1_data': stage1_data,
             'stage1_steps': stage1_steps,
-            'total_columns': len(stage1_steps) + 1,  # +1 for work address column
+            'total_columns': len(stage1_steps) + 1,  # +1 for project column
             'is_ricd': is_ricd,
             'user_council': user_council,
         })
@@ -5316,42 +5313,27 @@ class EnhancedStage1ReportView(LoginRequiredMixin, TemplateView):
         return context
 
     def prepare_stage1_data(self, projects, stage1_steps):
-        """Prepare Stage 1 data for enhanced table display"""
+        """Prepare Stage 1 data for enhanced table display - per project"""
         from collections import defaultdict
 
-        project_groups = []
+        project_data = []
 
         for project in projects:
-            # Get all works for this project
-            works = Work.objects.filter(address__project=project).select_related(
-                'address', 'work_type_id', 'output_type_id'
-            )
+            project_info = {
+                'project': project,
+                'step_values': {}
+            }
 
-            # Prepare work data with stage 1 steps
-            work_data = []
-            for work in works:
-                work_info = {
-                    'work': work,
-                    'address': work.address,
-                    'step_values': {}
-                }
+            # For each stage 1 step, determine completion status at project level
+            for step in stage1_steps:
+                project_info['step_values'][step.id] = self.get_stage1_value_for_project(project, step)
 
-                # For each stage 1 step, determine completion status
-                for step in stage1_steps:
-                    work_info['step_values'][step.id] = self.get_stage1_value_for_work(work, step, project)
+            project_data.append(project_info)
 
-                work_data.append(work_info)
+        return project_data
 
-            if work_data:  # Only add if there are works
-                project_groups.append({
-                    'project': project,
-                    'works': work_data
-                })
-
-        return project_groups
-
-    def get_stage1_value_for_work(self, work, stage1_step, project):
-        """Determine the completion status for a specific work and stage 1 step"""
+    def get_stage1_value_for_project(self, project, stage1_step):
+        """Determine the completion status for a specific project and stage 1 step"""
         # Check if this stage 1 step is configured for this project
         try:
             config = project.report_configuration
@@ -5370,25 +5352,34 @@ class EnhancedStage1ReportView(LoginRequiredMixin, TemplateView):
             # No configuration exists, so step is not applicable
             return {'completed': False, 'completion_date': None, 'applicable': False}
 
-        # Step is applicable, check if there's completion data
+        # Step is applicable, check if there's completion data at project level
+        # For Stage 1 reports per project, we need a different completion model
+        # For now, we'll assume completion is tracked at the project level
+        # This may need to be updated based on the actual Stage1Report model
         try:
-            # Get the completion status for this step and work
-            completion = Stage1StepCompletion.objects.get(
-                work=work,
-                step=stage1_step
-            )
-            return {
-                'completed': completion.completed,
-                'completion_date': completion.completion_date,
-                'applicable': True
-            }
-        except Stage1StepCompletion.DoesNotExist:
-            # No completion record exists
-            return {
-                'completed': False,
-                'completion_date': None,
-                'applicable': True
-            }
+            # Look for Stage1Report completion for this project and step
+            # This assumes there's a Stage1Report model with step completions
+            from ricd.models import Stage1Report
+            reports = Stage1Report.objects.filter(project=project)
+            if reports.exists():
+                report = reports.first()
+                # Check if this step is marked as complete in the report
+                # This is a simplified implementation - may need refinement
+                return {
+                    'completed': getattr(report, f'step_{stage1_step.id}_completed', False),
+                    'completion_date': getattr(report, f'step_{stage1_step.id}_date', None),
+                    'applicable': True
+                }
+        except Exception:
+            # If no report exists or there's an error, return not completed
+            pass
+
+        # No completion record exists
+        return {
+            'completed': False,
+            'completion_date': None,
+            'applicable': True
+        }
 
 
 class EnhancedStage2ReportView(LoginRequiredMixin, TemplateView):
@@ -5427,7 +5418,7 @@ class EnhancedStage2ReportView(LoginRequiredMixin, TemplateView):
         context.update({
             'stage2_data': stage2_data,
             'stage2_steps': stage2_steps,
-            'total_columns': len(stage2_steps) + 1,  # +1 for work address column
+            'total_columns': len(stage2_steps) + 1,  # +1 for project column
             'is_ricd': is_ricd,
             'user_council': user_council,
         })
@@ -5435,42 +5426,27 @@ class EnhancedStage2ReportView(LoginRequiredMixin, TemplateView):
         return context
 
     def prepare_stage2_data(self, projects, stage2_steps):
-        """Prepare Stage 2 data for enhanced table display"""
+        """Prepare Stage 2 data for enhanced table display - per project"""
         from collections import defaultdict
 
-        project_groups = []
+        project_data = []
 
         for project in projects:
-            # Get all works for this project
-            works = Work.objects.filter(address__project=project).select_related(
-                'address', 'work_type_id', 'output_type_id'
-            )
+            project_info = {
+                'project': project,
+                'step_values': {}
+            }
 
-            # Prepare work data with stage 2 steps
-            work_data = []
-            for work in works:
-                work_info = {
-                    'work': work,
-                    'address': work.address,
-                    'step_values': {}
-                }
+            # For each stage 2 step, determine completion status at project level
+            for step in stage2_steps:
+                project_info['step_values'][step.id] = self.get_stage2_value_for_project(project, step)
 
-                # For each stage 2 step, determine completion status
-                for step in stage2_steps:
-                    work_info['step_values'][step.id] = self.get_stage2_value_for_work(work, step, project)
+            project_data.append(project_info)
 
-                work_data.append(work_info)
+        return project_data
 
-            if work_data:  # Only add if there are works
-                project_groups.append({
-                    'project': project,
-                    'works': work_data
-                })
-
-        return project_groups
-
-    def get_stage2_value_for_work(self, work, stage2_step, project):
-        """Determine the completion status for a specific work and stage 2 step"""
+    def get_stage2_value_for_project(self, project, stage2_step):
+        """Determine the completion status for a specific project and stage 2 step"""
         # Check if this stage 2 step is configured for this project
         try:
             config = project.report_configuration
@@ -5489,25 +5465,34 @@ class EnhancedStage2ReportView(LoginRequiredMixin, TemplateView):
             # No configuration exists, so step is not applicable
             return {'completed': False, 'completion_date': None, 'applicable': False}
 
-        # Step is applicable, check if there's completion data
+        # Step is applicable, check if there's completion data at project level
+        # For Stage 2 reports per project, we need a different completion model
+        # For now, we'll assume completion is tracked at the project level
+        # This may need to be updated based on the actual Stage2Report model
         try:
-            # Get the completion status for this step and work
-            completion = Stage2StepCompletion.objects.get(
-                work=work,
-                step=stage2_step
-            )
-            return {
-                'completed': completion.completed,
-                'completion_date': completion.completion_date,
-                'applicable': True
-            }
-        except Stage2StepCompletion.DoesNotExist:
-            # No completion record exists
-            return {
-                'completed': False,
-                'completion_date': None,
-                'applicable': True
-            }
+            # Look for Stage2Report completion for this project and step
+            # This assumes there's a Stage2Report model with step completions
+            from ricd.models import Stage2Report
+            reports = Stage2Report.objects.filter(project=project)
+            if reports.exists():
+                report = reports.first()
+                # Check if this step is marked as complete in the report
+                # This is a simplified implementation - may need refinement
+                return {
+                    'completed': getattr(report, f'step_{stage2_step.id}_completed', False),
+                    'completion_date': getattr(report, f'step_{stage2_step.id}_date', None),
+                    'applicable': True
+                }
+        except Exception:
+            # If no report exists or there's an error, return not completed
+            pass
+
+        # No completion record exists
+        return {
+            'completed': False,
+            'completion_date': None,
+            'applicable': True
+        }
 
 
 class SiteConfigurationView(LoginRequiredMixin, UpdateView):

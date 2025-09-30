@@ -1,4 +1,5 @@
 {% extends "portal/base.html" %}
+{% load template_filters %}
 
 {% block title %}Enhanced Stage 2 Report - RICD Portal{% endblock %}
 
@@ -79,7 +80,7 @@
                                                 <!-- Stage 2 Step Data Columns -->
                                                 {% for step in stage2_steps %}
                                                     <td class="text-center">
-                                                        {% with value_info=work_info.step_values|get_item:step.id %}
+                                                        {% with value_info=work_info.step_values|get_key:step.id %}
                                                             {% if not value_info.applicable %}
                                                                 <!-- Step not applicable to this work -->
                                                                 <span class="text-muted">-</span>
