@@ -1,0 +1,409 @@
+[30/Sep/2025 09:16:07] "GET / HTTP/1.1" 302 0
+[30/Sep/2025 09:16:07] "GET /accounts/login/ HTTP/1.1" 200 5738
+[30/Sep/2025 09:16:07] "GET /static/css/style.css HTTP/1.1" 404 1801
+Not Found: /favicon.ico
+[30/Sep/2025 09:16:08] "GET /favicon.ico HTTP/1.1" 404 2995
+DEBUG: CustomLoginView.get_success_url - User: harry, Groups: ['RICD Staff', 'RICD Manager', 'Council User', 'Council Manager'], User Council: None
+DEBUG: CustomLoginView.get_success_url - Redirecting to RICD dashboard
+[30/Sep/2025 09:16:14] "POST /accounts/login/ HTTP/1.1" 302 0
+Internal Server Error: /portal/ricd/
+Traceback (most recent call last):
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/core/handlers/base.py", line 220, in _get_response
+    response = response.render()
+               ^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/response.py", line 114, in render
+    self.content = self.rendered_content
+                   ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/response.py", line 92, in rendered_content
+    return template.render(context, self._request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/backends/django.py", line 61, in render
+    return self.template.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 175, in render
+    return self._render(context)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 167, in _render
+    return self.nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 1005, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 1005, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 966, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/loader_tags.py", line 157, in render
+    return compiled_parent._render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 167, in _render
+    return self.nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 1005, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 1005, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 966, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/defaulttags.py", line 321, in render
+    return nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 1005, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 1005, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 966, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/defaulttags.py", line 238, in render
+    nodelist.append(node.render_annotated(context))
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 966, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/defaulttags.py", line 321, in render
+    return nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 1005, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 1005, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 966, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/defaulttags.py", line 471, in render
+    url = reverse(view_name, args=args, kwargs=kwargs, current_app=current_app)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/urls/base.py", line 88, in reverse
+    return resolver._reverse_with_prefix(view, prefix, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/urls/resolvers.py", line 828, in _reverse_with_prefix
+    raise NoReverseMatch(msg)
+django.urls.exceptions.NoReverseMatch: Reverse for 'stage1_report' not found. 'stage1_report' is not a valid view function or pattern name.
+Performing system checks...
+
+System check identified no issues (0 silenced).
+September 30, 2025 - 09:15:57
+Django version 4.2.7, using settings 'testproj.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+2025-09-30 09:16:08 | WARNING | django.utils.log:log_response:241 | Not Found: /favicon.ico
+2025-09-30 09:16:14 | INFO | portal.views:get_success_url:883 | DEBUG: CustomLoginView.get_success_url - User: harry, Groups: ['RICD Staff', 'RICD Manager', 'Council User', 'Council Manager'], User Council: None
+2025-09-30 09:16:14 | INFO | portal.views:get_success_url:887 | DEBUG: CustomLoginView.get_success_url - Redirecting to RICD dashboard
+2025-09-30 09:16:14 | ERROR | django.utils.log:log_response:241 | Internal Server Error: /portal/ricd/
+[33m[1mTraceback (most recent call last):[0m
+
+  File "/usr/lib/python3.11/threading.py", line 995, in _bootstrap
+    self._bootstrap_inner()
+    │    └ <function Thread._bootstrap_inner at 0x7f93db2236a0>
+    └ <Thread(Thread-2 (process_request_thread), started daemon 140272893687488)>
+  File "/usr/lib/python3.11/threading.py", line 1038, in _bootstrap_inner
+    self.run()
+    │    └ <function Thread.run at 0x7f93db223380>
+    └ <Thread(Thread-2 (process_request_thread), started daemon 140272893687488)>
+  File "/usr/lib/python3.11/threading.py", line 975, in run
+    self._target(*self._args, **self._kwargs)
+    │    │        │    │        │    └ {}
+    │    │        │    │        └ <Thread(Thread-2 (process_request_thread), started daemon 140272893687488)>
+    │    │        │    └ (<socket.socket fd=9, family=2, type=1, proto=0, laddr=('192.168.5.64', 8000), raddr=('192.168.1.4', 51872)>, ('192.168.1.4',...
+    │    │        └ <Thread(Thread-2 (process_request_thread), started daemon 140272893687488)>
+    │    └ <bound method ThreadingMixIn.process_request_thread of <django.core.servers.basehttp.WSGIServer object at 0x7f93d8bd3110>>
+    └ <Thread(Thread-2 (process_request_thread), started daemon 140272893687488)>
+  File "/usr/lib/python3.11/socketserver.py", line 691, in process_request_thread
+    self.finish_request(request, client_address)
+    │    │              │        └ ('192.168.1.4', 51872)
+    │    │              └ <socket.socket fd=9, family=2, type=1, proto=0, laddr=('192.168.5.64', 8000), raddr=('192.168.1.4', 51872)>
+    │    └ <function BaseServer.finish_request at 0x7f93d98628e0>
+    └ <django.core.servers.basehttp.WSGIServer object at 0x7f93d8bd3110>
+  File "/usr/lib/python3.11/socketserver.py", line 361, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+    │    │                   │        │               └ <django.core.servers.basehttp.WSGIServer object at 0x7f93d8bd3110>
+    │    │                   │        └ ('192.168.1.4', 51872)
+    │    │                   └ <socket.socket fd=9, family=2, type=1, proto=0, laddr=('192.168.5.64', 8000), raddr=('192.168.1.4', 51872)>
+    │    └ <class 'django.core.servers.basehttp.WSGIRequestHandler'>
+    └ <django.core.servers.basehttp.WSGIServer object at 0x7f93d8bd3110>
+  File "/usr/lib/python3.11/socketserver.py", line 755, in __init__
+    self.handle()
+    │    └ <function WSGIRequestHandler.handle at 0x7f93d8e61760>
+    └ <django.core.servers.basehttp.WSGIRequestHandler object at 0x7f93d8aa8210>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/core/servers/basehttp.py", line 229, in handle
+    self.handle_one_request()
+    │    └ <function WSGIRequestHandler.handle_one_request at 0x7f93d8e61800>
+    └ <django.core.servers.basehttp.WSGIRequestHandler object at 0x7f93d8aa8210>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/core/servers/basehttp.py", line 252, in handle_one_request
+    handler.run(self.server.get_app())
+    │       │   │    │      └ <function WSGIServer.get_app at 0x7f93d8e60860>
+    │       │   │    └ <django.core.servers.basehttp.WSGIServer object at 0x7f93d8bd3110>
+    │       │   └ <django.core.servers.basehttp.WSGIRequestHandler object at 0x7f93d8aa8210>
+    │       └ <function BaseHandler.run at 0x7f93d8e471a0>
+    └ <django.core.servers.basehttp.ServerHandler object at 0x7f93d8af2cd0>
+  File "/usr/lib/python3.11/wsgiref/handlers.py", line 137, in run
+    self.result = application(self.environ, self.start_response)
+    │    │        │           │    │        │    └ <function BaseHandler.start_response at 0x7f93d8e47560>
+    │    │        │           │    │        └ <django.core.servers.basehttp.ServerHandler object at 0x7f93d8af2cd0>
+    │    │        │           │    └ {'SHELL': '/bin/bash', 'COLORTERM': 'truecolor', 'TERM_PROGRAM_VERSION': '1.104.1', 'PWD': '/home/harry/projects/ricd', 'LOGN...
+    │    │        │           └ <django.core.servers.basehttp.ServerHandler object at 0x7f93d8af2cd0>
+    │    │        └ <django.contrib.staticfiles.handlers.StaticFilesHandler object at 0x7f93d8be1110>
+    │    └ None
+    └ <django.core.servers.basehttp.ServerHandler object at 0x7f93d8af2cd0>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/contrib/staticfiles/handlers.py", line 80, in __call__
+    return self.application(environ, start_response)
+           │    │           │        └ <bound method BaseHandler.start_response of <django.core.servers.basehttp.ServerHandler object at 0x7f93d8af2cd0>>
+           │    │           └ {'SHELL': '/bin/bash', 'COLORTERM': 'truecolor', 'TERM_PROGRAM_VERSION': '1.104.1', 'PWD': '/home/harry/projects/ricd', 'LOGN...
+           │    └ <django.core.handlers.wsgi.WSGIHandler object at 0x7f93d8bd0050>
+           └ <django.contrib.staticfiles.handlers.StaticFilesHandler object at 0x7f93d8be1110>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/core/handlers/wsgi.py", line 124, in __call__
+    response = self.get_response(request)
+               │    │            └ <WSGIRequest: GET '/portal/ricd/'>
+               │    └ <function BaseHandler.get_response at 0x7f93d9015120>
+               └ <django.core.handlers.wsgi.WSGIHandler object at 0x7f93d8bd0050>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/core/handlers/base.py", line 140, in get_response
+    response = self._middleware_chain(request)
+               │    │                 └ <WSGIRequest: GET '/portal/ricd/'>
+               │    └ <function convert_exception_to_response.<locals>.inner at 0x7f93d8b53b00>
+               └ <django.core.handlers.wsgi.WSGIHandler object at 0x7f93d8bd0050>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               │            └ <WSGIRequest: GET '/portal/ricd/'>
+               └ <SecurityMiddleware get_response=convert_exception_to_response.<locals>.inner>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/utils/deprecation.py", line 134, in __call__
+    response = response or self.get_response(request)
+               │           │    │            └ <WSGIRequest: GET '/portal/ricd/'>
+               │           │    └ <function convert_exception_to_response.<locals>.inner at 0x7f93d8b539c0>
+               │           └ <SecurityMiddleware get_response=convert_exception_to_response.<locals>.inner>
+               └ None
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               │            └ <WSGIRequest: GET '/portal/ricd/'>
+               └ <SessionMiddleware get_response=convert_exception_to_response.<locals>.inner>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/utils/deprecation.py", line 134, in __call__
+    response = response or self.get_response(request)
+               │           │    │            └ <WSGIRequest: GET '/portal/ricd/'>
+               │           │    └ <function convert_exception_to_response.<locals>.inner at 0x7f93d8b53920>
+               │           └ <SessionMiddleware get_response=convert_exception_to_response.<locals>.inner>
+               └ None
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               │            └ <WSGIRequest: GET '/portal/ricd/'>
+               └ <CommonMiddleware get_response=convert_exception_to_response.<locals>.inner>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/utils/deprecation.py", line 134, in __call__
+    response = response or self.get_response(request)
+               │           │    │            └ <WSGIRequest: GET '/portal/ricd/'>
+               │           │    └ <function convert_exception_to_response.<locals>.inner at 0x7f93d8b53740>
+               │           └ <CommonMiddleware get_response=convert_exception_to_response.<locals>.inner>
+               └ None
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               │            └ <WSGIRequest: GET '/portal/ricd/'>
+               └ <CsrfViewMiddleware get_response=convert_exception_to_response.<locals>.inner>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/utils/deprecation.py", line 134, in __call__
+    response = response or self.get_response(request)
+               │           │    │            └ <WSGIRequest: GET '/portal/ricd/'>
+               │           │    └ <function convert_exception_to_response.<locals>.inner at 0x7f93d8b53600>
+               │           └ <CsrfViewMiddleware get_response=convert_exception_to_response.<locals>.inner>
+               └ None
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               │            └ <WSGIRequest: GET '/portal/ricd/'>
+               └ <AuthenticationMiddleware get_response=convert_exception_to_response.<locals>.inner>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/utils/deprecation.py", line 134, in __call__
+    response = response or self.get_response(request)
+               │           │    │            └ <WSGIRequest: GET '/portal/ricd/'>
+               │           │    └ <function convert_exception_to_response.<locals>.inner at 0x7f93d8b514e0>
+               │           └ <AuthenticationMiddleware get_response=convert_exception_to_response.<locals>.inner>
+               └ None
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               │            └ <WSGIRequest: GET '/portal/ricd/'>
+               └ <MessageMiddleware get_response=convert_exception_to_response.<locals>.inner>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/utils/deprecation.py", line 134, in __call__
+    response = response or self.get_response(request)
+               │           │    │            └ <WSGIRequest: GET '/portal/ricd/'>
+               │           │    └ <function convert_exception_to_response.<locals>.inner at 0x7f93d8b511c0>
+               │           └ <MessageMiddleware get_response=convert_exception_to_response.<locals>.inner>
+               └ None
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               │            └ <WSGIRequest: GET '/portal/ricd/'>
+               └ <XFrameOptionsMiddleware get_response=BaseHandler._get_response>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/utils/deprecation.py", line 134, in __call__
+    response = response or self.get_response(request)
+               │           │    │            └ <WSGIRequest: GET '/portal/ricd/'>
+               │           │    └ <function BaseHandler._get_response at 0x7f93d8b50d60>
+               │           └ <XFrameOptionsMiddleware get_response=BaseHandler._get_response>
+               └ None
+> File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               │            └ <WSGIRequest: GET '/portal/ricd/'>
+               └ <bound method BaseHandler._get_response of <django.core.handlers.wsgi.WSGIHandler object at 0x7f93d8bd0050>>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/core/handlers/base.py", line 220, in _get_response
+    response = response.render()
+               └ None
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/response.py", line 114, in render
+    self.content = self.rendered_content
+    │    │         │    └ <property object at 0x7f93d96dfa60>
+    │    │         └ <TemplateResponse status_code=200, "text/html; charset=utf-8">
+    │    └ <property object at 0x7f93d96dfbf0>
+    └ <TemplateResponse status_code=200, "text/html; charset=utf-8">
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/response.py", line 92, in rendered_content
+    return template.render(context, self._request)
+           │        │      │        │    └ <WSGIRequest: GET '/portal/ricd/'>
+           │        │      │        └ <TemplateResponse status_code=200, "text/html; charset=utf-8">
+           │        │      └ {'view': <portal.dashboards.RICDDashboardView object at 0x7f93d8b0b790>, 'current_filters': {'program': None, 'council': None...
+           │        └ <function Template.render at 0x7f93da5144a0>
+           └ <django.template.backends.django.Template object at 0x7f93d8ae8c90>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/backends/django.py", line 61, in render
+    return self.template.render(context)
+           │    │        │      └ [{'True': True, 'False': False, 'None': None}, {}, {}, {'view': <portal.dashboards.RICDDashboardView object at 0x7f93d8b0b790...
+           │    │        └ <function Template.render at 0x7f93da503920>
+           │    └ <Template template_string="{% extends "portal/b...">
+           └ <django.template.backends.django.Template object at 0x7f93d8ae8c90>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 175, in render
+    return self._render(context)
+           │    │       └ [{'True': True, 'False': False, 'None': None}, {}, {}, {'view': <portal.dashboards.RICDDashboardView object at 0x7f93d8b0b790...
+           │    └ <function Template._render at 0x7f93da503880>
+           └ <Template template_string="{% extends "portal/b...">
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 167, in _render
+    return self.nodelist.render(context)
+           │    │        │      └ [{'True': True, 'False': False, 'None': None}, {}, {}, {'view': <portal.dashboards.RICDDashboardView object at 0x7f93d8b0b790...
+           │    │        └ <function NodeList.render at 0x7f93da505440>
+           │    └ [<ExtendsNode: extends "portal/base.html">]
+           └ <Template template_string="{% extends "portal/b...">
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 1005, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+           │                                         │                    └ [<ExtendsNode: extends "portal/base.html">]
+           │                                         └ [{'True': True, 'False': False, 'None': None}, {}, {}, {'view': <portal.dashboards.RICDDashboardView object at 0x7f93d8b0b790...
+           └ <class 'django.utils.safestring.SafeString'>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 1005, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+           │                   │    │                │            └ <ExtendsNode: extends "portal/base.html">
+           │                   │    │                └ [{'True': True, 'False': False, 'None': None}, {}, {}, {'view': <portal.dashboards.RICDDashboardView object at 0x7f93d8b0b790...
+           │                   │    └ <function Node.render_annotated at 0x7f93da505300>
+           │                   └ <ExtendsNode: extends "portal/base.html">
+           └ <class 'django.utils.safestring.SafeString'>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 966, in render_annotated
+    return self.render(context)
+           │    │      └ [{'True': True, 'False': False, 'None': None}, {}, {}, {'view': <portal.dashboards.RICDDashboardView object at 0x7f93d8b0b790...
+           │    └ <function ExtendsNode.render at 0x7f93d94ec720>
+           └ <ExtendsNode: extends "portal/base.html">
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/loader_tags.py", line 157, in render
+    return compiled_parent._render(context)
+           │               │       └ [{'True': True, 'False': False, 'None': None}, {}, {}, {'view': <portal.dashboards.RICDDashboardView object at 0x7f93d8b0b790...
+           │               └ <function Template._render at 0x7f93da503880>
+           └ <Template template_string="<!DOCTYPE html><htm...">
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 167, in _render
+    return self.nodelist.render(context)
+           │    │        │      └ [{'True': True, 'False': False, 'None': None}, {}, {}, {'view': <portal.dashboards.RICDDashboardView object at 0x7f93d8b0b790...
+           │    │        └ <function NodeList.render at 0x7f93da505440>
+           │    └ [<TextNode: '<!DOCTYPE html>\n<html lan'>, <Block Node: title. Contents: [<TextNode: 'RICD Portal'>]>, <TextNode: '</title>\n...
+           └ <Template template_string="<!DOCTYPE html><htm...">
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 1005, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+           │                                         │                    └ [<TextNode: '<!DOCTYPE html>\n<html lan'>, <Block Node: title. Contents: [<TextNode: 'RICD Portal'>]>, <TextNode: '</title>\n...
+           │                                         └ [{'True': True, 'False': False, 'None': None}, {}, {}, {'view': <portal.dashboards.RICDDashboardView object at 0x7f93d8b0b790...
+           └ <class 'django.utils.safestring.SafeString'>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 1005, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+           │                   │    │                │            └ <IfNode>
+           │                   │    │                └ [{'True': True, 'False': False, 'None': None}, {}, {}, {'view': <portal.dashboards.RICDDashboardView object at 0x7f93d8b0b790...
+           │                   │    └ <function Node.render_annotated at 0x7f93da505300>
+           │                   └ <IfNode>
+           └ <class 'django.utils.safestring.SafeString'>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 966, in render_annotated
+    return self.render(context)
+           │    │      └ [{'True': True, 'False': False, 'None': None}, {}, {}, {'view': <portal.dashboards.RICDDashboardView object at 0x7f93d8b0b790...
+           │    └ <function IfNode.render at 0x7f93d94e4360>
+           └ <IfNode>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/defaulttags.py", line 321, in render
+    return nodelist.render(context)
+           │        │      └ [{'True': True, 'False': False, 'None': None}, {}, {}, {'view': <portal.dashboards.RICDDashboardView object at 0x7f93d8b0b790...
+           │        └ <function NodeList.render at 0x7f93da505440>
+           └ [<TextNode: '\n                <ul clas'>, <ForNode: for group in user.groups.all, tail_len: 3>, <TextNode: '\n\n            ...
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 1005, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+           │                                         │                    └ [<TextNode: '\n                <ul clas'>, <ForNode: for group in user.groups.all, tail_len: 3>, <TextNode: '\n\n            ...
+           │                                         └ [{'True': True, 'False': False, 'None': None}, {}, {}, {'view': <portal.dashboards.RICDDashboardView object at 0x7f93d8b0b790...
+           └ <class 'django.utils.safestring.SafeString'>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 1005, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+           │                   │    │                │            └ <ForNode: for group in user.groups.all, tail_len: 3>
+           │                   │    │                └ [{'True': True, 'False': False, 'None': None}, {}, {}, {'view': <portal.dashboards.RICDDashboardView object at 0x7f93d8b0b790...
+           │                   │    └ <function Node.render_annotated at 0x7f93da505300>
+           │                   └ <ForNode: for group in user.groups.all, tail_len: 3>
+           └ <class 'django.utils.safestring.SafeString'>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 966, in render_annotated
+    return self.render(context)
+           │    │      └ [{'True': True, 'False': False, 'None': None}, {}, {}, {'view': <portal.dashboards.RICDDashboardView object at 0x7f93d8b0b790...
+           │    └ <function ForNode.render at 0x7f93d94b3e20>
+           └ <ForNode: for group in user.groups.all, tail_len: 3>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/defaulttags.py", line 238, in render
+    nodelist.append(node.render_annotated(context))
+    │        │      │    │                └ [{'True': True, 'False': False, 'None': None}, {}, {}, {'view': <portal.dashboards.RICDDashboardView object at 0x7f93d8b0b790...
+    │        │      │    └ <function Node.render_annotated at 0x7f93da505300>
+    │        │      └ <IfNode>
+    │        └ <method 'append' of 'list' objects>
+    └ ['\n                       ', '', '\n                   ', '\n                       ', '', '\n                   ', '\n     ...
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 966, in render_annotated
+    return self.render(context)
+           │    │      └ [{'True': True, 'False': False, 'None': None}, {}, {}, {'view': <portal.dashboards.RICDDashboardView object at 0x7f93d8b0b790...
+           │    └ <function IfNode.render at 0x7f93d94e4360>
+           └ <IfNode>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/defaulttags.py", line 321, in render
+    return nodelist.render(context)
+           │        │      └ [{'True': True, 'False': False, 'None': None}, {}, {}, {'view': <portal.dashboards.RICDDashboardView object at 0x7f93d8b0b790...
+           │        └ <function NodeList.render at 0x7f93da505440>
+           └ [<TextNode: '\n                        '>, <URLNode view_name=''portal:council_dashboard'' args=[] kwargs={} as=None>, <TextN...
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 1005, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+           │                                         │                    └ [<TextNode: '\n                        '>, <URLNode view_name=''portal:council_dashboard'' args=[] kwargs={} as=None>, <TextN...
+           │                                         └ [{'True': True, 'False': False, 'None': None}, {}, {}, {'view': <portal.dashboards.RICDDashboardView object at 0x7f93d8b0b790...
+           └ <class 'django.utils.safestring.SafeString'>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 1005, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+           │                   │    │                │            └ <URLNode view_name=''portal:stage1_report'' args=[] kwargs={} as=None>
+           │                   │    │                └ [{'True': True, 'False': False, 'None': None}, {}, {}, {'view': <portal.dashboards.RICDDashboardView object at 0x7f93d8b0b790...
+           │                   │    └ <function Node.render_annotated at 0x7f93da505300>
+           │                   └ <URLNode view_name=''portal:stage1_report'' args=[] kwargs={} as=None>
+           └ <class 'django.utils.safestring.SafeString'>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/base.py", line 966, in render_annotated
+    return self.render(context)
+           │    │      └ [{'True': True, 'False': False, 'None': None}, {}, {}, {'view': <portal.dashboards.RICDDashboardView object at 0x7f93d8b0b790...
+           │    └ <function URLNode.render at 0x7f93d94e51c0>
+           └ <URLNode view_name=''portal:stage1_report'' args=[] kwargs={} as=None>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/template/defaulttags.py", line 471, in render
+    url = reverse(view_name, args=args, kwargs=kwargs, current_app=current_app)
+          │       │               │            │                   └ 'portal'
+          │       │               │            └ {}
+          │       │               └ []
+          │       └ 'portal:stage1_report'
+          └ <function reverse at 0x7f93da3e32e0>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/urls/base.py", line 88, in reverse
+    return resolver._reverse_with_prefix(view, prefix, *args, **kwargs)
+           │        │                    │     │        │       └ {}
+           │        │                    │     │        └ []
+           │        │                    │     └ '/'
+           │        │                    └ 'stage1_report'
+           │        └ <function URLResolver._reverse_with_prefix at 0x7f93d9831120>
+           └ <URLResolver <URLResolver list> (None:None) '^/'>
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/urls/resolvers.py", line 828, in _reverse_with_prefix
+    raise NoReverseMatch(msg)
+          │              └ "Reverse for 'stage1_report' not found. 'stage1_report' is not a valid view function or pattern name."
+          └ <class 'django.urls.exceptions.NoReverseMatch'>
+
+[31m[1mdjango.urls.exceptions.NoReverseMatch[0m:[1m Reverse for 'stage1_report' not found. 'stage1_report' is not a valid view function or pattern name.[0m
+[30/Sep/2025 09:16:14] "GET /portal/ricd/ HTTP/1.1" 500 306030
+Not Found: /favicon.ico
+[30/Sep/2025 09:16:15] "GET /favicon.ico HTTP/1.1" 404 2995

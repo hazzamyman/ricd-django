@@ -1,0 +1,57 @@
+Traceback (most recent call last):
+  File "/home/harry/projects/ricd/testproj/manage.py", line 22, in <module>
+    main()
+  File "/home/harry/projects/ricd/testproj/manage.py", line 18, in main
+    execute_from_command_line(sys.argv)
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/core/management/__init__.py", line 442, in execute_from_command_line
+    utility.execute()
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/core/management/__init__.py", line 436, in execute
+    self.fetch_command(subcommand).run_from_argv(self.argv)
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/core/management/base.py", line 412, in run_from_argv
+    self.execute(*args, **cmd_options)
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/core/management/base.py", line 458, in execute
+    output = self.handle(*args, **options)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/core/management/commands/check.py", line 76, in handle
+    self.check(
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/core/management/base.py", line 485, in check
+    all_issues = checks.run_checks(
+                 ^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/core/checks/registry.py", line 88, in run_checks
+    new_errors = check(app_configs=app_configs, databases=databases)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/contrib/admin/checks.py", line 51, in check_admin_app
+    errors.extend(site.check(app_configs))
+                  ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/contrib/admin/sites.py", line 97, in check
+    errors.extend(modeladmin.check())
+                  ^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/contrib/admin/options.py", line 139, in check
+    return self.checks_class().check(self, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/contrib/admin/checks.py", line 796, in check
+    *self._check_inlines(admin_obj),
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/contrib/admin/checks.py", line 834, in _check_inlines
+    return list(
+           ^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/contrib/admin/checks.py", line 836, in <genexpr>
+    self._check_inlines_item(obj, item, "inlines[%d]" % index)
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/contrib/admin/checks.py", line 877, in _check_inlines_item
+    return inline(obj.model, obj.admin_site).check()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/contrib/admin/options.py", line 139, in check
+    return self.checks_class().check(self, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/contrib/admin/checks.py", line 1236, in check
+    *self._check_relation(inline_obj, parent_model),
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/contrib/admin/checks.py", line 1277, in _check_relation
+    _get_foreign_key(parent_model, obj.model, fk_name=obj.fk_name)
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/forms/models.py", line 1224, in _get_foreign_key
+    fks_to_parent = [
+                    ^
+  File "/home/harry/projects/ricd/venv/lib/python3.11/site-packages/django/forms/models.py", line 1232, in <listcomp>
+    f.remote_field.model._meta.proxy
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'str' object has no attribute '_meta'

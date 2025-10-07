@@ -1,0 +1,21 @@
+Model: <class 'ricd.models.core.Council'> Admin: <class 'django.contrib.admin.options.ModelAdmin'>
+Model: <class 'ricd.models.core.Program'> Admin: <class 'django.contrib.admin.options.ModelAdmin'>
+Model: <class 'ricd.models.project.Project'> Admin: <class 'ricd.admin.ProjectAdmin'>
+  Inline: <class 'ricd.admin.AddressInline'> is class? True
+Model: <class 'ricd.models.work.Address'> Admin: <class 'django.contrib.admin.options.ModelAdmin'>
+Model: <class 'ricd.models.work.Work'> Admin: <class 'ricd.admin.WorkAdmin'>
+  Inline: <class 'ricd.admin.WorkStepInline'> is class? True
+Model: <class 'ricd.models.funding.FundingSchedule'> Admin: <class 'ricd.admin.FundingScheduleAdmin'>
+  Inline: <class 'ricd.admin.InstalmentInline'> is class? True
+Model: <class 'ricd.models.funding.Instalment'> Admin: <class 'django.contrib.admin.options.ModelAdmin'>
+Model: <class 'ricd.models.reporting.MonthlyTracker'> Admin: <class 'django.contrib.admin.options.ModelAdmin'>
+Model: <class 'ricd.models.reporting.QuarterlyReport'> Admin: <class 'django.contrib.admin.options.ModelAdmin'>
+Model: <class 'ricd.models.core.Contact'> Admin: <class 'django.contrib.admin.options.ModelAdmin'>
+Model: <class 'ricd.models.reporting.StageReport'> Admin: <class 'django.contrib.admin.options.ModelAdmin'>
+Model: <class 'ricd.models.work.DefaultWorkStep'> Admin: <class 'django.contrib.admin.options.ModelAdmin'>
+Model: <class 'ricd.models.reporting.ReportAttachment'> Admin: <class 'django.contrib.admin.options.ModelAdmin'>
+Model: <class 'ricd.models.funding.FundingApproval'> Admin: <class 'ricd.admin.FundingApprovalAdmin'>
+Model: <class 'ricd.models.reporting.MonthlyReport'> Admin: <class 'ricd.admin.MonthlyReportAdmin'>
+Model: <class 'ricd.models.reporting.CouncilQuarterlyReport'> Admin: <class 'ricd.admin.QuarterlyReportAdmin'>
+Model: <class 'django.contrib.auth.models.User'> Admin: <class 'ricd.admin.CustomUserAdmin'>
+Model: <class 'django.contrib.auth.models.Group'> Admin: <class 'ricd.admin.CustomGroupAdmin'>

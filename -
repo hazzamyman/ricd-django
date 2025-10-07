@@ -1,0 +1,22 @@
+[Unit]
+Description=Gunicorn instance to serve ricd Django app for RICD
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/ricd/testproj
+ExecStart=/opt/ricd/venv/bin/gunicorn \
+          --workers 3 \
+          --bind unix:/run/ricd/ricd.sock \
+          --umask 007 \
+          testproj.wsgi:application
+
+# Ensure socket directory exists
+RuntimeDirectory=ricd
+RuntimeDirectoryMode=0755
+
+
+[Install]
+WantedBy=multi-user.target
+

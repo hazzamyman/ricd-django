@@ -1,0 +1,44 @@
+name: 🐞 Bug Report
+description: Report a reproducible problem in the application.
+labels: [bug, triage]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Briefly describe the bug.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Step-by-step guide to reproduce the issue.
+      placeholder: "1. Run `python manage.py runserver`\n2. Go to /portal/users/\n3. Observe error"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen.
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior / Logs
+      description: What actually happened, including full traceback or console logs.
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - Low
+        - Medium
+        - High
+        - Critical
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Python, Django, and OS versions.
+      placeholder: "Python 3.11, Django 5.0.3, Ubuntu 22.04"

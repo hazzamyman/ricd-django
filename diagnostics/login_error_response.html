@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RICD Portal</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    
+    <link rel="stylesheet" href="/static/css/style.css">
+    
+</head>
+<body class="d-flex flex-column min-vh-100">
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/portal/ricd/">
+                <i class="fas fa-home"></i> RICD Portal
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <!-- Debug: Show user properties for troubleshooting -->
+            
+
+            <div class="navbar-collapse show" id="navbarNav">
+                
+                <ul class="navbar-nav me-auto">
+                   <!-- Check for RICD groups first -->
+                   
+                       
+                           <!-- RICD User Navigation -->
+                           
+                           <li class="nav-item">
+                               <a class="nav-link" href="/portal/ricd/">
+                                   <i class="fas fa-tachometer-alt"></i> RICD Dashboard
+                               </a>
+                           </li>
+                           
+                       
+                   
+                       
+                           <!-- RICD User Navigation -->
+                           
+                           <li class="nav-item">
+                               <a class="nav-link" href="/portal/ricd/">
+                                   <i class="fas fa-tachometer-alt"></i> RICD Dashboard
+                               </a>
+                           </li>
+                           
+                       
+                   
+                       
+                   
+                       
+                   
+
+                   <!-- Check for Council groups -->
+                   
+                       
+                   
+                       
+                   
+                       
+                           <!-- Council User Navigation -->
+                           <li class="nav-item">
+                               <a class="nav-link" href="/portal/council/">
+                                   <i class="fas fa-flag"></i> Council Dashboard
+                               </a>
+                           </li>
+                           
+                           <li class="nav-item dropdown">
+                               <a class="nav-link dropdown-toggle" href="#" id="reportsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                   <i class="fas fa-file-alt"></i> Reports
+                               </a>
+                               <ul class="dropdown-menu" aria-labelledby="reportsDropdown">
+                                   <li><h6 class="dropdown-header">Enhanced Report Tables</h6></li>
+                                   <li><a class="dropdown-item" href="/portal/reports/enhanced-monthly/">
+                                       <i class="fas fa-table"></i> Monthly Tracker
+                                   </a></li>
+                                   <li><a class="dropdown-item" href="/portal/reports/enhanced-quarterly/">
+                                       <i class="fas fa-calendar-week"></i> Quarterly Report
+                                   </a></li>
+                                   <li><a class="dropdown-item" href="/portal/reports/enhanced-stage1/">
+                                       <i class="fas fa-clipboard-list"></i> Stage 1 Report
+                                   </a></li>
+                                   <li><a class="dropdown-item" href="/portal/reports/enhanced-stage2/">
+                                       <i class="fas fa-clipboard-check"></i> Stage 2 Report
+                                   </a></li>
+                                   <li><hr class="dropdown-divider"></li>
+                                   <li><h6 class="dropdown-header">Individual Report Forms</h6></li>
+                                   <li><a class="dropdown-item" href="/portal/reports/monthly/">Submit Monthly Report</a></li>
+                                   <li><a class="dropdown-item" href="/portal/reports/quarterly/">Submit Quarterly Report</a></li>
+                                   <li><a class="dropdown-item" href="/portal/reports/enhanced-stage1/">Submit Stage 1 Report</a></li>
+                                   <li><a class="dropdown-item" href="/portal/reports/enhanced-stage2/">Submit Stage 2 Report</a></li>
+                               </ul>
+                           </li>
+                       
+                   
+                       
+                           <!-- Council User Navigation -->
+                           <li class="nav-item">
+                               <a class="nav-link" href="/portal/council/">
+                                   <i class="fas fa-flag"></i> Council Dashboard
+                               </a>
+                           </li>
+                           
+                           <li class="nav-item dropdown">
+                               <a class="nav-link dropdown-toggle" href="#" id="reportsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                   <i class="fas fa-file-alt"></i> Reports
+                               </a>
+                               <ul class="dropdown-menu" aria-labelledby="reportsDropdown">
+                                   <li><h6 class="dropdown-header">Enhanced Report Tables</h6></li>
+                                   <li><a class="dropdown-item" href="/portal/reports/enhanced-monthly/">
+                                       <i class="fas fa-table"></i> Monthly Tracker
+                                   </a></li>
+                                   <li><a class="dropdown-item" href="/portal/reports/enhanced-quarterly/">
+                                       <i class="fas fa-calendar-week"></i> Quarterly Report
+                                   </a></li>
+                                   <li><a class="dropdown-item" href="/portal/reports/enhanced-stage1/">
+                                       <i class="fas fa-clipboard-list"></i> Stage 1 Report
+                                   </a></li>
+                                   <li><a class="dropdown-item" href="/portal/reports/enhanced-stage2/">
+                                       <i class="fas fa-clipboard-check"></i> Stage 2 Report
+                                   </a></li>
+                                   <li><hr class="dropdown-divider"></li>
+                                   <li><h6 class="dropdown-header">Individual Report Forms</h6></li>
+                                   <li><a class="dropdown-item" href="/portal/reports/monthly/">Submit Monthly Report</a></li>
+                                   <li><a class="dropdown-item" href="/portal/reports/quarterly/">Submit Quarterly Report</a></li>
+                                   <li><a class="dropdown-item" href="/portal/reports/enhanced-stage1/">Submit Stage 1 Report</a></li>
+                                   <li><a class="dropdown-item" href="/portal/reports/enhanced-stage2/">Submit Stage 2 Report</a></li>
+                               </ul>
+                           </li>
+                       
+                   
+
+                    <!-- Management Dropdown - Only for RICD users -->
+                    
+                        
+                            
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="managementDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-cogs"></i> Management
+                                </a>
+                                <ul class="dropdown-menu" aria-labelledby="managementDropdown">
+                                    <!-- Council Management -->
+                                    <li><h6 class="dropdown-header">Councils</h6></li>
+                                    <li><a class="dropdown-item" href="/portal/councils/">All Councils</a></li>
+                                    <li><a class="dropdown-item" href="/portal/officers/">Officers</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+
+                                    <!-- Program & Project Management -->
+                                    <li><h6 class="dropdown-header">Programs & Projects</h6></li>
+                                    <li><a class="dropdown-item" href="/portal/programs/">Programs</a></li>
+                                    <li><a class="dropdown-item" href="/portal/projects/">Projects</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+
+                                    <!-- Defect Management -->
+                                    <li><h6 class="dropdown-header">Defects & Quality</h6></li>
+                                    <li><a class="dropdown-item" href="/portal/defects/">
+                                        <i class="fas fa-exclamation-triangle"></i> All Defects
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="/portal/defects/create/">
+                                        <i class="fas fa-plus"></i> Report Defect
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+
+                                    <!-- User Management -->
+                                    <li><h6 class="dropdown-header">Users</h6></li>
+                                    <li><a class="dropdown-item" href="/portal/users/">User Management</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+
+                                    <!-- Funding & Agreements -->
+                                    <li><h6 class="dropdown-header">Funding</h6></li>
+                                    <li><a class="dropdown-item" href="/portal/funding-approvals/">Funding Approvals</a></li>
+                                    <li><a class="dropdown-item" href="/portal/agreements/remote-capital/">Remote Capital Agreements</a></li>
+                                    <li><a class="dropdown-item" href="/portal/agreements/forward-rpf/">Forward RPF Agreements</a></li>
+                                    <li><a class="dropdown-item" href="/portal/agreements/interim-frp/">Interim FRP Agreements</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+
+                                    <!-- Types & Classifications -->
+                                    <li><h6 class="dropdown-header">Types</h6></li>
+                                    <li><a class="dropdown-item" href="/portal/work-types/">Work Types</a></li>
+                                    <li><a class="dropdown-item" href="/portal/output-types/">Output Types</a></li>
+                                    <li><a class="dropdown-item" href="/portal/maintenance/work-output-config/">Work/Output Config</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+
+                                    <!-- Maintenance -->
+                                    <li><h6 class="dropdown-header">Maintenance</h6></li>
+                                    <li><a class="dropdown-item" href="/portal/maintenance/construction-methods/">
+                                        <i class="fas fa-tools"></i> Construction Methods
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="/portal/maintenance/site-configuration/">
+                                        <i class="fas fa-cog"></i> Site Configuration
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+
+                                    <!-- Enhanced Reporting Configuration -->
+                                    <li><h6 class="dropdown-header">Enhanced Reporting</h6></li>
+                                    <li><a class="dropdown-item" href="/portal/maintenance/monthly-tracker-items/">
+                                        <i class="fas fa-list"></i> Monthly Tracker Items
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="/portal/maintenance/monthly-tracker-item-groups/">
+                                        <i class="fas fa-layer-group"></i> Tracker Item Groups
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="/portal/maintenance/quarterly-report-items/">
+                                        <i class="fas fa-calendar-alt"></i> Quarterly Report Items
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="/portal/maintenance/stage1-steps/">
+                                        <i class="fas fa-clipboard-list"></i> Stage 1 Steps
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="/portal/maintenance/stage2-steps/">
+                                        <i class="fas fa-clipboard-check"></i> Stage 2 Steps
+                                    </a></li>
+                                </ul>
+                            </li>
+
+                            <!-- Analytics Menu Item - Only for RICD users -->
+                            <li class="nav-item">
+                                <a class="nav-link" href="/portal/analytics/">
+                                    <i class="fas fa-chart-line"></i> Analytics
+                                </a>
+                            </li>
+                            
+                        
+                    
+                        
+                            
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="managementDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-cogs"></i> Management
+                                </a>
+                                <ul class="dropdown-menu" aria-labelledby="managementDropdown">
+                                    <!-- Council Management -->
+                                    <li><h6 class="dropdown-header">Councils</h6></li>
+                                    <li><a class="dropdown-item" href="/portal/councils/">All Councils</a></li>
+                                    <li><a class="dropdown-item" href="/portal/officers/">Officers</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+
+                                    <!-- Program & Project Management -->
+                                    <li><h6 class="dropdown-header">Programs & Projects</h6></li>
+                                    <li><a class="dropdown-item" href="/portal/programs/">Programs</a></li>
+                                    <li><a class="dropdown-item" href="/portal/projects/">Projects</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+
+                                    <!-- Defect Management -->
+                                    <li><h6 class="dropdown-header">Defects & Quality</h6></li>
+                                    <li><a class="dropdown-item" href="/portal/defects/">
+                                        <i class="fas fa-exclamation-triangle"></i> All Defects
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="/portal/defects/create/">
+                                        <i class="fas fa-plus"></i> Report Defect
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+
+                                    <!-- User Management -->
+                                    <li><h6 class="dropdown-header">Users</h6></li>
+                                    <li><a class="dropdown-item" href="/portal/users/">User Management</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+
+                                    <!-- Funding & Agreements -->
+                                    <li><h6 class="dropdown-header">Funding</h6></li>
+                                    <li><a class="dropdown-item" href="/portal/funding-approvals/">Funding Approvals</a></li>
+                                    <li><a class="dropdown-item" href="/portal/agreements/remote-capital/">Remote Capital Agreements</a></li>
+                                    <li><a class="dropdown-item" href="/portal/agreements/forward-rpf/">Forward RPF Agreements</a></li>
+                                    <li><a class="dropdown-item" href="/portal/agreements/interim-frp/">Interim FRP Agreements</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+
+                                    <!-- Types & Classifications -->
+                                    <li><h6 class="dropdown-header">Types</h6></li>
+                                    <li><a class="dropdown-item" href="/portal/work-types/">Work Types</a></li>
+                                    <li><a class="dropdown-item" href="/portal/output-types/">Output Types</a></li>
+                                    <li><a class="dropdown-item" href="/portal/maintenance/work-output-config/">Work/Output Config</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+
+                                    <!-- Maintenance -->
+                                    <li><h6 class="dropdown-header">Maintenance</h6></li>
+                                    <li><a class="dropdown-item" href="/portal/maintenance/construction-methods/">
+                                        <i class="fas fa-tools"></i> Construction Methods
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="/portal/maintenance/site-configuration/">
+                                        <i class="fas fa-cog"></i> Site Configuration
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+
+                                    <!-- Enhanced Reporting Configuration -->
+                                    <li><h6 class="dropdown-header">Enhanced Reporting</h6></li>
+                                    <li><a class="dropdown-item" href="/portal/maintenance/monthly-tracker-items/">
+                                        <i class="fas fa-list"></i> Monthly Tracker Items
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="/portal/maintenance/monthly-tracker-item-groups/">
+                                        <i class="fas fa-layer-group"></i> Tracker Item Groups
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="/portal/maintenance/quarterly-report-items/">
+                                        <i class="fas fa-calendar-alt"></i> Quarterly Report Items
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="/portal/maintenance/stage1-steps/">
+                                        <i class="fas fa-clipboard-list"></i> Stage 1 Steps
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="/portal/maintenance/stage2-steps/">
+                                        <i class="fas fa-clipboard-check"></i> Stage 2 Steps
+                                    </a></li>
+                                </ul>
+                            </li>
+
+                            <!-- Analytics Menu Item - Only for RICD users -->
+                            <li class="nav-item">
+                                <a class="nav-link" href="/portal/analytics/">
+                                    <i class="fas fa-chart-line"></i> Analytics
+                                </a>
+                            </li>
+                            
+                        
+                    
+                        
+                    
+                        
+                    
+
+
+                    <!-- Debug: Show navigation status for Council Users -->
+                    
+                </ul>
+                
+
+                <ul class="navbar-nav ms-auto">
+                    
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-user"></i> harry
+                                
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                                <li><a class="dropdown-item" href="#"><i class="fas fa-user"></i> Profile</a></li>
+                                
+                                <li><a class="dropdown-item" href="/admin/" target="_blank"><i class="fas fa-cog"></i> Admin Backend</a></li>
+                                
+                                <li><hr class="dropdown-divider"></li>
+                                
+                                <li><a class="dropdown-item" href="/portal/help/ricd/"><i class="fas fa-question-circle"></i> Help (RICD)</a></li>
+                                
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="/accounts/logout/"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+                            </ul>
+                        </li>
+                    
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Alert Messages -->
+    <div class="container-fluid px-4">
+        
+    </div>
+
+    <!-- Main Content -->
+    <main class="container-fluid flex-grow-1 mt-4">
+        
+<h1>RICD Dashboard</h1>
+
+<!-- Quick Add Buttons & Actions -->
+<div class="mb-3 d-flex gap-2 flex-wrap">
+    <div class="btn-group" role="group">
+        <a href="/portal/projects/create/" class="btn btn-success btn-sm">
+            <i class="fas fa-plus"></i> Add New Project
+        </a>
+        <button type="button" class="btn btn-warning btn-sm dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+            <span class="visually-hidden">Toggle Dropdown</span>
+        </button>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="#" onclick="openFundingApprovalModal()">
+                <i class="fas fa-dollar-sign me-2"></i>Add Funding Approval
+            </a></li>
+            <li><hr class="dropdown-menu-divider"></li>
+            <li><a class="dropdown-item" href="#" onclick="openQuickProjectModal()">
+                <i class="fas fa-building me-2"></i>Quick Add Project
+            </a></li>
+        </ul>
+    </div>
+
+    <a href="#" class="btn btn-info btn-sm">
+        <i class="fas fa-file-circle-check"></i> Review Council Reports
+    </a>
+</div>
+
+<!-- Filters -->
+<div class="filters" style="margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 5px;">
+    <form method="get" action="">
+        <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+            <div>
+                <label for="program_filter">Program:</label>
+                <select name="program" id="program_filter">
+                    <option value="">All Programs</option>
+                    
+                    <option value="1" >Test</option>
+                    
+                    <option value="2" >Test Program</option>
+                    
+                    <option value="3" >Cross Test Program</option>
+                    
+                </select>
+            </div>
+
+            <div>
+                <label for="council_filter">Council:</label>
+                <select name="council" id="council_filter">
+                    <option value="">All Councils</option>
+                    
+                    <option value="1" >Test</option>
+                    
+                    <option value="2" >test2</option>
+                    
+                    <option value="3" >Test Council for User Creation</option>
+                    
+                    <option value="4" >Test Council</option>
+                    
+                    <option value="5" >Test Council</option>
+                    
+                    <option value="6" >Test Council</option>
+                    
+                    <option value="7" >Test Council</option>
+                    
+                    <option value="8" >Test Council</option>
+                    
+                    <option value="9" >Council 1</option>
+                    
+                    <option value="10" >Council 2</option>
+                    
+                    <option value="11" >Test Council</option>
+                    
+                    <option value="12" >Test Council</option>
+                    
+                    <option value="13" >Council A</option>
+                    
+                    <option value="14" >Council B</option>
+                    
+                    <option value="15" >Council One</option>
+                    
+                    <option value="16" >Council Two</option>
+                    
+                </select>
+            </div>
+
+            <div>
+                <label for="stage_filter">Stage:</label>
+                <select name="stage" id="stage_filter">
+                    <option value="">All Stages</option>
+                    
+                    <option value="prospective" >Prospective</option>
+                    
+                    <option value="programmed" >Programmed</option>
+                    
+                    <option value="funded" >Funded</option>
+                    
+                    <option value="commenced" >Commenced</option>
+                    
+                    <option value="under_construction" >Under Construction</option>
+                    
+                    <option value="completed" >Completed</option>
+                    
+                    <option value="cancelled" >Cancelled</option>
+                    
+                    <option value="terminated" >Terminated</option>
+                    
+                    <option value="varied" >Varied</option>
+                    
+                </select>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button type="submit" style="background-color: #007bff; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">Filter</button>
+                <a href="/portal/ricd/" style="background-color: #6c757d; color: white; text-decoration: none; padding: 5px 10px; border-radius: 3px;">Clear Filters</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Projects Table -->
+<table border="1" style="width: 100%; border-collapse: collapse;">
+    <thead>
+        <tr style="background-color: #f8f9fa;">
+            <th style="padding: 8px; text-align: left;">Project Name</th>
+            <th style="padding: 8px; text-align: left;">Council</th>
+            <th style="padding: 8px; text-align: left;">Funding Schedule</th>
+            <th style="padding: 8px; text-align: center;">State</th>
+            <th style="padding: 8px; text-align: center;">Progress %</th>
+            <th style="padding: 8px; text-align: left;">Budget vs Spent</th>
+            <th style="padding: 8px; text-align: center;">Stage 1 Status</th>
+            <th style="padding: 8px; text-align: center;">Stage 2 Status</th>
+            <th style="padding: 8px; text-align: center;">Late</th>
+            <th style="padding: 8px; text-align: center;">Overdue</th>
+            <th style="padding: 8px; text-align: center;">Report Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        
+        <tr>
+            <td style="padding: 8px;">
+                <a href="/portal/projects/1/detail/" style="color: #007bff; text-decoration: none;">
+                    test
+                </a>
+            </td>
+            <td style="padding: 8px;">Test</td>
+            <td style="padding: 8px;">N/A</td>
+            <td style="padding: 8px; text-align: center;">
+                
+                    <span class="badge bg-secondary">Prospective</span>
+                
+            </td>
+            <td style="padding: 8px; text-align: center;">
+                
+                    N/A
+                
+            </td>
+            <td style="padding: 8px;">N/A</td>
+            
+            <td style="padding: 8px; text-align: center;">-</td>
+            <td style="padding: 8px; text-align: center;">-</td>
+            
+            
+            <td style="padding: 8px; text-align: center;">-</td>
+            <td style="padding: 8px; text-align: center;">-</td>
+            <td style="padding: 8px; text-align: center;">-</td>
+            
+        </tr>
+        
+        <tr>
+            <td style="padding: 8px;">
+                <a href="/portal/projects/2/detail/" style="color: #007bff; text-decoration: none;">
+                    tesr23323
+                </a>
+            </td>
+            <td style="padding: 8px;">test2</td>
+            <td style="padding: 8px;">N/A</td>
+            <td style="padding: 8px; text-align: center;">
+                
+                    <span class="badge bg-warning text-dark">Commenced</span>
+                
+            </td>
+            <td style="padding: 8px; text-align: center;">
+                
+                    N/A
+                
+            </td>
+            <td style="padding: 8px;">N/A</td>
+            
+            <td style="padding: 8px; text-align: center;">
+                
+                    <span style="color: red;">Not Submitted</span>
+                
+            </td>
+            <td style="padding: 8px; text-align: center;">
+                
+                    <span style="color: red;">Not Submitted</span>
+                
+            </td>
+            
+            
+            <td style="padding: 8px; text-align: center;">
+                
+                    <span style="color: green;">✓ On Time</span>
+                
+            </td>
+            <td style="padding: 8px; text-align: center;">
+                
+                    <span style="color: green;">✓ Current</span>
+                
+            </td>
+            <td style="padding: 8px; text-align: center;">
+                
+                    
+                        <span style="color: red;">⚠️ Stage 1</span>
+                    
+                
+            </td>
+            
+        </tr>
+        
+        <tr>
+            <td style="padding: 8px;">
+                <a href="/portal/projects/3/detail/" style="color: #007bff; text-decoration: none;">
+                    Project 1
+                </a>
+            </td>
+            <td style="padding: 8px;">Council 1</td>
+            <td style="padding: 8px;">N/A</td>
+            <td style="padding: 8px; text-align: center;">
+                
+                    <span class="badge bg-secondary">Prospective</span>
+                
+            </td>
+            <td style="padding: 8px; text-align: center;">
+                
+                    N/A
+                
+            </td>
+            <td style="padding: 8px;">N/A</td>
+            
+            <td style="padding: 8px; text-align: center;">-</td>
+            <td style="padding: 8px; text-align: center;">-</td>
+            
+            
+            <td style="padding: 8px; text-align: center;">-</td>
+            <td style="padding: 8px; text-align: center;">-</td>
+            <td style="padding: 8px; text-align: center;">-</td>
+            
+        </tr>
+        
+        <tr>
+            <td style="padding: 8px;">
+                <a href="/portal/projects/4/detail/" style="color: #007bff; text-decoration: none;">
+                    Project 2
+                </a>
+            </td>
+            <td style="padding: 8px;">Council 2</td>
+            <td style="padding: 8px;">N/A</td>
+            <td style="padding: 8px; text-align: center;">
+                
+                    <span class="badge bg-secondary">Prospective</span>
+                
+            </td>
+            <td style="padding: 8px; text-align: center;">
+                
+                    N/A
+                
+            </td>
+            <td style="padding: 8px;">N/A</td>
+            
+            <td style="padding: 8px; text-align: center;">-</td>
+            <td style="padding: 8px; text-align: center;">-</td>
+            
+            
+            <td style="padding: 8px; text-align: center;">-</td>
+            <td style="padding: 8px; text-align: center;">-</td>
+            <td style="padding: 8px; text-align: center;">-</td>
+            
+        </tr>
+        
+        <tr>
+            <td style="padding: 8px;">
+                <a href="/portal/projects/5/detail/" style="color: #007bff; text-decoration: none;">
+                    Test Council Project
+                </a>
+            </td>
+            <td style="padding: 8px;">Test</td>
+            <td style="padding: 8px;">N/A</td>
+            <td style="padding: 8px; text-align: center;">
+                
+                    <span class="badge bg-warning text-dark">Commenced</span>
+                
+            </td>
+            <td style="padding: 8px; text-align: center;">
+                
+                    N/A
+                
+            </td>
+            <td style="padding: 8px;">N/A</td>
+            
+            <td style="padding: 8px; text-align: center;">
+                
+                    <span style="color: red;">Not Submitted</span>
+                
+            </td>
+            <td style="padding: 8px; text-align: center;">
+                
+                    <span style="color: red;">Not Submitted</span>
+                
+            </td>
+            
+            
+            <td style="padding: 8px; text-align: center;">
+                
+                    <span style="color: green;">✓ On Time</span>
+                
+            </td>
+            <td style="padding: 8px; text-align: center;">
+                
+                    <span style="color: green;">✓ Current</span>
+                
+            </td>
+            <td style="padding: 8px; text-align: center;">
+                
+                    
+                        <span style="color: red;">⚠️ Stage 1</span>
+                    
+                
+            </td>
+            
+        </tr>
+        
+        <tr>
+            <td style="padding: 8px;">
+                <a href="/portal/projects/6/detail/" style="color: #007bff; text-decoration: none;">
+                    Project for Council One
+                </a>
+            </td>
+            <td style="padding: 8px;">Council One</td>
+            <td style="padding: 8px;">N/A</td>
+            <td style="padding: 8px; text-align: center;">
+                
+                    <span class="badge bg-secondary">Prospective</span>
+                
+            </td>
+            <td style="padding: 8px; text-align: center;">
+                
+                    N/A
+                
+            </td>
+            <td style="padding: 8px;">N/A</td>
+            
+            <td style="padding: 8px; text-align: center;">-</td>
+            <td style="padding: 8px; text-align: center;">-</td>
+            
+            
+            <td style="padding: 8px; text-align: center;">-</td>
+            <td style="padding: 8px; text-align: center;">-</td>
+            <td style="padding: 8px; text-align: center;">-</td>
+            
+        </tr>
+        
+        <tr>
+            <td style="padding: 8px;">
+                <a href="/portal/projects/7/detail/" style="color: #007bff; text-decoration: none;">
+                    Project for Council Two
+                </a>
+            </td>
+            <td style="padding: 8px;">Council Two</td>
+            <td style="padding: 8px;">N/A</td>
+            <td style="padding: 8px; text-align: center;">
+                
+                    <span class="badge bg-secondary">Prospective</span>
+                
+            </td>
+            <td style="padding: 8px; text-align: center;">
+                
+                    N/A
+                
+            </td>
+            <td style="padding: 8px;">N/A</td>
+            
+            <td style="padding: 8px; text-align: center;">-</td>
+            <td style="padding: 8px; text-align: center;">-</td>
+            
+            
+            <td style="padding: 8px; text-align: center;">-</td>
+            <td style="padding: 8px; text-align: center;">-</td>
+            <td style="padding: 8px; text-align: center;">-</td>
+            
+        </tr>
+        
+        <tr>
+            <td style="padding: 8px;">
+                <a href="/portal/projects/8/detail/" style="color: #007bff; text-decoration: none;">
+                    Project Council One
+                </a>
+            </td>
+            <td style="padding: 8px;">Council One</td>
+            <td style="padding: 8px;">N/A</td>
+            <td style="padding: 8px; text-align: center;">
+                
+                    <span class="badge bg-secondary">Prospective</span>
+                
+            </td>
+            <td style="padding: 8px; text-align: center;">
+                
+                    N/A
+                
+            </td>
+            <td style="padding: 8px;">N/A</td>
+            
+            <td style="padding: 8px; text-align: center;">-</td>
+            <td style="padding: 8px; text-align: center;">-</td>
+            
+            
+            <td style="padding: 8px; text-align: center;">-</td>
+            <td style="padding: 8px; text-align: center;">-</td>
+            <td style="padding: 8px; text-align: center;">-</td>
+            
+        </tr>
+        
+        <tr>
+            <td style="padding: 8px;">
+                <a href="/portal/projects/9/detail/" style="color: #007bff; text-decoration: none;">
+                    Project Council Two
+                </a>
+            </td>
+            <td style="padding: 8px;">Council Two</td>
+            <td style="padding: 8px;">N/A</td>
+            <td style="padding: 8px; text-align: center;">
+                
+                    <span class="badge bg-secondary">Prospective</span>
+                
+            </td>
+            <td style="padding: 8px; text-align: center;">
+                
+                    N/A
+                
+            </td>
+            <td style="padding: 8px;">N/A</td>
+            
+            <td style="padding: 8px; text-align: center;">-</td>
+            <td style="padding: 8px; text-align: center;">-</td>
+            
+            
+            <td style="padding: 8px; text-align: center;">-</td>
+            <td style="padding: 8px; text-align: center;">-</td>
+            <td style="padding: 8px; text-align: center;">-</td>
+            
+        </tr>
+        
+    </tbody>
+</table>
+
+
+
+<!-- JavaScript for Modal Functions -->
+<script>
+function openFundingApprovalModal() {
+    alert('Funding Approval modal would open here - functionality to be implemented');
+    // TODO: Implement Funding Approval modal
+}
+
+function openQuickProjectModal() {
+    alert('Quick Project modal would open here - functionality to be implemented');
+    // TODO: Implement Quick Project modal
+}
+</script>
+
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white mt-auto">
+        <div class="container py-4">
+            <div class="row">
+                <div class="col-md-4">
+                    <h5><i class="fas fa-info-circle"></i> RICD Portal</h5>
+                    <p>Remote Indigenous Capital Delivery Portal for managing construction projects and related reporting.</p>
+                </div>
+                <div class="col-md-4">
+                    <h5><i class="fas fa-link"></i> Quick Links</h5>
+                    <ul class="list-unstyled">
+                        
+                    </ul>
+                </div>
+                <div class="col-md-4">
+                    <h5><i class="fas fa-envelope"></i> Contact</h5>
+                    <p class="mb-0">For support and inquiries:</p>
+                    <p class="text-white-50">Call or email your RICD representive</p>
+                </div>
+            </div>
+            <hr class="my-3">
+            <div class="row">
+                <div class="col text-center">
+                    <p class="mb-0">&copy; 2025 Queensland Government - RICD Portal. All rights reserved.</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+</body>
+</html>
