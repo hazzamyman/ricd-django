@@ -2,7 +2,7 @@ from django import forms
 from ricd.models import (
     Project, Work, Address, WorkType, OutputType, ConstructionMethod,
     FundingSchedule, ForwardRemoteProgramFundingAgreement, InterimForwardProgramFundingAgreement,
-    Council, Officer
+    Council, Officer, Program, ProgramProjectAllocation
 )
 
 
@@ -449,4 +449,27 @@ class ProjectStateForm(forms.ModelForm):
                 'class': 'form-select',
                 'onchange': 'this.form.submit()'
             })
+        }
+
+
+class ProgramProjectAllocationForm(forms.ModelForm):
+    """Form for managing program-project allocations"""
+
+    program = forms.ModelChoiceField(
+        queryset=Program.objects.all(),
+        widget=forms.Select(attrs={
+            'class': 'form-select program-select'
+        }),
+        label="Program"
+    )
+
+    class Meta:
+        model = ProgramProjectAllocation
+        fields = ['program', 'amount']
+        widgets = {
+            'amount': forms.NumberInput(attrs={
+                'class': 'form-control amount-input',
+                'step': '0.01',
+                'min': '0.01'
+            }),
         }

@@ -1,0 +1,156 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Manage Program Allocations - {{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-money-bill-wave"></i> Program Allocations for {{ project.name }}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> Allocate project funding across multiple programs. The total allocated amount should not exceed the project's total funding.
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h5>Project Total Funding</h5>
+                                    <h3 class="text-primary">${{ project_total_funding|floatformat:2 }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h5>Total Allocated</h5>
+                                    <h3 class="text-success" id="total-allocated">${{ total_allocated|floatformat:2 }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <div class="card" id="remaining-card">
+                                <div class="card-body text-center">
+                                    <h5>Remaining Unallocated</h5>
+                                    <h3 id="remaining-amount">${{ project_total_funding|add:'-total_allocated'|floatformat:2 }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="post" id="allocations-form">
+                        {% csrf_token %}
+                        {{ formset.management_form }}
+
+                        <div id="allocation-forms">
+                            {% for form in formset %}
+                            <div class="allocation-row card mb-3" data-form-index="{{ forloop.counter0 }}">
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">Program</label>
+                                                {{ form.program }}
+                                                {% if form.program.errors %}
+                                                    <div class="text-danger">{{ form.program.errors.0 }}</div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label class="form-label">Amount</label>
+                                                {{ form.amount }}
+                                                {% if form.amount.errors %}
+                                                    <div class="text-danger">{{ form.amount.errors.0 }}</div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2 d-flex align-items-end">
+                                            {% if formset.can_delete %}
+                                            <div class="mb-3">
+                                                {{ form.DELETE }}
+                                                <label class="form-label">Delete</label>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% for hidden in form.hidden_fields %}
+                                        {{ hidden }}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'portal:project_detail' project.pk %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Back to Project
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Allocations
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const projectTotal = parseFloat('{{ project_total_funding|default:"0" }}');
+    const formRows = document.querySelectorAll('.allocation-row');
+
+    function updateTotals() {
+        let totalAllocated = 0;
+        formRows.forEach(row => {
+            const deleteCheckbox = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
+            const amountInput = row.querySelector('input[name$="-amount"]');
+
+            if (deleteCheckbox && deleteCheckbox.checked) {
+                return; // Skip deleted rows
+            }
+
+            const amount = parseFloat(amountInput ? amountInput.value : 0) || 0;
+            totalAllocated += amount;
+        });
+
+        document.getElementById('total-allocated').textContent = '$' + totalAllocated.toFixed(2);
+        const remaining = projectTotal - totalAllocated;
+        document.getElementById('remaining-amount').textContent = '$' + remaining.toFixed(2);
+
+        const remainingCard = document.getElementById('remaining-card');
+        if (remaining < 0) {
+            remainingCard.classList.remove('bg-light');
+            remainingCard.classList.add('bg-danger', 'text-white');
+        } else {
+            remainingCard.classList.remove('bg-danger', 'text-white');
+            remainingCard.classList.add('bg-light');
+        }
+    }
+
+    // Attach event listeners to amount inputs
+    document.querySelectorAll('.amount-input').forEach(input => {
+        input.addEventListener('input', updateTotals);
+    });
+
+    // Attach event listeners to delete checkboxes
+    document.querySelectorAll('input[type="checkbox"][name$="-DELETE"]').forEach(checkbox => {
+        checkbox.addEventListener('change', updateTotals);
+    });
+
+    // Initial calculation
+    updateTotals();
+});
+</script>
+{% endblock %}

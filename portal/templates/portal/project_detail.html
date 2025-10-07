@@ -34,6 +34,9 @@
                             <a href="{% url 'portal:project_report_configuration' project.pk %}" class="btn btn-outline-light btn-sm me-2">
                                 <i class="fas fa-cog"></i> Reporting Config
                             </a>
+                            <a href="{% url 'portal:project_allocations' project.pk %}" class="btn btn-outline-light btn-sm me-2">
+                                <i class="fas fa-money-bill-wave"></i> Program Allocations
+                            </a>
                             <button class="btn btn-outline-light btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#editStateModal">
                                 <i class="fas fa-edit"></i> Edit State
                             </button>

@@ -192,8 +192,43 @@ class Program(models.Model):
         if self.funding_source and self.funding_source not in ['Commonwealth', 'State']:
             raise ValidationError({'funding_source': 'Funding source must be either "Commonwealth" or "State"'})
 
+    @property
+    def total_allocated(self):
+        """Total amount allocated to projects"""
+        return self.allocations.aggregate(total=models.Sum('amount'))['total'] or 0
+
+    @property
+    def remaining_budget(self):
+        """Remaining budget not yet allocated"""
+        return (self.budget or 0) - self.total_allocated
+
     def __str__(self):
         return self.name
+
+
+class ProgramProjectAllocation(models.Model):
+    """Allocation of program budget to specific projects"""
+    program = models.ForeignKey(Program, on_delete=models.CASCADE, related_name='allocations')
+    project = models.ForeignKey('Project', on_delete=models.CASCADE, related_name='allocations')
+    amount = models.DecimalField(max_digits=15, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
+
+    class Meta:
+        unique_together = ('program', 'project')
+        verbose_name = "Program-Project Allocation"
+        verbose_name_plural = "Program-Project Allocations"
+
+    def clean(self):
+        """Validate allocation"""
+        if self.amount <= 0:
+            raise ValidationError({'amount': 'Amount must be positive'})
+
+        # Check against program budget
+        total_allocated = self.program.allocations.exclude(pk=self.pk).aggregate(total=models.Sum('amount'))['total'] or 0
+        if total_allocated + self.amount > (self.program.budget or 0):
+            raise ValidationError({'amount': f'Allocation exceeds program budget. Remaining: ${(self.program.budget or 0) - total_allocated:.2f}'})
+
+    def __str__(self):
+        return f"{self.program.name} -> {self.project.name}: ${self.amount}"
 
 
 class SiteConfiguration(models.Model):

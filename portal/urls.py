@@ -2,6 +2,7 @@ from django.urls import path
 from django.views.generic.base import RedirectView
 from . import views
 from .dashboards import RICDDashboardView, CouncilDashboardView
+from .projects import ProjectAllocationsView
 
 app_name = 'portal'
 
@@ -47,6 +48,7 @@ urlpatterns = [
     path('projects/<int:pk>/update-state/', views.ProjectStateUpdateView.as_view(), name='project_update_state'),
     path('projects/<int:pk>/delete/', views.ProjectDeleteView.as_view(), name='project_delete'),
     path('projects/<int:pk>/field-visibility/', views.ProjectFieldVisibilityView.as_view(), name='project_field_visibility'),
+    path('projects/<int:pk>/allocations/', ProjectAllocationsView.as_view(), name='project_allocations'),
 
     # Address and Work CRUD URLs
     path('works/', views.WorkListView.as_view(), name='work_list'),

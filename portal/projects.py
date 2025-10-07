@@ -20,11 +20,12 @@ from django.views import View
 import json
 from ricd.models import (
     Project, Program, Council, QuarterlyReport, FundingApproval, FundingSchedule, Defect,
-    FieldVisibilitySetting, UserProfile, ProjectReportConfiguration
+    FieldVisibilitySetting, UserProfile, ProjectReportConfiguration, ProgramProjectAllocation
 )
 from .forms import (
-    ProjectForm, ProjectStateForm, ProjectReportConfigurationForm
+    ProjectForm, ProjectStateForm, ProjectReportConfigurationForm, ProgramProjectAllocationForm
 )
+from django.forms import modelformset_factory
 
 
 # Project Detail
@@ -362,3 +363,70 @@ class ProjectReportConfigurationView(LoginRequiredMixin, UpdateView):
         context = super().get_context_data(**kwargs)
         context['project'] = self.object.project
         return context
+
+
+class ProjectAllocationsView(LoginRequiredMixin, View):
+    """Manage program allocations for a project"""
+    template_name = "portal/project_allocations.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        # Check permissions
+        project = get_object_or_404(Project, pk=self.kwargs['pk'])
+        user_council = getattr(request.user, 'council', None)
+
+        if user_council and project.council != user_council:
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied("You don't have permission to manage this project.")
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request, pk):
+        project = get_object_or_404(Project, pk=pk)
+        AllocationFormSet = modelformset_factory(
+            ProgramProjectAllocation,
+            form=ProgramProjectAllocationForm,
+            extra=1,
+            can_delete=True
+        )
+        formset = AllocationFormSet(queryset=project.allocations.all())
+        return render(request, self.template_name, {
+            'project': project,
+            'formset': formset,
+            'total_allocated': sum(form.instance.amount for form in formset if form.instance.pk),
+            'project_total_funding': project.total_funding,
+        })
+
+    def post(self, request, pk):
+        project = get_object_or_404(Project, pk=pk)
+        AllocationFormSet = modelformset_factory(
+            ProgramProjectAllocation,
+            form=ProgramProjectAllocationForm,
+            extra=1,
+            can_delete=True
+        )
+        formset = AllocationFormSet(request.POST, queryset=project.allocations.all())
+
+        if formset.is_valid():
+            instances = formset.save(commit=False)
+            for instance in instances:
+                instance.project = project
+                instance.save()
+            for obj in formset.deleted_objects:
+                obj.delete()
+
+            # Validate total allocations don't exceed project funding
+            total_allocated = sum(allocation.amount for allocation in project.allocations.all())
+            if total_allocated > project.total_funding:
+                messages.warning(request, f'Total allocated (${total_allocated:,.2f}) exceeds project funding (${project.total_funding:,.2f}). Please adjust allocations.')
+
+            messages.success(request, 'Program allocations updated successfully!')
+            return redirect('portal:project_allocations', pk=project.pk)
+        else:
+            messages.error(request, 'Please correct the errors below.')
+
+        return render(request, self.template_name, {
+            'project': project,
+            'formset': formset,
+            'total_allocated': 0,  # Recalculate on error
+            'project_total_funding': project.total_funding,
+        })
