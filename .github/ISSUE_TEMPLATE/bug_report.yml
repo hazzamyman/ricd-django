@@ -1,3 +1,4 @@
+# Fixed extension to .yml for GitHub form recognition
 name: 🐞 Bug Report
 description: Report a reproducible problem in the application.
 labels: [bug, triage]
