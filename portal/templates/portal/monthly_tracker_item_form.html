@@ -1,0 +1,177 @@
+{% extends "portal/base.html" %}
+
+{% block title %}
+    {% if form.instance.pk %}
+        Edit Monthly Tracker Item - RICD Portal
+    {% else %}
+        Create Monthly Tracker Item - RICD Portal
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        {% if form.instance.pk %}
+                            <i class="fas fa-edit"></i> Edit Monthly Tracker Item
+                        {% else %}
+                            <i class="fas fa-plus"></i> Create Monthly Tracker Item
+                        {% endif %}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <!-- Name -->
+                        <div class="mb-3">
+                            <label for="{{ form.name.id_for_label }}" class="form-label">{{ form.name.label }}</label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.name.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            {% if form.name.help_text %}
+                                <div class="form-text">{{ form.name.help_text }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Description -->
+                        <div class="mb-3">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">{{ form.description.label }}</label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.description.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            {% if form.description.help_text %}
+                                <div class="form-text">{{ form.description.help_text }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Data Type -->
+                        <div class="mb-3">
+                            <label for="{{ form.data_type.id_for_label }}" class="form-label">{{ form.data_type.label }}</label>
+                            {{ form.data_type }}
+                            {% if form.data_type.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.data_type.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            {% if form.data_type.help_text %}
+                                <div class="form-text">{{ form.data_type.help_text }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Dropdown Options (shown only for dropdown data type) -->
+                        <div class="mb-3" id="dropdown-options-container" style="display: none;">
+                            <label for="{{ form.dropdown_options.id_for_label }}" class="form-label">{{ form.dropdown_options.label }}</label>
+                            {{ form.dropdown_options }}
+                            {% if form.dropdown_options.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.dropdown_options.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            {% if form.dropdown_options.help_text %}
+                                <div class="form-text">{{ form.dropdown_options.help_text }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Required -->
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.required }}
+                                <label for="{{ form.required.id_for_label }}" class="form-check-label">{{ form.required.label }}</label>
+                            </div>
+                            {% if form.required.help_text %}
+                                <div class="form-text">{{ form.required.help_text }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- NA Acceptable -->
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.na_acceptable }}
+                                <label for="{{ form.na_acceptable.id_for_label }}" class="form-check-label">{{ form.na_acceptable.label }}</label>
+                            </div>
+                            {% if form.na_acceptable.help_text %}
+                                <div class="form-text">{{ form.na_acceptable.help_text }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Order -->
+                        <div class="mb-3">
+                            <label for="{{ form.order.id_for_label }}" class="form-label">{{ form.order.label }}</label>
+                            {{ form.order }}
+                            {% if form.order.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.order.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            {% if form.order.help_text %}
+                                <div class="form-text">{{ form.order.help_text }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Is Active -->
+                        <div class="mb-4">
+                            <div class="form-check">
+                                {{ form.is_active }}
+                                <label for="{{ form.is_active.id_for_label }}" class="form-check-label">{{ form.is_active.label }}</label>
+                            </div>
+                            {% if form.is_active.help_text %}
+                                <div class="form-text">{{ form.is_active.help_text }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i>
+                                {% if form.instance.pk %}Update{% else %}Create{% endif %} Item
+                            </button>
+                            <a href="{% url 'portal:monthly_tracker_item_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Show/hide dropdown options based on data type selection
+document.addEventListener('DOMContentLoaded', function() {
+    const dataTypeSelect = document.getElementById('{{ form.data_type.id_for_label }}');
+    const dropdownContainer = document.getElementById('dropdown-options-container');
+
+    function toggleDropdownOptions() {
+        if (dataTypeSelect.value === 'dropdown') {
+            dropdownContainer.style.display = 'block';
+        } else {
+            dropdownContainer.style.display = 'none';
+        }
+    }
+
+    dataTypeSelect.addEventListener('change', toggleDropdownOptions);
+    toggleDropdownOptions(); // Initial check
+});
+</script>
+{% endblock %}

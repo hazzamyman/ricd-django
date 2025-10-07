@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+from loguru import logger
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -25,7 +26,7 @@ SECRET_KEY = 'django-insecure-c&!w-gub)tk4@+%wl6+hjzhvpwl803_m-=o&6jry^5-1u!oujo
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["192.168.5.202", "localhost", "127.0.0.1", "ricd.nolanholmes.com", "testserver"]
+ALLOWED_HOSTS = ["192.168.5.202", "192.168.5.64", "localhost", "127.0.0.1", "192.168.5.64", "ricd.nolanholmes.com", "testserver"]
 
 
 # Application definition
@@ -157,3 +158,30 @@ LOGGING = {
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Loguru logging configuration
+logger.remove()  # Remove default handler
+logger.add(
+    BASE_DIR / 'logs' / 'ricd.log',
+    rotation='10 MB',
+    retention='1 week',
+    level='INFO',
+    format='{time:YYYY-MM-DD HH:mm:ss} | {level} | {name}:{function}:{line} | {message}',
+    enqueue=True
+)
+logger.add(
+    lambda msg: print(msg, end=''),
+    level='DEBUG',
+    format='{time:YYYY-MM-DD HH:mm:ss} | {level} | {name}:{function}:{line} | {message}',
+    colorize=True
+)
+
+# Optionally, integrate Django's logging with loguru
+import logging
+class InterceptHandler(logging.Handler):
+    def emit(self, record):
+        logger_opt = logger.opt(depth=6, exception=record.exc_info)
+        logger_opt.log(record.levelname, record.getMessage())
+
+logging.getLogger().addHandler(InterceptHandler())
+logging.getLogger().setLevel(logging.INFO)

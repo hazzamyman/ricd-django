@@ -1,0 +1,141 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Project Report Configuration - RICD Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-cog"></i> Project Report Configuration
+                    </h4>
+                    <small class="text-muted">Configure which report items and groups apply to this project</small>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h5><i class="fas fa-info-circle"></i> About Report Configuration</h5>
+                        <p>Select the monthly tracker item groups, quarterly report groups, and stage groups that should be available for this project. Only selected groups will be visible to council users when they access the project's reports.</p>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <!-- Monthly Tracker Groups -->
+                        <div class="mb-4">
+                            <h5><i class="fas fa-calendar-alt"></i> Monthly Tracker Item Groups</h5>
+                            <label for="{{ form.monthly_tracker_groups.id_for_label }}" class="form-label">{{ form.monthly_tracker_groups.label }}</label>
+                            {{ form.monthly_tracker_groups }}
+                            {% if form.monthly_tracker_groups.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.monthly_tracker_groups.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            {% if form.monthly_tracker_groups.help_text %}
+                                <div class="form-text">{{ form.monthly_tracker_groups.help_text }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Quarterly Report Groups -->
+                        <div class="mb-4">
+                            <h5><i class="fas fa-file-alt"></i> Quarterly Report Item Groups</h5>
+                            <label for="{{ form.quarterly_report_groups.id_for_label }}" class="form-label">{{ form.quarterly_report_groups.label }}</label>
+                            {{ form.quarterly_report_groups }}
+                            {% if form.quarterly_report_groups.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.quarterly_report_groups.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            {% if form.quarterly_report_groups.help_text %}
+                                <div class="form-text">{{ form.quarterly_report_groups.help_text }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Stage 1 Step Groups -->
+                        <div class="mb-4">
+                            <h5><i class="fas fa-play-circle"></i> Stage 1 Step Groups</h5>
+                            <label for="{{ form.stage1_step_groups.id_for_label }}" class="form-label">{{ form.stage1_step_groups.label }}</label>
+                            {{ form.stage1_step_groups }}
+                            {% if form.stage1_step_groups.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.stage1_step_groups.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            {% if form.stage1_step_groups.help_text %}
+                                <div class="form-text">{{ form.stage1_step_groups.help_text }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Stage 2 Step Groups -->
+                        <div class="mb-4">
+                            <h5><i class="fas fa-forward"></i> Stage 2 Step Groups</h5>
+                            <label for="{{ form.stage2_step_groups.id_for_label }}" class="form-label">{{ form.stage2_step_groups.label }}</label>
+                            {{ form.stage2_step_groups }}
+                            {% if form.stage2_step_groups.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.stage2_step_groups.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            {% if form.stage2_step_groups.help_text %}
+                                <div class="form-text">{{ form.stage2_step_groups.help_text }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Configuration
+                            </button>
+                            <a href="{% url 'portal:project_detail' project.pk %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Initialize Select2 for all multiple select fields
+document.addEventListener('DOMContentLoaded', function() {
+    // Monthly tracker groups
+    $('#{{ form.monthly_tracker_groups.id_for_label }}').select2({
+        placeholder: 'Select monthly tracker groups...',
+        allowClear: true,
+        width: '100%'
+    });
+
+    // Quarterly report groups
+    $('#{{ form.quarterly_report_groups.id_for_label }}').select2({
+        placeholder: 'Select quarterly report groups...',
+        allowClear: true,
+        width: '100%'
+    });
+
+    // Stage 1 step groups
+    $('#{{ form.stage1_step_groups.id_for_label }}').select2({
+        placeholder: 'Select Stage 1 step groups...',
+        allowClear: true,
+        width: '100%'
+    });
+
+    // Stage 2 step groups
+    $('#{{ form.stage2_step_groups.id_for_label }}').select2({
+        placeholder: 'Select Stage 2 step groups...',
+        allowClear: true,
+        width: '100%'
+    });
+});
+</script>
+{% endblock %}

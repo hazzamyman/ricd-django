@@ -1,6 +1,7 @@
 from django.urls import path
 from django.views.generic.base import RedirectView
 from . import views
+from .dashboards import RICDDashboardView, CouncilDashboardView
 
 app_name = 'portal'
 
@@ -9,18 +10,17 @@ urlpatterns = [
     path('', RedirectView.as_view(url='accounts/login/'), name='root_redirect'),
     
     # Dashboard URLs
-    path('ricd/', views.RICDDashboardView.as_view(), name='ricd_dashboard'),
-    path('council/', views.CouncilDashboardView.as_view(), name='council_dashboard'),
+    path('ricd/', RICDDashboardView.as_view(), name='ricd_dashboard'),
+    path('council/', CouncilDashboardView.as_view(), name='council_dashboard'),
 
     # Project detail
     path('project/<int:pk>/', views.ProjectDetailView.as_view(), name='project_detail'),
     path('council/projects/<int:pk>/detail/', views.CouncilProjectDetailView.as_view(), name='council_project_detail'),
 
-    # Report submission URLs
-    path('reports/monthly/', views.MonthlyReportView.as_view(), name='monthly_report'),
-    path('reports/quarterly/', views.QuarterlyReportView.as_view(), name='quarterly_report'),
-    path('reports/stage1/', views.Stage1ReportView.as_view(), name='stage1_report'),
-    path('reports/stage2/', views.Stage2ReportView.as_view(), name='stage2_report'),
+    # path('reports/stage1/', views.Stage1ReportView.as_view(), name='stage1_report'),
+    # path('reports/stage1/project/<int:project_pk>/', views.Stage1ReportView.as_view(), name='project_stage1_report'),
+    # path('reports/stage2/', views.Stage2ReportView.as_view(), name='stage2_report'),
+    # path('reports/stage2/project/<int:project_pk>/', views.Stage2ReportView.as_view(), name='project_stage2_report'),
 
     # Council CRUD URLs
     path('councils/', views.CouncilListView.as_view(), name='council_list'),
@@ -145,4 +145,37 @@ urlpatterns = [
 
     # Move addresses and works functionality
     path('projects/<int:pk>/move-addresses-works/', views.MoveAddressesWorksView.as_view(), name='move_addresses_works'),
+
+    # Enhanced Reporting Management URLs
+    path('maintenance/monthly-tracker-items/', views.MonthlyTrackerItemListView.as_view(), name='monthly_tracker_item_list'),
+    path('maintenance/monthly-tracker-items/create/', views.MonthlyTrackerItemCreateView.as_view(), name='monthly_tracker_item_create'),
+    path('maintenance/monthly-tracker-items/<int:pk>/update/', views.MonthlyTrackerItemUpdateView.as_view(), name='monthly_tracker_item_update'),
+    path('maintenance/monthly-tracker-items/<int:pk>/delete/', views.MonthlyTrackerItemDeleteView.as_view(), name='monthly_tracker_item_delete'),
+
+    path('maintenance/monthly-tracker-item-groups/', views.MonthlyTrackerItemGroupListView.as_view(), name='monthly_tracker_item_group_list'),
+    path('maintenance/monthly-tracker-item-groups/create/', views.MonthlyTrackerItemGroupCreateView.as_view(), name='monthly_tracker_item_group_create'),
+    path('maintenance/monthly-tracker-item-groups/<int:pk>/update/', views.MonthlyTrackerItemGroupUpdateView.as_view(), name='monthly_tracker_item_group_update'),
+    path('maintenance/monthly-tracker-item-groups/<int:pk>/delete/', views.MonthlyTrackerItemGroupDeleteView.as_view(), name='monthly_tracker_item_group_delete'),
+
+    path('maintenance/quarterly-report-items/', views.QuarterlyReportItemListView.as_view(), name='quarterly_report_item_list'),
+    path('maintenance/quarterly-report-items/create/', views.QuarterlyReportItemCreateView.as_view(), name='quarterly_report_item_create'),
+    path('maintenance/quarterly-report-items/<int:pk>/update/', views.QuarterlyReportItemUpdateView.as_view(), name='quarterly_report_item_update'),
+    path('maintenance/quarterly-report-items/<int:pk>/delete/', views.QuarterlyReportItemDeleteView.as_view(), name='quarterly_report_item_delete'),
+
+    path('maintenance/stage1-steps/', views.Stage1StepListView.as_view(), name='stage1_step_list'),
+    path('maintenance/stage1-steps/create/', views.Stage1StepCreateView.as_view(), name='stage1_step_create'),
+    path('maintenance/stage1-steps/<int:pk>/update/', views.Stage1StepUpdateView.as_view(), name='stage1_step_update'),
+    path('maintenance/stage1-steps/<int:pk>/delete/', views.Stage1StepDeleteView.as_view(), name='stage1_step_delete'),
+
+    path('maintenance/stage2-steps/', views.Stage2StepListView.as_view(), name='stage2_step_list'),
+    path('maintenance/stage2-steps/create/', views.Stage2StepCreateView.as_view(), name='stage2_step_create'),
+    path('maintenance/stage2-steps/<int:pk>/update/', views.Stage2StepUpdateView.as_view(), name='stage2_step_update'),
+    path('maintenance/stage2-steps/<int:pk>/delete/', views.Stage2StepDeleteView.as_view(), name='stage2_step_delete'),
+
+    # Project Report Configuration
+    path('projects/<int:pk>/report-configuration/', views.ProjectReportConfigurationView.as_view(), name='project_report_configuration'),
+
+    # Site Configuration
+    path('maintenance/site-configuration/', views.SiteConfigurationView.as_view(), name='site_configuration'),
+
 ]

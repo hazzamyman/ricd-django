@@ -207,16 +207,30 @@
                                         {% endif %}
                                     </td>
                                     {% else %}
-                                    <td class="text-center">-</td>
-                                    <td class="text-center">-</td>
-                                    <td class="text-center">-</td>
+                                    <td class="text-center"><span>-</span></td>
+                                    <td class="text-center"><span>-</span></td>
+                                    <td class="text-center"><span>-</span></td>
                                     {% endif %}
                                     <td>
                                         {% if item.project.state == 'commenced' or item.project.state == 'under_construction' %}
-                                        <a href="{% url 'portal:quarterly_report' %}?project={{ item.project.id }}"
-                                           class="btn btn-success btn-sm">
-                                            <i class="fas fa-plus"></i> Submit Report
-                                        </a>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'portal:enhanced_monthly_tracker' %}"
+                                               class="btn btn-primary btn-sm" title="Enhanced Monthly Tracker">
+                                                <i class="fas fa-table"></i> Tracker
+                                            </a>
+                                            <a href="{% url 'portal:enhanced_quarterly_report' %}"
+                                               class="btn btn-success btn-sm" title="Enhanced Quarterly Report">
+                                                <i class="fas fa-chart-line"></i> Quarterly
+                                            </a>
+                                            <a href="{% url 'portal:enhanced_stage1_report' %}"
+                                               class="btn btn-info btn-sm" title="Enhanced Stage 1 Report">
+                                                <i class="fas fa-clipboard-list"></i> Stage 1
+                                            </a>
+                                            <a href="{% url 'portal:enhanced_stage2_report' %}"
+                                               class="btn btn-warning btn-sm" title="Enhanced Stage 2 Report">
+                                                <i class="fas fa-clipboard-check"></i> Stage 2
+                                            </a>
+                                        </div>
                                         {% else %}
                                         <span class="text-muted small">-</span>
                                         {% endif %}

@@ -1,6 +1,6 @@
 import pytest
-from ricd.models import Council
-from tests.conftest import make_council_factory
+from ricd.models import Council, Work, Address, WorkType, OutputType
+from tests.conftest import make_council_factory, make_work_type_factory, make_output_type_factory
 
 
 class TestCouncilModel:
@@ -104,10 +104,16 @@ class TestCouncilModel:
         user.groups.add(Group.objects.get(name='Council Manager'))
         profile = UserProfile.objects.create(user=user, council=council, council_role='manager')
 
+        # Create work type and output type
+        WorkTypeFactory = make_work_type_factory()
+        OutputTypeFactory = make_output_type_factory()
+        work_type = WorkTypeFactory()
+        output_type = OutputTypeFactory()
+
         # Create project, address, work
         project = Project.objects.create(name="Test Project", council=council, program=program)
-        address = Address.objects.create(project=project, street="Test St")
-        work = Work.objects.create(address=address, work_type_id=1, output_type_id=1)
+        address = Address.objects.create(project=project, street="Test St", suburb="Test Suburb", postcode="4000", state="QLD")
+        work = Work.objects.create(address=address, work_type_id=work_type, output_type_id=output_type)
 
         # Create quarterly report
         report = QuarterlyReport.objects.create(

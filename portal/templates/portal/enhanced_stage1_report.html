@@ -1,0 +1,256 @@
+{% extends "portal/base.html" %}
+{% load template_filters %}
+
+{% block title %}Enhanced Stage 1 Report - RICD Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1><i class="fas fa-clipboard-list me-2"></i>Enhanced Stage 1 Report</h1>
+                <div>
+                    {% if is_ricd %}
+                        <a href="{% url 'portal:stage1_step_list' %}" class="btn btn-outline-primary me-2">
+                            <i class="fas fa-cog"></i> Configure Steps
+                        </a>
+                    {% endif %}
+                    <a href="{% url 'portal:council_dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tasks me-2"></i>
+                        Stage 1 Progress Report - {% if user_council %}{{ user_council.name }}{% else %}All Councils{% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if stage1_data %}
+                        <div class="table-responsive" style="max-height: 80vh; overflow: auto;">
+                            <table class="table table-bordered table-hover" id="stage1-report-table">
+                                <thead class="table-dark sticky-top">
+                                    <tr>
+                                        <th class="sticky-left bg-dark text-white" style="min-width: 300px; left: 0; z-index: 3;">
+                                            <strong>Work Address</strong>
+                                        </th>
+                                        {% for step in stage1_steps %}
+                                            <th class="text-center" style="min-width: 120px;">
+                                                <strong>{{ step.name }}</strong>
+                                                {% if step.description %}
+                                                    <br><small class="text-muted">{{ step.description|truncatechars:20 }}</small>
+                                                {% endif %}
+                                            </th>
+                                        {% endfor %}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for project_group in stage1_data %}
+                                        <!-- Project Header Row -->
+                                        <tr class="table-primary">
+                                            <td colspan="{{ total_columns }}" class="sticky-left text-center fw-bold" style="left: 0; z-index: 2;">
+                                                <i class="fas fa-project-diagram me-2"></i>
+                                                {{ project_group.project.name }} - {{ project_group.project.council.name }}
+                                            </td>
+                                        </tr>
+
+                                        {% for work_info in project_group.works %}
+                                            <tr>
+                                                <!-- Work Address Column -->
+                                                <td class="sticky-left bg-light fw-bold" style="left: 0; z-index: 2;">
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="fas fa-map-marker-alt me-2 text-primary"></i>
+                                                        <div>
+                                                            <div>{{ work_info.address.street }}</div>
+                                                            <small class="text-muted">{{ work_info.address.suburb }}, {{ work_info.address.state }} {{ work_info.address.postcode }}</small>
+                                                            {% if work_info.work.work_type_id %}
+                                                                <br><small class="text-info">{{ work_info.work.work_type_id.name }}</small>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                </td>
+
+                                                <!-- Stage 1 Step Data Columns -->
+                                                {% for step in stage1_steps %}
+                                                    <td class="text-center">
+                                                        {% with value_info=work_info.step_values|get_key:step.id %}
+                                                            {% if not value_info.applicable %}
+                                                                <!-- Step not applicable to this work -->
+                                                                <span class="text-muted">-</span>
+                                                            {% elif value_info.completed %}
+                                                                <!-- Step completed -->
+                                                                <span class="text-success">
+                                                                    <i class="fas fa-check-circle"></i>
+                                                                    {% if value_info.completion_date %}
+                                                                        {{ value_info.completion_date|date:"d/m/Y" }}
+                                                                    {% endif %}
+                                                                </span>
+                                                            {% else %}
+                                                                <!-- Step not completed -->
+                                                                <span class="text-warning">
+                                                                    <i class="fas fa-clock"></i>
+                                                                    Pending
+                                                                </span>
+                                                            {% endif %}
+                                                        {% endwith %}
+                                                    </td>
+                                                {% endfor %}
+                                            </tr>
+                                        {% endfor %}
+
+                                        <!-- Empty row for spacing between projects -->
+                                        <tr>
+                                            <td colspan="{{ total_columns }}" style="height: 20px; background-color: #f8f9fa;"></td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Table Statistics -->
+                        <div class="row mt-3">
+                            <div class="col-md-4">
+                                <div class="card border-primary">
+                                    <div class="card-body text-center">
+                                        <h5 class="text-primary">{{ stage1_data|length }}</h5>
+                                        <p class="mb-0">Active Projects</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card border-info">
+                                    <div class="card-body text-center">
+                                        <h5 class="text-info">{{ stage1_steps|length }}</h5>
+                                        <p class="mb-0">Stage 1 Steps</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card border-success">
+                                    <div class="card-body text-center">
+                                        <h5 class="text-success">
+                                            {% for project in stage1_data %}
+                                                {{ project.works|length }}{% if not forloop.last %} + {% endif %}
+                                            {% empty %}0{% endfor %}
+                                        </h5>
+                                        <p class="mb-0">Total Works</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-clipboard-list fa-4x text-muted mb-3"></i>
+                            <h4 class="text-muted">No Stage 1 Report Data Found</h4>
+                            <p class="text-muted">
+                                There are currently no Stage 1 reports available
+                                {% if user_council %}for {{ user_council.name }}{% endif %}.
+                            </p>
+                            <a href="{% url 'portal:enhanced_stage1_report' %}" class="btn btn-info me-2">
+                                <i class="fas fa-plus"></i> Submit Stage 1 Report
+                            </a>
+                            {% if is_ricd %}
+                                <a href="{% url 'portal:project_list' %}" class="btn btn-primary">
+                                    <i class="fas fa-list"></i> View All Projects
+                                </a>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Freeze row and column styles */
+.sticky-top {
+    position: sticky;
+    top: 0;
+}
+
+.sticky-left {
+    position: sticky;
+}
+
+.sticky-left {
+    background-color: inherit;
+}
+
+/* Improve table appearance */
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.075);
+}
+
+.table-primary {
+    background-color: #e3f2fd !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .sticky-left {
+        position: static;
+    }
+
+    .table-responsive {
+        max-height: none;
+        overflow: visible;
+    }
+}
+
+/* Custom scrollbar for table */
+.table-responsive::-webkit-scrollbar {
+    height: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+</style>
+
+<script>
+// Add smooth scrolling for horizontal table navigation
+document.addEventListener('DOMContentLoaded', function() {
+    const tableContainer = document.querySelector('.table-responsive');
+
+    // Add mouse wheel horizontal scrolling
+    tableContainer.addEventListener('wheel', function(e) {
+        if (e.deltaY !== 0 && e.shiftKey) {
+            e.preventDefault();
+            tableContainer.scrollLeft += e.deltaY;
+        }
+    });
+
+    // Add keyboard navigation
+    document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+            e.preventDefault();
+            const scrollAmount = 200;
+            if (e.key === 'ArrowLeft') {
+                tableContainer.scrollLeft -= scrollAmount;
+            } else {
+                tableContainer.scrollLeft += scrollAmount;
+            }
+        }
+    });
+});
+</script>
+{% endblock %}
