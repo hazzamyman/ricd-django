@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">Manage Projects - Variation {{ variation.id }}</h1>
+    
+    <div class="card">
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="mb-3">
+                    <label class="form-label">Select Projects</label>
+                    <p class="text-muted">Select the projects to include in this variation:</p>
+                    
+                    <div class="row">
+                        {% for project in all_projects %}
+                        <div class="col-md-4 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" 
+                                       name="projects" 
+                                       value="{{ project.id }}"
+                                       id="project_{{ project.id }}"
+                                       {% if project.id in selected_projects %}checked{% endif %}>
+                                <label class="form-check-label" for="project_{{ project.id }}">
+                                    {{ project.name }}
+                                    <small class="text-muted">({{ project.council.name }})</small>
+                                </label>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12">
+                            <p class="text-muted">No projects available.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-primary">Save Projects</button>
+                    <a href="{% url 'variations:variation_detail' variation.id %}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

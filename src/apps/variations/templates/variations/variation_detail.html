@@ -1,0 +1,370 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1>Variation {{ variation.id }}</h1>
+            <p class="text-muted mb-0">
+                {% for project in projects %}{{ project.council.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+            </p>
+        </div>
+        <div>
+            <span class="badge bg-lg fs-5 
+                {% if variation.status == 'DRAFT' %}bg-secondary
+                {% elif variation.status == 'COUNCIL_SIGNED' %}bg-warning text-dark
+                {% else %}bg-success{% endif %}">
+                {{ variation.get_status_display }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Description -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Description</h5>
+        </div>
+        <div class="card-body">
+            <p class="mb-0">{{ variation.description|default:"No description provided." }}</p>
+        </div>
+    </div>
+
+    <!-- Funding Schedule Changes Table -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Funding Schedule Changes</h5>
+            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addChangeModal">
+                <i class="bi bi-plus"></i> Add Change
+            </button>
+        </div>
+        <div class="card-body">
+            <table class="table table-bordered">
+                <thead class="table-light">
+                    <tr>
+                        <th>FS #</th>
+                        <th>Project</th>
+                        <th>Type of Change</th>
+                        <th>Details</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Original Funding Schedule -->
+                    {% if variation.funding_schedule %}
+                    <tr>
+                        <td>{{ variation.funding_schedule.id }}</td>
+                        <td>{{ variation.funding_schedule.project.name }}</td>
+                        <td><span class="badge bg-primary">Original</span></td>
+                        <td>
+                            <strong>Amount:</strong> ${{ variation.funding_schedule.amount|default:0|floatformat:2 }}<br>
+                            <strong>Contingency:</strong> ${{ variation.funding_schedule.contingency|default:0|floatformat:2 }}
+                        </td>
+                        <td><span class="badge bg-success">Active</span></td>
+                        <td></td>
+                    </tr>
+                    {% endif %}
+
+                    <!-- Funding Changes -->
+                    {% for fc in variation.funding_changes.all %}
+                    <tr class="table-warning">
+                        <td>{{ fc.funding_schedule.id }}</td>
+                        <td>{{ fc.funding_schedule.project.name }}</td>
+                        <td><span class="badge bg-warning text-dark">Funding Amount</span></td>
+                        <td>
+                            <strong>Original:</strong> ${{ fc.original_amount|default:0|floatformat:2 }}<br>
+                            <strong>New:</strong> <span class="text-success fw-bold">${{ fc.new_amount|default:0|floatformat:2 }}</span>
+                            {% if fc.funding_difference %}
+                            <br><small class="{% if fc.funding_difference > 0 %}text-danger{% else %}text-success{% endif %}">
+                                ({{ fc.funding_difference|floatformat:2 }})
+                            </small>
+                            {% endif %}
+                        </td>
+                        <td><span class="badge bg-warning">Pending</span></td>
+                        <td>
+                            <a href="{% url 'variations:funding_change_delete' fc.id %}" class="btn btn-sm btn-outline-danger">Remove</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                    <!-- Payment Changes -->
+                    {% for fc in variation.funding_changes.all %}
+                        {% if fc.payment_number %}
+                        <tr class="table-warning">
+                            <td>{{ fc.funding_schedule.id }}</td>
+                            <td>{{ fc.funding_schedule.project.name }}</td>
+                            <td><span class="badge bg-warning text-dark">Payment #{{ fc.payment_number }}</span></td>
+                            <td>
+                                <strong>Original:</strong> ${{ fc.original_payment|default:0|floatformat:2 }}<br>
+                                <strong>New:</strong> <span class="text-success fw-bold">${{ fc.new_payment|default:0|floatformat:2 }}</span>
+                            </td>
+                            <td><span class="badge bg-warning">Pending</span></td>
+                            <td>
+                                <a href="{% url 'variations:funding_change_delete' fc.id %}" class="btn btn-sm btn-outline-danger">Remove</a>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    {% endfor %}
+
+                    <!-- Land Changes -->
+                    {% for lc in variation.land_changes.all %}
+                    <tr class="table-info">
+                        <td>{{ lc.funding_schedule.id }}</td>
+                        <td>{{ lc.funding_schedule.project.name }}</td>
+                        <td><span class="badge bg-info text-dark">Land Change</span></td>
+                        <td>
+                            <strong>Old:</strong> {{ lc.original_street_address|default:"N/A" }}<br>
+                            <strong>New:</strong> <span class="text-success">{{ lc.new_street_address|default:"TBD" }}</span>
+                        </td>
+                        <td><span class="badge bg-warning">Pending</span></td>
+                        <td>
+                            <a href="{% url 'variations:land_change_delete' lc.id %}" class="btn btn-sm btn-outline-danger">Remove</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                    <!-- Scope Changes -->
+                    {% for sc in variation.scope_changes.all %}
+                    <tr class="table-secondary">
+                        <td>{{ sc.funding_schedule.id }}</td>
+                        <td>{{ sc.funding_schedule.project.name }}</td>
+                        <td><span class="badge bg-secondary">Scope of Works</span></td>
+                        <td>
+                            <strong>Original:</strong> {{ sc.original_scope|truncatechars:50 }}<br>
+                            <strong>New:</strong> <span class="text-success">{{ sc.new_scope|truncatechars:50 }}</span>
+                        </td>
+                        <td><span class="badge bg-warning">Pending</span></td>
+                        <td>
+                            <a href="{% url 'variations:scope_change_delete' sc.id %}" class="btn btn-sm btn-outline-danger">Remove</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                    <!-- Date Changes -->
+                    {% for dc in variation.date_changes.all %}
+                    <tr class="table-light">
+                        <td>{{ dc.funding_schedule.id }}</td>
+                        <td>{{ dc.funding_schedule.project.name }}</td>
+                        <td><span class="badge bg-light text-dark">Date Change</span></td>
+                        <td>
+                            <strong>{{ dc.get_date_type_display }}:</strong><br>
+                            {{ dc.original_date|default:"N/A" }} → <span class="text-success">{{ dc.new_date|default:"TBD" }}</span>
+                        </td>
+                        <td><span class="badge bg-warning">Pending</span></td>
+                        <td>
+                            <a href="{% url 'variations:date_change_delete' dc.id %}" class="btn btn-sm btn-outline-danger">Remove</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                    {% if not variation.funding_changes.all and not variation.land_changes.all and not variation.scope_changes.all and not variation.date_changes.all %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            No changes added yet. Click "Add Change" to add funding, land, scope, or date changes.
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="d-flex justify-content-between align-items-center">
+        <a href="{% url 'variations:variations_list' %}" class="btn btn-secondary">Back to Variations</a>
+        
+        {% if variation.status == 'DRAFT' %}
+        <div>
+            <a href="{% url 'variations:variation_update_status' variation.id 'COUNCIL_SIGNED' %}" class="btn btn-warning">
+                Mark as Council Signed
+            </a>
+            <a href="{% url 'variations:variation_update_status' variation.id 'EXECUTED' %}" class="btn btn-success" 
+               onclick="return confirm('Are you sure you want to EXECUTE this variation? This will apply all changes.')">
+                <i class="bi bi-check-circle"></i> Execute Variation
+            </a>
+        </div>
+        {% elif variation.status == 'COUNCIL_SIGNED' %}
+        <a href="{% url 'variations:variation_update_status' variation.id 'EXECUTED' %}" class="btn btn-success"
+           onclick="return confirm('Are you sure you want to EXECUTE this variation? This will apply all changes.')">
+            <i class="bi bi-check-circle"></i> Execute Variation
+        </a>
+        {% else %}
+        <span class="badge bg-success fs-5">Executed</span>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add Change Modal -->
+<div class="modal fade" id="addChangeModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Change to Variation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'variations:add_funding_change' variation.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <ul class="nav nav-tabs" id="changeTypeTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#fundingChange" type="button">Funding Amount</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#paymentChange" type="button">Payment Change</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#landChange" type="button">Land Change</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#scopeChange" type="button">Scope of Works</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#dateChange" type="button">Date Change</button>
+                        </li>
+                    </ul>
+                    
+                    <div class="tab-content p-3">
+                        <!-- Funding Amount Change -->
+                        <div class="tab-pane fade show active" id="fundingChange">
+                            <h6>Change Funding Amount</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Funding Schedule</label>
+                                    <select name="funding_schedule" class="form-select">
+                                        {% for fs in all_funding_schedules %}
+                                        <option value="{{ fs.id }}">FS#{{ fs.id }} - {{ fs.project.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Original Amount</label>
+                                    <input type="number" name="original_amount" class="form-control" step="0.01">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">New Amount</label>
+                                    <input type="number" name="new_amount" class="form-control" step="0.01">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Payment Change -->
+                        <div class="tab-pane fade" id="paymentChange">
+                            <h6>Change Payment Amount</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Funding Schedule</label>
+                                    <select name="funding_schedule_payment" class="form-select">
+                                        {% for fs in all_funding_schedules %}
+                                        <option value="{{ fs.id }}">FS#{{ fs.id }} - {{ fs.project.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Payment #</label>
+                                    <select name="payment_number" class="form-select">
+                                        <option value="1">Payment 1</option>
+                                        <option value="2">Payment 2</option>
+                                        <option value="3">Payment 3 (Final)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Original Payment</label>
+                                    <input type="number" name="original_payment" class="form-control" step="0.01">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">New Payment</label>
+                                    <input type="number" name="new_payment" class="form-control" step="0.01">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Land Change -->
+                        <div class="tab-pane fade" id="landChange">
+                            <h6>Change Land Details</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Funding Schedule</label>
+                                    <select name="funding_schedule_land" class="form-select">
+                                        {% for fs in all_funding_schedules %}
+                                        <option value="{{ fs.id }}">FS#{{ fs.id }} - {{ fs.project.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Original Street Address</label>
+                                    <input type="text" name="original_street_address" class="form-control">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">New Street Address</label>
+                                    <input type="text" name="new_street_address" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Scope Change -->
+                        <div class="tab-pane fade" id="scopeChange">
+                            <h6>Change Scope of Works</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Funding Schedule</label>
+                                    <select name="funding_schedule_scope" class="form-select">
+                                        {% for fs in all_funding_schedules %}
+                                        <option value="{{ fs.id }}">FS#{{ fs.id }} - {{ fs.project.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Original Scope</label>
+                                    <textarea name="original_scope" class="form-control" rows="2"></textarea>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">New Scope</label>
+                                    <textarea name="new_scope" class="form-control" rows="2"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Date Change -->
+                        <div class="tab-pane fade" id="dateChange">
+                            <h6>Change Dates</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Funding Schedule</label>
+                                    <select name="funding_schedule_date" class="form-select">
+                                        {% for fs in all_funding_schedules %}
+                                        <option value="{{ fs.id }}">FS#{{ fs.id }} - {{ fs.project.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Date Type</label>
+                                    <select name="date_type" class="form-select">
+                                        <option value="STAGE1_TARGET">Stage 1 Target</option>
+                                        <option value="STAGE2_TARGET">Stage 2 Target</option>
+                                        <option value="STAGE1_SUNSET">Stage 1 Sunset</option>
+                                        <option value="STAGE2_SUNSET">Stage 2 Sunset</option>
+                                        <option value="COMPLETION">Completion</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Original Date</label>
+                                    <input type="date" name="original_date" class="form-control">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">New Date</label>
+                                    <input type="date" name="new_date" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Change</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

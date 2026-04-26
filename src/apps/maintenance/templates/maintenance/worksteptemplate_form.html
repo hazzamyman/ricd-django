@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">{% if worksteptemplate %}Edit{% else %}Add{% endif %} Work Step Template</h1>
+    
+    <div class="card">
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label">Work Type</label>
+                    <select name="work_type" class="form-select" required>
+                        <option value="">Select Work Type</option>
+                        {% for wt in work_types %}
+                        <option value="{{ wt.id }}" {% if worksteptemplate.work_type_id == wt.id %}selected{% endif %}>{{ wt.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Step Name</label>
+                    <input type="text" name="name" class="form-control" value="{{ worksteptemplate.name|default:'' }}" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="2">{{ worksteptemplate.description|default:'' }}</textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Order</label>
+                    <input type="number" name="order" class="form-control" value="{{ worksteptemplate.order|default:'0' }}">
+                </div>
+                <div class="mb-3 form-check">
+                    <input type="checkbox" name="is_required" class="form-check-input" id="is_required" {% if worksteptemplate.is_required or not worksteptemplate %}checked{% endif %}>
+                    <label class="form-check-label" for="is_required">Required</label>
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+                <a href="{% url 'maintenance:worksteptemplate_list' %}" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

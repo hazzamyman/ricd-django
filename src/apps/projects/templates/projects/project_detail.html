@@ -1,0 +1,1091 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1>{{ project.name }}</h1>
+            <p class="text-muted mb-0">{{ project.council.name }} | {{ project.program.name }}</p>
+        </div>
+        <div>
+            <a href="{% url 'projects:project_list' %}" class="btn btn-secondary">Back to List</a>
+        </div>
+    </div>
+
+    <!-- Basic Info Card -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Project Details</h5>
+            {% if can_edit %}
+            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editProjectModal">Edit Project</button>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <p class="mb-1"><strong>State</strong></p>
+                    <span class="badge bg-info">{{ project.get_state_display }}</span>
+                </div>
+                <div class="col-md-3">
+                    <p class="mb-1"><strong>Status</strong></p>
+                    {% if project.state in 'FUND COMM UC' %}
+                        {% if project.status_flag == 'ON' %}
+                        <span class="badge bg-success">On Track</span>
+                        {% elif project.status_flag == 'LA' %}
+                        <span class="badge bg-warning text-dark">Late</span>
+                        {% else %}
+                        <span class="badge bg-danger">Overdue</span>
+                        {% endif %}
+                    {% else %}
+                    <span class="text-muted">-</span>
+                    {% endif %}
+                </div>
+                <div class="col-md-3">
+                    <p class="mb-1"><strong>Funding Schedule</strong></p>
+                    {% if project.funding_schedule %}
+                    <a href="{% url 'funding:funding_schedule_detail' project.funding_schedule.id %}">{{ project.funding_schedule.id }}</a>
+                    {% else %}
+                    <span class="text-muted">-</span>
+                    {% endif %}
+                </div>
+                <div class="col-md-3">
+                    <p class="mb-1"><strong>Financial Year</strong></p>
+                    <span>{{ project.financial_year }}</span>
+                </div>
+                <div class="col-md-3">
+                    <p class="mb-1"><strong>Start Date</strong></p>
+                    <span>{{ project.start_date|default:"-" }}</span>
+                </div>
+            </div>
+            <hr>
+            <div class="row">
+                <div class="col-md-3">
+                    <p class="mb-1"><strong>Stage 1 Target Date</strong></p>
+                    <span>{{ project.stage1_target_date|default:"-" }}</span>
+                </div>
+                <div class="col-md-3">
+                    <p class="mb-1"><strong>Stage 1 Sunset Date</strong></p>
+                    <span>{{ project.stage1_sunset_date|default:"-" }}</span>
+                </div>
+                <div class="col-md-3">
+                    <p class="mb-1"><strong>Stage 2 Target Date</strong></p>
+                    <span>{{ project.stage2_target_date|default:"-" }}</span>
+                </div>
+                <div class="col-md-3">
+                    <p class="mb-1"><strong>Stage 2 Sunset Date</strong></p>
+                    <span>{{ project.stage2_sunset_date|default:"-" }}</span>
+                </div>
+            </div>
+            {% if project.state == 'COMP' %}
+            <hr>
+            <div class="row">
+                <div class="col-md-3">
+                    <p class="mb-1"><strong>Completion Date</strong></p>
+                    <span>{{ project.completion_date|default:"-" }}</span>
+                </div>
+                <div class="col-md-3">
+                    <p class="mb-1"><strong>Warranty End Date</strong></p>
+                    <span>{{ project.warranty_end_date|default:"-" }}</span>
+                </div>
+                <div class="col-md-3">
+                    <p class="mb-1"><strong>Handover Checklist</strong></p>
+                    {% if project.handover_checklist_link %}
+                    <a href="{{ project.handover_checklist_link }}" target="_blank">View</a>
+                    {% else %}-{% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs" id="projectTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="works-tab" data-bs-toggle="tab" data-bs-target="#works" type="button" role="tab">
+                Works & Addresses
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="funding-tab" data-bs-toggle="tab" data-bs-target="#funding" type="button" role="tab">
+                Funding
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="reports-tab" data-bs-toggle="tab" data-bs-target="#reports" type="button" role="tab">
+                Reports
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="comments-tab" data-bs-toggle="tab" data-bs-target="#comments" type="button" role="tab">
+                Comments
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="defects-tab" data-bs-toggle="tab" data-bs-target="#defects" type="button" role="tab">
+                Defects
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="cashflow-tab" data-bs-toggle="tab" data-bs-target="#cashflow" type="button" role="tab">
+                Cashflow
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content p-3 border border-top-0 bg-light" id="projectTabsContent">
+        
+        <!-- Works & Addresses Tab -->
+        <div class="tab-pane fade show active" id="works" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5>Works & Addresses</h5>
+                {% if can_edit %}
+                <div>
+                    <button class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#addAddressModal">Add Address</button>
+                    {% if addresses %}
+                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addWorkModal">Add Work</button>
+                    {% endif %}
+                {% endif %}
+            </div>
+            {% if addresses %}
+            {% for address in addresses %}
+            <div class="card mb-3">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        {{ address.street }}{% if address.lot %}, Lot {{ address.lot }}{% endif %}{% if address.plan %}, Plan {{ address.plan }}{% endif %}
+                    </h6>
+                    {% if can_edit %}
+                    <form method="post" action="{% url 'addresses:address_delete' address.id %}" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this address?')">Delete</button>
+                    </form>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% with address.works.all as address_works %}
+                    {% if address_works %}
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Work Type</th>
+                                <th>Quantity</th>
+                                <th>Est. Cost</th>
+                                <th>Status</th>
+                                {% if can_edit %}<th>Actions</th>{% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for work in address_works %}
+                            <tr>
+                                <td>{{ work.work_type.name|default:work.work_type_other }}</td>
+                                <td>{{ work.quantity }}</td>
+                                <td>${{ work.total_estimated_cost|floatformat:2 }}</td>
+                                <td>
+                                    {% if work.status == 'COMPLETED' %}
+                                    <span class="badge bg-success">Completed</span>
+                                    {% elif work.status == 'IN_PROGRESS' %}
+                                    <span class="badge bg-primary">In Progress</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Pending</span>
+                                    {% endif %}
+                                </td>
+                                {% if can_edit %}
+                                <td>
+                                    <form method="post" action="{% url 'works:work_delete' work.id %}" style="display:inline;">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger btn-sm" onclick="return confirm('Delete this work?')">Delete</button>
+                                    </form>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-muted mb-0">No works assigned to this address.</p>
+                    {% endif %}
+                    {% endwith %}
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p class="text-muted">No addresses added yet. Click "Add Address" to add one.</p>
+            {% endif %}
+        </div>
+
+        <!-- Funding Tab -->
+        <div class="tab-pane fade" id="funding" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5>Funding</h5>
+                {% if can_edit %}
+                <div>
+                    <button class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#addFundingApprovalModal">Add Funding Approval</button>
+                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addFundingScheduleModal">Add Funding Schedule</button>
+                {% endif %}
+            </div>
+            
+            <!-- Funding Approvals -->
+            <div class="card mb-3">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0">Funding Approvals</h6>
+                </div>
+                <div class="card-body">
+                    {% if funding_approvals %}
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>Amount</th>
+                                <th>Contingency</th>
+                                <th>MINCOR Ref</th>
+                                <th>Created</th>
+                                {% if can_edit %}<th></th>{% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for fa in funding_approvals %}
+                            <tr>
+                                <td><span class="badge bg-{% if fa.status == 'APPROVED' %}success{% elif fa.status == 'REJECTED' %}danger{% else %}warning{% endif %}">{{ fa.get_status_display }}</span></td>
+                                <td>${{ fa.total_amount|floatformat:2 }}</td>
+                                <td>${{ fa.contingency_amount|floatformat:2 }}</td>
+                                <td>{{ fa.mincor_reference|default:"-" }}</td>
+                                <td>{{ fa.created_at|date:"d/m/Y" }}</td>
+                                {% if can_edit %}
+                                <td>
+                                    <form method="post" action="{% url 'funding:funding_approval_delete' fa.id %}" style="display:inline;">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger btn-sm" onclick="return confirm('Delete?')">Delete</button>
+                                    </form>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-muted mb-0">No funding approvals yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Funding Schedules -->
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0">Funding Schedules <span class="badge bg-secondary">Total: ${{ total_funding|floatformat:2 }}</span></h6>
+                </div>
+                <div class="card-body">
+                    {% if funding_schedules %}
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Amount</th>
+                                <th>Contingency</th>
+                                <th>Total</th>
+                                <th>Payment Split</th>
+                                {% if can_edit %}<th></th>{% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for fs in funding_schedules %}
+                            <tr>
+                                <td>${{ fs.amount|floatformat:2 }}</td>
+                                <td>${{ fs.contingency|floatformat:2 }}</td>
+                                <td><strong>${{ fs.total_funding|floatformat:2 }}</strong></td>
+                                <td>{{ fs.get_payment_split_display }}</td>
+                                {% if can_edit %}
+                                <td>
+                                    <form method="post" action="{% url 'funding:funding_schedule_delete' fs.id %}" style="display:inline;">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger btn-sm" onclick="return confirm('Delete?')">Delete</button>
+                                    </form>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-muted mb-0">No funding schedules yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Pending Variations -->
+            {% if pending_variations %}
+            <div class="card mt-3 border-warning">
+                <div class="card-header bg-warning bg-opacity-25">
+                    <h6 class="mb-0">
+                        <i class="bi bi-exclamation-triangle"></i> Pending Variations (Draft)
+                        <span class="badge bg-warning text-dark">{{ pending_variations|length }}</span>
+                    </h6>
+                </div>
+                <div class="card-body bg-warning bg-opacity-10">
+                    {% for var in pending_variations %}
+                    <div class="mb-2">
+                        <a href="{% url 'variations:variation_detail' var.id %}" class="text-decoration-none">
+                            <em class="text-warning">
+                                <strong>{{ var.variation_type.name|default:"Variation" }}</strong> - 
+                                {{ var.description|truncatechars:50 }}
+                                <small>(Created {{ var.created_at|date:"d/m/Y" }})</small>
+                            </em>
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Cost Summary -->
+            <div class="card mt-3">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0">Cost Summary</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-4">
+                            <div class="p-3 bg-light rounded">
+                                <h5 class="mb-1">Notional Cost</h5>
+                                <h4 class="text-primary mb-0">${{ notional_total|floatformat:2 }}</h4>
+                                <small class="text-muted">Based on standard rates for {{ project.financial_year|default:"current year" }}</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 bg-light rounded">
+                                <h5 class="mb-1">Estimated/Actual Cost</h5>
+                                <h4 class="text-success mb-0">${{ actual_total|floatformat:2 }}</h4>
+                                <small class="text-muted">Current project estimates</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 bg-light rounded">
+                                <h5 class="mb-1">Variance</h5>
+                                {% if actual_total > notional_total %}
+                                <h4 class="text-danger mb-0">+${{ actual_total|floatformat:2 }}</h4>
+                                <small class="text-muted">Over notional</small>
+                                {% elif actual_total < notional_total %}
+                                <h4 class="text-success mb-0">${{ notional_total|floatformat:2 }}</h4>
+                                <small class="text-muted">Under notional</small>
+                                {% else %}
+                                <h4 class="text-muted mb-0">$0.00</h4>
+                                <small class="text-muted">On target</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% if works %}
+                    <div class="mt-3">
+                        <small class="text-muted">Based on {{ works.count }} work{{ works.count|pluralize }} items</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Variations -->
+            <div class="card mt-3">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">Variations</h6>
+                    {% if can_edit %}
+                    <a href="{% url 'variations:variation_create' %}?project={{ project.id }}" class="btn btn-sm btn-outline-primary">Create Variation</a>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if variations %}
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for var in variations %}
+                            <tr>
+                                <td>#{{ var.id }}</td>
+                                <td>{{ var.variation_type.name|default:"-" }}</td>
+                                <td><span class="badge bg-{% if var.status == 'DRAFT' %}secondary{% elif var.status == 'EXECUTED' %}success{% else %}warning{% endif %}">{{ var.get_status_display }}</span></td>
+                                <td>{{ var.created_at|date:"d/m/Y" }}</td>
+                                <td><a href="{% url 'variations:variation_detail' var.id %}" class="btn btn-sm btn-outline-primary">View</a></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-muted mb-0">No variations yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports Tab -->
+        <div class="tab-pane fade" id="reports" role="tabpanel">
+            <div class="row">
+                <!-- Monthly Trackers -->
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">Monthly Trackers</h6>
+                            <a href="{% url 'reports:monthly_tracker_create' %}" class="btn btn-sm btn-outline-primary">Add</a>
+                        </div>
+                        <div class="card-body">
+                            {% if monthly_trackers %}
+                            <ul class="list-group list-group-flush">
+                                {% for mt in monthly_trackers %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                    {{ mt.year }}-{{ mt.month|stringformat:"02d" }}
+                                    <span class="badge bg-{% if mt.status == 'ASSESSED' %}success{% elif mt.status == 'SUBMITTED' %}warning{% else %}secondary{% endif %}">
+                                        {{ mt.get_status_display }}
+                                    </span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% else %}
+                            <p class="text-muted small mb-0">No monthly trackers</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quarterly Reports -->
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">Quarterly Reports</h6>
+                            <a href="{% url 'reports:quarterly_report_create' %}" class="btn btn-sm btn-outline-primary">Add</a>
+                        </div>
+                        <div class="card-body">
+                            {% if quarterly_reports %}
+                            <ul class="list-group list-group-flush">
+                                {% for qr in quarterly_reports %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                    Q{{ qr.quarter }} {{ qr.year }}
+                                    <span class="badge bg-{% if qr.status == 'APPROVED' %}success{% elif qr.status == 'SUBMITTED' %}warning{% else %}secondary{% endif %}">
+                                        {{ qr.get_status_display }}
+                                    </span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% else %}
+                            <p class="text-muted small mb-0">No quarterly reports</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Stage Reports -->
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">Stage Reports</h6>
+                            <a href="{% url 'reports:stage_report_create' %}" class="btn btn-sm btn-outline-primary">Add</a>
+                        </div>
+                        <div class="card-body">
+                            {% if stage_reports %}
+                            <ul class="list-group list-group-flush">
+                                {% for sr in stage_reports %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                    {{ sr.get_stage_type_display }}
+                                    <span class="badge bg-{% if sr.status == 'APPROVED' %}success{% elif sr.status == 'SUBMITTED' %}warning{% else %}secondary{% endif %}">
+                                        {{ sr.get_status_display }}
+                                    </span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% else %}
+                            <p class="text-muted small mb-0">No stage reports</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comments Tab -->
+        <div class="tab-pane fade" id="comments" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5>Comments</h5>
+            </div>
+            
+            <!-- Add Comment Form -->
+            {% if can_edit %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <form method="post" action="{% url 'projects:comment_create' project.id %}">
+                        {% csrf_token %}
+                        <div class="mb-2">
+                            <textarea name="content" class="form-control" rows="2" placeholder="Add a comment..." required></textarea>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <select name="visibility" class="form-select form-select-sm" style="width: auto;">
+                                <option value="ALL">Visible to All Users</option>
+                                <option value="FNC_ONLY">FNC Users Only</option>
+                                <option value="COUNCIL_ONLY">Council Users Only</option>
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-primary">Add Comment</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Comments List -->
+            {% if comments %}
+            {% for comment in comments %}
+            <div class="card mb-2">
+                <div class="card-body py-2">
+                    <div class="d-flex justify-content-between">
+                        <strong>{{ comment.author.username }}</strong>
+                        <div>
+                            <small class="text-muted">{{ comment.created_at|date:"d/m/Y H:i" }}</small>
+                            {% if comment.author == request.user or can_edit %}
+                            <form method="post" action="{% url 'projects:comment_delete' comment.id %}" style="display:inline; margin-left: 10px;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger btn-sm" onclick="return confirm('Delete this comment?')">Delete</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <p class="mb-1">{{ comment.content }}</p>
+                    <small class="text-muted">
+                        {% if comment.visibility == 'ALL' %}
+                        <span class="badge bg-info">All Users</span>
+                        {% elif comment.visibility == 'FNC_ONLY' %}
+                        <span class="badge bg-warning text-dark">FNC Only</span>
+                        {% elif comment.visibility == 'COUNCIL_ONLY' %}
+                        <span class="badge bg-primary">Council Only</span>
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p class="text-muted">No comments yet.</p>
+            {% endif %}
+        </div>
+
+        <!-- Defects Tab -->
+        <div class="tab-pane fade" id="defects" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5>Defects</h5>
+                {% if can_edit %}
+                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addDefectModal">Add Defect</button>
+                {% endif %}
+            </div>
+            
+            {% if defects %}
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Description</th>
+                        <th>Identified</th>
+                        <th>Rectified</th>
+                        <th>Defects Liability</th>
+                        <th>Warranty</th>
+                        {% if can_edit %}<th></th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for defect in defects %}
+                    <tr>
+                        <td>{{ defect.description|truncatechars:50 }}</td>
+                        <td>{{ defect.identified_date }}</td>
+                        <td>{{ defect.rectified_date|default:"Not rectified" }}</td>
+                        <td>{{ defect.defects_liability_expiry|default:"-" }}</td>
+                        <td>{{ defect.warranty_expiry|default:"-" }}</td>
+                        {% if can_edit %}
+                        <td>
+                            <form method="post" action="{% url 'defects:defect_delete' defect.id %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger btn-sm" onclick="return confirm('Delete?')">Delete</button>
+                            </form>
+                        </td>
+                    {% endif %}
+                </tr>
+            {% endfor %}
+        </tbody>
+            </table>
+            {% else %}
+            <p class="text-muted">No defects recorded.</p>
+            {% endif %}
+        </div>
+
+        <!-- Cashflow Tab -->
+        <div class="tab-pane fade" id="cashflow" role="tabpanel">
+            <h5>Cashflow Summary</h5>
+            
+            <!-- Summary Cards -->
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <h6 class="card-title">Total Budget</h6>
+                            <h3 class="mb-0">${{ total_budget|floatformat:2 }}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <h6 class="card-title">Total Paid</h6>
+                            <h3 class="mb-0">${{ total_paid|floatformat:2 }}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-warning text-dark">
+                        <div class="card-body">
+                            <h6 class="card-title">Approved (Not Paid)</h6>
+                            <h3 class="mb-0">${{ total_approved|floatformat:2 }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Schedule -->
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0">Payment Schedule</h6>
+                </div>
+                <div class="card-body">
+                    {% if payments %}
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Calculation</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Release Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for payment in payments %}
+                            <tr>
+                                <td>{{ payment.get_payment_type_display }}</td>
+                                <td>
+                                    {% if payment.calculation_type == 'PERCENTAGE' %}
+                                    {{ payment.percentage }}% of funding
+                                    {% elif payment.calculation_type == 'FIXED' %}
+                                    Fixed amount
+                                    {% else %}
+                                    Reimbursement
+                                    {% endif %}
+                                </td>
+                                <td>${{ payment.calculated_amount|floatformat:2 }}</td>
+                                <td>
+                                    {% if payment.status == 'RELEASED' %}
+                                    <span class="badge bg-success">{{ payment.get_status_display }}</span>
+                                    {% elif payment.status == 'APPROVED' %}
+                                    <span class="badge bg-info">{{ payment.get_status_display }}</span>
+                                    {% elif payment.status == 'RECOMMENDED' %}
+                                    <span class="badge bg-warning">{{ payment.get_status_display }}</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ payment.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ payment.release_date|default:"-" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-muted mb-0">No payments scheduled. Payments are created when you add a Funding Schedule.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Address Modal -->
+{% if can_edit %}
+<div class="modal fade" id="addAddressModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'addresses:address_create' project.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Address</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Street Address</label>
+                        <input type="text" name="street" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Lot</label>
+                        <input type="text" name="lot" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Plan</label>
+                        <input type="text" name="plan" class="form-control">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Address</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Work Modal -->
+{% if addresses %}
+<div class="modal fade" id="addWorkModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'works:work_create' project.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Work</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Address</label>
+                        <select name="address" class="form-select" required>
+                            {% for addr in addresses %}
+                            <option value="{{ addr.id }}">{{ addr.street }}{% if addr.lot %}, Lot {{ addr.lot }}{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Work Type</label>
+                        <select name="work_type" class="form-select" id="workTypeSelect" required>
+                            <option value="">-- Select Work Type --</option>
+                            {% for wt in work_types %}
+                            <option value="{{ wt.id }}" 
+                                    data-has-bedrooms="{{ wt.has_bedrooms }}" 
+                                    data-default-bedrooms="{{ wt.default_bedrooms }}"
+                                    data-notional-cost="{{ wt.notional_cost|default:0 }}">
+                                {{ wt.name }} ({{ wt.get_category_display }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Other Work Type (if not in list)</label>
+                        <input type="text" name="work_type_other" class="form-control">
+                    </div>
+                    <div class="mb-3" id="bedroomsGroup" style="display: none;">
+                        <label class="form-label">Bedrooms</label>
+                        <select name="bedrooms" class="form-select" id="bedroomsSelect">
+                            <option value="1">1 Bedroom</option>
+                            <option value="2">2 Bedrooms</option>
+                            <option value="3">3 Bedrooms</option>
+                            <option value="4">4 Bedrooms</option>
+                            <option value="5">5 Bedrooms</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Quantity</label>
+                        <input type="number" name="quantity" class="form-control" value="1" min="1" id="quantityInput">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Notional Cost (auto-calculated)</label>
+                                <input type="text" class="form-control bg-light" id="notionalCostDisplay" readonly placeholder="Select work type">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Estimated Actual Cost</label>
+                                <input type="number" name="estimated_cost" class="form-control" step="0.01" value="0" id="estimatedCostInput">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="useNotionalBtn">Use Notional Cost as Estimated</button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Work</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var workTypeSelect = document.getElementById('workTypeSelect');
+    var notionalCostDisplay = document.getElementById('notionalCostDisplay');
+    var estimatedCostInput = document.getElementById('estimatedCostInput');
+    var quantityInput = document.getElementById('quantityInput');
+    var useNotionalBtn = document.getElementById('useNotionalBtn');
+    var bedroomsGroup = document.getElementById('bedroomsGroup');
+    var bedroomsSelect = document.getElementById('bedroomsSelect');
+    
+    function updateNotionalCost() {
+        if (!workTypeSelect || !notionalCostDisplay) return;
+        
+        var selectedOption = workTypeSelect.options[workTypeSelect.selectedIndex];
+        if (!selectedOption || !selectedOption.value) {
+            notionalCostDisplay.value = '';
+            return;
+        }
+        
+        var hasBedrooms = selectedOption.getAttribute('data-has-bedrooms') === 'True';
+        var defaultBedrooms = parseInt(selectedOption.getAttribute('data-default-bedrooms')) || 0;
+        
+        if (bedroomsGroup && bedroomsSelect) {
+            if (hasBedrooms) {
+                bedroomsGroup.style.display = 'block';
+                if (!bedroomsSelect.value || bedroomsSelect.value === '') {
+                    bedroomsSelect.value = defaultBedrooms || 4;
+                }
+            } else {
+                bedroomsGroup.style.display = 'none';
+                bedroomsSelect.value = 0;
+            }
+        }
+        
+        var notionalCost = selectedOption.getAttribute('data-notional-cost');
+        if (notionalCost && notionalCost !== 'None' && notionalCost !== '0') {
+            var qty = parseInt(quantityInput.value) || 1;
+            var total = parseFloat(notionalCost) * qty;
+            notionalCostDisplay.value = '$' + total.toLocaleString('en-AU', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        } else {
+            notionalCostDisplay.value = '';
+        }
+    }
+    
+    if (workTypeSelect) {
+        workTypeSelect.addEventListener('change', updateNotionalCost);
+    }
+    
+    if (quantityInput) {
+        quantityInput.addEventListener('change', updateNotionalCost);
+    }
+    
+    if (bedroomsSelect) {
+        bedroomsSelect.addEventListener('change', updateNotionalCost);
+    }
+    
+    if (useNotionalBtn && notionalCostDisplay && estimatedCostInput) {
+        useNotionalBtn.addEventListener('click', function() {
+            var notionalVal = notionalCostDisplay.value.replace('$', '').replace(/,/g, '') || '0';
+            estimatedCostInput.value = notionalVal;
+        });
+    }
+});
+</script>
+{% endblock %}
+
+<!-- Add Funding Approval Modal -->
+<div class="modal fade" id="addFundingApprovalModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'funding:funding_approval_create' project.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Funding Approval</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Total Amount</label>
+                        <input type="number" name="total_amount" class="form-control" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contingency Amount</label>
+                        <input type="number" name="contingency_amount" class="form-control" step="0.01" value="0">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">MINCOR Reference</label>
+                        <input type="text" name="mincor_reference" class="form-control">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Funding Approval</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Funding Schedule Modal -->
+<div class="modal fade" id="addFundingScheduleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'funding:funding_schedule_create' project.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Funding Schedule</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Funding Amount</label>
+                        <input type="number" name="amount" class="form-control" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contingency</label>
+                        <input type="number" name="contingency" class="form-control" step="0.01" value="0">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Payment Split</label>
+                        <select name="payment_split" class="form-select">
+                            <option value="30/60/10">Standard (30/60/10)</option>
+                            <option value="90/10">Alternative (90/10)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Funding Schedule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Defect Modal -->
+<div class="modal fade" id="addDefectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'defects:defect_create' project.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Defect</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" class="form-control" rows="3" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Identified Date</label>
+                        <input type="date" name="identified_date" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea name="notes" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Defect</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Edit Project Modal -->
+{% if can_edit %}
+<div class="modal fade" id="editProjectModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" action="{% url 'projects:project_update' project.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Project</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Project Name</label>
+                            <input type="text" name="name" class="form-control" value="{{ project.name }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Funding Schedule Number</label>
+                            <input type="text" name="funding_schedule_number" class="form-control" value="{{ project.funding_schedule_number }}">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Financial Year</label>
+                            <input type="text" name="financial_year" class="form-control" value="{{ project.financial_year|default:'' }}" placeholder="e.g., 2025-26">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">State</label>
+                            <select name="state" class="form-select">
+                                {% for value, label in project.State.choices %}
+                                <option value="{{ value }}" {% if project.state == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Status Flag</label>
+                            <select name="status_flag" class="form-select">
+                                {% for value, label in project.StatusFlag.choices %}
+                                <option value="{{ value }}" {% if project.status_flag == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Start Date</label>
+                            <input type="date" name="start_date" class="form-control" value="{{ project.start_date|date:'Y-m-d' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Completion Date</label>
+                            <input type="date" name="completion_date" class="form-control" value="{{ project.completion_date|date:'Y-m-d' }}">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Stage 1 Target</label>
+                            <input type="date" name="stage1_target_date" class="form-control" value="{{ project.stage1_target_date|date:'Y-m-d' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Stage 1 Sunset</label>
+                            <input type="date" name="stage1_sunset_date" class="form-control" value="{{ project.stage1_sunset_date|date:'Y-m-d' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Stage 2 Target</label>
+                            <input type="date" name="stage2_target_date" class="form-control" value="{{ project.stage2_target_date|date:'Y-m-d' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Stage 2 Sunset</label>
+                            <input type="date" name="stage2_sunset_date" class="form-control" value="{{ project.stage2_sunset_date|date:'Y-m-d' }}">
+                        </div>
+                    </div>
+                    <hr>
+                    <h6>Post-Completion</h6>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Warranty End Date</label>
+                            <input type="date" name="warranty_end_date" class="form-control" value="{{ project.warranty_end_date|date:'Y-m-d' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Funding Schedule</label>
+                            <select name="funding_schedule" class="form-select">
+                                <option value="">-- None --</option>
+                                {% for fs in funding_schedules %}
+                                <option value="{{ fs.id }}" {% if project.funding_schedule_id == fs.id %}selected{% endif %}>
+                                    FS #{{ fs.id }} - ${{ fs.total_funding|default:0 }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Handover Checklist Link</label>
+                        <input type="url" name="handover_checklist_link" class="form-control" value="{{ project.handover_checklist_link }}">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

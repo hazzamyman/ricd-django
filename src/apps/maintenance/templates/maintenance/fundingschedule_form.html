@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">{% if fundingschedule %}Edit{% else %}Add{% endif %} Funding Schedule</h1>
+    
+    <div class="card">
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label">Project</label>
+                    <select name="project" class="form-select" required>
+                        <option value="">Select Project</option>
+                        {% for project in projects %}
+                        <option value="{{ project.id }}" {% if fundingschedule.project_id == project.id %}selected{% endif %}>{{ project.name }} ({{ project.council.name }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Amount ($)</label>
+                    <input type="number" name="amount" class="form-control" step="0.01" value="{{ fundingschedule.amount|default:'0' }}" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Contingency ($)</label>
+                    <input type="number" name="contingency" class="form-control" step="0.01" value="{{ fundingschedule.contingency|default:'0' }}">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Payment Split</label>
+                    <select name="payment_split" class="form-select">
+                        <option value="30/60/10" {% if fundingschedule.payment_split == '30/60/10' %}selected{% endif %}>Standard (30/60/10)</option>
+                        <option value="90/10" {% if fundingschedule.payment_split == '90/10' %}selected{% endif %}>Alternative (90/10)</option>
+                        <option value="50/50" {% if fundingschedule.payment_split == '50/50' %}selected{% endif %}>50/50</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+                <a href="{% url 'maintenance:fundingschedule_list' %}" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

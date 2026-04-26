@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% load reports_extras %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">Monthly Tracker: {{ tracker.year }}-{{ tracker.month|stringformat:"02d" }}</h1>
+    <p class="lead">{{ tracker.funding_schedule.project.name }}</p>
+    
+    <div class="mb-3">
+        <span class="badge bg-{% if tracker.status == 'DRAFT' %}secondary{% else %}success{% endif %}">
+            {{ tracker.get_status_display }}
+        </span>
+        {% if tracker.status == 'DRAFT' %}
+        <a href="{% url 'reports:monthly_tracker_submit' tracker.id %}" class="btn btn-primary btn-sm">Submit</a>
+        {% endif %}
+    </div>
+    
+    <div class="card">
+        <div class="card-body" style="overflow-x: auto;">
+            <table class="table table-bordered table-sm" id="tracker-table">
+                <thead style="position: sticky; top: 0; background: white; z-index: 10;">
+                    <tr>
+                        <th style="position: sticky; left: 0; background: white; z-index: 20;">Work / Item</th>
+                        {% for item in tracker_items %}
+                        <th>{{ item.name }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for work in works %}
+                    <tr>
+                        <td style="position: sticky; left: 0; background: white;">
+                            {{ work.address.street }} ({{ work.work_type.name|default:work.work_type_other }})
+                        </td>
+                        {% for item in tracker_items %}
+                        {% with work_entries=entries|get_item:work.id %}
+                        {% with entry=work_entries|get_item:item.id %}
+                        <td>
+                            {% if item.field_type == 'DATE' or item.field_type == 'DATE_NA' %}
+                            <input type="date" class="form-control form-control-sm" 
+                                   value="{{ entry.date_value|default:'' }}"
+                                   data-entry-id="{{ entry.id }}">
+                            {% elif item.field_type == 'CHECKBOX' %}
+                            <input type="checkbox" {% if entry.boolean_value %}checked{% endif %}
+                                   data-entry-id="{{ entry.id }}">
+                            {% elif item.field_type == 'TEXT' %}
+                            <input type="text" class="form-control form-control-sm"
+                                   value="{{ entry.text_value|default:'' }}"
+                                   data-entry-id="{{ entry.id }}">
+                            {% else %}
+                            <input type="number" class="form-control form-control-sm"
+                                   value="{{ entry.number_value|default:'' }}"
+                                   data-entry-id="{{ entry.id }}">
+                            {% endif %}
+                        </td>
+                        {% endwith %}
+                        {% endwith %}
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle entry updates via AJAX
+    const inputs = document.querySelectorAll('[data-entry-id]');
+    inputs.forEach(input => {
+        input.addEventListener('change', function() {
+            const entryId = this.dataset.entryId;
+            const value = this.type === 'checkbox' ? this.checked : this.value;
+            
+            fetch(`/reports/monthly/entry/${entryId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: `value=${encodeURIComponent(value)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    alert('Failed to save entry');
+                }
+            });
+        });
+    });
+});
+</script>
+{% endblock %}
+{% endblock %}

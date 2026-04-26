@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{% if payment %}Edit{% else %}Create{% endif %} Payment - FNC{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>{% if payment %}Edit{% else %}Create{% endif %} Payment</h1>
+    
+    <form method="post" class="form">
+        {% csrf_token %}
+        
+        <div class="row">
+            <div class="col-md-6">
+                <h5>Project Details</h5>
+                
+                <div class="mb-3">
+                    <label class="form-label">Project Type</label>
+                    <div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="project_type" id="dwelling" value="DWELLING" checked>
+                            <label class="form-check-label" for="dwelling">Dwelling Project</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="project_type" id="land" value="LAND">
+                            <label class="form-check-label" for="land">Land/Infrastructure Project</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Project / Land Project</label>
+                    <select name="project" class="form-select" id="projectSelect">
+                        <option value="">-- Select Dwelling Project --</option>
+                        {% for p in projects %}
+                        <option value="{{ p.id }}">{{ p.name }} ({{ p.council.name }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Funding Schedule</label>
+                    <select name="funding_schedule" class="form-select">
+                        <option value="">-- Select Funding Schedule --</option>
+                        {% for fs in funding_schedules %}
+                        <option value="{{ fs.id }}">{{ fs }} - ${{ fs.total_funding }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <h5>Payment Details</h5>
+                
+                <div class="mb-3">
+                    <label class="form-label">Payment Type</label>
+                    <select name="payment_type" class="form-select" required>
+                        {% for choice in payment_types %}
+                        <option value="{{ choice.0 }}">{{ choice.1 }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Calculation Type</label>
+                    <select name="calculation_type" class="form-select" id="calcType">
+                        {% for choice in calculation_types %}
+                        <option value="{{ choice.0 }}">{{ choice.1 }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="mb-3" id="percentageField">
+                    <label class="form-label">Percentage (%)</label>
+                    <input type="number" name="percentage" class="form-control" step="0.01" placeholder="e.g., 30">
+                </div>
+                
+                <div class="mb-3" id="amountField" style="display:none;">
+                    <label class="form-label">Fixed Amount ($)</label>
+                    <input type="number" name="amount" class="form-control" step="0.01" placeholder="e.g., 50000">
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Payment Split</label>
+                    <select name="payment_split" class="form-select">
+                        {% for choice in payment_splits %}
+                        <option value="{{ choice.0 }}">{{ choice.1 }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <hr>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <h5>References</h5>
+                
+                <div class="mb-3">
+                    <label class="form-label">Payment Reference</label>
+                    <input type="text" name="reference" class="form-control" value="{{ payment.reference|default:'' }}">
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Tax Invoice / RCTI Reference</label>
+                    <input type="text" name="tax_invoice_reference" class="form-control" value="{{ payment.tax_invoice_reference|default:'' }}" placeholder="e.g., TAX-2025-001">
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">SAP Payment Reference</label>
+                    <input type="text" name="sap_payment_reference" class="form-control" value="{{ payment.sap_payment_reference|default:'' }}" placeholder="e.g., FB03-1234567890">
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">SAP Cost Centre</label>
+                    <input type="text" name="sap_cost_centre" class="form-control" value="{{ payment.sap_cost_centre|default:'' }}" placeholder="e.g., 316333">
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <h5>Additional Details</h5>
+                
+                <div class="mb-3">
+                    <label class="form-label">GL Code</label>
+                    <input type="text" name="gl_code" class="form-control" value="{{ payment.gl_code|default:'' }}">
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Business Case Reference</label>
+                    <input type="text" name="business_case_ref" class="form-control" value="{{ payment.business_case_ref|default:'' }}">
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Notes</label>
+                    <textarea name="notes" class="form-control" rows="3">{{ payment.notes|default:'' }}</textarea>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary">Save Payment</button>
+            <a href="{% url 'payments:payment_list' %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script>
+document.getElementById('calcType').addEventListener('change', function() {
+    var isPercentage = this.value === 'PERCENTAGE';
+    document.getElementById('percentageField').style.display = isPercentage ? 'block' : 'none';
+    document.getElementById('amountField').style.display = isPercentage ? 'none' : 'block';
+});
+</script>
+{% endblock %}

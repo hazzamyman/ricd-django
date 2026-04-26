@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Release Payment - FNC{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Release Payment to Finance</h1>
+    <p class="text-muted">Record payment being sent to Finance team for processing. After Finance processes it, update with SAP reference and receipt.</p>
+    
+    <div class="alert alert-info">
+        <strong>Payment:</strong> {{ payment.reference|default:payment.id }}<br>
+        <strong>Amount:</strong> {{ payment.calculated_amount_display }}
+    </div>
+    
+    <form method="post" class="form">
+        {% csrf_token %}
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Release Date</label>
+                    <input type="date" name="release_date" class="form-control" value="{{ today }}" required>
+                    <small class="text-muted">Date payment released to Finance</small>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">SAP Payment Reference</label>
+                    <input type="text" name="release_sap_reference" class="form-control" placeholder="e.g., 1900000123">
+                    <small class="text-muted">SAP Payment Document Number</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label">Receipt / Transaction Reference</label>
+            <input type="text" name="release_receipt_number" class="form-control" placeholder="e.g., RCTI-2024-001234">
+            <small class="text-muted">Receipt number or transaction reference from Finance</small>
+        </div>
+        
+        <hr>
+        <h5>Release Document (Receipt/Transaction Report)</h5>
+        
+        <div class="mb-3">
+            <label class="form-label">Document Source</label>
+            <select name="release_document_source" class="form-select">
+                <option value="">-- Select Source --</option>
+                <option value="OPENDOCS">OpenDocs Content Manager</option>
+                <option value="SHARED_DRIVE">Shared Network Drive</option>
+                <option value="LOCAL">Local Upload</option>
+            </select>
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label">Document URL (OpenDocs/SharePoint)</label>
+            <input type="url" name="release_document_url" class="form-control" placeholder="https://opendocs.dilgp.qld.gov.au/doc/...">
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label">OR Shared Drive Path</label>
+            <input type="text" name="release_document_path" class="form-control" placeholder="\\server\share\folder\receipt.pdf">
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label">Notes</label>
+            <textarea name="release_notes" class="form-control" rows="2" placeholder="Any notes from Finance team..."></textarea>
+        </div>
+        
+        <div class="mt-4">
+            <button type="submit" class="btn btn-success">Confirm Release</button>
+            <a href="{% url 'payments:payment_detail' payment.id %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

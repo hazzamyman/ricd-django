@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">{% if address %}Edit{% else %}Add{% endif %} Address</h1>
+    
+    <div class="card">
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label">Street</label>
+                    <input type="text" name="street" class="form-control" value="{{ address.street|default:'' }}" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Suburb</label>
+                    <select name="suburb" class="form-select">
+                        <option value="">-- Select Suburb --</option>
+                        {% for suburb in suburbs %}
+                        <option value="{{ suburb.id }}" {% if address.suburb_id == suburb.id %}selected{% endif %}>
+                            {{ suburb.name }} {{ suburb.postcode }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Lot</label>
+                        <input type="text" name="lot" class="form-control" value="{{ address.lot|default:'' }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Plan</label>
+                        <input type="text" name="plan" class="form-control" value="{{ address.plan|default:'' }}">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Reside PLC Reference</label>
+                    <input type="text" name="residence_plc_ref" class="form-control" value="{{ address.residence_plc_ref|default:'' }}">
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+                <a href="{% url 'maintenance:address_list' %}" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

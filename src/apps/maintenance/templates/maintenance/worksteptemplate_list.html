@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">Work Step Templates</h1>
+    
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Work Type</th>
+                        <th>Step Name</th>
+                        <th>Order</th>
+                        <th>Required</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for step in worksteptemplates %}
+                    <tr>
+                        <td>{{ step.work_type.name }}</td>
+                        <td>{{ step.name }}</td>
+                        <td>{{ step.order }}</td>
+                        <td>
+                            {% if step.is_required %}
+                            <span class="badge bg-primary">Required</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Optional</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'maintenance:worksteptemplate_edit' step.id %}" class="btn btn-sm btn-outline-primary">Edit</a>
+                            <form method="post" action="{% url 'maintenance:worksteptemplate_delete' step.id %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this step?')">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center">No work step templates found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <a href="{% url 'maintenance:worksteptemplate_create' %}" class="btn btn-primary mt-3">Add Work Step Template</a>
+    <a href="{% url 'maintenance:dashboard' %}" class="btn btn-secondary mt-3">Back to Maintenance</a>
+</div>
+{% endblock %}

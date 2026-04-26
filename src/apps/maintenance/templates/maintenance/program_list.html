@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">Programs</h1>
+    
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Funding Source</th>
+                        <th>Budget</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for program in programs %}
+                    <tr>
+                        <td>{{ program.name }}</td>
+                        <td>{{ program.get_funding_source_display|default:program.funding_source_other|default:"-" }}</td>
+                        <td>${{ program.budget|floatformat:2 }}</td>
+                        <td>
+                            <a href="{% url 'maintenance:program_edit' program.id %}" class="btn btn-sm btn-outline-primary">Edit</a>
+                            <form method="post" action="{% url 'maintenance:program_delete' program.id %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete?')">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-center">No programs found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <a href="{% url 'maintenance:program_create' %}" class="btn btn-primary mt-3">Add Program</a>
+    <a href="{% url 'maintenance:programbudget_list' %}" class="btn btn-outline-secondary mt-3">View Budgets by Year</a>
+    <a href="{% url 'maintenance:dashboard' %}" class="btn btn-secondary mt-3">Back</a>
+</div>
+{% endblock %}

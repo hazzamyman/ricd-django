@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">{% if fundingapproval %}Edit{% else %}Add{% endif %} Funding Approval</h1>
+    
+    <div class="card">
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label">Projects</label>
+                    <select name="projects" class="form-select" multiple required>
+                        {% for project in projects %}
+                        <option value="{{ project.id }}" {% if project in fundingapproval.projects.all %}selected{% endif %}>{{ project.name }} ({{ project.council.name }})</option>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted">Hold Ctrl/Cmd to select multiple projects</small>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Total Amount ($)</label>
+                    <input type="number" name="total_amount" class="form-control" step="0.01" value="{{ fundingapproval.total_amount|default:'0' }}" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Contingency Amount ($)</label>
+                    <input type="number" name="contingency_amount" class="form-control" step="0.01" value="{{ fundingapproval.contingency_amount|default:'0' }}">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">MINCOR Reference</label>
+                    <input type="text" name="mincor_reference" class="form-control" value="{{ fundingapproval.mincor_reference|default:'' }}">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="DRAFT" {% if fundingapproval.status == 'DRAFT' %}selected{% endif %}>Draft</option>
+                        <option value="PENDING" {% if fundingapproval.status == 'PENDING' %}selected{% endif %}>Pending</option>
+                        <option value="APPROVED" {% if fundingapproval.status == 'APPROVED' %}selected{% endif %}>Approved</option>
+                        <option value="REJECTED" {% if fundingapproval.status == 'REJECTED' %}selected{% endif %}>Rejected</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+                <a href="{% url 'maintenance:fundingapproval_list' %}" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

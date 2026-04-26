@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}Add Change Item - FNC{% endblock %}
+
+{% block extra_css %}
+<style>
+    .change-type-tabs .nav-link { color: #495057; }
+    .change-type-tabs .nav-link.active { background-color: #e9ecef; font-weight: 600; }
+    .change-form { display: none; }
+    .change-form.active { display: block; }
+    .payment-checkbox { margin-right: 8px; }
+    .change-section { padding: 15px; background: #f8f9fa; border-radius: 8px; margin-bottom: 15px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">Add Change Item</h1>
+    
+    <div class="card">
+        <div class="card-body">
+            <form method="post" id="changeItemForm">
+                {% csrf_token %}
+                
+                <!-- Change Type Tabs -->
+                <ul class="nav nav-tabs change-type-tabs mb-4" role="tablist">
+                    {% for value, label in change_types %}
+                    <li class="nav-item">
+                        <button type="button" class="nav-link {% if forloop.first %}active{% endif %}" 
+                                data-bs-toggle="tab" data-bs-target="#form-{{ value }}">
+                            {{ label }}
+                        </button>
+                    </li>
+                    {% endfor %}
+                </ul>
+                
+                <!-- Description (for all change types) -->
+                <div class="mb-3">
+                    <label class="form-label">Description / Notes</label>
+                    <textarea name="description" class="form-control" rows="2" placeholder="Describe the change..."></textarea>
+                </div>
+                
+                <!-- Tab Content: Remove Project -->
+                <div class="tab-pane change-form active" id="form-REMOVE_PROJECT">
+                    <div class="change-section">
+                        <h5>Remove Project</h5>
+                        <p class="text-muted">Select an active project to remove from the program. Its status will be changed to Cancelled.</p>
+                        <div class="mb-3">
+                            <label class="form-label">Project to Remove</label>
+                            <select name="project" class="form-select" required>
+                                <option value="">-- Select Active Project --</option>
+                                {% for p in active_projects %}
+                                <option value="{{ p.id }}">{{ p.name }} ({{ p.get_state_display }})</option>
+                                {% endfor %}
+                            </select>
+                            {% if not active_projects %}
+                            <small class="text-warning">No active projects found in this council.</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tab Content: Change Address -->
+                <div class="tab-pane change-form" id="form-CHANGE_ADDRESS">
+                    <div class="change-section">
+                        <h5>Change Address</h5>
+                        <p class="text-muted">Select address and enter the new address details.</p>
+                        <div class="mb-3">
+                            <label class="form-label">Current Address</label>
+                            <select name="address" class="form-select" required>
+                                <option value="">-- Select Address --</option>
+                                {% for a in project_addresses %}
+                                <option value="{{ a.id }}">{{ a }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">New Street Address</label>
+                            <input type="text" name="new_street" class="form-control" placeholder="New street address">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tab Content: Change Works -->
+                <div class="tab-pane change-form" id="form-CHANGE_WORKS">
+                    <div class="change-section">
+                        <h5>Change Works</h5>
+                        <p class="text-muted">Select work item and enter the new scope/description.</p>
+                        <div class="mb-3">
+                            <label class="form-label">Current Work</label>
+                            <select name="work" class="form-select" required>
+                                <option value="">-- Select Work --</option>
+                                {% for w in project_works %}
+                                <option value="{{ w.id }}">{{ w.get_work_type_display|default:w.work_type_other }} - {{ w.description|truncatechars:50 }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">New Works Description</label>
+                            <textarea name="new_works" class="form-control" rows="3" placeholder="New scope of works..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tab Content: Change Funding -->
+                <div class="tab-pane change-form" id="form-CHANGE_FUNDING">
+                    <div class="change-section">
+                        <h5>Change Funding Amount</h5>
+                        <p class="text-muted">Select funding schedule and enter the new amount.</p>
+                        <div class="mb-3">
+                            <label class="form-label">Funding Schedule</label>
+                            <select name="funding_schedule" class="form-select" required>
+                                <option value="">-- Select Funding Schedule --</option>
+                                {% for fs in funding_schedules %}
+                                <option value="{{ fs.id }}">FS #{{ fs.id }} - ${{ fs.amount|default:"0" }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">New Amount ($)</label>
+                            <input type="number" name="new_amount" class="form-control" step="0.01" placeholder="New funding amount">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tab Content: Change Payment Amount -->
+                <div class="tab-pane change-form" id="form-CHANGE_PAYMENT_AMOUNT">
+                    <div class="change-section">
+                        <h5>Change Payment Amount(s)</h5>
+                        <p class="text-muted">Select one or more payments to change. Enter the NEW amount that applies to all selected.</p>
+                        <div class="mb-3">
+                            <label class="form-label">Select Payments</label>
+                            <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
+                                {% for p in project_payments %}
+                                <div class="form-check">
+                                    <input class="form-check-input payment-checkbox" type="checkbox" name="payments" value="{{ p.id }}" id="payment_{{ p.id }}">
+                                    <label class="form-check-label" for="payment_{{ p.id }}">
+                                        {{ p.reference|default:p.id }} - {{ p.get_payment_type_display }} 
+                                        (${{ p.amount|default:p.calculated_amount|default:"0" }})
+                                        <span class="badge bg-{{ p.status|lower|default:'secondary' }}">{{ p.get_status_display }}</span>
+                                    </label>
+                                </div>
+                                {% empty %}
+                                <p class="text-muted">No payments found for this project.</p>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">New Amount ($)</label>
+                            <input type="number" name="new_amount" class="form-control" step="0.01" placeholder="New payment amount (applies to all selected)">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tab Content: Other Changes (Generic) -->
+                <div class="tab-pane change-form" id="form-OTHER">
+                    <div class="change-section">
+                        <h5>Other Changes</h5>
+                        <p class="text-muted">For custom changes, enter the field name and old/new values manually.</p>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Field Name</label>
+                                    <input type="text" name="field_name" class="form-control" placeholder="e.g., Funding Amount, Address">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Old Value</label>
+                                    <textarea name="old_value" class="form-control" rows="2"></textarea>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">New Value</label>
+                                    <textarea name="new_value" class="form-control" rows="2"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Hidden field for change type -->
+                <input type="hidden" name="change_type" id="changeTypeInput" value="REMOVE_PROJECT">
+                
+                <!-- Buttons -->
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">Add Change Item</button>
+                    <a href="{% url 'variations:variation_detail' variation.id %}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Tab switching
+    var tabs = document.querySelectorAll('.change-type-tabs .nav-link');
+    var changeTypeInput = document.getElementById('changeTypeInput');
+    
+    tabs.forEach(function(tab) {
+        tab.addEventListener('click', function() {
+            // Remove active from all
+            document.querySelectorAll('.change-type-tabs .nav-link').forEach(function(t) {
+                t.classList.remove('active');
+            });
+            document.querySelectorAll('.change-form').forEach(function(f) {
+                f.classList.remove('active');
+            });
+            
+            // Add active to clicked
+            this.classList.add('active');
+            var target = this.getAttribute('data-bs-target');
+            document.querySelector(target).classList.add('active');
+            
+            // Update hidden input
+            changeTypeInput.value = target.replace('#form-', '');
+        });
+    });
+    
+    // Form validation
+    document.getElementById('changeItemForm').addEventListener('submit', function(e) {
+        var selectedType = document.getElementById('changeTypeInput').value;
+        
+        // Validation per type
+        if (selectedType === 'REMOVE_PROJECT') {
+            var project = document.querySelector('select[name="project"]');
+            if (!project.value) {
+                alert('Please select a project to remove.');
+                e.preventDefault();
+            }
+        } else if (selectedType === 'CHANGE_ADDRESS') {
+            var addr = document.querySelector('select[name="address"]');
+            var newStreet = document.querySelector('input[name="new_street"]');
+            if (!addr.value || !newStreet.value) {
+                alert('Please select an address and enter new street.');
+                e.preventDefault();
+            }
+        } else if (selectedType === 'CHANGE_PAYMENT_AMOUNT') {
+            var payments = document.querySelectorAll('input[name="payments"]:checked');
+            var newAmount = document.querySelector('input[name="new_amount"]');
+            if (payments.length === 0 || !newAmount.value) {
+                alert('Please select at least one payment and enter new amount.');
+                e.preventDefault();
+            }
+        }
+    });
+});
+</script>
+{% endblock %}
+{% endblock %}

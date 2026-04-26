@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Payments - FNC{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Payments</h1>
+        <a href="{% url 'payments:payment_create' %}" class="btn btn-primary">New Payment</a>
+    </div>
+    
+    <!-- Filters -->
+    <form method="get" class="row g-3 mb-4">
+        <div class="col-md-3">
+            <label class="form-label">Status</label>
+            <select name="status" class="form-select">
+                <option value="">All Statuses</option>
+                {% for choice in statuses %}
+                <option value="{{ choice.0 }}">{{ choice.1 }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Project Type</label>
+            <select name="project_type" class="form-select">
+                <option value="">All Types</option>
+                {% for choice in project_types %}
+                <option value="{{ choice.0 }}">{{ choice.1 }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Search</label>
+            <input type="text" name="search" class="form-control" placeholder="Reference, Tax Inv, SAP, Project...">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">&nbsp;</label>
+            <button type="submit" class="btn btn-secondary w-100">Filter</button>
+        </div>
+    </form>
+    
+    {% if payments %}
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Reference</th>
+                <th>Project</th>
+                <th>Type</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Tax Invoice</th>
+                <th>SAP Ref</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in payments %}
+            <tr>
+                <td><a href="{% url 'payments:payment_detail' p.id %}">{{ p.reference|default:"-" }}</a></td>
+                <td>{% if p.project %}{{ p.project.name }}{% elif p.land_project %}{{ p.land_project.name }}{% else %}-{% endif %}</td>
+                <td>{{ p.get_project_type_display }}</td>
+                <td>{{ p.calculated_amount_display }}</td>
+                <td>
+                    <span class="badge bg-{% if p.status == 'RELEASED' %}success{% elif p.status == 'REJECTED' %}danger{% elif p.status == 'APPROVED' %}info{% else %}warning{% endif %}">
+                        {{ p.get_status_display }}
+                    </span>
+                </td>
+                <td>{{ p.tax_invoice_reference|default:"-" }}</td>
+                <td>{{ p.sap_payment_reference|default:"-" }}</td>
+                <td>
+                    <a href="{% url 'payments:payment_detail' p.id %}" class="btn btn-sm btn-outline-primary">View</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted">No payments found.</p>
+    {% endif %}
+</div>
+{% endblock %}

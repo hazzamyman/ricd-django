@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">Monthly Trackers</h1>
+    
+    <div class="mb-3">
+        <a href="{% url 'reports:monthly_tracker_create' %}" class="btn btn-primary">Create New Tracker</a>
+    </div>
+    
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Project</th>
+                        <th>Period</th>
+                        <th>Status</th>
+                        <th>Submitted</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tracker in trackers %}
+                    <tr>
+                        <td>{{ tracker.funding_schedule.project.name }}</td>
+                        <td>{{ tracker.year }}-{{ tracker.month|stringformat:"02d" }}</td>
+                        <td>
+                            <span class="badge bg-{% if tracker.status == 'DRAFT' %}secondary{% elif tracker.status == 'SUBMITTED' %}info{% elif tracker.status == 'ENDORSED' %}warning{% else %}success{% endif %}">
+                                {{ tracker.get_status_display }}
+                            </span>
+                        </td>
+                        <td>{{ tracker.submitted_at|default:"-" }}</td>
+                        <td>
+                            <a href="{% url 'reports:monthly_tracker_detail' tracker.id %}" class="btn btn-sm btn-primary">View</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center">No monthly trackers found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

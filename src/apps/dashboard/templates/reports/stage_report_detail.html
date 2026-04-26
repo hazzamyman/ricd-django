@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">{{ report.get_stage_type_display }} Report</h1>
+    <p class="lead">{{ report.project.name }}</p>
+    
+    <div class="mb-3">
+        <span class="badge bg-{% if report.status == 'DRAFT' %}secondary{% else %}success{% endif %}">
+            {{ report.get_status_display }}
+        </span>
+    </div>
+    
+    <!-- Checklist -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Checklist</h5>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">#</th>
+                            <th style="width: 50px;">Done</th>
+                            <th>Step</th>
+                            <th>Completed</th>
+                            <th>Evidence</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in report.items.all %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>
+                                <input type="checkbox" {% if item.is_completed %}checked{% endif %}
+                                       {% if report.status != 'DRAFT' %}disabled{% endif %}
+                                       onchange="toggleItem({{ item.id }})">
+                            </td>
+                            <td>{{ item.step_name }}</td>
+                            <td>{{ item.completed_at|default:"Not completed" }}</td>
+                            <td>
+                                {% if item.requires_attachment %}
+                                <form method="post" enctype="multipart/form-data" 
+                                      action="{% url 'reports:stage_report_upload_attachment' item.id %}"
+                                      style="display: inline;">
+                                    {% csrf_token %}
+                                    <input type="file" name="file" size="small" {% if report.status != 'DRAFT' %}disabled{% endif %}>
+                                    {% if report.status == 'DRAFT' %}<button type="submit" class="btn btn-xs btn-primary">Upload</button>{% endif %}
+                                </form>
+                                {% endif %}
+                                {% for att in item.attachments.all %}
+                                <a href="{{ att.file.url }}">{{ att.file.name }}</a><br>
+                                {% endfor %}
+                            </td>
+                            <td>
+                                {% if report.status == 'DRAFT' %}
+                                <input type="text" class="form-control form-control-sm" 
+                                       value="{{ item.notes }}" data-item-id="{{ item.id }}">
+                                {% else %}
+                                {{ item.notes }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Workflow Buttons -->
+    <div class="mt-3">
+        {% if report.status == 'DRAFT' %}
+        <form method="post" action="{% url 'reports:stage_report_submit' report.id %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+        {% elif report.status == 'SUBMITTED' %}
+        <form method="post" action="{% url 'reports:stage_report_endorse' report.id %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-warning">Endorse</button>
+        </form>
+        {% elif report.status == 'ENDORSED' %}
+        <form method="post" action="{% url 'reports:stage_report_assess' report.id %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-info">Assess</button>
+        </form>
+        {% elif report.status == 'ASSESSED' %}
+        <form method="post" action="{% url 'reports:stage_report_approve' report.id %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success">Approve</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+function toggleItem(itemId) {
+    const checkbox = event.target;
+    fetch(`/reports/stage/item/${itemId}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: `is_completed=${checkbox.checked}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            alert('Failed to update item');
+            checkbox.checked = !checkbox.checked;
+        }
+    });
+}
+</script>
+{% endblock %}
+{% endblock %}

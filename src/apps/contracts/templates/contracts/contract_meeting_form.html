@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{% if meeting %}Edit{% else %}Create{% endif %} Meeting - FNC{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>{% if meeting %}Edit{% else %}Create{% endif %} Meeting</h1>
+    
+    <form method="post" class="form">
+        {% csrf_token %}
+        
+        <div class="mb-3">
+            <label for="meeting_type" class="form-label">Meeting Type</label>
+            <select name="meeting_type" id="meeting_type" class="form-select" required>
+                {% for choice in meeting_types %}
+                <option value="{{ choice.0 }}" {% if meeting.meeting_type == choice.0 %}selected{% endif %}>{{ choice.1 }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="mb-3">
+            <label for="meeting_date" class="form-label">Meeting Date</label>
+            <input type="datetime-local" name="meeting_date" id="meeting_date" class="form-control" value="{{ meeting.meeting_date|default:''|slice:'16' }}" required>
+        </div>
+        
+        <div class="mb-3">
+            <label for="location" class="form-label">Location</label>
+            <input type="text" name="location" id="location" class="form-control" value="{{ meeting.location|default:'' }}">
+        </div>
+        
+        <div class="mb-3">
+            <label for="attendees" class="form-label">Attendees</label>
+            <textarea name="attendees" id="attendees" class="form-control" rows="3">{{ meeting.attendees|default:'' }}</textarea>
+        </div>
+        
+        <div class="mb-3">
+            <label for="notes" class="form-label">Notes</label>
+            <textarea name="notes" id="notes" class="form-control" rows="5">{{ meeting.notes|default:'' }}</textarea>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Save</button>
+        <a href="{% url 'contracts:contract_detail' contract.id %}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

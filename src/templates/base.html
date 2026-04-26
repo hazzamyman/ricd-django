@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}FNC - First Nations Capital{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        body { padding-top: 70px; }
+        .navbar-brand { font-weight: 600; }
+        .nav-link { padding: 0.5rem 1rem; }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top" style="top: 0;">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'dashboard:dashboard' %}">
+                <i class="bi bi-house-door"></i> FNC
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <!-- Dashboard -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'dashboard:dashboard' %}">
+                            <i class="bi bi-speedometer2"></i> Dashboard
+                        </a>
+                    </li>
+                    
+                    <!-- Projects -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="/projects/">
+                            <i class="bi bi-folder"></i> Projects
+                        </a>
+                    </li>
+                    
+                    <!-- Variations -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="/variations/">
+                            <i class="bi bi-arrow-left-right"></i> Variations
+                        </a>
+                    </li>
+                    
+                    <!-- Reports -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="/reports/monthly/">
+                            <i class="bi bi-file-text"></i> Reports
+                        </a>
+                    </li>
+                    
+                    <!-- Maintenance - FNC only -->
+                    {% if is_ricd_user %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'maintenance:dashboard' %}">
+                            <i class="bi bi-gear"></i> Maintenance
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'dashboard:dashboard_cashflow' %}">
+                            <i class="bi bi-currency-dollar"></i> Cashflow
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'dashboard:dashboard_outputs' %}">
+                            <i class="bi bi-bar-chart"></i> Outputs
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    <!-- Planning - FNC only -->
+                    {% if is_ricd_user %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="/planning/">
+                            <i class="bi bi-map"></i> Planning
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link" href="/land/land-projects/">
+                            <i class="bi bi-geo-alt"></i> Land & Infra
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link" href="/documents/">
+                            <i class="bi bi-folder2-open"></i> Documents
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+                
+                <!-- User Menu -->
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-person-circle"></i> {{ user.username }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><span class="dropdown-item-text">
+                                <small class="text-muted">{{ user_group|default:"No Role" }}</small>
+                            </span></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="/admin/">Admin</a></li>
+                            <li><a class="dropdown-item" href="/accounts/logout/">Logout</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid py-3">
+        {% block content %}{% endblock %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

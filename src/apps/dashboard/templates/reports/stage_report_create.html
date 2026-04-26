@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">Create Stage Report</h1>
+    
+    <form method="post" class="col-md-6">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label class="form-label">Project</label>
+            <select name="project" class="form-select" required>
+                <option value="">Select Project</option>
+                {% for project in projects %}
+                <option value="{{ project.id }}">{{ project.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Stage</label>
+            <select name="stage_type" class="form-select" required>
+                <option value="STAGE1">Stage 1 - Planning & Preparation</option>
+                <option value="STAGE2">Stage 2 - Delivery</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Create</button>
+        <a href="{% url 'reports:stage_report_list' %}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

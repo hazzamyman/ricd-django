@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">Council Contacts</h1>
+    
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Council</th>
+                        <th>Role</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for contact in contacts %}
+                    <tr>
+                        <td>{{ contact.council.name }}</td>
+                        <td>{{ contact.role }}</td>
+                        <td>{{ contact.name }}</td>
+                        <td>{{ contact.email|default:"-" }}</td>
+                        <td>{{ contact.phone|default:"-" }}</td>
+                        <td>
+                            <a href="{% url 'maintenance:councilcontact_edit' contact.id %}" class="btn btn-sm btn-outline-primary">Edit</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center">No contacts found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <a href="{% url 'maintenance:councilcontact_create' %}" class="btn btn-primary mt-3">Add Contact</a>
+    <a href="{% url 'maintenance:dashboard' %}" class="btn btn-secondary mt-3">Back</a>
+</div>
+{% endblock %}

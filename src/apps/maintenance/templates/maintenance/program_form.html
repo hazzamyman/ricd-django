@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">{% if program %}Edit{% else %}Add{% endif %} Program</h1>
+    <div class="card">
+        <div class="card-body">
+            <form method="post" class="row g-3">
+                {% csrf_token %}
+                <div class="col-md-6">
+                    <label class="form-label">Name</label>
+                    <input type="text" name="name" class="form-control" value="{{ program.name|default:'' }}" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Funding Source</label>
+                    <select name="funding_source" class="form-select">
+                        <option value="">Select...</option>
+                        <option value="COMMONWEALTH" {% if program.funding_source == 'COMMONWEALTH' %}selected{% endif %}>Commonwealth Government</option>
+                        <option value="STATE" {% if program.funding_source == 'STATE' %}selected{% endif %}>State Budget</option>
+                        <option value="COMMONWEALTH_STATE" {% if program.funding_source == 'COMMONWEALTH_STATE' %}selected{% endif %}>Commonwealth & State Joint</option>
+                        <option value="OTHER" {% if program.funding_source == 'OTHER' %}selected{% endif %}>Other</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Budget (Total)</label>
+                    <input type="number" name="budget" class="form-control" value="{{ program.budget|default:'' }}">
+                    <small class="text-muted">Use budgets below for year-specific allocation</small>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">GL Code</label>
+                    <input type="text" name="gl_code" class="form-control" value="{{ program.gl_code|default:'' }}">
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="2">{{ program.description|default:'' }}</textarea>
+                </div>
+                <hr>
+                <div class="col-12">
+                    <h5>Budgets by Year</h5>
+                    <p class="text-muted">Allocate budget per financial year</p>
+                    {% if program %}
+                    <a href="{% url 'maintenance:programbudget_create' %}?program={{ program.id }}" class="btn btn-success btn-sm">Add Budget Year</a>
+                    {% else %}
+                    <p class="text-warning">Save program first, then add budgets by year.</p>
+                    {% endif %}
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">Save</button>
+                    <a href="{% url 'maintenance:program_list' %}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

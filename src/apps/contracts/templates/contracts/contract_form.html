@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{% if contract %}Edit{% else %}Create{% endif %} Contract - FNC{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>{% if contract %}Edit{% else %}Create{% endif %} Contract</h1>
+    
+    <form method="post" class="form">
+        {% csrf_token %}
+        
+        <div class="mb-3">
+            <label for="title" class="form-label">Title</label>
+            <input type="text" name="title" id="title" class="form-control" value="{{ contract.title|default:'' }}" required>
+        </div>
+        
+        <div class="mb-3">
+            <label for="project" class="form-label">Project</label>
+            <select name="project" id="project" class="form-select">
+                <option value="">-- Select Project --</option>
+                {% for p in projects %}
+                <option value="{{ p.id }}" {% if contract.project_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="mb-3">
+            <label for="project_type" class="form-label">Project Type</label>
+            <select name="project_type" id="project_type" class="form-select">
+                {% for choice in project_types %}
+                <option value="{{ choice.0 }}" {% if contract.project_type == choice.0 %}selected{% endif %}>{{ choice.1 }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="mb-3">
+            <label for="contract_status" class="form-label">Status</label>
+            <select name="contract_status" id="contract_status" class="form-select">
+                {% for choice in contract_statuses %}
+                <option value="{{ choice.0 }}" {% if contract.contract_status == choice.0 %}selected{% endif %}>{{ choice.1 }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Save</button>
+        <a href="{% url 'contracts:contract_list' %}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

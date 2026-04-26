@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Contracts - FNC{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Contracts</h1>
+    
+    <div class="mb-3">
+        <a href="{% url 'contracts:contract_create' %}" class="btn btn-primary">Create Contract</a>
+    </div>
+    
+    {% if contracts %}
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Project</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for contract in contracts %}
+            <tr>
+                <td><a href="{% url 'contracts:contract_detail' contract.id %}">{{ contract.title }}</a></td>
+                <td>{{ contract.project.name|default:"-" }}</td>
+                <td>{{ contract.get_project_type_display }}</td>
+                <td>{{ contract.get_contract_status_display }}</td>
+                <td>{{ contract.created_at|date:"d/m/Y" }}</td>
+                <td>
+                    <a href="{% url 'contracts:contract_detail' contract.id %}" class="btn btn-sm btn-info">View</a>
+                    <a href="{% url 'contracts:contract_edit' contract.id %}" class="btn btn-sm btn-warning">Edit</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No contracts found.</p>
+    {% endif %}
+</div>
+{% endblock %}

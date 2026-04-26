@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">Quarterly Reports</h1>
+    
+    <div class="mb-3">
+        <a href="{% url 'reports:quarterly_report_create' %}" class="btn btn-primary">Create New Report</a>
+    </div>
+    
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Project</th>
+                        <th>Period</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for report in reports %}
+                    <tr>
+                        <td>{{ report.project.name }}</td>
+                        <td>Q{{ report.quarter }} {{ report.year }}</td>
+                        <td>
+                            <span class="badge bg-{% if report.status == 'DRAFT' %}secondary{% elif report.status == 'SUBMITTED' %}info{% elif report.status == 'ENDORSED' %}warning{% elif report.status == 'ASSESSED' %}primary{% else %}success{% endif %}">
+                                {{ report.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{% url 'reports:quarterly_report_detail' report.id %}" class="btn btn-sm btn-primary">View</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center">No quarterly reports found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

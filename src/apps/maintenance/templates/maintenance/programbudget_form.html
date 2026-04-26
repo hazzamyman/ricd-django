@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">{% if budget %}Edit{% else %}Add{% endif %} Program Budget</h1>
+    <div class="card">
+        <div class="card-body">
+            <form method="post" class="row g-3">
+                {% csrf_token %}
+                <div class="col-md-6">
+                    <label class="form-label">Program</label>
+                    <select name="program" class="form-select" required>
+                        <option value="">Select Program...</option>
+                        {% for p in programs %}
+                        <option value="{{ p.id }}" {% if budget.program_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Financial Year</label>
+                    <select name="financial_year" class="form-select" required>
+                        {% for code, label in year_choices %}
+                        <option value="{{ code }}" {% if budget.financial_year == code %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Allocated Budget</label>
+                    <input type="number" name="allocated" class="form-control" value="{{ budget.allocated|default:'0' }}" step="0.01" min="0">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Spent/Committed</label>
+                    <input type="number" name="spent" class="form-control" value="{{ budget.spent|default:'0' }}" step="0.01" min="0">
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Notes</label>
+                    <textarea name="notes" class="form-control" rows="2">{{ budget.notes|default:'' }}</textarea>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">Save</button>
+                    <a href="{% url 'maintenance:programbudget_list' %}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

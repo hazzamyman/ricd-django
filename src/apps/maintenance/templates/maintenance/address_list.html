@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">Addresses</h1>
+    
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Project</th>
+                        <th>Street</th>
+                        <th>Suburb</th>
+                        <th>Postcode</th>
+                        <th>Lot/Plan</th>
+                        <th>Reside PLC Ref</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for address in addresses %}
+                    <tr>
+                        <td>{{ address.project.name }}</td>
+                        <td>{{ address.street }}</td>
+                        <td>{{ address.suburb.name|default:"-" }}</td>
+                        <td>{{ address.suburb.postcode|default:"-" }}</td>
+                        <td>{% if address.lot %}Lot {{ address.lot }}{% endif %}{% if address.plan %}, Plan {{ address.plan }}{% endif %}</td>
+                        <td>{{ address.residence_plc_ref|default:"-" }}</td>
+                        <td>
+                            <a href="{% url 'maintenance:address_edit' address.id %}" class="btn btn-sm btn-outline-primary">Edit</a>
+                            <form method="post" action="{% url 'maintenance:address_delete' address.id %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this address?')">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center">No addresses found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <a href="{% url 'maintenance:address_create' %}" class="btn btn-primary mt-3">Add Address</a>
+    <a href="{% url 'maintenance:dashboard' %}" class="btn btn-secondary mt-3">Back to Maintenance</a>
+</div>
+{% endblock %}

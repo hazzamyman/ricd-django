@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <h1>Delete Development Application</h1>
+    <p>Are you sure you want to delete "{{ development_application.application_reference }}"?</p>
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Delete</button>
+        <a href="{% url 'land_infra:development_application_detail' development_application.id %}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

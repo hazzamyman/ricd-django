@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">{% if documenttype %}Edit{% else %}Add{% endif %} Document Type</h1>
+    
+    <div class="card">
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label">Name</label>
+                    <input type="text" name="name" class="form-control" value="{{ documenttype.name|default:'' }}" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="2">{{ documenttype.description|default:'' }}</textarea>
+                </div>
+                <div class="mb-3 form-check">
+                    <input type="checkbox" name="is_link" class="form-check-input" id="is_link" {% if documenttype.is_link %}checked{% endif %}>
+                    <label class="form-check-label" for="is_link">Is Link (instead of file upload)</label>
+                </div>
+                <div class="mb-3 form-check">
+                    <input type="checkbox" name="is_active" class="form-check-input" id="is_active" {% if documenttype.is_active or not documenttype %}checked{% endif %}>
+                    <label class="form-check-label" for="is_active">Active</label>
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+                <a href="{% url 'maintenance:documenttype_list' %}" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

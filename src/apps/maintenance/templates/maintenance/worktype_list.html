@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">Work Types</h1>
+    
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Category</th>
+                        <th>Has Bedrooms</th>
+                        <th>Default BR</th>
+                        <th>Active</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for wt in worktypes %}
+                    <tr>
+                        <td>{{ wt.name }}</td>
+                        <td>{{ wt.get_category_display }}</td>
+                        <td>
+                            {% if wt.has_bedrooms %}
+                            <span class="badge bg-info">Yes</span>
+                            {% else %}
+                            <span class="badge bg-secondary">No</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ wt.default_bedrooms|default:"0" }}</td>
+                        <td>
+                            {% if wt.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'maintenance:worktype_edit' wt.id %}" class="btn btn-sm btn-outline-primary">Edit</a>
+                            <form method="post" action="{% url 'maintenance:worktype_delete' wt.id %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this work type?')">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center">No work types found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <a href="{% url 'maintenance:worktype_create' %}" class="btn btn-primary mt-3">Add Work Type</a>
+    <a href="{% url 'maintenance:dashboard' %}" class="btn btn-secondary mt-3">Back to Maintenance</a>
+</div>
+{% endblock %}

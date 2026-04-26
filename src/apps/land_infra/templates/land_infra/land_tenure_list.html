@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Land Tenures</h1>
+        {% if can_edit %}
+        <a href="{% url 'land_infra:land_tenure_create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Create Land Tenure
+        </a>
+        {% endif %}
+    </div>
+    
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Council</label>
+                    <select name="council" class="form-select">
+                        <option value="">All Councils</option>
+                        {% for council in councils %}
+                        <option value="{{ council.id }}">{{ council.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Tenure Type</label>
+                    <select name="tenure_type" class="form-select">
+                        <option value="">All Types</option>
+                        {% for code, label in tenure_types %}
+                        <option value="{{ code }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Native Title</label>
+                    <select name="native_title_status" class="form-select">
+                        <option value="">All Statuses</option>
+                        {% for code, label in native_title_statuses %}
+                        <option value="{{ code }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Development Status</label>
+                    <select name="is_developed" class="form-select">
+                        <option value="">All</option>
+                        <option value="true">Developed</option>
+                        <option value="false">Undeveloped</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Filter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Land Tenures Table -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Lot</th>
+                            <th>Plan</th>
+                            <th>Council</th>
+                            <th>Title Ref</th>
+                            <th>Tenure Type</th>
+                            <th>Native Title</th>
+                            <th>Cultural Heritage</th>
+                            <th>Developed</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for lt in land_tenures %}
+                        <tr>
+                            <td>{{ lt.lot_number }}</td>
+                            <td>{{ lt.plan_number }}</td>
+                            <td>{{ lt.council.name }}</td>
+                            <td>{{ lt.title_reference|default:"-" }}</td>
+                            <td>{{ lt.get_tenure_type_display }}</td>
+                            <td>{{ lt.get_native_title_status_display }}</td>
+                            <td>{{ lt.get_cultural_heritage_status_display }}</td>
+                            <td>
+                                {% if lt.is_developed %}
+                                <span class="badge bg-success">Yes</span>
+                                {% else %}
+                                <span class="badge bg-secondary">No</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'land_infra:land_tenure_detail' lt.id %}" class="btn btn-sm btn-outline-primary">View</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center text-muted">No land tenures found. Create one to get started.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+</table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

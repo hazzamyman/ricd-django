@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">System Maintenance</h1>
+    <p class="text-muted">Manage all system data from this central location.</p>
+    
+    <div class="row mt-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5><i class="bi bi-bank"></i> Councils</h5>
+                    <p class="text-muted">Manage Indigenous councils</p>
+                    <a href="{% url 'maintenance:council_list' %}" class="btn btn-sm btn-primary">Manage</a>
+                    <a href="{% url 'maintenance:councilcontact_list' %}" class="btn btn-sm btn-outline-secondary">Contacts</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5><i class="bi bi-building"></i> Programs</h5>
+                    <p class="text-muted">Manage funding programs</p>
+                    <a href="{% url 'maintenance:program_list' %}" class="btn btn-sm btn-primary">Programs</a>
+                    <a href="{% url 'maintenance:programbudget_list' %}" class="btn btn-sm btn-outline-secondary">Budgets</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5><i class="bi bi-hammer"></i> Work Types</h5>
+                    <p class="text-muted">Types of construction works</p>
+                    <a href="{% url 'maintenance:worktype_list' %}" class="btn btn-sm btn-primary">Manage</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5><i class="bi bi-list-task"></i> Work Steps</h5>
+                    <p class="text-muted">Templates for work steps</p>
+                    <a href="{% url 'maintenance:worksteptemplate_list' %}" class="btn btn-sm btn-primary">Manage</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-3">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5><i class="bi bi-geo-alt"></i> Addresses</h5>
+                    <p class="text-muted">Property addresses</p>
+                    <a href="{% url 'maintenance:address_list' %}" class="btn btn-sm btn-primary">Manage</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5><i class="bi bi-tools"></i> Works</h5>
+                    <p class="text-muted">Project works</p>
+                    <a href="{% url 'maintenance:work_list' %}" class="btn btn-sm btn-primary">Manage</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5><i class="bi bi-cash-stack"></i> Funding Approvals</h5>
+                    <p class="text-muted">Funding approval workflow</p>
+                    <a href="{% url 'maintenance:fundingapproval_list' %}" class="btn btn-sm btn-primary">Manage</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5><i class="bi bi-person-badge"></i> Delegations</h5>
+                    <p class="text-muted">Financial approval limits</p>
+                    <a href="{% url 'maintenance:delegation_list' %}" class="btn btn-sm btn-primary">Manage</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-3">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5><i class="bi bi-calendar-check"></i> Funding Schedules</h5>
+                    <p class="text-muted">Payment schedules</p>
+                    <a href="{% url 'maintenance:fundingschedule_list' %}" class="btn btn-sm btn-primary">Manage</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5><i class="bi bi-people"></i> Contractors</h5>
+                    <p class="text-muted">Trades and contractors</p>
+                    <a href="{% url 'maintenance:contractor_list' %}" class="btn btn-sm btn-primary">Manage</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5><i class="bi bi-file-earmark"></i> Document Types</h5>
+                    <p class="text-muted">Types of documents</p>
+                    <a href="{% url 'maintenance:documenttype_list' %}" class="btn btn-sm btn-primary">Manage</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <h4 class="mt-4 mb-3">Notional Costs</h4>
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5><i class="bi bi-currency-dollar"></i> Work Types</h5>
+                    <p class="text-muted">Types of works (with bedroom settings)</p>
+                    <a href="{% url 'maintenance:worktype_list' %}" class="btn btn-sm btn-primary">Manage</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5><i class="bi bi-calendar"></i> Notional Costs</h5>
+                    <p class="text-muted">Costs per financial year</p>
+                    <a href="{% url 'maintenance:notionalcost_list' %}" class="btn btn-sm btn-primary">View</a>
+                    <a href="{% url 'maintenance:notionalcost_bulk_update' %}" class="btn btn-sm btn-success">Bulk Update</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

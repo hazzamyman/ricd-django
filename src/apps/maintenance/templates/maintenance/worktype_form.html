@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">{% if worktype %}Edit{% else %}Add{% endif %} Work Type</h1>
+    
+    <div class="card">
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label">Name</label>
+                    <input type="text" name="name" class="form-control" value="{{ worktype.name|default:'' }}" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Category</label>
+                    <select name="category" class="form-select" required>
+                        <option value="">Select Category</option>
+                        <option value="RESIDENTIAL" {% if worktype.category == 'RESIDENTIAL' %}selected{% endif %}>Residential</option>
+                        <option value="EXTENSION" {% if worktype.category == 'EXTENSION' %}selected{% endif %}>Extension</option>
+                        <option value="DEMOLITION" {% if worktype.category == 'DEMOLITION' %}selected{% endif %}>Demolition</option>
+                        <option value="LAND_DEV" {% if worktype.category == 'LAND_DEV' %}selected{% endif %}>Land Development</option>
+                        <option value="INFRASTRUCTURE" {% if worktype.category == 'INFRASTRUCTURE' %}selected{% endif %}>Infrastructure</option>
+                        <option value="PLANNING" {% if worktype.category == 'PLANNING' %}selected{% endif %}>Plan and Prepare/Consultant</option>
+                        <option value="OTHER" {% if worktype.category == 'OTHER' %}selected{% endif %}>Other</option>
+                    </select>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" name="has_bedrooms" class="form-check-input" id="has_bedrooms" {% if worktype.has_bedrooms %}checked{% endif %}>
+                            <label class="form-check-label" for="has_bedrooms">Has Bedrooms (show bedroom selection)</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Default Bedrooms</label>
+                            <input type="number" name="default_bedrooms" class="form-control" value="{{ worktype.default_bedrooms|default:0 }}" min="0" max="10">
+                            <small class="text-muted">Default: 4 for houses, 2 for units, 0 for non-residential</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="3">{{ worktype.description|default:'' }}</textarea>
+                </div>
+                <div class="mb-3 form-check">
+                    <input type="checkbox" name="is_active" class="form-check-input" id="is_active" {% if worktype.is_active or not worktype %}checked{% endif %}>
+                    <label class="form-check-label" for="is_active">Active</label>
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+                <a href="{% url 'maintenance:worktype_list' %}" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

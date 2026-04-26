@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">Variations by Project</h1>
+    
+    <div class="mb-3">
+        <a href="{% url 'variations:variations_list' %}" class="btn btn-secondary">All Variations</a>
+        <a href="{% url 'variations:variations_by_council' %}" class="btn btn-info">By Council</a>
+    </div>
+    
+    <!-- Filter by project -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-8">
+                    <label class="form-label">Project</label>
+                    <select name="project" class="form-select">
+                        <option value="">All Projects</option>
+                        {% for project in projects %}
+                        <option value="{{ project.id }}" {% if selected_project == project.id|stringformat:"s" %}selected{% endif %}>{{ project.name }} ({{ project.council.name }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Filter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Project</th>
+                        <th>Funding Schedule</th>
+                        <th>Status</th>
+                        <th>Executed Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for variation in variations %}
+                    <tr>
+                        <td>{{ variation.id }}</td>
+                        <td>
+                            {% for project in variation.projects.all %}
+                            {{ project.name }}{% if not forloop.last %}, {% endif %}
+                            {% endfor %}
+                        </td>
+                        <td>{{ variation.funding_schedule }}</td>
+                        <td>
+                            <span class="badge bg-{% if variation.status == 'DRAFT' %}secondary{% elif variation.status == 'COUNCIL_SIGNED' %}warning{% else %}success{% endif %}">
+                                {{ variation.get_status_display }}
+                            </span>
+                        </td>
+                        <td>{{ variation.department_executed_date|default:"-" }}</td>
+                        <td>
+                            <a href="{% url 'variations:variation_detail' variation.id %}" class="btn btn-sm btn-primary">View</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center">No variations found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
