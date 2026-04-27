@@ -7,14 +7,11 @@ from .models import Contract, ContractMeeting
 @login_required
 def contract_list(request):
     """List all contracts with filters"""
-    project_type = request.GET.get('project_type')
     contract_status = request.GET.get('status')
     council_id = request.GET.get('council')
     
-    contracts = Contract.objects.select_related('project', 'land_project').order_by('-created_at')
+    contracts = Contract.objects.select_related('project').order_by('-created_at')
     
-    if project_type:
-        contracts = contracts.filter(project_type=project_type)
     if contract_status:
         contracts = contracts.filter(contract_status=contract_status)
     
@@ -22,7 +19,6 @@ def contract_list(request):
     
     context = {
         'contracts': contracts,
-        'project_types': Contract.ProjectType.choices,
         'contract_statuses': Contract.ContractStatus.choices,
         'councils': Council.objects.order_by('name'),
     }
@@ -33,7 +29,7 @@ def contract_list(request):
 def contract_detail(request, contract_id):
     """Show contract details"""
     contract = get_object_or_404(
-        Contract.objects.select_related('project', 'land_project').prefetch_related('meetings'),
+        Contract.objects.select_related('project').prefetch_related('meetings'),
         id=contract_id
     )
     

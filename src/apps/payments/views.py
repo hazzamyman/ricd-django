@@ -14,12 +14,10 @@ def payment_list(request):
     council_id = request.GET.get('council')
     search = request.GET.get('search')
     
-    payments = Payment.objects.select_related('project', 'land_project', 'funding_schedule').order_by('-created_at')
+    payments = Payment.objects.select_related('project', 'funding_schedule').order_by('-created_at')
     
     if status_filter:
         payments = payments.filter(status=status_filter)
-    if project_type:
-        payments = payments.filter(project_type=project_type)
     if search:
         payments = payments.filter(
             Q(reference__icontains=search) |
@@ -31,7 +29,6 @@ def payment_list(request):
     context = {
         'payments': payments,
         'statuses': Payment.Status.choices,
-        'project_types': Payment.ProjectType.choices,
     }
     return render(request, 'payments/payment_list.html', context)
 
@@ -40,36 +37,25 @@ def payment_list(request):
 def payment_create(request):
     """Create a new payment"""
     from apps.projects.models import Project
-    from apps.land_infra.models import LandProject
     from apps.funding.models import FundingSchedule
     from apps.councils.models import Council
     
     if request.method == 'POST':
         project_id = request.POST.get('project')
-        land_project_id = request.POST.get('land_project')
         
-        # Determine project type and get funding schedule
-        if project_id:
-            project = get_object_or_404(Project, id=project_id)
-            project_type = 'DWELLING'
-            funding_schedule_id = request.POST.get('funding_schedule')
-            funding_schedule = get_object_or_404(FundingSchedule, id=funding_schedule_id) if funding_schedule_id else None
-        elif land_project_id:
-            project = None
-            project_type = 'LAND'
-            funding_schedule_id = request.POST.get('funding_schedule')
-            funding_schedule = get_object_or_404(FundingSchedule, id=funding_schedule_id) if funding_schedule_id else None
-        else:
-            messages.error(request, 'Please select a project or land project.')
+        if not project_id:
+            messages.error(request, 'Please select a project.')
             return render(request, 'payments/payment_form.html', get_context())
+        
+        project = get_object_or_404(Project, id=project_id)
+        funding_schedule_id = request.POST.get('funding_schedule')
+        funding_schedule = get_object_or_404(FundingSchedule, id=funding_schedule_id) if funding_schedule_id else None
         
         from decimal import Decimal
         calc_type = request.POST.get('calculation_type', 'PERCENTAGE')
         
         payment = Payment.objects.create(
             project=project,
-            land_project_id=land_project_id if land_project_id else None,
-            project_type=project_type,
             funding_schedule=funding_schedule,
             calculation_type=calc_type,
             percentage=Decimal(request.POST.get('percentage', '0')) if calc_type == 'PERCENTAGE' else None,
@@ -88,13 +74,11 @@ def payment_create(request):
 def get_context():
     """Helper to get context for forms"""
     from apps.projects.models import Project
-    from apps.land_infra.models import LandProject
     from apps.funding.models import FundingSchedule
     from apps.councils.models import Council
     
     return {
         'projects': Project.objects.filter(state__in=['PROG', 'FUND', 'COMM']).order_by('name'),
-        'land_projects': LandProject.objects.filter(status__in=['PROG', 'FUND', 'COMM']).order_by('name'),
         'funding_schedules': FundingSchedule.objects.all().order_by('-created_at')[:50],
         'calculation_types': Payment.CalculationType.choices,
         'payment_types': Payment.PaymentType.choices,
@@ -105,7 +89,7 @@ def get_context():
 @login_required
 def payment_detail(request, payment_id):
     """Show payment details"""
-    payment = get_object_or_404(Payment.objects.select_related('project', 'land_project', 'funding_schedule'), id=payment_id)
+    payment = get_object_or_404(Payment.objects.select_related('project', 'funding_schedule'), id=payment_id)
     return render(request, 'payments/payment_detail.html', {'payment': payment})
 
 

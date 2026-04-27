@@ -130,14 +130,8 @@ class Work(models.Model):
         IN_PROGRESS = 'IN_PROGRESS', 'In Progress'
         COMPLETED = 'COMPLETED', 'Completed'
 
-    class ProjectType(models.TextChoices):
-        DWELLING = 'DWELLING', 'Dwelling/Construction'
-        LAND = 'LAND', 'Land/Infrastructure'
-
     address = models.ForeignKey('addresses.Address', related_name='works', on_delete=models.CASCADE, null=True, blank=True)
-    project = models.ForeignKey('projects.Project', related_name='works', on_delete=models.CASCADE, null=True, blank=True)
-    land_project = models.ForeignKey('land_infra.LandProject', related_name='works', on_delete=models.CASCADE, null=True, blank=True)
-    project_type = models.CharField(max_length=10, choices=ProjectType.choices, default=ProjectType.DWELLING)
+    project = models.ForeignKey('projects.Project', related_name='works', on_delete=models.CASCADE)
     work_type = models.ForeignKey(WorkType, related_name='works', on_delete=models.PROTECT, null=True, blank=True)
     work_type_other = models.CharField(max_length=100, blank=True)
     bedrooms = models.PositiveIntegerField(default=0, help_text="Number of bedrooms (0 if not applicable)")
@@ -153,16 +147,8 @@ class Work(models.Model):
 
     def __str__(self):
         work_type_display = self.work_type.name if self.work_type else self.work_type_other
-        project_name = self.project.name if self.project else (self.land_project.name if self.land_project else 'No Project')
         bedroom_str = f", {self.bedrooms}BR" if self.bedrooms else ""
-        return f"{work_type_display}{bedroom_str} x {self.quantity} for {project_name}"
-
-    @property
-    def linked_project(self):
-        """Returns the linked project (either dwelling or land)"""
-        if self.project_type == self.ProjectType.DWELLING:
-            return self.project
-        return self.land_project
+        return f"{work_type_display}{bedroom_str} x {self.quantity} for {self.project.name}"
 
     @property
     def total_estimated_cost(self):
@@ -192,11 +178,10 @@ class Work(models.Model):
         if not self.work_type:
             return None
         
-        project = self.project or self.land_project
         financial_year = None
         
-        if project:
-            financial_year = getattr(project, 'financial_year', None)
+        if self.project:
+            financial_year = getattr(self.project, 'financial_year', None)
         
         if not financial_year:
             from apps.works.models import NotionalCostSettings

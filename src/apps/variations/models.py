@@ -42,7 +42,6 @@ class Variation(models.Model):
     funding_schedule = models.ForeignKey('funding.FundingSchedule', related_name='variations', on_delete=models.CASCADE, verbose_name="Primary Funding Schedule", null=True, blank=True)
     funding_schedules = models.ManyToManyField('funding.FundingSchedule', related_name='variation_changes', blank=True, help_text="Multiple FS can be affected by one variation")
     projects = models.ManyToManyField('projects.Project', related_name='variations', blank=True)
-    land_projects = models.ManyToManyField('land_infra.LandProject', related_name='variations', blank=True)
     variation_type = models.ForeignKey(VariationType, on_delete=models.SET_NULL, null=True, blank=True)
     variation_option = models.CharField(max_length=20, choices=VariationOption.choices, blank=True, help_text="The specific variation option type")
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
@@ -63,13 +62,13 @@ class Variation(models.Model):
 
     def __str__(self):
         fs = self.funding_schedule
-        project_name = fs.project.name if fs and fs.project else (fs.land_project.name if fs and fs.land_project else 'No Project')
+        project_name = fs.project.name if fs and fs.project else 'No Project'
         return f"Variation {self.id} - {project_name} ({self.get_status_display()})"
 
     @property
     def linked_projects(self):
-        """Returns all linked projects (both dwelling and land)"""
-        return list(self.projects.all()) + list(self.land_projects.all())
+        """Returns all linked projects"""
+        return list(self.projects.all())
 
 
 class VariationFundingSchedule(models.Model):

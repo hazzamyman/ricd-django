@@ -60,15 +60,38 @@ class Project(models.Model):
     dwelling_status = models.CharField(max_length=4, choices=DwellingStatus.choices, default=DwellingStatus.PROSPECTIVE, db_index=True)
     status_flag = models.CharField(max_length=2, choices=StatusFlag.choices, default=StatusFlag.ON_TRACK, db_index=True)
 
-    land_project = models.ForeignKey(
-        'land_infra.LandProject',
-        related_name='dwelling_projects',
+    land_parcels = models.ManyToManyField('land_infra.LandTenure', related_name='projects', blank=True)
+    
+    # Land-specific fields (from LandProject migration)
+    parent_land_project = models.ForeignKey(
+        'self',
+        related_name='child_dwellings',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        help_text="Link to completed land/infra project that this dwelling is built on"
+        help_text="Link to parent LAND project this dwelling is built on (DWELLING only)"
     )
-    land_parcels = models.ManyToManyField('land_infra.LandTenure', related_name='projects', blank=True)
+    development_application = models.ForeignKey(
+        'land_infra.DevelopmentApplication',
+        related_name='primary_project',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Development application for land projects"
+    )
+    infra_water_assessment = models.TextField(
+        blank=True,
+        help_text="Is there sufficient water infrastructure? What is the connection capacity?"
+    )
+    infra_electricity_assessment = models.TextField(
+        blank=True,
+        help_text="Is there sufficient electricity infrastructure? What is the transformer capacity?"
+    )
+    infra_sewerage_assessment = models.TextField(
+        blank=True,
+        help_text="Is there sufficient sewerage infrastructure? What is the treatment capacity?"
+    )
+    infra_comments = models.TextField(blank=True)
     
     # Lease fields
     lease_signed_date = models.DateField(null=True, blank=True, help_text="Date lease was signed (only for non-registered housing providers)")
@@ -133,16 +156,15 @@ class Project(models.Model):
             return self.funding_approval_date
         return self.start_date
     
-    @property
-    def funding_schedule(self):
-        """Returns the funding schedule this project is linked to (from reverse relation)"""
+    def active_funding_schedule(self):
+        """Returns the ACTIVE funding schedule for this project (from reverse relation)"""
         fs_list = self.funding_schedules.filter(status='ACTIVE')
         return fs_list.first() if fs_list else None
     
     @property
-    def active_funding_schedule(self):
-        """Alias for funding_schedule property - returns ACTIVE funding schedule"""
-        return self.funding_schedule
+    def funding_schedule(self):
+        """Returns the funding schedule this project is linked to (from reverse relation)"""
+        return self.active_funding_schedule
     
     def get_inherited_dates(self):
         """Returns dates from FundingSchedule if project has no dates set"""

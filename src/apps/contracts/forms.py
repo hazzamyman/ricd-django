@@ -7,14 +7,12 @@ class ContractForm(forms.ModelForm):
     class Meta:
         model = Contract
         fields = [
-            'project_type', 'project', 'land_project', 'contract_status',
+            'project', 'contract_status',
             'title', 'document', 'sent_to_council_date', 'council_executed_date',
             'execution_date', 'start_date', 'end_date', 'expiry_date', 'termination_date', 'notes',
         ]
         widgets = {
-            'project_type': forms.Select(attrs={'class': 'form-select'}),
             'project': forms.Select(attrs={'class': 'form-select'}),
-            'land_project': forms.Select(attrs={'class': 'form-select'}),
             'contract_status': forms.Select(attrs={'class': 'form-select'}),
             'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Contract title'}),
             'document': forms.ClearableFileInput(attrs={'class': 'form-control'}),
@@ -30,15 +28,10 @@ class ContractForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        project_type = cleaned_data.get('project_type')
         project = cleaned_data.get('project')
-        land_project = cleaned_data.get('land_project')
         
-        if project_type == Contract.ProjectType.DWELLING and not project:
-            raise ValidationError('Please select a Dwelling Project.')
-        
-        if project_type == Contract.ProjectType.LAND and not land_project:
-            raise ValidationError('Please select a Land/Infrastructure Project.')
+        if not project:
+            raise ValidationError('Please select a project.')
         
         start_date = cleaned_data.get('start_date')
         end_date = cleaned_data.get('end_date')

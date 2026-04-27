@@ -2,10 +2,6 @@ from django.db import models
 
 
 class Contract(models.Model):
-    class ProjectType(models.TextChoices):
-        DWELLING = 'DWELLING', 'Dwelling/Construction'
-        LAND = 'LAND', 'Land/Infrastructure'
-
     class ContractStatus(models.TextChoices):
         DRAFT = 'DRAFT', 'Draft'
         SENT_TO_COUNCIL = 'SENT', 'Sent to Council'
@@ -14,9 +10,7 @@ class Contract(models.Model):
         EXPIRED = 'EXPIRED', 'Expired'
         TERMINATED = 'TERMINATED', 'Terminated'
 
-    project = models.ForeignKey('projects.Project', related_name='contracts', on_delete=models.CASCADE, null=True, blank=True)
-    land_project = models.ForeignKey('land_infra.LandProject', related_name='contracts', on_delete=models.CASCADE, null=True, blank=True)
-    project_type = models.CharField(max_length=10, choices=ProjectType.choices, default=ProjectType.DWELLING)
+    project = models.ForeignKey('projects.Project', related_name='contracts', on_delete=models.CASCADE)
     contract_status = models.CharField(max_length=10, choices=ContractStatus.choices, default=ContractStatus.DRAFT)
     title = models.CharField(max_length=255)
     document = models.FileField(upload_to='contracts/', blank=True)
@@ -32,15 +26,7 @@ class Contract(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        project_name = self.project.name if self.project else (self.land_project.name if self.land_project else 'No Project')
-        return f"Contract: {self.title} ({project_name})"
-
-    @property
-    def linked_project(self):
-        """Returns the linked project (either dwelling or land)"""
-        if self.project_type == self.ProjectType.DWELLING:
-            return self.project
-        return self.land_project
+        return f"Contract: {self.title} ({self.project.name})"
 
 
 class ContractMeeting(models.Model):

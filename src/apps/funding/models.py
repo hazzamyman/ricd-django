@@ -363,10 +363,6 @@ class FundingSchedule(models.Model):
         SUPERSEDED = 'SUPERSEDED', 'Superseded'
         CANCELLED = 'CANCELLED', 'Cancelled'
 
-    class ProjectType(models.TextChoices):
-        DWELLING = 'DWELLING', 'Dwelling/Construction'
-        LAND = 'LAND', 'Land/Infrastructure'
-
     # New fields per domain model
     funding_agreement = models.ForeignKey(FundingAgreement, related_name='schedules', on_delete=models.CASCADE, null=True, blank=True)
     payment_rule = models.ForeignKey(PaymentRule, related_name='schedules', on_delete=models.PROTECT, null=True, blank=True, help_text="Payment calculation rule")
@@ -375,8 +371,6 @@ class FundingSchedule(models.Model):
 
     # Existing fields (kept for compatibility)
     project = models.ForeignKey('projects.Project', related_name='funding_schedules', on_delete=models.CASCADE, db_index=True, null=True, blank=True)
-    land_project = models.ForeignKey('land_infra.LandProject', related_name='funding_schedules', on_delete=models.CASCADE, db_index=True, null=True, blank=True)
-    project_type = models.CharField(max_length=10, choices=ProjectType.choices, default=ProjectType.DWELLING)
     councils = models.ManyToManyField('councils.Council', related_name='funding_schedules', blank=True, help_text="Council participants in this funding agreement")
     works = models.ManyToManyField('works.Work', related_name='funding_schedules', blank=True, help_text="Works funded by this schedule (for per-work funding)")
     amount = models.DecimalField(max_digits=12, decimal_places=2)
@@ -440,10 +434,8 @@ class FundingSchedule(models.Model):
 
     @property
     def linked_project(self):
-        """Returns the linked project (either dwelling or land)"""
-        if self.project_type == self.ProjectType.DWELLING:
-            return self.project
-        return self.land_project
+        """Returns the linked project"""
+        return self.project
 
     def clean(self):
         from django.core.exceptions import ValidationError
@@ -452,8 +444,7 @@ class FundingSchedule(models.Model):
             raise ValidationError("payment_rule is required when schedule is not DRAFT")
 
     def __str__(self):
-        project_name = self.project.name if self.project else (self.land_project.name if self.land_project else 'No Project')
-        return f"FundingSchedule for {project_name}: {self.total_funding}"
+        return f"FS#{self.schedule_number} - {self.project.name if self.project else 'No Project'} ({self.get_status_display()})"
 
 
 class ProjectStateLog(models.Model):
@@ -487,7 +478,7 @@ class WorkFunding(models.Model):
         unique_together = ['work', 'funding_schedule']
         constraints = [
             models.CheckConstraint(
-                check=(
+                condition=(
                     models.Q(project__isnull=False, work__isnull=True) |
                     models.Q(project__isnull=True, work__isnull=False)
                 ),

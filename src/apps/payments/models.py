@@ -27,13 +27,12 @@ class Payment(models.Model):
         RELEASED = 'RELEASED', 'Released'
         REJECTED = 'REJECTED', 'Rejected'
 
-    class ProjectType(models.TextChoices):
-        DWELLING = 'DWELLING', 'Dwelling/Construction'
-        LAND = 'LAND', 'Land/Infrastructure'
+    class DocumentSource(models.TextChoices):
+        OPENDOCS = 'OPENDOCS', 'OpenDocs Content Manager'
+        SHARED_DRIVE = 'SHARED_DRIVE', 'Shared Network Drive'
+        LOCAL = 'LOCAL', 'Local Upload'
 
-    project = models.ForeignKey('projects.Project', related_name='payments', on_delete=models.CASCADE, null=True, blank=True)
-    land_project = models.ForeignKey('land_infra.LandProject', related_name='payments', on_delete=models.CASCADE, null=True, blank=True)
-    project_type = models.CharField(max_length=10, choices=ProjectType.choices, default=ProjectType.DWELLING)
+    project = models.ForeignKey('projects.Project', related_name='payments', on_delete=models.CASCADE)
     funding_schedule = models.ForeignKey('funding.FundingSchedule', related_name='payments', on_delete=models.CASCADE)
     
     # Payment calculation type
@@ -92,15 +91,7 @@ class Payment(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        project_name = self.project.name if self.project else (self.land_project.name if self.land_project else 'No Project')
-        return f"{project_name} - {self.get_payment_type_display()} (${self.calculated_amount or self.amount or 0})"
-
-    @property
-    def linked_project(self):
-        """Returns the linked project (either dwelling or land)"""
-        if self.project_type == self.ProjectType.DWELLING:
-            return self.project
-        return self.land_project
+        return f"{self.project.name} - {self.get_payment_type_display()} (${self.calculated_amount or self.amount or 0})"
     
     @property
     def calculated_amount(self):
