@@ -1,0 +1,73 @@
+./portal/configurations.py:36:    UserCreationForm, OfficerForm, OfficerAssignmentForm, FundingApprovalForm,
+./portal/urls.py:146:    path('projects/<int:pk>/assign-officers/', views.OfficerAssignmentView.as_view(), name='officer_assignment'),
+./portal/works.py:36:    UserCreationForm, OfficerForm, OfficerAssignmentForm, FundingApprovalForm,
+./portal/analytics.py:36:    UserCreationForm, OfficerForm, OfficerAssignmentForm, FundingApprovalForm,
+./portal/views.py:33:    OfficerForm, OfficerAssignmentForm, CouncilUserCreationForm, CouncilUserUpdateForm,
+./portal/views.py:3072:class OfficerAssignmentView(LoginRequiredMixin, UpdateView):
+./portal/views.py:3075:    form_class = OfficerAssignmentForm
+./portal/views.py:3082:        original_principal = self.get_object().principal_officer
+./portal/views.py:3083:        original_senior = self.get_object().senior_officer
+./portal/views.py:3371:            if self.object.principal_officer:
+./portal/views.py:3372:                new_project.principal_officer = self.object.principal_officer
+./portal/views.py:3373:            if self.object.senior_officer:
+./portal/views.py:3374:                new_project.senior_officer = self.object.senior_officer
+./portal/addresses.py:36:    UserCreationForm, OfficerForm, OfficerAssignmentForm, FundingApprovalForm,
+./portal/reports.py:36:    UserCreationForm, OfficerForm, OfficerAssignmentForm, FundingApprovalForm,
+./portal/forms/users.py:111:class OfficerAssignmentForm(forms.ModelForm):
+./portal/forms/users.py:116:        fields = ['principal_officer', 'senior_officer']
+./portal/forms/users.py:118:            'principal_officer': forms.Select(attrs={
+./portal/forms/users.py:121:            'senior_officer': forms.Select(attrs={
+./portal/forms/project.py:16:            'principal_officer', 'senior_officer', 'state', 'start_date',
+./portal/forms/project.py:52:            'principal_officer': forms.Select(attrs={
+./portal/forms/project.py:55:            'senior_officer': forms.Select(attrs={
+./portal/forms/project.py:165:                self.fields['principal_officer'].queryset = Officer.objects.filter(
+./portal/forms/project.py:170:                self.fields['senior_officer'].queryset = Officer.objects.filter(
+./portal/forms/project.py:198:                self.fields['principal_officer'].queryset = Officer.objects.filter(
+./portal/forms/project.py:202:                self.fields['senior_officer'].queryset = Officer.objects.filter(
+./portal/forms/core.py:8:    default_principal_officer = forms.ModelChoiceField(
+./portal/forms/core.py:18:    default_senior_officer = forms.ModelChoiceField(
+./portal/forms/core.py:33:            'default_principal_officer', 'default_senior_officer'
+./portal/forms/core.py:46:        self.fields['default_principal_officer'].queryset = all_council_officers.filter(is_principal=True)
+./portal/forms/core.py:47:        self.fields['default_senior_officer'].queryset = all_council_officers.filter(is_senior=True)
+./portal/forms/core.py:51:            self.fields['default_principal_officer'].initial = self.instance.default_principal_officer
+./portal/forms/core.py:52:            self.fields['default_senior_officer'].initial = self.instance.default_senior_officer
+./portal/templates/portal/council_project_detail.html:50:                                        <p class="mb-3">{{ project.principal_officer|default:"Not specified" }}</p>
+./portal/templates/portal/officer_detail.html:122:                                            {% if officer in project.principal_officer.all %}
+./portal/templates/portal/officer_detail.html:125:                                            {% if officer in project.senior_officer.all %}
+./portal/templates/portal/project_form.html:225:                                    <label for="{{ form.principal_officer.id_for_label }}" class="form-label">{{ form.principal_officer.label }}</label>
+./portal/templates/portal/project_form.html:226:                                    {{ form.principal_officer }}
+./portal/templates/portal/project_form.html:227:                                    {% if form.principal_officer.errors %}
+./portal/templates/portal/project_form.html:228:                                        <div class="text-danger">{{ form.principal_officer.errors.0 }}</div>
+./portal/templates/portal/project_form.html:234:                                    <label for="{{ form.senior_officer.id_for_label }}" class="form-label">{{ form.senior_officer.label }}</label>
+./portal/templates/portal/project_form.html:235:                                    {{ form.senior_officer }}
+./portal/templates/portal/project_form.html:236:                                    {% if form.senior_officer.errors %}
+./portal/templates/portal/project_form.html:237:                                        <div class="text-danger">{{ form.senior_officer.errors.0 }}</div>
+./portal/templates/portal/council_form.html:117:                                    <label for="{{ form.default_principal_officer.id_for_label }}" class="form-label">{{ form.default_principal_officer.label }}</label>
+./portal/templates/portal/council_form.html:118:                                    {{ form.default_principal_officer }}
+./portal/templates/portal/council_form.html:119:                                    {% if form.default_principal_officer.errors %}
+./portal/templates/portal/council_form.html:120:                                        <div class="text-danger">{{ form.default_principal_officer.errors.0 }}</div>
+./portal/templates/portal/council_form.html:127:                                    <label for="{{ form.default_senior_officer.id_for_label }}" class="form-label">{{ form.default_senior_officer.label }}</label>
+./portal/templates/portal/council_form.html:128:                                    {{ form.default_senior_officer }}
+./portal/templates/portal/council_form.html:129:                                    {% if form.default_senior_officer.errors %}
+./portal/templates/portal/council_form.html:130:                                        <div class="text-danger">{{ form.default_senior_officer.errors.0 }}</div>
+./portal/templates/portal/project_detail.html:198:                                    <p class="mb-3">{{ project.principal_officer|default:"Not specified" }}</p>
+./portal/trackers.py:36:    UserCreationForm, OfficerForm, OfficerAssignmentForm, FundingApprovalForm,
+./portal/exports.py:36:    UserCreationForm, OfficerForm, OfficerAssignmentForm, FundingApprovalForm,
+./ricd/migrations/0001_initial.py:85:                ('principal_officer', models.CharField(blank=True, max_length=255, null=True)),
+./ricd/migrations/0001_initial.py:86:                ('senior_officer', models.CharField(blank=True, max_length=255, null=True)),
+./ricd/migrations/0018_forwardremoteprogramfundingagreement_and_more.py:52:            name='default_principal_officer',
+./ricd/migrations/0018_forwardremoteprogramfundingagreement_and_more.py:57:            name='default_senior_officer',
+./ricd/migrations/0017_remove_defaultworkstep_work_type_and_more.py:87:            name='principal_officer',
+./ricd/migrations/0017_remove_defaultworkstep_work_type_and_more.py:92:            name='senior_officer',
+./ricd/models/project.py:45:    principal_officer = models.ForeignKey('core.Officer', on_delete=models.SET_NULL, null=True, blank=True, related_name='principal_projects')
+./ricd/models/project.py:46:    senior_officer = models.ForeignKey('core.Officer', on_delete=models.SET_NULL, null=True, blank=True, related_name='senior_projects')
+./ricd/models/project.py:176:        if self.principal_officer and not self.principal_officer.is_principal:
+./ricd/models/project.py:177:            raise ValidationError({'principal_officer': 'Selected officer must be designated as a principal officer'})
+./ricd/models/project.py:179:        if self.senior_officer and not self.senior_officer.is_senior:
+./ricd/models/project.py:180:            raise ValidationError({'senior_officer': 'Selected officer must be designated as a senior officer'})
+./ricd/models/project.py:286:            if not self.principal_officer and self.council.default_principal_officer:
+./ricd/models/project.py:287:                self.principal_officer = self.council.default_principal_officer
+./ricd/models/project.py:288:            if not self.senior_officer and self.council.default_senior_officer:
+./ricd/models/project.py:289:                self.senior_officer = self.council.default_senior_officer
+./ricd/models/core.py:15:    default_principal_officer = models.ForeignKey('Officer', on_delete=models.SET_NULL, null=True, blank=True, related_name='council_principal_defaults')
+./ricd/models/core.py:16:    default_senior_officer = models.ForeignKey('Officer', on_delete=models.SET_NULL, null=True, blank=True, related_name='council_senior_defaults')

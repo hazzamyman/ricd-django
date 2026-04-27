@@ -1,0 +1,40 @@
+# Admin Inline Search Results
+Inline classes found:
+9:class AddressInline(TabularInline):
+13:class WorkInline(TabularInline):
+17:class WorkStepInline(TabularInline):
+87:class InstalmentInline(TabularInline):
+
+inlines assignments:
+23:    inlines = [WorkStepInline]
+79:    inlines = [AddressInline]
+92:    inlines = [InstalmentInline]
+
+TabularInline/StackedInline:
+2:from django.contrib.admin import TabularInline
+9:class AddressInline(TabularInline):
+13:class WorkInline(TabularInline):
+17:class WorkStepInline(TabularInline):
+87:class InstalmentInline(TabularInline):
+
+admin.site.register:
+82:admin.site.register(Council)
+83:admin.site.register(Program)
+84:admin.site.register(Project, ProjectAdmin)
+85:admin.site.register(Address)
+86:admin.site.register(Work, WorkAdmin)
+94:admin.site.register(FundingSchedule, FundingScheduleAdmin)
+95:admin.site.register(Instalment)
+96:admin.site.register(MonthlyTracker)
+97:admin.site.register(QuarterlyReport)
+98:admin.site.register(Contact)
+99:admin.site.register(StageReport)
+100:admin.site.register(DefaultWorkStep)
+101:admin.site.register(ReportAttachment)
+115:admin.site.register(FundingApproval, FundingApprovalAdmin)
+116:admin.site.register(MonthlyReport, MonthlyReportAdmin)
+117:admin.site.register(CouncilQuarterlyReport, QuarterlyReportAdmin)
+159:admin.site.register(User, CustomUserAdmin)
+160:admin.site.register(Group, CustomGroupAdmin)
+
+fk_name:

@@ -1,0 +1,52 @@
+name: Django Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.11'
+    - name: Install dependencies
+      run: |
+        cd testproj
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-django factory_boy python-dateutil
+    - name: Run tests
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_db
+      run: |
+        cd testproj
+        python manage.py test --verbosity=2
+        python -m pytest --version
+        python -m pytest tests/ -v
+    - name: Run Django tests with coverage
+      run: |
+        cd testproj
+        python manage.py test --settings=testproj.settings --verbosity=2
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v1
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: true

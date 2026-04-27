@@ -1,0 +1,29 @@
+name: 🌱 Feature Request
+description: Suggest a new feature or enhancement.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Why do you need this feature? What problem does it solve?
+      placeholder: "We need to track funding approval workflows for multiple councils."
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Solution
+      description: How would you like this implemented?
+      placeholder: "Add a new model 'FundingWorkflow' linked to Council with status tracking."
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any workarounds or other approaches you've tried?
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - Low
+        - Medium
+        - High

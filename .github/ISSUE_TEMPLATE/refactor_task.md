@@ -1,0 +1,29 @@
+name: 🧹 Refactor Task
+description: Request to refactor or reorganize existing code.
+labels: [refactor, maintenance]
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Why is refactoring needed?
+      placeholder: "Form initialization errors due to string model references in ModelForms."
+  - type: textarea
+    id: goal
+    attributes:
+      label: Refactor Goal
+      description: What should the refactored version achieve?
+  - type: textarea
+    id: affected
+    attributes:
+      label: Affected Modules or Files
+      description: List relevant paths.
+      placeholder: "portal/forms/users.py, core/models.py"
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Refactor Risk Level
+      options:
+        - Low
+        - Medium
+        - High

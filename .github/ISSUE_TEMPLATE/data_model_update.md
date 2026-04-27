@@ -1,0 +1,25 @@
+name: 🗂️ Data Model Update
+description: Propose a new or modified model or database relation.
+labels: [database, schema]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary of Change
+      placeholder: "Add 'PrincipalOfficer' relation to UserProfile instead of User model."
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Describe migration or code changes required.
+      placeholder: "Requires migration and update to OfficerAssignmentForm."
+  - type: textarea
+    id: migration
+    attributes:
+      label: Migration Plan
+      description: Steps or commands for data migration.
+  - type: textarea
+    id: rollback
+    attributes:
+      label: Rollback Strategy
+      description: How to safely revert if something breaks.

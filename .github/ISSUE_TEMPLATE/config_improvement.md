@@ -1,0 +1,19 @@
+name: ⚙️ Configuration / Deployment Improvement
+description: Suggest an improvement to deployment, CI/CD, or development configuration.
+labels: [infrastructure]
+body:
+  - type: textarea
+    id: issue
+    attributes:
+      label: Current Issue
+      placeholder: "Roo server fails with MCP error due to missing workspace path."
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Solution
+      placeholder: "Use Docker Compose with environment variables for workspace detection."
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: "Ubuntu 22.04, Docker 27.2, Python 3.11"
