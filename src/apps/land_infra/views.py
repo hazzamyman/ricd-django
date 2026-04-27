@@ -2,17 +2,21 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Count
-from apps.land_infra.models import LandProject, LandTenure, DevelopmentApplication
+from apps.projects.models import Project
+from apps.land_infra.models import LandTenure, DevelopmentApplication
+from apps.councils.models import Council
 
 
 @login_required
 def land_project_list(request):
-    """List all land projects with filters"""
+    """List all land projects (Project.project_type=LAND) with filters"""
     council_id = request.GET.get('council')
     status_filter = request.GET.get('status')
     financial_year = request.GET.get('financial_year')
 
-    land_projects = LandProject.objects.select_related('council').order_by('-created_at')
+    land_projects = Project.objects.filter(
+        project_type=Project.Type.LAND
+    ).select_related('council').order_by('-created_at')
 
     if council_id:
         land_projects = land_projects.filter(council_id=council_id)
@@ -25,9 +29,12 @@ def land_project_list(request):
 
     context = {
         'land_projects': land_projects,
-        'statuses': LandProject.Status.choices,
+        'statuses': Project.State.choices,
         'councils': Council.objects.order_by('name'),
-        'financial_years': sorted(set(LandProject.objects.values_list('financial_year', flat=True).distinct())),
+        'financial_years': sorted(set(
+            Project.objects.filter(project_type=Project.Type.LAND)
+            .values_list('financial_year', flat=True).distinct()
+        )),
     }
     return render(request, 'land_infra/land_project_list.html', context)
 
@@ -36,7 +43,8 @@ def land_project_list(request):
 def land_project_detail(request, project_id):
     """Show land project details"""
     land_project = get_object_or_404(
-        LandProject.objects.select_related('council', 'development_application'),
+        Project.objects.filter(project_type=Project.Type.LAND)
+        .select_related('council', 'development_application'),
         id=project_id
     )
 
@@ -53,20 +61,24 @@ def land_project_detail(request, project_id):
 def land_project_create(request):
     """Create a new land project"""
     if request.method == 'POST':
-        from apps.land_infra.forms import LandProjectForm
-        form = LandProjectForm(request.POST)
-        if form.is_valid():
-            land_project = form.save()
-            messages.success(request, f'Land project "{land_project.name}" created successfully.')
-            return redirect('land_infra:land_project_detail', project_id=land_project.id)
-    else:
-        from apps.land_infra.forms import LandProjectForm
-        form = LandProjectForm()
+        name = request.POST.get('name')
+        council_id = request.POST.get('council')
+        financial_year = request.POST.get('financial_year')
+
+        council = get_object_or_404(Council, id=council_id)
+        
+        project = Project.objects.create(
+            name=name,
+            council=council,
+            project_type=Project.Type.LAND,
+            state=Project.State.PROSPECTIVE,
+            financial_year=financial_year
+        )
+        messages.success(request, f'Land project "{project.name}" created.')
+        return redirect('land_infra:land_project_detail', project_id=project.id)
 
     from apps.councils.models import Council
-
     context = {
-        'form': form,
         'councils': Council.objects.order_by('name'),
     }
     return render(request, 'land_infra/land_project_form.html', context)
@@ -74,25 +86,25 @@ def land_project_create(request):
 
 @login_required
 def land_project_edit(request, project_id):
-    """Edit an existing land project"""
-    land_project = get_object_or_404(LandProject, id=project_id)
+    """Edit a land project"""
+    project = get_object_or_404(
+        Project.objects.filter(project_type=Project.Type.LAND),
+        id=project_id
+    )
 
     if request.method == 'POST':
-        from apps.land_infra.forms import LandProjectForm
-        form = LandProjectForm(request.POST, instance=land_project)
-        if form.is_valid():
-            land_project = form.save()
-            messages.success(request, f'Land project "{land_project.name}" updated successfully.')
-            return redirect('land_infra:land_project_detail', project_id=land_project.id)
-    else:
-        from apps.land_infra.forms import LandProjectForm
-        form = LandProjectForm(instance=land_project)
+        project.name = request.POST.get('name')
+        council_id = request.POST.get('council')
+        financial_year = request.POST.get('financial_year')
+        project.council_id = council_id
+        project.financial_year = financial_year
+        project.save()
+        messages.success(request, f'Land project "{project.name}" updated.')
+        return redirect('land_infra:land_project_detail', project_id=project.id)
 
     from apps.councils.models import Council
-
     context = {
-        'form': form,
-        'land_project': land_project,
+        'land_project': project,
         'councils': Council.objects.order_by('name'),
     }
     return render(request, 'land_infra/land_project_form.html', context)
@@ -101,42 +113,32 @@ def land_project_edit(request, project_id):
 @login_required
 def land_project_delete(request, project_id):
     """Delete a land project"""
-    land_project = get_object_or_404(LandProject, id=project_id)
+    project = get_object_or_404(
+        Project.objects.filter(project_type=Project.Type.LAND),
+        id=project_id
+    )
 
     if request.method == 'POST':
-        name = land_project.name
-        land_project.delete()
-        messages.success(request, f'Land project "{name}" deleted successfully.')
+        project_name = project.name
+        project.delete()
+        messages.success(request, f'Land project "{project_name}" deleted.')
         return redirect('land_infra:land_project_list')
 
-    return render(request, 'land_infra/land_project_confirm_delete.html', {'land_project': land_project})
+    return render(request, 'land_infra/land_project_confirm_delete.html', {'project': project})
 
 
 @login_required
 def land_tenure_list(request):
-    """List all land tenures with filters"""
+    """List all land tenures"""
     council_id = request.GET.get('council')
-    tenure_type = request.GET.get('tenure_type')
-    native_title_status = request.GET.get('native_title_status')
-    is_developed = request.GET.get('is_developed')
 
-    land_tenures = LandTenure.objects.select_related('council', 'parent_lot').order_by('council', 'lot_number', 'plan_number')
+    tenures = LandTenure.objects.select_related('council').order_by('lot_number')
 
     if council_id:
-        land_tenures = land_tenures.filter(council_id=council_id)
-    if tenure_type:
-        land_tenures = land_tenures.filter(tenure_type=tenure_type)
-    if native_title_status:
-        land_tenures = land_tenures.filter(native_title_status=native_title_status)
-    if is_developed:
-        land_tenures = land_tenures.filter(is_developed=is_developed == 'true')
-
-    from apps.councils.models import Council
+        tenures = tenures.filter(council_id=council_id)
 
     context = {
-        'land_tenures': land_tenures,
-        'tenure_types': LandTenure.TenureType.choices,
-        'native_title_statuses': LandTenure.NativeTitleStatus.choices,
+        'land_tenures': tenures,
         'councils': Council.objects.order_by('name'),
     }
     return render(request, 'land_infra/land_tenure_list.html', context)
@@ -145,16 +147,13 @@ def land_tenure_list(request):
 @login_required
 def land_tenure_detail(request, tenure_id):
     """Show land tenure details"""
-    land_tenure = get_object_or_404(
-        LandTenure.objects.select_related('council', 'parent_lot').prefetch_related('subdivided_lots', 'projects'),
+    tenure = get_object_or_404(
+        LandTenure.objects.select_related('council'),
         id=tenure_id
     )
 
-    from apps.councils.models import Council
-
     context = {
-        'land_tenure': land_tenure,
-        'councils': Council.objects.order_by('name'),
+        'land_tenure': tenure,
     }
     return render(request, 'land_infra/land_tenure_detail.html', context)
 
@@ -163,105 +162,82 @@ def land_tenure_detail(request, tenure_id):
 def land_tenure_create(request):
     """Create a new land tenure"""
     if request.method == 'POST':
-        from apps.land_infra.forms import LandTenureForm
-        form = LandTenureForm(request.POST)
-        if form.is_valid():
-            land_tenure = form.save()
-            messages.success(request, f'Land tenure Lot {land_tenure.lot_number} on {land_tenure.plan_number} created successfully.')
-            return redirect('land_infra:land_tenure_detail', tenure_id=land_tenure.id)
-    else:
-        from apps.land_infra.forms import LandTenureForm
-        form = LandTenureForm()
+        council_id = request.POST.get('council')
+        lot_number = request.POST.get('lot_number')
+        plan_number = request.POST.get('plan_number')
+        tenure_type = request.POST.get('tenure_type')
 
-    from apps.councils.models import Council
+        tenure = LandTenure.objects.create(
+            council_id=council_id,
+            lot_number=lot_number,
+            plan_number=plan_number,
+            tenure_type=tenure_type
+        )
+        messages.success(request, f'Land tenure created.')
+        return redirect('land_infra:land_tenure_detail', tenure_id=tenure.id)
 
-    context = {
-        'form': form,
-        'councils': Council.objects.order_by('name'),
-    }
+    context = {}
     return render(request, 'land_infra/land_tenure_form.html', context)
 
 
 @login_required
 def land_tenure_edit(request, tenure_id):
-    """Edit an existing land tenure"""
-    land_tenure = get_object_or_404(LandTenure, id=tenure_id)
+    """Edit a land tenure"""
+    tenure = get_object_or_404(LandTenure, id=tenure_id)
 
     if request.method == 'POST':
-        from apps.land_infra.forms import LandTenureForm
-        form = LandTenureForm(request.POST, instance=land_tenure)
-        if form.is_valid():
-            land_tenure = form.save()
-            messages.success(request, f'Land tenure Lot {land_tenure.lot_number} on {land_tenure.plan_number} updated successfully.')
-            return redirect('land_infra:land_tenure_detail', tenure_id=land_tenure.id)
-    else:
-        from apps.land_infra.forms import LandTenureForm
-        form = LandTenureForm(instance=land_tenure)
+        tenure.council_id = request.POST.get('council')
+        tenure.lot_number = request.POST.get('lot_number')
+        tenure.plan_number = request.POST.get('plan_number')
+        tenure.tenure_type = request.POST.get('tenure_type')
+        tenure.save()
+        messages.success(request, 'Land tenure updated.')
+        return redirect('land_infra:land_tenure_detail', tenure_id=tenure.id)
 
-    from apps.councils.models import Council
-
-    context = {
-        'form': form,
-        'land_tenure': land_tenure,
-        'councils': Council.objects.order_by('name'),
-    }
+    context = {'land_tenure': tenure}
     return render(request, 'land_infra/land_tenure_form.html', context)
 
 
 @login_required
 def land_tenure_delete(request, tenure_id):
     """Delete a land tenure"""
-    land_tenure = get_object_or_404(LandTenure, id=tenure_id)
+    tenure = get_object_or_404(LandTenure, id=tenure_id)
 
     if request.method == 'POST':
-        lot_info = f"Lot {land_tenure.lot_number} on {land_tenure.plan_number}"
-        land_tenure.delete()
-        messages.success(request, f'Land tenure {lot_info} deleted successfully.')
+        tenure.delete()
+        messages.success(request, 'Land tenure deleted.')
         return redirect('land_infra:land_tenure_list')
 
-    return render(request, 'land_infra/land_tenure_confirm_delete.html', {'land_tenure': land_tenure})
+    return render(request, 'land_infra/land_tenure_confirm_delete.html', {'tenure': tenure})
 
 
 @login_required
 def development_application_list(request):
-    """List all development applications with filters"""
+    """List all development applications"""
     council_id = request.GET.get('council')
-    application_type = request.GET.get('application_type')
-    status_filter = request.GET.get('status')
 
-    dev_apps = DevelopmentApplication.objects.select_related('council').prefetch_related('projects').order_by('-created_at')
+    applications = DevelopmentApplication.objects.select_related('council').order_by('-lodgement_date')
 
     if council_id:
-        dev_apps = dev_apps.filter(council_id=council_id)
-    if application_type:
-        dev_apps = dev_apps.filter(application_type=application_type)
-    if status_filter:
-        dev_apps = dev_apps.filter(status=status_filter)
-
-    from apps.councils.models import Council
+        applications = applications.filter(council_id=council_id)
 
     context = {
-        'development_applications': dev_apps,
-        'application_types': DevelopmentApplication.ApplicationType.choices,
-        'statuses': DevelopmentApplication.Status.choices,
+        'development_applications': applications,
         'councils': Council.objects.order_by('name'),
     }
     return render(request, 'land_infra/development_application_list.html', context)
 
 
 @login_required
-def development_application_detail(request, app_id):
+def development_application_detail(request, application_id):
     """Show development application details"""
-    dev_app = get_object_or_404(
-        DevelopmentApplication.objects.select_related('council').prefetch_related('projects'),
-        id=app_id
+    application = get_object_or_404(
+        DevelopmentApplication.objects.select_related('council'),
+        id=application_id
     )
 
-    from apps.councils.models import Council
-
     context = {
-        'development_application': dev_app,
-        'councils': Council.objects.order_by('name'),
+        'development_application': application,
     }
     return render(request, 'land_infra/development_application_detail.html', context)
 
@@ -270,60 +246,50 @@ def development_application_detail(request, app_id):
 def development_application_create(request):
     """Create a new development application"""
     if request.method == 'POST':
-        from apps.land_infra.forms import DevelopmentApplicationForm
-        form = DevelopmentApplicationForm(request.POST)
-        if form.is_valid():
-            dev_app = form.save()
-            messages.success(request, f'Development application "{dev_app.application_reference}" created successfully.')
-            return redirect('land_infra:development_application_detail', app_id=dev_app.id)
-    else:
-        from apps.land_infra.forms import DevelopmentApplicationForm
-        form = DevelopmentApplicationForm()
+        council_id = request.POST.get('council')
+        application_number = request.POST.get('application_number')
+        application_type = request.POST.get('application_type')
+        lodgement_date = request.POST.get('lodgement_date')
 
-    from apps.councils.models import Council
+        application = DevelopmentApplication.objects.create(
+            council_id=council_id,
+            application_number=application_number,
+            application_type=application_type,
+            lodgement_date=lodgement_date
+        )
+        messages.success(request, 'Development application created.')
+        return redirect('land_infra:development_application_detail', application_id=application.id)
 
-    context = {
-        'form': form,
-        'councils': Council.objects.order_by('name'),
-    }
+    context = {}
     return render(request, 'land_infra/development_application_form.html', context)
 
 
 @login_required
-def development_application_edit(request, app_id):
-    """Edit an existing development application"""
-    dev_app = get_object_or_404(DevelopmentApplication, id=app_id)
+def development_application_edit(request, application_id):
+    """Edit a development application"""
+    application = get_object_or_404(DevelopmentApplication, id=application_id)
 
     if request.method == 'POST':
-        from apps.land_infra.forms import DevelopmentApplicationForm
-        form = DevelopmentApplicationForm(request.POST, instance=dev_app)
-        if form.is_valid():
-            dev_app = form.save()
-            messages.success(request, f'Development application "{dev_app.application_reference}" updated successfully.')
-            return redirect('land_infra:development_application_detail', app_id=dev_app.id)
-    else:
-        from apps.land_infra.forms import DevelopmentApplicationForm
-        form = DevelopmentApplicationForm(instance=dev_app)
+        application.council_id = request.POST.get('council')
+        application.application_number = request.POST.get('application_number')
+        application.application_type = request.POST.get('application_type')
+        application.lodgement_date = request.POST.get('lodgement_date')
+        application.save()
+        messages.success(request, 'Development application updated.')
+        return redirect('land_infra:development_application_detail', application_id=application.id)
 
-    from apps.councils.models import Council
-
-    context = {
-        'form': form,
-        'development_application': dev_app,
-        'councils': Council.objects.order_by('name'),
-    }
+    context = {'development_application': application}
     return render(request, 'land_infra/development_application_form.html', context)
 
 
 @login_required
-def development_application_delete(request, app_id):
+def development_application_delete(request, application_id):
     """Delete a development application"""
-    dev_app = get_object_or_404(DevelopmentApplication, id=app_id)
+    application = get_object_or_404(DevelopmentApplication, id=application_id)
 
     if request.method == 'POST':
-        ref = dev_app.application_reference
-        dev_app.delete()
-        messages.success(request, f'Development application "{ref}" deleted successfully.')
+        application.delete()
+        messages.success(request, 'Development application deleted.')
         return redirect('land_infra:development_application_list')
 
-    return render(request, 'land_infra/development_application_confirm_delete.html', {'development_application': dev_app})
+    return render(request, 'land_infra/development_application_confirm_delete.html', {'application': application})

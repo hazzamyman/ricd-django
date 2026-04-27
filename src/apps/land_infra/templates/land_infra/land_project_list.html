@@ -75,17 +75,17 @@
                             </td>
                             <td>{{ lp.council.name }}</td>
                             <td>
-                                {% if lp.status == 'PROS' %}
+                                {% if lp.state == 'PROS' %}
                                 <span class="badge bg-secondary">Prospective</span>
-                                {% elif lp.status == 'PROG' %}
+                                {% elif lp.state == 'PROG' %}
                                 <span class="badge bg-info">Programmed</span>
-                                {% elif lp.status == 'FUND' %}
+                                {% elif lp.state == 'FUND' %}
                                 <span class="badge bg-primary">Funded</span>
-                                {% elif lp.status == 'COMM' %}
+                                {% elif lp.state == 'COMM' %}
                                 <span class="badge bg-warning text-dark">Commenced</span>
-                                {% elif lp.status == 'WU' %}
+                                {% elif lp.state == 'WU' %}
                                 <span class="badge bg-warning text-dark">Works Underway</span>
-                                {% elif lp.status == 'COMP' %}
+                                {% elif lp.state == 'COMP' %}
                                 <span class="badge bg-success">Completed</span>
                                 {% endif %}
                             </td>

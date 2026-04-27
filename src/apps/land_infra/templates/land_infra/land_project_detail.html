@@ -25,17 +25,17 @@
             <div class="row">
                 <div class="col-md-3">
                     <p class="mb-1"><strong>Status</strong></p>
-                    {% if land_project.status == 'PROS' %}
+                    {% if land_project.state == 'PROS' %}
                     <span class="badge bg-secondary">Prospective</span>
-                    {% elif land_project.status == 'PROG' %}
+                    {% elif land_project.state == 'PROG' %}
                     <span class="badge bg-info">Programmed</span>
-                    {% elif land_project.status == 'FUND' %}
+                    {% elif land_project.state == 'FUND' %}
                     <span class="badge bg-primary">Funded</span>
-                    {% elif land_project.status == 'COMM' %}
+                    {% elif land_project.state == 'COMM' %}
                     <span class="badge bg-warning text-dark">Commenced</span>
-                    {% elif land_project.status == 'WU' %}
+                    {% elif land_project.state == 'WU' %}
                     <span class="badge bg-warning text-dark">Works Underway</span>
-                    {% elif land_project.status == 'COMP' %}
+                    {% elif land_project.state == 'COMP' %}
                     <span class="badge bg-success">Completed</span>
                     {% endif %}
                 </div>
