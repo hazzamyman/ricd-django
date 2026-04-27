@@ -89,6 +89,8 @@ def land_project_create(request):
 @login_required
 def land_project_edit(request, project_id):
     """Edit a land project"""
+    from apps.programs.models import Program
+    
     project = get_object_or_404(
         Project.objects.filter(project_type=Project.Type.LAND),
         id=project_id
@@ -98,15 +100,19 @@ def land_project_edit(request, project_id):
         project.name = request.POST.get('name')
         council_id = request.POST.get('council')
         financial_year = request.POST.get('financial_year')
+        program_id = request.POST.get('program')
         project.council_id = council_id
         project.financial_year = financial_year
+        project.program_id = program_id
         project.save()
         messages.success(request, f'Land project "{project.name}" updated.')
         return redirect('land_infra:land_project_detail', project_id=project.id)
 
+    from apps.programs.models import Program
     context = {
         'land_project': project,
         'councils': Council.objects.order_by('name'),
+        'programs': Program.objects.all(),
     }
     return render(request, 'land_infra/land_project_form.html', context)
 

@@ -35,15 +35,15 @@ class TestLandProjectViews:
         response = authenticated_client.get('/land/land-projects/create/')
         assert response.status_code in [200, 302, 404]
     
-    def test_land_project_create_post(self, authenticated_client, council):
+    def test_land_project_create_post(self, authenticated_client, council, program):
         """Test creating a land project via form"""
         response = authenticated_client.post('/land/land-projects/create/', {
             'name': 'New Land Project',
             'council': council.id,
-            'status': 'PROS',
+            'program': program.id,
             'financial_year': '2025-26'
         }, follow=True)
-        assert response.status_code in [200, 302, 500]  # 500 = view error
+        assert response.status_code in [200, 302]
     
     def test_land_project_detail_view(self, authenticated_client, land_project):
         """Test land project detail page loads"""
@@ -144,7 +144,7 @@ class TestDevelopmentApplicationViews:
             'council': council.id,
             'application_reference': 'DA-2025-TEST',
             'application_type': 'DA',
-            'lodgement_date': '2025-01-01'
+            'lodged_date': '2025-01-01'
         }, follow=True)
         assert response.status_code in [200, 302]
     
