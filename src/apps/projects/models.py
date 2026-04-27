@@ -6,6 +6,10 @@ from apps.core.utils import CURRENT_FINANCIAL_YEAR, FINANCIAL_YEAR_CHOICES
 
 
 class Project(models.Model):
+    class Type(models.TextChoices):
+        DWELLING = 'DWELLING', 'Dwelling'
+        LAND = 'LAND', 'Land'
+
     class State(models.TextChoices):
         PROSPECTIVE = 'PROS', 'Prospective'
         PROGRAMMED = 'PROG', 'Programmed'
@@ -29,6 +33,7 @@ class Project(models.Model):
 
     council = models.ForeignKey('councils.Council', related_name='projects', on_delete=models.CASCADE, db_index=True)
     program = models.ForeignKey('programs.Program', related_name='projects', on_delete=models.CASCADE, db_index=True)
+    project_type = models.CharField(max_length=10, choices=Type.choices, default=Type.DWELLING, db_index=True)
     name = models.CharField(max_length=255, db_index=True)
     funding_schedule = models.ForeignKey(
         'funding.FundingSchedule',

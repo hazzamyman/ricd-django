@@ -469,9 +469,12 @@ class ProjectStateLog(models.Model):
 
 
 class WorkFunding(models.Model):
-    """Per-work funding details for cost centre/GL/tax tracking"""
-    work = models.ForeignKey('works.Work', related_name='funding_details', on_delete=models.CASCADE)
+    """Per-work funding details for cost centre/GL/tax tracking.
+    Allocation model: references exactly one of project OR work (DB CHECK).
+    """
     funding_schedule = models.ForeignKey(FundingSchedule, related_name='work_fundings', on_delete=models.CASCADE)
+    project = models.ForeignKey('projects.Project', related_name='funding_allocations', null=True, blank=True, on_delete=models.CASCADE, help_text="Project allocation (use OR work, not both)")
+    work = models.ForeignKey('works.Work', related_name='funding_details', null=True, blank=True, on_delete=models.CASCADE, help_text="Work allocation (use OR project, not both)")
     cost_centre = models.CharField(max_length=50, blank=True, help_text="Cost centre code (e.g., 316333)")
     gl_code = models.CharField(max_length=50, blank=True, help_text="GL code from program")
     tax_code = models.CharField(max_length=20, blank=True, help_text="Tax code (e.g., GST, FBT)")
@@ -482,10 +485,21 @@ class WorkFunding(models.Model):
 
     class Meta:
         unique_together = ['work', 'funding_schedule']
+        constraints = [
+            models.CheckConstraint(
+                check=(
+                    models.Q(project__isnull=False, work__isnull=True) |
+                    models.Q(project__isnull=True, work__isnull=False)
+                ),
+                name="workfunding_project_xor_work"
+            ),
+        ]
 
     def __str__(self):
-        work_name = f"{self.work.work_type.name if self.work.work_type else self.work.work_type_other}"
-        return f"WorkFunding: {work_name} → {self.cost_centre or 'No CC'}"
+        if self.work:
+            work_name = f"{self.work.work_type.name if self.work.work_type else self.work.work_type_other}"
+            return f"WorkFunding: {work_name} → {self.cost_centre or 'No CC'}"
+        return f"WorkFunding: Project {self.project_id} → {self.cost_centre or 'No CC'}"
 
 
 # ============================================================================
