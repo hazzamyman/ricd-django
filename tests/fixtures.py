@@ -311,12 +311,11 @@ def defect(project):
 
 
 @pytest.fixture
-def work_land(land_project, work_type):
+def work_land(project, work_type):
     """Create a test work for land project"""
     from apps.works.models import Work
     return Work.objects.create(
-        land_project=land_project,
-        project_type=Work.ProjectType.LAND,
+        project=project,
         work_type=work_type,
         quantity=1,
         estimated_cost=Decimal('500000.00'),
@@ -334,7 +333,6 @@ def payment(project, funding_schedule):
     from apps.payments.models import Payment
     return Payment.objects.create(
         project=project,
-        project_type=Payment.ProjectType.DWELLING,
         funding_schedule=funding_schedule,
         calculation_type=Payment.CalculationType.PERCENTAGE,
         percentage=Decimal('30.00'),
@@ -354,7 +352,58 @@ def contract(project):
     from apps.contracts.models import Contract
     return Contract.objects.create(
         project=project,
-        project_type=Contract.ProjectType.DWELLING,
+        contract_status=Contract.ContractStatus.DRAFT,
+        title="Test Funding Agreement",
+        start_date=date(2025, 1, 1),
+        end_date=date(2026, 12, 31)
+    )
+
+
+# ============================================================================
+# DEFECT FIXTURES
+# ============================================================================
+
+@pytest.fixture
+def defect(project):
+    """Create a test defect"""
+    from apps.defects.models import Defect
+    return Defect.objects.create(
+        project=project,
+        description="Missing tap washer",
+        identified_date=date(2025, 3, 1),
+        defects_liability_expiry=date(2026, 3, 1)
+    )
+
+
+# ============================================================================
+# PAYMENT FIXTURES
+# ============================================================================
+
+@pytest.fixture
+def payment(project, funding_schedule):
+    """Create a test payment"""
+    from apps.payments.models import Payment
+    return Payment.objects.create(
+        project=project,
+        funding_schedule=funding_schedule,
+        calculation_type=Payment.CalculationType.PERCENTAGE,
+        percentage=Decimal('30.00'),
+        payment_type=Payment.PaymentType.FIRST,
+        payment_split=Payment.PaymentSplit.STANDARD,
+        status=Payment.Status.PENDING
+    )
+
+
+# ============================================================================
+# CONTRACT FIXTURES
+# ============================================================================
+
+@pytest.fixture
+def contract(project):
+    """Create a test contract"""
+    from apps.contracts.models import Contract
+    return Contract.objects.create(
+        project=project,
         contract_status=Contract.ContractStatus.DRAFT,
         title="Test Funding Agreement",
         start_date=date(2025, 1, 1),
@@ -372,23 +421,6 @@ def contract_meeting(contract):
         meeting_date=datetime(2025, 2, 1, 10, 0),
         location="Council Chambers",
         attendees="Mayor, CEO, RICD Officer"
-    )
-
-
-# ============================================================================
-# DEFECT FIXTURES
-# ============================================================================
-
-@pytest.fixture
-def defect(project):
-    """Create a test defect"""
-    from apps.defects.models import Defect
-    return Defect.objects.create(
-        project=project,
-        project_type=Defect.ProjectType.DWELLING,
-        description="Missing tap washer",
-        identified_date=date(2025, 3, 1),
-        defects_liability_expiry=date(2026, 3, 1)
     )
 
 

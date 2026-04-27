@@ -57,7 +57,14 @@ class Project(models.Model):
     stage1_sunset_date = models.DateField(null=True, blank=True)
     stage2_sunset_date = models.DateField(null=True, blank=True)
     state = models.CharField(max_length=4, choices=State.choices, default=State.PROSPECTIVE, db_index=True)
-    dwelling_status = models.CharField(max_length=4, choices=DwellingStatus.choices, default=DwellingStatus.PROSPECTIVE, db_index=True)
+    dwelling_status = models.CharField(
+        max_length=4,
+        choices=DwellingStatus.choices,
+        default=None,
+        null=True,
+        blank=True,
+        db_index=True
+    )
     status_flag = models.CharField(max_length=2, choices=StatusFlag.choices, default=StatusFlag.ON_TRACK, db_index=True)
 
     land_parcels = models.ManyToManyField('land_infra.LandTenure', related_name='projects', blank=True)
