@@ -254,13 +254,13 @@ def development_application_create(request):
     """Create a new development application"""
     if request.method == 'POST':
         council_id = request.POST.get('council')
-        application_number = request.POST.get('application_number')
+        application_reference = request.POST.get('application_reference')
         application_type = request.POST.get('application_type')
         lodged_date = request.POST.get('lodged_date')
 
         application = DevelopmentApplication.objects.create(
             council_id=council_id,
-            application_number=application_number,
+            application_reference=application_reference,
             application_type=application_type,
             lodged_date=lodged_date
         )
@@ -278,7 +278,7 @@ def development_application_edit(request, application_id):
 
     if request.method == 'POST':
         application.council_id = request.POST.get('council')
-        application.application_number = request.POST.get('application_number')
+        application.application_reference = request.POST.get('application_reference')
         application.application_type = request.POST.get('application_type')
         application.lodged_date = request.POST.get('lodged_date')
         application.save()
