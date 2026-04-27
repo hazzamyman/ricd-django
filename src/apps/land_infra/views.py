@@ -212,7 +212,7 @@ def development_application_list(request):
     """List all development applications"""
     council_id = request.GET.get('council')
 
-    applications = DevelopmentApplication.objects.select_related('council').order_by('-lodgement_date')
+    applications = DevelopmentApplication.objects.select_related('council').order_by('-lodged_date')
 
     if council_id:
         applications = applications.filter(council_id=council_id)
@@ -245,13 +245,13 @@ def development_application_create(request):
         council_id = request.POST.get('council')
         application_number = request.POST.get('application_number')
         application_type = request.POST.get('application_type')
-        lodgement_date = request.POST.get('lodgement_date')
+        lodged_date = request.POST.get('lodged_date')
 
         application = DevelopmentApplication.objects.create(
             council_id=council_id,
             application_number=application_number,
             application_type=application_type,
-            lodgement_date=lodgement_date
+            lodged_date=lodged_date
         )
         messages.success(request, 'Development application created.')
         return redirect('land_infra:development_application_detail', application_id=application.id)
@@ -269,7 +269,7 @@ def development_application_edit(request, application_id):
         application.council_id = request.POST.get('council')
         application.application_number = request.POST.get('application_number')
         application.application_type = request.POST.get('application_type')
-        application.lodgement_date = request.POST.get('lodgement_date')
+        application.lodged_date = request.POST.get('lodged_date')
         application.save()
         messages.success(request, 'Development application updated.')
         return redirect('land_infra:development_application_detail', application_id=application.id)

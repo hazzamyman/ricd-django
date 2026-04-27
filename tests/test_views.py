@@ -181,11 +181,12 @@ class TestLandProjectPermissions:
         response = council_user_client.get('/land/land-projects/')
         assert response.status_code in [200, 302, 404]
     
-    def test_council_user_can_create_land_projects(self, council_user_client, council):
+    def test_council_user_can_create_land_projects(self, council_user_client, council, program):
         """Council users may not create land projects"""
         response = council_user_client.post('/land/land-projects/create/', {
             'name': 'Test Land Project',
             'council': council.id,
-            'financial_year': '2025-26'
+            'financial_year': '2025-26',
+            'program': program.id
         })
         assert response.status_code in [200, 302, 403, 404]
