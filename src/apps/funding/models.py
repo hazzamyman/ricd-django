@@ -102,6 +102,85 @@ class BriefFinancialApproval(models.Model):
         return self.funding_amount + self.contingency_amount
 
 
+# ============================================================================
+# FundingNotice - Capped payment pathway (alternative to FundingSchedule)
+# ============================================================================
+
+class FundingNotice(models.Model):
+    class Status(models.TextChoices):
+        OPEN = 'OPEN', 'Open'
+        CLOSED = 'CLOSED', 'Closed'
+
+    project = models.ForeignKey('projects.Project', related_name='funding_notices', on_delete=models.CASCADE)
+    capped_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0, help_text="Maximum funding available")
+    issued_date = models.DateField(null=True, blank=True)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.OPEN)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-issued_date']
+        unique_together = ['project', 'issued_date']
+
+    def __str__(self):
+        return f"FundingNotice {self.project.name} - ${self.capped_amount:,.2f} ({self.status})"
+
+    @property
+    def approved_claims_total(self):
+        from decimal import Decimal
+        claims = self.claims.filter(status='APPROVED')
+        return sum((c.amount for c in claims), Decimal('0'))
+
+    @property
+    def remaining(self):
+        return self.capped_amount - self.approved_claims_total
+
+    @property
+    def is_exhausted(self):
+        return self.approved_claims_total >= self.capped_amount
+
+
+# ============================================================================
+# ExpenseClaim - Against FundingNotice
+# ============================================================================
+
+class ExpenseClaim(models.Model):
+    class Status(models.TextChoices):
+        DRAFT = 'DRAFT', 'Draft'
+        SUBMITTED = 'SUBMITTED', 'Submitted'
+        APPROVED = 'APPROVED', 'Approved'
+        REJECTED = 'REJECTED', 'Rejected'
+
+    funding_notice = models.ForeignKey(FundingNotice, related_name='claims', on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    date_submitted = models.DateField(null=True, blank=True)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT)
+    approved_by = models.ForeignKey(User, related_name='expense_approvals', null=True, blank=True, on_delete=models.SET_NULL)
+    approved_date = models.DateField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-date_submitted']
+
+    def __str__(self):
+        return f"ExpenseClaim ${self.amount} for {self.funding_notice.project.name} ({self.status})"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        # Check cap not exceeded
+        if self.funding_notice and self.status != self.Status.DRAFT:
+            new_total = self.funding_notice.approved_claims_total + self.amount
+            if new_total > self.funding_notice.capped_amount:
+                raise ValidationError(
+                    f"Claim ${self.amount} would exceed notice cap. "
+                    f"Approved: ${self.funding_notice.approved_claims_total:,.2f}, "
+                    f"Cap: ${self.funding_notice.capped_amount:,.2f}"
+                )
+
+
 class Delegation(models.Model):
     """Financial delegation thresholds for positions"""
     class Position(models.TextChoices):
