@@ -57,17 +57,21 @@ def land_project_detail(request, project_id):
 def land_project_create(request):
     """Create a new land project"""
     from apps.core.utils import CURRENT_FINANCIAL_YEAR
+    from apps.programs.models import Program
     
     if request.method == 'POST':
         name = request.POST.get('name')
         council_id = request.POST.get('council')
         financial_year = request.POST.get('financial_year') or CURRENT_FINANCIAL_YEAR
+        program_id = request.POST.get('program')
 
         council = get_object_or_404(Council, id=council_id)
+        program = Program.objects.get(id=program_id) if program_id else Program.objects.first()
         
         project = Project.objects.create(
             name=name,
             council=council,
+            program=program,
             project_type=Project.Type.LAND,
             state=Project.State.PROSPECTIVE,
             financial_year=financial_year
@@ -77,6 +81,7 @@ def land_project_create(request):
 
     context = {
         'councils': Council.objects.order_by('name'),
+        'programs': Program.objects.all(),
     }
     return render(request, 'land_infra/land_project_form.html', context)
 
