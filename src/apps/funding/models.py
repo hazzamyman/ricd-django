@@ -486,3 +486,101 @@ class WorkFunding(models.Model):
     def __str__(self):
         work_name = f"{self.work.work_type.name if self.work.work_type else self.work.work_type_other}"
         return f"WorkFunding: {work_name} → {self.cost_centre or 'No CC'}"
+
+
+# ============================================================================
+# Generic Approval - Unified governance approval system
+# ============================================================================
+
+class Approval(models.Model):
+    class ApprovalType(models.TextChoices):
+        FINANCIAL = 'FINANCIAL', 'Financial'
+        CONTRACT = 'CONTRACT', 'Contract'
+        PAYMENT = 'PAYMENT', 'Payment'
+        REPORT = 'REPORT', 'Report'
+        VARIATION = 'VARIATION', 'Variation'
+
+    class RequiredRole(models.TextChoices):
+        MANAGER = 'MGR', 'Manager'
+        DIRECTOR = 'DIR', 'Director'
+        GM = 'GM', 'General Manager'
+        DELEGATE = 'DELEGATE', 'Delegate'
+
+    class Status(models.TextChoices):
+        PENDING = 'PENDING', 'Pending'
+        APPROVED = 'APPROVED', 'Approved'
+        REJECTED = 'REJECTED', 'Rejected'
+
+    entity_type = models.CharField(max_length=50, help_text="Model name (e.g., 'projects.Project')")
+    entity_id = models.PositiveIntegerField(help_text="PK of the entity")
+    approval_type = models.CharField(max_length=20, choices=ApprovalType.choices)
+    required_role = models.CharField(max_length=10, choices=RequiredRole.choices)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    approved_by = models.ForeignKey(User, related_name='approvals_given', null=True, blank=True, on_delete=models.SET_NULL)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    comments = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['entity_type', 'entity_id']),
+        ]
+
+    def __str__(self):
+        return f"Approval {self.approval_type} for {self.entity_type}:{self.entity_id} ({self.status})"
+
+
+# ============================================================================
+# WorkflowAction - Immutable event log (NOT decision authority)
+# ============================================================================
+
+class WorkflowAction(models.Model):
+    class ActionType(models.TextChoices):
+        CREATE = 'CREATE', 'Created'
+        UPDATE = 'UPDATE', 'Updated'
+        APPROVE = 'APPROVE', 'Approved'
+        REJECT = 'REJECT', 'Rejected'
+        RELEASE_PAYMENT = 'RELEASE_PAYMENT', 'Payment Released'
+        EXECUTE_VARIATION = 'EXECUTE_VARIATION', 'Variation Executed'
+
+    entity_type = models.CharField(max_length=50)
+    entity_id = models.PositiveIntegerField()
+    action_type = models.CharField(max_length=20, choices=ActionType.choices)
+    performed_by = models.ForeignKey(User, related_name='workflow_actions', null=True, blank=True, on_delete=models.SET_NULL)
+    performed_at = models.DateTimeField(default=timezone.now)
+    metadata_json = models.JSONField(default=dict, blank=True, help_text="Free-form: rationale, external ticket IDs, etc.")
+
+    class Meta:
+        ordering = ['-performed_at']
+        indexes = [
+            models.Index(fields=['entity_type', 'entity_id']),
+        ]
+
+    def __str__(self):
+        return f"{self.action_type} on {self.entity_type}:{self.entity_id} at {self.performed_at}"
+
+
+# ============================================================================
+# AuditLog - Low-level immutable change log
+# ============================================================================
+
+class AuditLog(models.Model):
+    user = models.ForeignKey(User, related_name='audit_logs', null=True, blank=True, on_delete=models.SET_NULL)
+    timestamp = models.DateTimeField(default=timezone.now, db_index=True)
+    entity_type = models.CharField(max_length=50, db_index=True)
+    entity_id = models.PositiveIntegerField(db_index=True)
+    action = models.CharField(max_length=20, help_text="CREATE, UPDATE, DELETE")
+    before_json = models.JSONField(default=dict, blank=True)
+    after_json = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['entity_type', 'entity_id']),
+            models.Index(fields=['timestamp']),
+        ]
+
+    def __str__(self):
+        return f"{self.action} on {self.entity_type}:{self.entity_id} by {self.user}"
