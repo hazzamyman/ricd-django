@@ -7,12 +7,12 @@ class ProjectForm(forms.ModelForm):
     class Meta:
         model = Project
         fields = [
-            'name', 'council', 'program', 'funding_schedule',
+            'name', 'council', 'program', 'project_type',
             'financial_year', 'start_date', 'funding_approval_date',
             'stage1_target_date', 'stage2_target_date',
             'stage1_sunset_date', 'stage2_sunset_date',
             'state', 'dwelling_status', 'status_flag',
-            'land_project', 'land_parcels',
+            'land_parcels',
             'lease_signed_date', 'completion_date',
             'handover_checklist_link', 'warranty_end_date',
         ]
@@ -20,7 +20,7 @@ class ProjectForm(forms.ModelForm):
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Project name'}),
             'council': forms.Select(attrs={'class': 'form-select'}),
             'program': forms.Select(attrs={'class': 'form-select'}),
-            'funding_schedule': forms.Select(attrs={'class': 'form-select'}),
+            'project_type': forms.Select(attrs={'class': 'form-select'}),
             'financial_year': forms.Select(attrs={'class': 'form-select'}),
             'start_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'funding_approval_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
@@ -31,7 +31,6 @@ class ProjectForm(forms.ModelForm):
             'state': forms.Select(attrs={'class': 'form-select'}),
             'dwelling_status': forms.Select(attrs={'class': 'form-select'}),
             'status_flag': forms.Select(attrs={'class': 'form-select'}),
-            'land_project': forms.Select(attrs={'class': 'form-select'}),
             'land_parcels': forms.SelectMultiple(attrs={'class': 'form-select'}),
             'lease_signed_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'completion_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),

@@ -7,14 +7,12 @@ class FundingScheduleForm(forms.ModelForm):
     class Meta:
         model = FundingSchedule
         fields = [
-            'project_type', 'project', 'land_project', 'councils', 'works',
+            'project', 'councils', 'works',
             'amount', 'contingency', 'payment_split',
             'notional_total', 'actual_total',
         ]
         widgets = {
-            'project_type': forms.Select(attrs={'class': 'form-select'}),
             'project': forms.Select(attrs={'class': 'form-select'}),
-            'land_project': forms.Select(attrs={'class': 'form-select'}),
             'councils': forms.CheckboxSelectMultiple(attrs={'class': 'form-check'}),
             'works': forms.CheckboxSelectMultiple(attrs={'class': 'form-check'}),
             'amount': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '0.00', 'step': '0.01'}),
@@ -28,9 +26,6 @@ class FundingScheduleForm(forms.ModelForm):
         cleaned_data = super().clean()
         amount = cleaned_data.get('amount')
         contingency = cleaned_data.get('contingency')
-        project_type = cleaned_data.get('project_type')
-        project = cleaned_data.get('project')
-        land_project = cleaned_data.get('land_project')
         
         if amount is not None and amount < 0:
             raise ValidationError('Amount cannot be negative.')
@@ -41,12 +36,6 @@ class FundingScheduleForm(forms.ModelForm):
         if amount is not None and contingency is not None:
             if amount > 0 and contingency > (amount * 0.5):
                 raise ValidationError('Contingency exceeds 50% of the amount. Please verify.')
-        
-        if project_type == FundingSchedule.ProjectType.DWELLING and not project:
-            raise ValidationError('Please select a Dwelling Project.')
-        
-        if project_type == FundingSchedule.ProjectType.LAND and not land_project:
-            raise ValidationError('Please select a Land/Infrastructure Project.')
         
         return cleaned_data
 

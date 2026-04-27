@@ -36,6 +36,15 @@ class PaymentRule(models.Model):
             total_pct = sum(m.get('percentage', 0) for m in milestones)
             if total_pct != 100:
                 raise ValidationError(f"SPLIT milestones must total 100%, got {total_pct}%")
+        # Immutability: once linked to any FundingSchedule, cannot be modified
+        if self.pk:
+            from apps.core.business_rules import check_payment_rule_immutable
+            existing = PaymentRule.objects.filter(pk=self.pk).first()
+            if existing and check_payment_rule_immutable(existing):
+                raise ValidationError(
+                    f"PaymentRule '{self.name}' is immutable — it is already linked to "
+                    "one or more FundingSchedules. Create a new version instead."
+                )
 
 
 # ============================================================================
@@ -170,13 +179,21 @@ class ExpenseClaim(models.Model):
 
     def clean(self):
         from django.core.exceptions import ValidationError
-        # Check cap not exceeded
+        from apps.core.business_rules import get_approved_claims_total
+        
+        # Check cap not exceeded (exclude current row when updating)
         if self.funding_notice and self.status != self.Status.DRAFT:
-            new_total = self.funding_notice.approved_claims_total + self.amount
+            approved_total = get_approved_claims_total(self.funding_notice)
+            # When updating an existing APPROVED claim, exclude it from the sum
+            if self.pk:
+                existing = ExpenseClaim.objects.filter(pk=self.pk, status=self.Status.APPROVED).first()
+                if existing:
+                    approved_total -= existing.amount
+            new_total = approved_total + self.amount
             if new_total > self.funding_notice.capped_amount:
                 raise ValidationError(
                     f"Claim ${self.amount} would exceed notice cap. "
-                    f"Approved: ${self.funding_notice.approved_claims_total:,.2f}, "
+                    f"Approved: ${approved_total:,.2f}, "
                     f"Cap: ${self.funding_notice.capped_amount:,.2f}"
                 )
 
@@ -439,9 +456,19 @@ class FundingSchedule(models.Model):
 
     def clean(self):
         from django.core.exceptions import ValidationError
+        from apps.core.business_rules import check_brief_financial_approval
+        
         # payment_rule required when moving beyond DRAFT
         if self.status != self.Status.DRAFT and not self.payment_rule:
             raise ValidationError("payment_rule is required when schedule is not DRAFT")
+        
+        # BriefFinancialApproval must be APPROVED before FS creation
+        if self.project and self._state.adding:
+            if not check_brief_financial_approval(self.project):
+                raise ValidationError(
+                    f"Project '{self.project.name}' requires an APPROVED BriefFinancialApproval "
+                    "before a FundingSchedule can be created."
+                )
 
     def __str__(self):
         return f"FS#{self.schedule_number} - {self.project.name if self.project else 'No Project'} ({self.get_status_display()})"

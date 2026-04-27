@@ -7,26 +7,19 @@ class WorkForm(forms.ModelForm):
     class Meta:
         model = Work
         fields = [
-            'project_type', 'address', 'project', 'land_project',
+            'address', 'project',
             'work_type', 'work_type_other', 'bedrooms', 'quantity', 'estimated_cost', 'status',
-            'bathrooms', 'kitchens', 'living_rooms',
-            'residence_plc_ref', 'is_notional_cost', 'actual_cost',
+            'is_notional_cost', 'actual_cost',
         ]
         widgets = {
-            'project_type': forms.Select(attrs={'class': 'form-select'}),
             'address': forms.Select(attrs={'class': 'form-select'}),
             'project': forms.Select(attrs={'class': 'form-select'}),
-            'land_project': forms.Select(attrs={'class': 'form-select'}),
             'work_type': forms.Select(attrs={'class': 'form-select'}),
             'work_type_other': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'If Other, specify type'}),
             'bedrooms': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
             'quantity': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
             'estimated_cost': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '0.00', 'step': '0.01'}),
             'status': forms.Select(attrs={'class': 'form-select'}),
-            'bathrooms': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
-            'kitchens': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
-            'living_rooms': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
-            'residence_plc_ref': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'PLC reference'}),
             'is_notional_cost': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'actual_cost': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '0.00', 'step': '0.01'}),
         }
@@ -40,9 +33,7 @@ class WorkForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        project_type = cleaned_data.get('project_type')
         project = cleaned_data.get('project')
-        land_project = cleaned_data.get('land_project')
         
         quantity = cleaned_data.get('quantity')
         estimated_cost = cleaned_data.get('estimated_cost')
@@ -62,11 +53,8 @@ class WorkForm(forms.ModelForm):
         if not work_type and not work_type_other:
             raise ValidationError('Please select a work type or specify "Other".')
         
-        if project_type == Work.ProjectType.DWELLING and not project:
-            raise ValidationError('Please select a Dwelling Project.')
-        
-        if project_type == Work.ProjectType.LAND and not land_project:
-            raise ValidationError('Please select a Land/Infrastructure Project.')
+        if not project:
+            raise ValidationError('Please select a project.')
         
         return cleaned_data
 
