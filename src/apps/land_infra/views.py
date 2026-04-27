@@ -25,8 +25,6 @@ def land_project_list(request):
     if financial_year:
         land_projects = land_projects.filter(financial_year=financial_year)
 
-    from apps.councils.models import Council
-
     context = {
         'land_projects': land_projects,
         'statuses': Project.State.choices,
@@ -48,8 +46,6 @@ def land_project_detail(request, project_id):
         id=project_id
     )
 
-    from apps.councils.models import Council
-
     context = {
         'land_project': land_project,
         'councils': Council.objects.order_by('name'),
@@ -60,10 +56,12 @@ def land_project_detail(request, project_id):
 @login_required
 def land_project_create(request):
     """Create a new land project"""
+    from apps.core.utils import CURRENT_FINANCIAL_YEAR
+    
     if request.method == 'POST':
         name = request.POST.get('name')
         council_id = request.POST.get('council')
-        financial_year = request.POST.get('financial_year')
+        financial_year = request.POST.get('financial_year') or CURRENT_FINANCIAL_YEAR
 
         council = get_object_or_404(Council, id=council_id)
         
@@ -77,7 +75,6 @@ def land_project_create(request):
         messages.success(request, f'Land project "{project.name}" created.')
         return redirect('land_infra:land_project_detail', project_id=project.id)
 
-    from apps.councils.models import Council
     context = {
         'councils': Council.objects.order_by('name'),
     }
@@ -102,7 +99,6 @@ def land_project_edit(request, project_id):
         messages.success(request, f'Land project "{project.name}" updated.')
         return redirect('land_infra:land_project_detail', project_id=project.id)
 
-    from apps.councils.models import Council
     context = {
         'land_project': project,
         'councils': Council.objects.order_by('name'),
@@ -173,7 +169,7 @@ def land_tenure_create(request):
             plan_number=plan_number,
             tenure_type=tenure_type
         )
-        messages.success(request, f'Land tenure created.')
+        messages.success(request, 'Land tenure created.')
         return redirect('land_infra:land_tenure_detail', tenure_id=tenure.id)
 
     context = {}
