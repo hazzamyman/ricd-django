@@ -185,7 +185,7 @@ def emit_workflow_action(sender, instance, created, **kwargs):
     
     try:
         from apps.core.business_rules import log_workflow_action
-        from apps.funding.models import WorkflowAction
+        from apps.core.models import WorkflowAction
         
         user = getattr(instance, '_current_user', None)
         

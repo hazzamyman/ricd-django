@@ -1,1 +1,1 @@
-default_app_config = 'apps.land_infra.apps.LandInfraConfig'
+

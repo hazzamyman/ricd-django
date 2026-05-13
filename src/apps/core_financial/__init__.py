@@ -1,1 +1,0 @@
-# Core Financial app package

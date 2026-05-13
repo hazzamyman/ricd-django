@@ -1,9 +1,4 @@
 from django.apps import AppConfig
-
-
 class FundingConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'apps.funding'
-
-    def ready(self):
-        from apps.core import signals as _  # noqa: F401

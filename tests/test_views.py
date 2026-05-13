@@ -5,7 +5,7 @@ Tests CRUD views for land_infra app
 import pytest
 from django.test import Client
 from django.contrib.auth.models import User
-from apps.accounts.models import Profile
+from apps.core.models import Profile
 
 
 @pytest.mark.django_db

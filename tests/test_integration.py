@@ -6,11 +6,11 @@ import pytest
 from decimal import Decimal
 from datetime import date, timedelta
 from django.contrib.auth.models import User
-from apps.accounts.models import Profile
-from apps.projects.models import Project
-from apps.funding.models import FundingSchedule
-from apps.payments.models import Payment
-from apps.works.models import Work, WorkType
+from apps.core.models import Profile
+from apps.core.models import Project
+from apps.core.models import FundingSchedule
+from apps.core.models import Payment
+from apps.core.models import Work, WorkType
 
 
 @pytest.mark.django_db

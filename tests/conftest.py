@@ -16,20 +16,14 @@ sys.path.insert(0, src_path)
 BASE_URL = os.environ.get('BASE_URL', 'http://127.0.0.1:8000')
 
 
+# Lazy-load fixtures to avoid import issues before Django is fully initialized
 def pytest_configure(config):
-    """Configure pytest"""
-    config.addinivalue_line(
-        "markers", "django_db: mark test as using Django database"
-    )
-    config.addinivalue_line(
-        "markers", "e2e: end-to-end test using Playwright"
-    )
-    config.addinivalue_line(
-        "markers", "unit: unit test"
-    )
-    config.addinivalue_line(
-        "markers", "integration: integration test"
-    )
+    """Configure pytest and set up Django"""
+    import django
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ricdapp.settings')
+    django.setup()
+
+
 
 
 @pytest.fixture(scope='session')
@@ -44,8 +38,8 @@ def django_db_blocker(django_db_blocker):
     return django_db_blocker
 
 
-# Import all fixtures from fixtures.py so they're discovered
-from tests.fixtures import *
+# Fixtures from fixtures.py are auto-discovered by pytest
+# Module-level import avoided to prevent Django initialization issues
 
 
 @pytest.fixture

@@ -15,7 +15,7 @@ from django.contrib.auth.models import User
 @pytest.fixture
 def council():
     """Create a test council"""
-    from apps.councils.models import Council
+    from apps.core.models import Council
     return Council.objects.create(
         name="Test Aboriginal Shire Council",
         region="Test Region",
@@ -28,7 +28,7 @@ def council():
 @pytest.fixture
 def council_contact(council):
     """Create a test council contact"""
-    from apps.councils.models import CouncilContact
+    from apps.core.models import CouncilContact
     return CouncilContact.objects.create(
         council=council,
         name="Test Contact",
@@ -45,7 +45,7 @@ def council_contact(council):
 @pytest.fixture
 def program():
     """Create a test program"""
-    from apps.programs.models import Program
+    from apps.core.models import Program
     return Program.objects.create(
         name="Remote Indigenous Housing Program",
         funding_source=Program.FundingSource.STATE,
@@ -62,7 +62,7 @@ def program():
 @pytest.fixture
 def project(council, program):
     """Create a test dwelling project"""
-    from apps.projects.models import Project
+    from apps.core.models import Project
     return Project.objects.create(
         name="Test Housing Project",
         council=council,
@@ -76,7 +76,7 @@ def project(council, program):
 @pytest.fixture
 def project_completed(council, program):
     """Create a completed dwelling project"""
-    from apps.projects.models import Project
+    from apps.core.models import Project
     return Project.objects.create(
         name="Test Completed Project",
         council=council,
@@ -95,7 +95,7 @@ def project_completed(council, program):
 @pytest.fixture
 def land_project(council):
     """Create a test land/infra project"""
-    from apps.land_infra.models import LandProject
+    from apps.core.models import LandProject
     return LandProject.objects.create(
         name="Test Land Development",
         council=council,
@@ -107,7 +107,7 @@ def land_project(council):
 @pytest.fixture
 def land_project_completed(council):
     """Create a completed land/infra project"""
-    from apps.land_infra.models import LandProject
+    from apps.core.models import LandProject
     return LandProject.objects.create(
         name="Test Completed Land Development",
         council=council,
@@ -120,7 +120,7 @@ def land_project_completed(council):
 @pytest.fixture
 def land_tenure(council):
     """Create a test land tenure (lot/plan)"""
-    from apps.land_infra.models import LandTenure
+    from apps.core.models import LandTenure
     return LandTenure.objects.create(
         council=council,
         lot_number="2",
@@ -134,7 +134,7 @@ def land_tenure(council):
 @pytest.fixture
 def development_application(council):
     """Create a test development application"""
-    from apps.land_infra.models import DevelopmentApplication
+    from apps.core.models import DevelopmentApplication
     return DevelopmentApplication.objects.create(
         council=council,
         application_reference="DA-2025-001",
@@ -150,7 +150,7 @@ def development_application(council):
 @pytest.fixture
 def address(project):
     """Create a test address"""
-    from apps.addresses.models import Address
+    from apps.core.models import Address
     return Address.objects.create(
         project=project,
         street="123 Test Street",
@@ -166,7 +166,7 @@ def address(project):
 @pytest.fixture
 def funding_schedule(project):
     """Create a test funding schedule"""
-    from apps.funding.models import FundingSchedule
+    from apps.core.models import FundingSchedule
     return FundingSchedule.objects.create(
         project=project,
         amount=Decimal('500000.00'),
@@ -178,7 +178,7 @@ def funding_schedule(project):
 @pytest.fixture
 def funding_schedule_land(project):
     """Create a test funding schedule for land project"""
-    from apps.funding.models import FundingSchedule
+    from apps.core.models import FundingSchedule
     return FundingSchedule.objects.create(
         project=project,
         amount=Decimal('1000000.00'),
@@ -190,7 +190,7 @@ def funding_schedule_land(project):
 @pytest.fixture
 def work_funding(funding_schedule, work):
     """Create a test work funding (per-work cost centre)"""
-    from apps.funding.models import WorkFunding
+    from apps.core.models import WorkFunding
     return WorkFunding.objects.create(
         work=work,
         funding_schedule=funding_schedule,
@@ -204,7 +204,7 @@ def work_funding(funding_schedule, work):
 @pytest.fixture
 def funding_approval(project):
     """Create a test funding approval"""
-    from apps.funding.models import FundingApproval
+    from apps.core.models import FundingApproval
     fa = FundingApproval.objects.create(
         total_amount=Decimal('550000.00'),
         contingency_amount=Decimal('55000.00'),
@@ -221,7 +221,7 @@ def funding_approval(project):
 @pytest.fixture
 def work_type():
     """Create a test work type"""
-    from apps.works.models import WorkType
+    from apps.core.models import WorkType
     return WorkType.objects.create(
         name="Detached House",
         category=WorkType.Category.RESIDENTIAL,
@@ -233,7 +233,7 @@ def work_type():
 @pytest.fixture
 def work(address, project, work_type):
     """Create a test work"""
-    from apps.works.models import Work
+    from apps.core.models import Work
     return Work.objects.create(
         project=project,
         address=address,
@@ -248,7 +248,7 @@ def work(address, project, work_type):
 @pytest.fixture
 def work_land(project, work_type):
     """Create a test work for land project"""
-    from apps.works.models import Work
+    from apps.core.models import Work
     return Work.objects.create(
         project=project,
         work_type=work_type,
@@ -265,7 +265,7 @@ def work_land(project, work_type):
 @pytest.fixture
 def payment(project, funding_schedule):
     """Create a test payment"""
-    from apps.payments.models import Payment
+    from apps.core.models import Payment
     return Payment.objects.create(
         project=project,
         funding_schedule=funding_schedule,
@@ -284,7 +284,7 @@ def payment(project, funding_schedule):
 @pytest.fixture
 def contract(project):
     """Create a test contract"""
-    from apps.contracts.models import Contract
+    from apps.core.models import Contract
     return Contract.objects.create(
         project=project,
         contract_status=Contract.ContractStatus.DRAFT,
@@ -301,7 +301,7 @@ def contract(project):
 @pytest.fixture
 def defect(project):
     """Create a test defect"""
-    from apps.defects.models import Defect
+    from apps.core.models import Defect
     return Defect.objects.create(
         project=project,
         description="Missing tap washer",
@@ -313,7 +313,7 @@ def defect(project):
 @pytest.fixture
 def work_land(project, work_type):
     """Create a test work for land project"""
-    from apps.works.models import Work
+    from apps.core.models import Work
     return Work.objects.create(
         project=project,
         work_type=work_type,
@@ -330,7 +330,7 @@ def work_land(project, work_type):
 @pytest.fixture
 def payment(project, funding_schedule):
     """Create a test payment"""
-    from apps.payments.models import Payment
+    from apps.core.models import Payment
     return Payment.objects.create(
         project=project,
         funding_schedule=funding_schedule,
@@ -349,7 +349,7 @@ def payment(project, funding_schedule):
 @pytest.fixture
 def contract(project):
     """Create a test contract"""
-    from apps.contracts.models import Contract
+    from apps.core.models import Contract
     return Contract.objects.create(
         project=project,
         contract_status=Contract.ContractStatus.DRAFT,
@@ -366,7 +366,7 @@ def contract(project):
 @pytest.fixture
 def defect(project):
     """Create a test defect"""
-    from apps.defects.models import Defect
+    from apps.core.models import Defect
     return Defect.objects.create(
         project=project,
         description="Missing tap washer",
@@ -382,7 +382,7 @@ def defect(project):
 @pytest.fixture
 def payment(project, funding_schedule):
     """Create a test payment"""
-    from apps.payments.models import Payment
+    from apps.core.models import Payment
     return Payment.objects.create(
         project=project,
         funding_schedule=funding_schedule,
@@ -401,7 +401,7 @@ def payment(project, funding_schedule):
 @pytest.fixture
 def contract(project):
     """Create a test contract"""
-    from apps.contracts.models import Contract
+    from apps.core.models import Contract
     return Contract.objects.create(
         project=project,
         contract_status=Contract.ContractStatus.DRAFT,
@@ -414,7 +414,7 @@ def contract(project):
 @pytest.fixture
 def contract_meeting(contract):
     """Create a test contract meeting"""
-    from apps.contracts.models import ContractMeeting
+    from apps.core.models import ContractMeeting
     return ContractMeeting.objects.create(
         contract=contract,
         meeting_type=ContractMeeting.MeetingType.KICKOFF,
@@ -431,7 +431,7 @@ def contract_meeting(contract):
 @pytest.fixture
 def variation(funding_schedule, project):
     """Create a test variation"""
-    from apps.variations.models import Variation
+    from apps.core.models import Variation
     return Variation.objects.create(
         funding_schedule=funding_schedule,
         variation_option=Variation.VariationOption.OPTION_1_ADD_FS,
@@ -447,7 +447,7 @@ def variation(funding_schedule, project):
 @pytest.fixture
 def notional_cost_type():
     """Create a test notional cost type"""
-    from apps.works.models import NotionalCostType
+    from apps.core.models import NotionalCostType
     return NotionalCostType.objects.create(
         name="Standard House",
         category=NotionalCostType.Category.RESIDENTIAL,
