@@ -60,7 +60,12 @@
       "Bash(python -m pytest tests/test_funding_schedule_lifecycle.py::TestFundingScheduleLifecycle::test_executed_to_active_on_payment_approval -xvs)",
       "Bash(python -m pytest tests/ -v --tb=no)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(python -m pytest tests/test_approval_generic.py::TestApprovalWorkflow -xvs --tb=short)",
+      "Bash(python -m pytest tests/test_governance_signals.py -v --tb=short)",
+      "Bash(python -m pytest tests/test_governance_signals.py::TestGovernanceSignal1_PaymentApproval::test_payment_creation_creates_approval -xvs)",
+      "Bash(python -m pytest tests/test_governance_signals.py -v --tb=line)",
+      "Bash(python -m pytest tests/ -v --tb=line)"
     ]
   }
 }

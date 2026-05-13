@@ -291,3 +291,93 @@ def emit_project_workflow_action(sender, instance, created, **kwargs):
             )
     except Exception:
         pass
+
+
+# ============================================================================
+# GOVERNANCE: Payment Approval Workflow
+# ============================================================================
+
+@receiver(post_save)
+def auto_create_payment_approval(sender, instance, created, **kwargs):
+    """
+    Governance Signal 1: Payment created → create Approval record.
+    When a Payment is created, automatically create an Approval record with:
+    - approval_type = PAYMENT, status = PENDING
+    - required_role = determined by delegation level (amount-based)
+    """
+    if sender._meta.model_name != 'payment' or not created:
+        return
+    try:
+        from apps.core.models import Approval, Delegation
+        amount = instance.amount
+        delegation_level = Delegation.get_delegation_level(amount)
+        Approval.objects.create(
+            entity_type='Payment',
+            entity_id=instance.pk,
+            approval_type=Approval.ApprovalType.PAYMENT,
+            required_role=delegation_level,
+            status=Approval.Status.PENDING
+        )
+    except Exception:
+        pass
+
+
+@receiver(post_save)
+def sync_approval_to_payment_status(sender, instance, created, **kwargs):
+    """
+    Governance Signal 2: Approval approved → approve Payment.
+    When an Approval record for a Payment transitions to APPROVED,
+    automatically update the Payment status to APPROVED.
+    This triggers the FundingSchedule ACTIVE signal.
+    """
+    if sender._meta.model_name != 'approval':
+        return
+    approval = instance
+    if approval.entity_type != 'Payment' or approval.status != 'APPROVED':
+        return
+    try:
+        from apps.core.models import Payment
+        payment = Payment.objects.get(pk=approval.entity_id)
+        if payment.status != Payment.Status.APPROVED:
+            payment.status = Payment.Status.APPROVED
+            payment.save(update_fields=['status', 'updated_at'])
+    except Exception:
+        pass
+
+
+@receiver(post_save)
+def unlock_next_payment_on_report_approval(sender, instance, created, **kwargs):
+    """
+    Governance Signal 3: Report/Stage approved → unlock next payment.
+    When a Quarterly/Monthly Report or Project Stage transitions to APPROVED,
+    unlock the next payment in the FundingSchedule by setting its status to READY.
+    """
+    model_name = sender._meta.model_name.lower()
+    if model_name not in ['stage', 'report']:
+        return
+    if not hasattr(instance, 'status') or instance.status != 'APPROVED':
+        return
+    try:
+        from apps.core.models import Payment, FundingSchedule
+        project = None
+        if model_name == 'stage':
+            project = instance.project
+        elif model_name == 'report':
+            project = instance.project
+        if not project:
+            return
+        fs = FundingSchedule.objects.filter(
+            project=project,
+            status=FundingSchedule.Status.ACTIVE
+        ).first()
+        if not fs:
+            return
+        next_payment = Payment.objects.filter(
+            funding_schedule=fs,
+            status=Payment.Status.PENDING
+        ).order_by('payment_type').first()
+        if next_payment:
+            next_payment.status = Payment.Status.RECOMMENDED
+            next_payment.save(update_fields=['status', 'updated_at'])
+    except Exception:
+        pass

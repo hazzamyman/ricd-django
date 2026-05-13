@@ -245,6 +245,24 @@ class Delegation(models.Model):
                 continue
         return chain
 
+    @classmethod
+    def get_delegation_level(cls, amount):
+        """Return Approval.RequiredRole based on delegation amount threshold"""
+        from apps.core.models import Approval
+        # Get the first matching delegation level by amount
+        chain = cls.get_approval_chain(amount)
+        if not chain:
+            return Approval.RequiredRole.DELEGATE
+        # Map position codes to Approval.RequiredRole
+        position_code = chain[0]
+        if position_code == cls.Position.MANAGER:
+            return Approval.RequiredRole.MANAGER
+        elif position_code in [cls.Position.DIRECTOR, cls.Position.EXECUTIVE_DIRECTOR]:
+            return Approval.RequiredRole.DIRECTOR
+        elif position_code in [cls.Position.GENERAL_MANAGER, cls.Position.DEPUTY_DIRECTOR_GENERAL, cls.Position.DIRECTOR_GENERAL]:
+            return Approval.RequiredRole.GM
+        return Approval.RequiredRole.DELEGATE
+
 
 class FundingApproval(models.Model):
     """Funding approval workflow - completed before Funding Schedule"""

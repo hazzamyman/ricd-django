@@ -54,3 +54,7 @@ def admin_client(client, admin_user):
     """Provide an authenticated admin client"""
     client.force_login(admin_user)
     return client
+
+
+# Import fixtures from fixtures.py after Django is set up
+from fixtures import *  # noqa: F401, F403
