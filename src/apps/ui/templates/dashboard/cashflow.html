@@ -1,0 +1,97 @@
+﻿{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Cashflow Forecast - RICD{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-5">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1>Cashflow Forecast</h1>
+            <p class="text-muted">Forecast vs actual payments by program and fiscal year</p>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Total Forecast</h5>
+                    <p class="card-text display-4">${{ total_forecast|floatformat:0 }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Released (Actual)</h5>
+                    <p class="card-text display-4">${{ actual_payments|floatformat:0 }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Remaining</h5>
+                    <p class="card-text display-4">${{ remaining|floatformat:0 }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cashflow by Program -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Cashflow by Program</h5>
+                </div>
+                {% if by_program %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Program</th>
+                                <th class="text-right">Forecast</th>
+                                <th class="text-right">Released</th>
+                                <th class="text-right">Remaining</th>
+                                <th class="text-right">Drawdown %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in by_program %}
+                            <tr>
+                                <td>{{ item.program.name }}</td>
+                                <td class="text-right">${{ item.forecast|floatformat:0 }}</td>
+                                <td class="text-right">${{ item.actual|floatformat:0 }}</td>
+                                <td class="text-right">${{ item.remaining|floatformat:0 }}</td>
+                                <td class="text-right">
+                                    {% if item.forecast > 0 %}
+                                        {{ item.actual|add:0|mul:100|div:item.forecast|floatformat:1 }}%
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="card-body">
+                    <p class="text-muted">No cashflow data available.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Back Link -->
+    <div class="row">
+        <div class="col-md-12">
+            <a href="{% url 'ui:dashboard' %}" class="btn btn-outline-primary">Back to Dashboard</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

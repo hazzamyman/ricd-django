@@ -42,6 +42,13 @@ from .reports_models import (
     MonthlyTracker,
     MonthlyTrackerEntry,
     QuarterlyReportItemGroup,
+    QuarterlyReportItem,
+    QuarterlyReport,
+    QuarterlyReportEntry,
+    QuarterlyReportAttachment,
+    StageReport,
+    StageReportItem,
+    StageReportAttachment,
 )
 
 # Contractor & Address models
@@ -77,7 +84,9 @@ __all__ = [
     'Stage', 'WorkStep',
     # Report
     'MonthlyTrackerItemGroup', 'MonthlyTrackerItem', 'MonthlyTracker',
-    'MonthlyTrackerEntry', 'QuarterlyReportItemGroup',
+    'MonthlyTrackerEntry', 'QuarterlyReportItemGroup', 'QuarterlyReportItem',
+    'QuarterlyReport', 'QuarterlyReportEntry', 'QuarterlyReportAttachment',
+    'StageReport', 'StageReportItem', 'StageReportAttachment',
     # Contractor & Address
     'Contractor', 'Suburb', 'Address',
     # Account

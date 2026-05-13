@@ -65,7 +65,17 @@
       "Bash(python -m pytest tests/test_governance_signals.py -v --tb=short)",
       "Bash(python -m pytest tests/test_governance_signals.py::TestGovernanceSignal1_PaymentApproval::test_payment_creation_creates_approval -xvs)",
       "Bash(python -m pytest tests/test_governance_signals.py -v --tb=line)",
-      "Bash(python -m pytest tests/ -v --tb=line)"
+      "Bash(python -m pytest tests/ -v --tb=line)",
+      "Bash(python -m pytest tests/test_api_endpoints.py -v)",
+      "Bash(git commit -m 'test: Phase 2A - API Endpoint Verification *)",
+      "Bash(python manage.py test tests.test_governance_signals -v 2)",
+      "Bash(PYTHONPATH=. python manage.py test tests.test_governance_signals -v 2)",
+      "Bash(PYTHONPATH=. python manage.py check)",
+      "Bash(PYTHONPATH=. python manage.py check --deploy)",
+      "Bash(PYTHONPATH=. python manage.py test tests.test_governance_signals::TestGovernanceSignal1_PaymentApproval -v 2)",
+      "Bash(PYTHONPATH=src python src/manage.py test tests.test_governance_signals -v 2)",
+      "Bash(PYTHONPATH=src pytest tests/test_governance_signals.py::TestGovernanceSignal1_PaymentApproval -v)",
+      "Bash(git commit -m 'feat: Phase 3 \\(UI Dashboard\\) - Create dashboard templates *)"
     ]
   }
 }
