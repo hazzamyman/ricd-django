@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{{ work_type.name }} - RICD{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>{{ work_type.name }}</h2>
+  <div class="d-flex gap-2">
+    <a href="{% url 'ui:work_type_edit' work_type.pk %}" class="btn btn-secondary">Edit</a>
+    <a href="{% url 'ui:work_type_list' %}" class="btn btn-outline-secondary">Back</a>
+  </div>
+</div>
+<div class="card"><div class="card-body">
+  <dl class="row">
+    <dt class="col-sm-3">Category</dt><dd class="col-sm-9">{{ work_type.get_category_display }}</dd>
+    <dt class="col-sm-3">Has Bedrooms</dt><dd class="col-sm-9">{{ work_type.has_bedrooms|yesno:"Yes,No" }}</dd>
+    <dt class="col-sm-3">Default Bedrooms</dt><dd class="col-sm-9">{{ work_type.default_bedrooms }}</dd>
+    <dt class="col-sm-3">Active</dt><dd class="col-sm-9">{{ work_type.is_active|yesno:"Yes,No" }}</dd>
+    <dt class="col-sm-3">Description</dt><dd class="col-sm-9">{{ work_type.description|default:"-" }}</dd>
+  </dl>
+</div></div>
+{% endblock %}

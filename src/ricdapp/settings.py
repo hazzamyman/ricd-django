@@ -22,26 +22,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'apps.accounts',
-    'apps.councils',
+    'rest_framework',
     'apps.core',
-    'apps.programs',
-    'apps.projects',
-    'apps.funding',
-    'apps.addresses',
-    'apps.works',
-    'apps.stages',
-    'apps.defects',
-    'apps.payments',
-    'apps.contracts',
-    'apps.reports',
-    'apps.dashboard',
-    'apps.contractors',
-    'apps.planning',
-    'apps.documents',
-    'apps.variations',
-    'apps.maintenance',
-    'apps.land_infra',
+    'apps.api',
+    'apps.ui',
 ]
 
 MIDDLEWARE = [
@@ -59,15 +43,18 @@ ROOT_URLCONF = 'ricdapp.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
-        'APP_DIRS': True,
+        'DIRS': [BASE_DIR / 'templates', BASE_DIR / 'apps' / 'ui' / 'templates'],
+        'APP_DIRS': False,
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'apps.dashboard.context_processors.fnc_context',
+            ],
+            'loaders': [
+                'django.template.loaders.filesystem.Loader',
+                'django.template.loaders.app_directories.Loader',
             ],
         },
     },

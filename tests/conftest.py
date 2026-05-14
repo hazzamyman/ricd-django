@@ -8,28 +8,9 @@ import sys
 
 pytest_plugins = ['pytest_django']
 
-# Add src to path
-project_root = os.path.dirname(os.path.dirname(__file__))
-src_path = os.path.join(project_root, 'src')
-sys.path.insert(0, src_path)
-
 BASE_URL = os.environ.get('BASE_URL', 'http://127.0.0.1:8000')
 
 
-def pytest_configure(config):
-    """Configure pytest"""
-    config.addinivalue_line(
-        "markers", "django_db: mark test as using Django database"
-    )
-    config.addinivalue_line(
-        "markers", "e2e: end-to-end test using Playwright"
-    )
-    config.addinivalue_line(
-        "markers", "unit: unit test"
-    )
-    config.addinivalue_line(
-        "markers", "integration: integration test"
-    )
 
 
 @pytest.fixture(scope='session')
@@ -44,8 +25,8 @@ def django_db_blocker(django_db_blocker):
     return django_db_blocker
 
 
-# Import all fixtures from fixtures.py so they're discovered
-from tests.fixtures import *
+# Fixtures from fixtures.py are auto-discovered by pytest
+# Module-level import avoided to prevent Django initialization issues
 
 
 @pytest.fixture
@@ -60,3 +41,6 @@ def admin_client(client, admin_user):
     """Provide an authenticated admin client"""
     client.force_login(admin_user)
     return client
+
+
+from fixtures import *  # noqa: F401, F403

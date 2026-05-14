@@ -5,9 +5,9 @@ Tests for funding schedule create, edit, delete views
 import pytest
 from django.test import Client
 from django.contrib.auth.models import User
-from apps.accounts.models import Profile
-from apps.funding.models import FundingSchedule
-from apps.projects.models import Project
+from apps.core.models import Profile
+from apps.core.models import FundingSchedule
+from apps.core.models import Project
 from decimal import Decimal
 
 

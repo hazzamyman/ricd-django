@@ -17,7 +17,7 @@
     <!-- Top Navigation Bar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top" style="top: 0;">
         <div class="container-fluid">
-            <a class="navbar-brand" href="{% url 'dashboard:dashboard' %}">
+            <a class="navbar-brand" href="{% url 'ui:dashboard' %}">
                 <i class="bi bi-house-door"></i> FNC
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -28,48 +28,49 @@
                 <ul class="navbar-nav me-auto">
                     <!-- Dashboard -->
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'dashboard:dashboard' %}">
+                        <a class="nav-link" href="{% url 'ui:dashboard' %}">
                             <i class="bi bi-speedometer2"></i> Dashboard
                         </a>
                     </li>
                     
                     <!-- Projects -->
                     <li class="nav-item">
-                        <a class="nav-link" href="/projects/">
+                        <a class="nav-link" href="{% url 'ui:projects_list' %}">
                             <i class="bi bi-folder"></i> Projects
                         </a>
                     </li>
-                    
+
                     <!-- Variations -->
                     <li class="nav-item">
-                        <a class="nav-link" href="/variations/">
+                        <a class="nav-link" href="{% url 'ui:variations_list' %}">
                             <i class="bi bi-arrow-left-right"></i> Variations
                         </a>
                     </li>
-                    
+
                     <!-- Reports -->
                     <li class="nav-item">
-                        <a class="nav-link" href="/reports/monthly/">
+                        <a class="nav-link" href="{% url 'ui:reports_dashboard' %}">
                             <i class="bi bi-file-text"></i> Reports
                         </a>
                     </li>
                     
                     <!-- Maintenance - FNC only -->
-                    {% if is_ricd_user %}
+                    {# TODO: Implement maintenance app with dashboard view #}
+                    {# {% if is_ricd_user %}
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'maintenance:dashboard' %}">
                             <i class="bi bi-gear"></i> Maintenance
                         </a>
-                    </li>
+                    </li> #}
                     
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'dashboard:dashboard_cashflow' %}">
+                        <a class="nav-link" href="{% url 'ui:cashflow' %}">
                             <i class="bi bi-currency-dollar"></i> Cashflow
                         </a>
                     </li>
                     
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'dashboard:dashboard_outputs' %}">
+                        <a class="nav-link" href="{% url 'ui:aggregate_outputs' %}">
                             <i class="bi bi-bar-chart"></i> Outputs
                         </a>
                     </li>
@@ -78,19 +79,19 @@
                     <!-- Planning - FNC only -->
                     {% if is_ricd_user %}
                     <li class="nav-item">
-                        <a class="nav-link" href="/planning/">
+                        <a class="nav-link" href="{% url 'ui:planning_list' %}">
                             <i class="bi bi-map"></i> Planning
                         </a>
                     </li>
-                    
+
                     <li class="nav-item">
-                        <a class="nav-link" href="/land/land-projects/">
+                        <a class="nav-link" href="{% url 'ui:land_projects_list' %}">
                             <i class="bi bi-geo-alt"></i> Land & Infra
                         </a>
                     </li>
-                    
+
                     <li class="nav-item">
-                        <a class="nav-link" href="/documents/">
+                        <a class="nav-link" href="{% url 'ui:documents_list' %}">
                             <i class="bi bi-folder2-open"></i> Documents
                         </a>
                     </li>

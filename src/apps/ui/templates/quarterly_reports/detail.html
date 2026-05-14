@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Quarterly Report #{{ quarterly_report.pk }} - RICD{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Quarterly Report - {{ quarterly_report.year }} Q{{ quarterly_report.quarter }}</h2>
+  <div class="d-flex gap-2">
+    <a href="{% url 'ui:quarterly_report_edit' quarterly_report.project_id quarterly_report.pk %}" class="btn btn-secondary">Edit</a>
+    <a href="{% url 'ui:quarterly_report_list' quarterly_report.project_id %}" class="btn btn-outline-secondary">Back</a>
+  </div>
+</div>
+<div class="card"><div class="card-body">
+  <dl class="row">
+    <dt class="col-sm-3">Project</dt><dd class="col-sm-9">{{ quarterly_report.project }}</dd>
+    <dt class="col-sm-3">Year</dt><dd class="col-sm-9">{{ quarterly_report.year }}</dd>
+    <dt class="col-sm-3">Quarter</dt><dd class="col-sm-9">Q{{ quarterly_report.quarter }}</dd>
+    <dt class="col-sm-3">Status</dt><dd class="col-sm-9">{{ quarterly_report.get_status_display }}</dd>
+    <dt class="col-sm-3">Notes</dt><dd class="col-sm-9">{{ quarterly_report.notes|default:"-" }}</dd>
+  </dl>
+</div></div>
+{% endblock %}

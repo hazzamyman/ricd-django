@@ -80,5 +80,5 @@ class TestWorkFundingModel:
         assert work_funding.cost_centre == "316333"
 
 
-from apps.funding.models import FundingSchedule
-from apps.payments.models import Payment
+from apps.core.models import FundingSchedule
+from apps.core.models import Payment

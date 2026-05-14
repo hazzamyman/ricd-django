@@ -39,7 +39,7 @@ def log_workflow_action(entity_type, entity_id, action_type, user=None, metadata
         import sys
         if 'pytest' in sys.modules:
             return
-        from apps.funding.models import WorkflowAction
+        from apps.core.models import WorkflowAction
         WorkflowAction.objects.create(
             entity_type=entity_type,
             entity_id=entity_id,
@@ -57,7 +57,7 @@ def log_audit(user, action, instance, old_values=None):
         import sys
         if 'pytest' in sys.modules:
             return
-        from apps.funding.models import AuditLog
+        from apps.core.models import AuditLog
         before = {}
         after = {}
         for field in instance._meta.fields:
@@ -82,7 +82,7 @@ def log_audit(user, action, instance, old_values=None):
 
 def check_brief_financial_approval(project):
     """Return True if project has an APPROVED BriefFinancialApproval."""
-    from apps.funding.models import BriefFinancialApproval
+    from apps.core.models import BriefFinancialApproval
     return BriefFinancialApproval.objects.filter(
         project=project,
         status=BriefFinancialApproval.Status.APPROVED
@@ -96,7 +96,7 @@ def check_payment_rule_immutable(payment_rule):
 
 def get_approved_claims_total(funding_notice):
     """Sum of APPROVED expense claims for a funding notice."""
-    from apps.funding.models import ExpenseClaim
+    from apps.core.models import ExpenseClaim
     return sum(
         (c.amount for c in funding_notice.claims.filter(status=ExpenseClaim.Status.APPROVED)),
         Decimal('0')
@@ -105,7 +105,7 @@ def get_approved_claims_total(funding_notice):
 
 def get_funding_schedule_total(funding_schedule):
     """Sum of WorkFunding amounts for a funding schedule."""
-    from apps.funding.models import WorkFunding
+    from apps.core.models import WorkFunding
     return sum(
         (f.amount or Decimal('0') for f in funding_schedule.work_fundings.all()),
         Decimal('0')
@@ -118,7 +118,7 @@ def get_funding_schedule_total(funding_schedule):
 
 def trigger_funding_schedule_executed(funding_schedule):
     """Set FS to EXECUTED if a VariationDeed with status=EXECUTED exists."""
-    from apps.variations.models import Variation, VariationItem
+    from apps.core.models import Variation, VariationItem
     has_executed_variation = Variation.objects.filter(
         funding_schedules=funding_schedule,
         status=Variation.Status.EXECUTED
