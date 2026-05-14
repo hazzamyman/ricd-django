@@ -177,11 +177,13 @@ def cashflow_view(request):
             project__in=program_projects,
             status=Payment.Status.RELEASED
         ).aggregate(total=Sum('amount'))['total'] or 0
+        drawdown_percent = (actual / forecast * 100) if forecast > 0 else 0
         by_program.append({
             'program': program,
             'forecast': forecast,
             'actual': actual,
-            'remaining': forecast - actual
+            'remaining': forecast - actual,
+            'drawdown_percent': drawdown_percent
         })
     
     context = {
