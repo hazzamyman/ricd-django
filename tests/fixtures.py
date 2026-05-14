@@ -69,7 +69,7 @@ def project(council, program):
         program=program,
         state=Project.State.PROSPECTIVE,
         dwelling_status=Project.DwellingStatus.PROSPECTIVE,
-        financial_year="2025-26"
+        financial_year="2025-2026"
     )
 
 
@@ -100,7 +100,7 @@ def land_project(council):
         name="Test Land Development",
         council=council,
         status=LandProject.Status.PROSPECTIVE,
-        financial_year="2025-26"
+        financial_year="2025-2026"
     )
 
 

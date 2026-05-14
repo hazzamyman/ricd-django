@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ council.name }} - RICD{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>{{ council.name }}</h2>
+  <div class="d-flex gap-2">
+    <a href="{% url 'ui:council_edit' council.pk %}" class="btn btn-secondary">Edit</a>
+    <a href="{% url 'ui:council_list' %}" class="btn btn-outline-secondary">Back</a>
+  </div>
+</div>
+<div class="card"><div class="card-body">
+  <dl class="row">
+    <dt class="col-sm-3">Region</dt><dd class="col-sm-9">{{ council.region|default:"-" }}</dd>
+    <dt class="col-sm-3">State Electorate</dt><dd class="col-sm-9">{{ council.state_electorate|default:"-" }}</dd>
+    <dt class="col-sm-3">Federal Electorate</dt><dd class="col-sm-9">{{ council.federal_electorate|default:"-" }}</dd>
+    <dt class="col-sm-3">Contact Email</dt><dd class="col-sm-9">{{ council.contact_email|default:"-" }}</dd>
+    <dt class="col-sm-3">Contact Phone</dt><dd class="col-sm-9">{{ council.contact_phone|default:"-" }}</dd>
+    <dt class="col-sm-3">Housing Provider</dt><dd class="col-sm-9">{{ council.is_registered_housing_provider|yesno:"Yes,No" }}</dd>
+  </dl>
+</div></div>
+{% endblock %}

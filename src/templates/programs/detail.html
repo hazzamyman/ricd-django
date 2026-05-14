@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ program.name }} - RICD{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>{{ program.name }}</h2>
+  <div class="d-flex gap-2">
+    <a href="{% url 'ui:program_edit' program.pk %}" class="btn btn-secondary">Edit</a>
+    <a href="{% url 'ui:program_list' %}" class="btn btn-outline-secondary">Back</a>
+  </div>
+</div>
+<div class="card"><div class="card-body">
+  <dl class="row">
+    <dt class="col-sm-3">Funding Source</dt><dd class="col-sm-9">{{ program.get_funding_source_display|default:"-" }}</dd>
+    <dt class="col-sm-3">Budget</dt><dd class="col-sm-9">${{ program.budget|floatformat:2 }}</dd>
+    <dt class="col-sm-3">GL Code</dt><dd class="col-sm-9">{{ program.gl_code|default:"-" }}</dd>
+    <dt class="col-sm-3">Business Case Ref</dt><dd class="col-sm-9">{{ program.business_case_reference|default:"-" }}</dd>
+    <dt class="col-sm-3">Active</dt><dd class="col-sm-9">{{ program.is_active|yesno:"Yes,No" }}</dd>
+    <dt class="col-sm-3">Description</dt><dd class="col-sm-9">{{ program.description|default:"-" }}</dd>
+  </dl>
+</div></div>
+{% endblock %}

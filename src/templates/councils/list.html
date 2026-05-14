@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Councils - RICD{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Councils</h2>
+  <a href="{% url 'ui:council_create' %}" class="btn btn-primary">Create Council</a>
+</div>
+<div class="card"><div class="card-body p-0">
+<table class="table table-hover mb-0">
+  <thead class="table-light"><tr><th>Name</th><th>Region</th><th>Housing Provider</th><th>Actions</th></tr></thead>
+  <tbody>
+    {% for council in councils %}
+    <tr>
+      <td><a href="{% url 'ui:council_detail' council.pk %}">{{ council.name }}</a></td>
+      <td>{{ council.region }}</td>
+      <td>{% if council.is_registered_housing_provider %}<span class="badge bg-success">Yes</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}</td>
+      <td>
+        <a href="{% url 'ui:council_edit' council.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+        <a href="{% url 'ui:council_delete' council.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
+      </td>
+    </tr>
+    {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">No councils found.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div></div>
+{% endblock %}

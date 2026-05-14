@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Land & Infrastructure - RICD{% endblock %}
+{% block content %}
+<div class="container-fluid mt-5">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1>Land & Infrastructure Projects</h1>
+            <p class="text-muted">View and manage land development and infrastructure projects</p>
+        </div>
+    </div>
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="council" class="form-label">Council</label>
+                            <select name="council" id="council" class="form-select">
+                                <option value="">All Councils</option>
+                                {% for council in councils %}
+                                <option value="{{ council.id }}" {% if council.id|stringformat:"s" == selected_council %}selected{% endif %}>{{ council.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="status" class="form-label">Status</label>
+                            <select name="status" id="status" class="form-select">
+                                <option value="">All</option>
+                                <option value="PLANNING" {% if selected_status == "PLANNING" %}selected{% endif %}>Planning</option>
+                                <option value="COMMENCED" {% if selected_status == "COMMENCED" %}selected{% endif %}>Commenced</option>
+                                <option value="COMPLETED" {% if selected_status == "COMPLETED" %}selected{% endif %}>Completed</option>
+                            </select>
+                        </div>
+                        <div class="col-md-12">
+                            <button type="submit" class="btn btn-primary">Filter</button>
+                            <a href="{% url 'ui:land_projects_list' %}" class="btn btn-secondary">Clear</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0">Land & Infrastructure Projects ({{ land_projects|length }})</h5></div>
+                {% if land_projects %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr><th>Project Name</th><th>Council</th><th>Status</th><th>Budget</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for project in land_projects %}
+                            <tr>
+                                <td><a href="/land/land-projects/{{ project.id }}/">{{ project.name }}</a></td>
+                                <td>{{ project.council.name }}</td>
+                                <td><span class="badge bg-info">{{ project.status }}</span></td>
+                                <td class="text-right">${{ project.budget|default:"0"|floatformat:0 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="card-body"><p class="text-muted">No land and infrastructure projects found.</p></div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <a href="{% url 'ui:dashboard' %}" class="btn btn-outline-primary">Back to Dashboard</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

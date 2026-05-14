@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} - RICD{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>{{ project.name }}</h2>
+  <div class="d-flex gap-2">
+    <a href="{% url 'ui:project_edit' project.pk %}" class="btn btn-secondary">Edit</a>
+    <a href="{% url 'ui:projects_list' %}" class="btn btn-outline-secondary">Back</a>
+  </div>
+</div>
+<div class="card mb-3"><div class="card-header">Project Details</div><div class="card-body">
+  <dl class="row">
+    <dt class="col-sm-3">Council</dt><dd class="col-sm-9">{{ project.council }}</dd>
+    <dt class="col-sm-3">Program</dt><dd class="col-sm-9">{{ project.program }}</dd>
+    <dt class="col-sm-3">Type</dt><dd class="col-sm-9">{{ project.get_project_type_display }}</dd>
+    <dt class="col-sm-3">State</dt><dd class="col-sm-9">{{ project.get_state_display }}</dd>
+    <dt class="col-sm-3">Financial Year</dt><dd class="col-sm-9">{{ project.financial_year|default:"-" }}</dd>
+  </dl>
+</div></div>
+<div class="card mb-2"><div class="card-header d-flex justify-content-between">Payments <a href="{% url 'ui:payment_list' project.pk %}" class="btn btn-sm btn-outline-primary">View All</a></div></div>
+<div class="card mb-2"><div class="card-header d-flex justify-content-between">Stage Reports <a href="{% url 'ui:stage_report_list' project.pk %}" class="btn btn-sm btn-outline-primary">View All</a></div></div>
+<div class="card"><div class="card-header d-flex justify-content-between">Quarterly Reports <a href="{% url 'ui:quarterly_report_list' project.pk %}" class="btn btn-sm btn-outline-primary">View All</a></div></div>
+{% endblock %}

@@ -8,20 +8,7 @@ import sys
 
 pytest_plugins = ['pytest_django']
 
-# Add src to path
-project_root = os.path.dirname(os.path.dirname(__file__))
-src_path = os.path.join(project_root, 'src')
-sys.path.insert(0, src_path)
-
 BASE_URL = os.environ.get('BASE_URL', 'http://127.0.0.1:8000')
-
-
-# Lazy-load fixtures to avoid import issues before Django is fully initialized
-def pytest_configure(config):
-    """Configure pytest and set up Django"""
-    import django
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ricdapp.settings')
-    django.setup()
 
 
 
@@ -56,5 +43,4 @@ def admin_client(client, admin_user):
     return client
 
 
-# Import fixtures from fixtures.py after Django is set up
 from fixtures import *  # noqa: F401, F403

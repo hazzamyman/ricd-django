@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% load static %}
 
 {% block title %}Cashflow Forecast - RICD{% endblock %}
@@ -67,8 +67,8 @@
                                 <td class="text-right">${{ item.actual|floatformat:0 }}</td>
                                 <td class="text-right">${{ item.remaining|floatformat:0 }}</td>
                                 <td class="text-right">
-                                    {% if item.forecast > 0 %}
-                                        {{ item.actual|add:0|mul:100|div:item.forecast|floatformat:1 }}%
+                                    {% if item.drawdown_percent %}
+                                        {{ item.drawdown_percent|floatformat:1 }}%
                                     {% else %}
                                         N/A
                                     {% endif %}
