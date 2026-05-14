@@ -197,9 +197,12 @@ class TestApprovalWorkflow:
             status="APPROVED",
             approved_by=director_user
         )
+        # Signal auto-creates 1 PENDING approval on payment creation; filter to
+        # only the manually-created APPROVED approvals this test is verifying.
         payment_approvals = Approval.objects.filter(
             entity_type="Payment",
-            entity_id=payment.id
+            entity_id=payment.id,
+            status="APPROVED",
         )
         assert payment_approvals.count() == 2
 
@@ -330,8 +333,11 @@ class TestApprovalAuditTrail:
             status="APPROVED",
             approved_by=director_user
         )
+        # Signal auto-creates 1 PENDING approval on payment creation; only count
+        # the APPROVED ones this test explicitly created.
         approvals = Approval.objects.filter(
             entity_type="Payment",
-            entity_id=payment.id
+            entity_id=payment.id,
+            status="APPROVED",
         ).order_by('created_at')
         assert approvals.count() == 2
