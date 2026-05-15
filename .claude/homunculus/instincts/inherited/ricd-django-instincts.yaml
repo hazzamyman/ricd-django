@@ -1,0 +1,320 @@
+# Instincts generated from https://github.com/hazzamyman/ricd-django
+# Generated: 2026-05-15T11:48:56.612Z
+# Version: 2.0
+# NOTE: This file supplements (does not replace) any existing curated instincts.
+# High-confidence manually curated instincts should be preserved alongside these.
+
+---
+id: ricd-django-commit-conventional
+trigger: "when writing a commit message"
+confidence: 0.85
+domain: git
+source: repo-analysis
+source_repo: https://github.com/hazzamyman/ricd-django
+---
+
+# Ricd Django Commit Conventional
+
+## Action
+
+Use conventional commit format with prefixes: feat
+
+## Evidence
+
+- 1 commits analyzed
+- Detected conventional commit pattern
+- Examples: feat(issues-15-18-19): Approval, Work & Address CRUD; PaymentRule read-only views
+
+---
+id: ricd-django-commit-length
+trigger: "when writing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: https://github.com/hazzamyman/ricd-django
+---
+
+# Ricd Django Commit Length
+
+## Action
+
+Write moderate-length commit messages (~81 characters)
+
+## Evidence
+
+- Average commit message length: 81 chars
+- Based on 1 commits
+
+---
+id: ricd-django-naming-files
+trigger: "when creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/hazzamyman/ricd-django
+---
+
+# Ricd Django Naming Files
+
+## Action
+
+Use camelCase naming convention
+
+## Evidence
+
+- Analyzed file naming patterns in repository
+- Dominant pattern: camelCase
+
+---
+id: ricd-django-import-relative
+trigger: "when importing modules"
+confidence: 0.75
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/hazzamyman/ricd-django
+---
+
+# Ricd Django Import Relative
+
+## Action
+
+Use relative imports for project files
+
+## Evidence
+
+- Import analysis shows relative import pattern
+- Example: import { x } from '../lib/x'
+
+---
+id: ricd-django-export-style
+trigger: "when exporting from a module"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/hazzamyman/ricd-django
+---
+
+# Ricd Django Export Style
+
+## Action
+
+Prefer named exports
+
+## Evidence
+
+- Export pattern analysis
+- Dominant style: named
+
+---
+id: ricd-django-test-separate
+trigger: "when writing tests"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/hazzamyman/ricd-django
+---
+
+# Ricd Django Test Separate
+
+## Action
+
+Place tests in the tests/ or __tests__/ directory, mirroring src structure
+
+## Evidence
+
+- Separate test directory pattern detected
+- Tests live in dedicated test folders
+
+---
+id: ricd-django-instinct-function-naming
+trigger: "When creating a new function"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: hazzamyman/ricd-django
+---
+
+# Ricd Django Instinct Function Naming
+
+## Action
+
+Name the function using camelCase
+
+## Evidence
+
+- Pattern in namingConventions.functions: camelCase
+
+---
+id: ricd-django-instinct-class-naming
+trigger: "When defining a new class"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: hazzamyman/ricd-django
+---
+
+# Ricd Django Instinct Class Naming
+
+## Action
+
+Name the class using PascalCase
+
+## Evidence
+
+- Pattern in namingConventions.classes: PascalCase
+
+---
+id: ricd-django-instinct-constant-naming
+trigger: "When declaring a constant"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: hazzamyman/ricd-django
+---
+
+# Ricd Django Instinct Constant Naming
+
+## Action
+
+Name the constant using SCREAMING_SNAKE_CASE
+
+## Evidence
+
+- Pattern in namingConventions.constants: SCREAMING_SNAKE_CASE
+
+---
+id: ricd-django-instinct-file-naming
+trigger: "When creating a new file"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: hazzamyman/ricd-django
+---
+
+# Ricd Django Instinct File Naming
+
+## Action
+
+Name the file using camelCase
+
+## Evidence
+
+- Pattern in namingConventions.files: camelCase
+
+---
+id: ricd-django-instinct-import-style
+trigger: "When importing modules within the project"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: hazzamyman/ricd-django
+---
+
+# Ricd Django Instinct Import Style
+
+## Action
+
+Use relative imports
+
+## Evidence
+
+- Pattern in importStyle: relative
+
+---
+id: ricd-django-instinct-export-style
+trigger: "When exporting functions or classes"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: hazzamyman/ricd-django
+---
+
+# Ricd Django Instinct Export Style
+
+## Action
+
+Use named exports
+
+## Evidence
+
+- Pattern in exportStyle: named
+
+---
+id: ricd-django-instinct-commit-format
+trigger: "When making a git commit"
+confidence: 0.9
+domain: git
+source: repo-analysis
+source_repo: hazzamyman/ricd-django
+---
+
+# Ricd Django Instinct Commit Format
+
+## Action
+
+Format the commit message using the conventional commit format, starting with 'feat' if adding a feature
+
+## Evidence
+
+- Seen in commit: feat(issues-15-18-19): Approval, Work & Address CRUD; PaymentRule read-only views
+- Pattern in commits.prefixes: feat
+
+---
+id: ricd-django-instinct-commit-length
+trigger: "When writing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: hazzamyman/ricd-django
+---
+
+# Ricd Django Instinct Commit Length
+
+## Action
+
+Keep the commit message concise, around 80 characters
+
+## Evidence
+
+- Pattern in commits.averageLength: 81
+
+---
+id: ricd-django-instinct-test-location
+trigger: "When adding new tests"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: hazzamyman/ricd-django
+---
+
+# Ricd Django Instinct Test Location
+
+## Action
+
+Place test files in the separate 'tests' folder
+
+## Evidence
+
+- Pattern in architecture.folderStructure.testLocation: separate
+- Pattern in architecture.folderStructure.commonFolders: tests
+
+---
+id: ricd-django-instinct-src-location
+trigger: "When adding new source code"
+confidence: 0.8
+domain: architecture
+source: repo-analysis
+source_repo: hazzamyman/ricd-django
+---
+
+# Ricd Django Instinct Src Location
+
+## Action
+
+Place source files in the 'src' folder, under the appropriate app
+
+## Evidence
+
+- Pattern in architecture.folderStructure.commonFolders: src
+- Pattern in architecture.folderStructure.srcLayout: apps
+
