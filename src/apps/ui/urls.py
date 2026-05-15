@@ -98,6 +98,7 @@ urlpatterns = [
     path('funding-notices/<int:notice_pk>/claims/create/', views.crud_views.ExpenseClaimCreateView.as_view(), name='expense_claim_create'),
     path('expense-claims/<int:pk>/edit/', views.crud_views.ExpenseClaimUpdateView.as_view(), name='expense_claim_edit'),
     path('expense-claims/<int:pk>/delete/', views.crud_views.ExpenseClaimDeleteView.as_view(), name='expense_claim_delete'),
+    path('expense-claims/<int:pk>/submit/', views.crud_views.ExpenseClaimSubmitView.as_view(), name='expense_claim_submit'),
     path('expense-claims/<int:pk>/approve/', views.crud_views.ExpenseClaimApproveView.as_view(), name='expense_claim_approve'),
     path('expense-claims/<int:pk>/reject/', views.crud_views.ExpenseClaimRejectView.as_view(), name='expense_claim_reject'),
 

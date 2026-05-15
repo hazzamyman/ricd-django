@@ -107,7 +107,14 @@
           <td>{% if claim.approved_by %}{{ claim.approved_by.get_full_name|default:claim.approved_by.username }}{% else %}—{% endif %}</td>
           <td>{{ claim.approved_date|default:"—" }}</td>
           <td class="text-end d-flex gap-1 justify-content-end">
-            {% if claim.status == "DRAFT" or claim.status == "SUBMITTED" %}
+            {% if claim.status == "DRAFT" %}
+              <form method="post" action="{% url 'ui:expense_claim_submit' claim.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-primary">Submit</button>
+              </form>
+              <a href="{% url 'ui:expense_claim_edit' claim.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+              <a href="{% url 'ui:expense_claim_delete' claim.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
+            {% elif claim.status == "SUBMITTED" %}
               <form method="post" action="{% url 'ui:expense_claim_approve' claim.pk %}">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-sm btn-success">Approve</button>
@@ -116,10 +123,6 @@
                 {% csrf_token %}
                 <button type="submit" class="btn btn-sm btn-danger">Reject</button>
               </form>
-            {% endif %}
-            {% if claim.status == "DRAFT" %}
-              <a href="{% url 'ui:expense_claim_edit' claim.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
-              <a href="{% url 'ui:expense_claim_delete' claim.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
             {% endif %}
           </td>
         </tr>

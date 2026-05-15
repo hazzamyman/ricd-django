@@ -13,6 +13,16 @@
     <dt class="col-sm-3">Funding Schedule</dt><dd class="col-sm-9">{{ variation.funding_schedule|default:"-" }}</dd>
     <dt class="col-sm-3">Option</dt><dd class="col-sm-9">{{ variation.get_variation_option_display|default:"-" }}</dd>
     <dt class="col-sm-3">Status</dt><dd class="col-sm-9">{{ variation.get_status_display }}</dd>
+    <dt class="col-sm-3">Council Signed</dt><dd class="col-sm-9">{{ variation.council_signed_date|default:"-" }}</dd>
+    <dt class="col-sm-3">Dept. Executed</dt><dd class="col-sm-9">{{ variation.department_executed_date|default:"-" }}</dd>
+    <dt class="col-sm-3">Document</dt>
+    <dd class="col-sm-9">
+      {% if variation.document_link %}
+        <a href="{{ variation.document_link }}" target="_blank" rel="noopener">Open document</a>
+      {% else %}
+        <span class="text-muted">No document attached</span>
+      {% endif %}
+    </dd>
     <dt class="col-sm-3">Description</dt><dd class="col-sm-9">{{ variation.description|default:"-" }}</dd>
   </dl>
 </div></div>
