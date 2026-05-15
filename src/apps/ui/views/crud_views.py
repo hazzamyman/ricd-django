@@ -16,8 +16,8 @@ from django.utils import timezone
 from apps.core.models import (
     Approval, Address, BriefFinancialApproval, Council, DevelopmentApplication, LandTenure,
     PaymentRule, Program, Project, Work, WorkType, FundingSchedule,
-    Variation, Payment, StageReport, QuarterlyReport,
-    FundingAgreement, FundingNotice, ExpenseClaim,
+    Variation, VariationItem, Payment, StageReport, QuarterlyReport,
+    FundingAgreement, FundingNotice, ExpenseClaim, WorkFunding,
 )
 
 
@@ -1128,4 +1128,184 @@ class AddressDeleteView(LoginRequiredMixin, DeleteView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['back_url'] = reverse_lazy('ui:address_list', kwargs={'project_pk': self.object.project_id})
+        return ctx
+
+
+# ---------------------------------------------------------------------------
+# StageReport lifecycle actions (nested under project)
+# ---------------------------------------------------------------------------
+
+class StageReportSubmitView(LoginRequiredMixin, View):
+    def post(self, request, project_pk, pk):
+        report = get_object_or_404(StageReport, pk=pk, project_id=project_pk)
+        if report.status != StageReport.Status.DRAFT:
+            messages.error(request, 'Only draft reports can be submitted.')
+            return redirect('ui:stage_report_detail', project_pk=project_pk, pk=pk)
+        report.submit(request.user)
+        messages.success(request, 'Stage report submitted.')
+        return redirect('ui:stage_report_detail', project_pk=project_pk, pk=pk)
+
+
+class StageReportEndorseView(LoginRequiredMixin, View):
+    def post(self, request, project_pk, pk):
+        report = get_object_or_404(StageReport, pk=pk, project_id=project_pk)
+        if report.status != StageReport.Status.SUBMITTED:
+            messages.error(request, 'Only submitted reports can be endorsed.')
+            return redirect('ui:stage_report_detail', project_pk=project_pk, pk=pk)
+        report.endorse(request.user)
+        messages.success(request, 'Stage report endorsed.')
+        return redirect('ui:stage_report_detail', project_pk=project_pk, pk=pk)
+
+
+class StageReportAssessView(LoginRequiredMixin, View):
+    def post(self, request, project_pk, pk):
+        report = get_object_or_404(StageReport, pk=pk, project_id=project_pk)
+        if report.status != StageReport.Status.ENDORSED:
+            messages.error(request, 'Only endorsed reports can be assessed.')
+            return redirect('ui:stage_report_detail', project_pk=project_pk, pk=pk)
+        report.assess(request.user)
+        messages.success(request, 'Stage report assessed.')
+        return redirect('ui:stage_report_detail', project_pk=project_pk, pk=pk)
+
+
+class StageReportApproveView(LoginRequiredMixin, View):
+    def post(self, request, project_pk, pk):
+        report = get_object_or_404(StageReport, pk=pk, project_id=project_pk)
+        if report.status != StageReport.Status.ASSESSED:
+            messages.error(request, 'Only assessed reports can be approved.')
+            return redirect('ui:stage_report_detail', project_pk=project_pk, pk=pk)
+        report.approve(request.user)
+        messages.success(request, 'Stage report approved.')
+        return redirect('ui:stage_report_detail', project_pk=project_pk, pk=pk)
+
+
+# ---------------------------------------------------------------------------
+# VariationItem (nested under Variation)
+# ---------------------------------------------------------------------------
+
+class VariationItemCreateView(LoginRequiredMixin, CreateView):
+    model = VariationItem
+    template_name = 'crud/form.html'
+    fields = ['option', 'description', 'funding_schedule', 'council',
+              'stage1_target_date', 'stage2_target_date',
+              'original_scope', 'new_scope',
+              'original_amount', 'new_amount',
+              'monthly_required', 'quarterly_required', 'stage1_required', 'stage2_required']
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        if kwargs.get('instance') is None:
+            kwargs['instance'] = VariationItem(variation_id=self.kwargs['variation_pk'])
+        return kwargs
+
+    def get_success_url(self):
+        return reverse_lazy('ui:variation_detail', kwargs={'pk': self.kwargs['variation_pk']})
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Add Variation Item'
+        ctx['back_url'] = reverse_lazy('ui:variation_detail', kwargs={'pk': self.kwargs['variation_pk']})
+        return ctx
+
+
+class VariationItemUpdateView(LoginRequiredMixin, UpdateView):
+    model = VariationItem
+    template_name = 'crud/form.html'
+    fields = ['option', 'description', 'funding_schedule', 'council',
+              'stage1_target_date', 'stage2_target_date',
+              'original_scope', 'new_scope',
+              'original_amount', 'new_amount',
+              'monthly_required', 'quarterly_required', 'stage1_required', 'stage2_required']
+
+    def get_success_url(self):
+        return reverse_lazy('ui:variation_detail', kwargs={'pk': self.kwargs['variation_pk']})
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit Variation Item #{self.object.pk}'
+        ctx['back_url'] = reverse_lazy('ui:variation_detail', kwargs={'pk': self.kwargs['variation_pk']})
+        return ctx
+
+
+class VariationItemDeleteView(LoginRequiredMixin, DeleteView):
+    model = VariationItem
+    template_name = 'crud/confirm_delete.html'
+
+    def get_success_url(self):
+        return reverse_lazy('ui:variation_detail', kwargs={'pk': self.kwargs['variation_pk']})
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['back_url'] = reverse_lazy('ui:variation_detail', kwargs={'pk': self.kwargs['variation_pk']})
+        return ctx
+
+
+class VariationExecuteView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        variation = get_object_or_404(Variation, pk=pk)
+        if variation.status not in (Variation.Status.DRAFT, Variation.Status.COUNCIL_SIGNED):
+            messages.error(request, 'Only draft or council-signed variations can be executed.')
+            return redirect('ui:variation_detail', pk=pk)
+        variation.status = Variation.Status.EXECUTED
+        variation.save()
+        messages.success(request, 'Variation executed.')
+        return redirect('ui:variation_detail', pk=pk)
+
+
+# ---------------------------------------------------------------------------
+# WorkFunding / Allocation
+# ---------------------------------------------------------------------------
+
+class WorkFundingListView(LoginRequiredMixin, ListView):
+    model = WorkFunding
+    template_name = 'allocations/list.html'
+    context_object_name = 'allocations'
+    paginate_by = 50
+
+    def get_queryset(self):
+        return WorkFunding.objects.select_related(
+            'funding_schedule', 'project', 'work'
+        ).order_by('funding_schedule', 'id')
+
+
+class WorkFundingCreateView(LoginRequiredMixin, CreateView):
+    model = WorkFunding
+    template_name = 'crud/form.html'
+    fields = ['funding_schedule', 'project', 'work', 'cost_centre', 'gl_code', 'tax_code', 'amount', 'notes']
+    success_url = reverse_lazy('ui:allocation_list')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Create Allocation'
+        ctx['back_url'] = reverse_lazy('ui:allocation_list')
+        return ctx
+
+
+class WorkFundingDetailView(LoginRequiredMixin, DetailView):
+    model = WorkFunding
+    template_name = 'allocations/detail.html'
+    context_object_name = 'allocation'
+
+
+class WorkFundingUpdateView(LoginRequiredMixin, UpdateView):
+    model = WorkFunding
+    template_name = 'crud/form.html'
+    fields = ['funding_schedule', 'project', 'work', 'cost_centre', 'gl_code', 'tax_code', 'amount', 'notes']
+    success_url = reverse_lazy('ui:allocation_list')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit Allocation #{self.object.pk}'
+        ctx['back_url'] = reverse_lazy('ui:allocation_list')
+        return ctx
+
+
+class WorkFundingDeleteView(LoginRequiredMixin, DeleteView):
+    model = WorkFunding
+    template_name = 'crud/confirm_delete.html'
+    success_url = reverse_lazy('ui:allocation_list')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['back_url'] = reverse_lazy('ui:allocation_list')
         return ctx

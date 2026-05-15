@@ -4,11 +4,16 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h2>Variation #{{ variation.pk }}</h2>
   <div class="d-flex gap-2">
-    <a href="{% url 'ui:variation_edit' variation.pk %}" class="btn btn-secondary">Edit</a>
+    {% if variation.status == 'DRAFT' or variation.status == 'COUNCIL_SIGNED' %}
+      <a href="{% url 'ui:variation_edit' variation.pk %}" class="btn btn-secondary">Edit</a>
+      <form method="post" action="{% url 'ui:variation_execute' variation.pk %}">
+        {% csrf_token %}<button class="btn btn-success">Execute</button>
+      </form>
+    {% endif %}
     <a href="{% url 'ui:variations_list' %}" class="btn btn-outline-secondary">Back</a>
   </div>
 </div>
-<div class="card"><div class="card-body">
+<div class="card mb-3"><div class="card-body">
   <dl class="row">
     <dt class="col-sm-3">Funding Schedule</dt><dd class="col-sm-9">{{ variation.funding_schedule|default:"-" }}</dd>
     <dt class="col-sm-3">Option</dt><dd class="col-sm-9">{{ variation.get_variation_option_display|default:"-" }}</dd>
@@ -16,4 +21,32 @@
     <dt class="col-sm-3">Description</dt><dd class="col-sm-9">{{ variation.description|default:"-" }}</dd>
   </dl>
 </div></div>
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <h5>Items</h5>
+  {% if variation.status == 'DRAFT' %}
+    <a href="{% url 'ui:variation_item_create' variation.pk %}" class="btn btn-sm btn-outline-primary">Add Item</a>
+  {% endif %}
+</div>
+<div class="table-responsive">
+  <table class="table table-sm">
+    <thead><tr><th>Option</th><th>Description</th><th>Actions</th></tr></thead>
+    <tbody>
+    {% for item in variation.items.all %}
+      <tr>
+        <td>{{ item.get_option_display }}</td>
+        <td>{{ item.description|default:"-"|truncatechars:60 }}</td>
+        <td>
+          {% if variation.status == 'DRAFT' %}
+            <a href="{% url 'ui:variation_item_edit' variation.pk item.pk %}" class="btn btn-xs btn-outline-secondary btn-sm">Edit</a>
+            <a href="{% url 'ui:variation_item_delete' variation.pk item.pk %}" class="btn btn-xs btn-outline-danger btn-sm">Delete</a>
+          {% endif %}
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="3" class="text-muted">No items yet.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% endblock %}

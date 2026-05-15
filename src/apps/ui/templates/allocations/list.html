@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Allocations - RICD{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Allocations</h2>
+  <a href="{% url 'ui:allocation_create' %}" class="btn btn-primary">New Allocation</a>
+</div>
+<div class="table-responsive">
+  <table class="table table-sm table-hover">
+    <thead><tr><th>Funding Schedule</th><th>Project</th><th>Work</th><th>Cost Centre</th><th>Amount</th><th></th></tr></thead>
+    <tbody>
+    {% for a in allocations %}
+      <tr>
+        <td>{{ a.funding_schedule }}</td>
+        <td>{{ a.project|default:"-" }}</td>
+        <td>{{ a.work|default:"-" }}</td>
+        <td>{{ a.cost_centre|default:"-" }}</td>
+        <td>{% if a.amount %}${{ a.amount }}{% else %}-{% endif %}</td>
+        <td>
+          <a href="{% url 'ui:allocation_detail' a.pk %}" class="btn btn-sm btn-outline-secondary">View</a>
+          <a href="{% url 'ui:allocation_edit' a.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+          <a href="{% url 'ui:allocation_delete' a.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="6" class="text-muted">No allocations found.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if is_paginated %}
+<nav><ul class="pagination">
+  {% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a></li>{% endif %}
+  <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+  {% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a></li>{% endif %}
+</ul></nav>
+{% endif %}
+{% endblock %}
