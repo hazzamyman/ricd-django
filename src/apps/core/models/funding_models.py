@@ -533,6 +533,15 @@ class WorkFunding(models.Model):
             ),
         ]
 
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        both_set = self.project_id is not None and self.work_id is not None
+        neither_set = self.project_id is None and self.work_id is None
+        if both_set:
+            raise ValidationError('An allocation must target either a project or a work item — not both.')
+        if neither_set:
+            raise ValidationError('An allocation must target either a project or a work item.')
+
     def __str__(self):
         if self.work:
             work_name = f"{self.work.work_type.name if self.work.work_type else self.work.work_type_other}"

@@ -750,6 +750,9 @@ class ExpenseClaimApproveView(LoginRequiredMixin, View):
     def post(self, request, pk):
         from django.utils import timezone
         claim = get_object_or_404(ExpenseClaim, pk=pk)
+        if claim.status != ExpenseClaim.Status.SUBMITTED:
+            messages.error(request, 'Only submitted claims can be approved.')
+            return redirect('ui:funding_notice_detail', pk=claim.funding_notice_id)
         notice = claim.funding_notice
         # Cap enforcement
         approved_total = notice.approved_claims_total
@@ -774,9 +777,24 @@ class ExpenseClaimApproveView(LoginRequiredMixin, View):
         return redirect('ui:funding_notice_detail', pk=notice.pk)
 
 
+class ExpenseClaimSubmitView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        claim = get_object_or_404(ExpenseClaim, pk=pk)
+        if claim.status != ExpenseClaim.Status.DRAFT:
+            messages.error(request, 'Only draft claims can be submitted.')
+            return redirect('ui:funding_notice_detail', pk=claim.funding_notice_id)
+        claim.status = ExpenseClaim.Status.SUBMITTED
+        claim.save()
+        messages.success(request, 'Claim submitted for approval.')
+        return redirect('ui:funding_notice_detail', pk=claim.funding_notice_id)
+
+
 class ExpenseClaimRejectView(LoginRequiredMixin, View):
     def post(self, request, pk):
         claim = get_object_or_404(ExpenseClaim, pk=pk)
+        if claim.status not in (ExpenseClaim.Status.SUBMITTED, ExpenseClaim.Status.APPROVED):
+            messages.error(request, 'Only submitted or approved claims can be rejected.')
+            return redirect('ui:funding_notice_detail', pk=claim.funding_notice_id)
         notice_pk = claim.funding_notice_id
         claim.status = ExpenseClaim.Status.REJECTED
         claim.save()
