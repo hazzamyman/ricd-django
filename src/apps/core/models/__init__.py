@@ -32,7 +32,10 @@ from .funding_models import (
 from .payments_models import Payment
 
 # Variation & Stage models
-from .variations_models import VariationType, Variation, VariationFundingSchedule, VariationContactDetails, VariationDateChange
+from .variations_models import (
+    VariationType, Variation, VariationItem, VariationFundingSchedule,
+    VariationContactDetails, VariationDateChange,
+)
 from .stages_models import Stage, WorkStep
 
 # Report models
@@ -79,7 +82,7 @@ __all__ = [
     'FundingSchedule', 'ProjectStateLog', 'WorkFunding',
     'Approval', 'WorkflowAction', 'AuditLog', 'Payment',
     # Variation & Stage
-    'VariationType', 'Variation', 'VariationFundingSchedule',
+    'VariationType', 'Variation', 'VariationItem', 'VariationFundingSchedule',
     'VariationContactDetails', 'VariationDateChange',
     'Stage', 'WorkStep',
     # Report
