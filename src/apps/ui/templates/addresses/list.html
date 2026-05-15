@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Addresses — {{ project.name }}{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Addresses</h2>
+    <a href="{% url 'ui:address_create' project_pk=project.pk %}" class="btn btn-primary">+ Add Address</a>
+  </div>
+  <p class="text-muted">Project: <strong>{{ project.name }}</strong></p>
+
+  {% if addresses %}
+  <table class="table table-hover">
+    <thead>
+      <tr>
+        <th>Street</th>
+        <th>Suburb</th>
+        <th>Lot / Plan</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for addr in addresses %}
+      <tr>
+        <td>{{ addr.street }}</td>
+        <td>{% if addr.suburb %}{{ addr.suburb.name }} {{ addr.suburb.postcode }}{% else %}—{% endif %}</td>
+        <td>{% if addr.lot %}Lot {{ addr.lot }}{% endif %}{% if addr.plan %} on {{ addr.plan }}{% endif %}{% if not addr.lot and not addr.plan %}—{% endif %}</td>
+        <td>
+          <a href="{% url 'ui:address_detail' project_pk=project.pk pk=addr.pk %}" class="btn btn-sm btn-outline-secondary">View</a>
+          <a href="{% url 'ui:address_edit' project_pk=project.pk pk=addr.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="text-muted">No addresses yet.</p>
+  {% endif %}
+</div>
+{% endblock %}
