@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Funding Agreements - RICD{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Funding Agreements</h2>
+  <a href="{% url 'ui:funding_agreement_create' %}" class="btn btn-primary">New Agreement</a>
+</div>
+
+<div class="card">
+  {% if agreements %}
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Name</th>
+          <th>Council</th>
+          <th>Execution Date</th>
+          <th>Status</th>
+          <th>Schedules</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for agreement in agreements %}
+        <tr>
+          <td><a href="{% url 'ui:funding_agreement_detail' agreement.pk %}">{{ agreement.name }}</a></td>
+          <td>{{ agreement.council.name }}</td>
+          <td>{{ agreement.execution_date|default:"—" }}</td>
+          <td>
+            {% if agreement.status == "ACTIVE" %}
+              <span class="badge bg-success">Active</span>
+            {% elif agreement.status == "DRAFT" %}
+              <span class="badge bg-secondary">Draft</span>
+            {% else %}
+              <span class="badge bg-danger">Ceased</span>
+            {% endif %}
+          </td>
+          <td>{{ agreement.schedules.count }}</td>
+          <td class="text-end">
+            <a href="{% url 'ui:funding_agreement_edit' agreement.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+            <a href="{% url 'ui:funding_agreement_delete' agreement.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="card-body text-muted">No funding agreements yet.</div>
+  {% endif %}
+</div>
+
+{% if is_paginated %}
+<nav class="mt-3">
+  <ul class="pagination">
+    {% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a></li>{% endif %}
+    <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+    {% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a></li>{% endif %}
+  </ul>
+</nav>
+{% endif %}
+{% endblock %}

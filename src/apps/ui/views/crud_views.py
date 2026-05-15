@@ -11,6 +11,7 @@ from django.views.generic import (
 from apps.core.models import (
     Council, Program, Project, WorkType, FundingSchedule,
     Variation, Payment, StageReport, QuarterlyReport,
+    FundingAgreement,
 )
 
 
@@ -543,4 +544,69 @@ class QuarterlyReportDeleteView(LoginRequiredMixin, DeleteView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['back_url'] = reverse_lazy('ui:quarterly_report_list', kwargs={'project_pk': self.kwargs['project_pk']})
+        return ctx
+
+
+# ---------------------------------------------------------------------------
+# FundingAgreement
+# ---------------------------------------------------------------------------
+
+class FundingAgreementListView(LoginRequiredMixin, ListView):
+    model = FundingAgreement
+    template_name = 'funding_agreements/list.html'
+    context_object_name = 'agreements'
+    paginate_by = 50
+
+    def get_queryset(self):
+        return FundingAgreement.objects.select_related('council').order_by('-created_at')
+
+
+class FundingAgreementCreateView(LoginRequiredMixin, CreateView):
+    model = FundingAgreement
+    template_name = 'crud/form.html'
+    fields = ['council', 'name', 'execution_date', 'status', 'document_uri', 'notes']
+    success_url = reverse_lazy('ui:funding_agreement_list')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Create Funding Agreement'
+        ctx['back_url'] = reverse_lazy('ui:funding_agreement_list')
+        return ctx
+
+
+class FundingAgreementDetailView(LoginRequiredMixin, DetailView):
+    model = FundingAgreement
+    template_name = 'funding_agreements/detail.html'
+    context_object_name = 'agreement'
+
+    def get_queryset(self):
+        return FundingAgreement.objects.select_related('council')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['schedules'] = self.object.schedules.select_related('payment_rule').order_by('schedule_number')
+        return ctx
+
+
+class FundingAgreementUpdateView(LoginRequiredMixin, UpdateView):
+    model = FundingAgreement
+    template_name = 'crud/form.html'
+    fields = ['council', 'name', 'execution_date', 'status', 'document_uri', 'notes']
+    success_url = reverse_lazy('ui:funding_agreement_list')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit Agreement: {self.object.name}'
+        ctx['back_url'] = reverse_lazy('ui:funding_agreement_list')
+        return ctx
+
+
+class FundingAgreementDeleteView(LoginRequiredMixin, DeleteView):
+    model = FundingAgreement
+    template_name = 'crud/confirm_delete.html'
+    success_url = reverse_lazy('ui:funding_agreement_list')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['back_url'] = reverse_lazy('ui:funding_agreement_list')
         return ctx

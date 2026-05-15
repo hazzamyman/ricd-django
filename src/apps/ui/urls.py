@@ -78,6 +78,13 @@ urlpatterns = [
     path('funding-schedules/<int:pk>/edit/', views.crud_views.FundingScheduleUpdateView.as_view(), name='funding_schedule_edit'),
     path('funding-schedules/<int:pk>/delete/', views.crud_views.FundingScheduleDeleteView.as_view(), name='funding_schedule_delete'),
 
+    # Funding Agreements CRUD
+    path('funding-agreements/', views.crud_views.FundingAgreementListView.as_view(), name='funding_agreement_list'),
+    path('funding-agreements/create/', views.crud_views.FundingAgreementCreateView.as_view(), name='funding_agreement_create'),
+    path('funding-agreements/<int:pk>/', views.crud_views.FundingAgreementDetailView.as_view(), name='funding_agreement_detail'),
+    path('funding-agreements/<int:pk>/edit/', views.crud_views.FundingAgreementUpdateView.as_view(), name='funding_agreement_edit'),
+    path('funding-agreements/<int:pk>/delete/', views.crud_views.FundingAgreementDeleteView.as_view(), name='funding_agreement_delete'),
+
     # Other existing views
     path('reports/', views.reports_views.reports_dashboard_view, name='reports_dashboard'),
     path('land-infra/', views.land_infra_views.land_projects_list_view, name='land_projects_list'),
