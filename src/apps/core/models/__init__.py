@@ -11,7 +11,7 @@ from .programs_models import Program, ProgramBudget
 from .projects_models import Project, Comment
 
 # Land Infrastructure models
-from .land_infra_models import LandProject, LandTenure, DevelopmentApplication
+from .land_infra_models import LandTenure, DevelopmentApplication
 
 # Funding & Payment models
 from .funding_models import (
@@ -72,7 +72,7 @@ __all__ = [
     # Project
     'Project', 'Comment',
     # Land Infrastructure
-    'LandProject', 'LandTenure', 'DevelopmentApplication',
+    'LandTenure', 'DevelopmentApplication',
     # Funding & Payment
     'PaymentRule', 'FundingAgreement', 'BriefFinancialApproval',
     'FundingNotice', 'ExpenseClaim', 'Delegation', 'FundingApproval',

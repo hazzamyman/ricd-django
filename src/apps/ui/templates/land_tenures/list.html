@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Land Tenures{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Land Tenures</h2>
+    <a href="{% url 'ui:land_tenure_create' %}" class="btn btn-primary">+ New Land Tenure</a>
+  </div>
+
+  {% if land_tenures %}
+  <table class="table table-hover">
+    <thead>
+      <tr>
+        <th>Council</th>
+        <th>Lot Number</th>
+        <th>Plan Number</th>
+        <th>Title Reference</th>
+        <th>Tenure Type</th>
+        <th>Developed</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for tenure in land_tenures %}
+      <tr>
+        <td>{{ tenure.council }}</td>
+        <td>{{ tenure.lot_number }}</td>
+        <td>{{ tenure.plan_number|default:"—" }}</td>
+        <td>{{ tenure.title_reference|default:"—" }}</td>
+        <td>{{ tenure.get_tenure_type_display }}</td>
+        <td>{% if tenure.is_developed %}Yes{% else %}No{% endif %}</td>
+        <td>
+          <a href="{% url 'ui:land_tenure_detail' pk=tenure.pk %}" class="btn btn-sm btn-outline-secondary">View</a>
+          <a href="{% url 'ui:land_tenure_edit' pk=tenure.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if is_paginated %}
+  <nav><ul class="pagination">
+    {% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a></li>{% endif %}
+    <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+    {% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a></li>{% endif %}
+  </ul></nav>
+  {% endif %}
+  {% else %}
+  <p class="text-muted">No land tenures yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

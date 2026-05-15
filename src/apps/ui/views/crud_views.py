@@ -14,7 +14,8 @@ from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
 
 from apps.core.models import (
-    BriefFinancialApproval, Council, Program, Project, WorkType, FundingSchedule,
+    BriefFinancialApproval, Council, DevelopmentApplication, LandTenure,
+    Program, Project, WorkType, FundingSchedule,
     Variation, Payment, StageReport, QuarterlyReport,
     FundingAgreement, FundingNotice, ExpenseClaim,
 )
