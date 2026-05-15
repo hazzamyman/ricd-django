@@ -33,14 +33,25 @@ class TestFundingScheduleCreateView:
         assert response.status_code in [200, 302, 404]
     
     def test_funding_create_post(self, funding_create_client, project):
-        """Test creating funding schedule"""
-        response = funding_create_client.post(f'/funding/schedule/create/{project.id}/', {
+        """Test creating funding schedule via the consolidated ui namespace URL.
+
+        FundingSchedule.clean() requires an APPROVED BriefFinancialApproval on
+        the project before the schedule can be created.
+        """
+        from apps.core.models import BriefFinancialApproval
+        BriefFinancialApproval.objects.create(
+            project=project,
+            funding_amount=Decimal('500000'),
+            status='APPROVED',
+        )
+        response = funding_create_client.post('/funding-schedules/create/', {
+            'project': project.id,
             'amount': '500000',
             'contingency': '50000',
-            'payment_split': '30/60/10'
+            'payment_split': '30/60/10',
+            'status': 'DRAFT',
         }, follow=True)
         assert response.status_code in [200, 302]
-        # Verify created
         assert FundingSchedule.objects.filter(project=project).exists()
     
     def test_funding_create_land_get(self, funding_create_client, land_project):
@@ -98,14 +109,13 @@ class TestFundingScheduleDeleteView:
         assert response.status_code in [200, 302, 404]
     
     def test_funding_delete_post(self, funding_delete_client, funding_schedule):
-        """Test funding schedule deletion"""
+        """Test funding schedule deletion via the consolidated ui namespace URL."""
         fs_id = funding_schedule.id
         response = funding_delete_client.post(
-            f'/funding/schedule/{fs_id}/delete/',
+            f'/funding-schedules/{fs_id}/delete/',
             follow=True
         )
         assert response.status_code in [200, 302]
-        # Verify deleted
         assert not FundingSchedule.objects.filter(id=fs_id).exists()
 
 

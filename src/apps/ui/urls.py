@@ -78,6 +78,28 @@ urlpatterns = [
     path('funding-schedules/<int:pk>/edit/', views.crud_views.FundingScheduleUpdateView.as_view(), name='funding_schedule_edit'),
     path('funding-schedules/<int:pk>/delete/', views.crud_views.FundingScheduleDeleteView.as_view(), name='funding_schedule_delete'),
 
+    # Funding Notices CRUD + close action
+    path('funding-notices/', views.crud_views.FundingNoticeListView.as_view(), name='funding_notice_list'),
+    path('funding-notices/create/', views.crud_views.FundingNoticeCreateView.as_view(), name='funding_notice_create'),
+    path('funding-notices/<int:pk>/', views.crud_views.FundingNoticeDetailView.as_view(), name='funding_notice_detail'),
+    path('funding-notices/<int:pk>/edit/', views.crud_views.FundingNoticeUpdateView.as_view(), name='funding_notice_edit'),
+    path('funding-notices/<int:pk>/delete/', views.crud_views.FundingNoticeDeleteView.as_view(), name='funding_notice_delete'),
+    path('funding-notices/<int:pk>/close/', views.crud_views.FundingNoticeCloseView.as_view(), name='funding_notice_close'),
+
+    # Expense Claims (nested under FundingNotice)
+    path('funding-notices/<int:notice_pk>/claims/create/', views.crud_views.ExpenseClaimCreateView.as_view(), name='expense_claim_create'),
+    path('expense-claims/<int:pk>/edit/', views.crud_views.ExpenseClaimUpdateView.as_view(), name='expense_claim_edit'),
+    path('expense-claims/<int:pk>/delete/', views.crud_views.ExpenseClaimDeleteView.as_view(), name='expense_claim_delete'),
+    path('expense-claims/<int:pk>/approve/', views.crud_views.ExpenseClaimApproveView.as_view(), name='expense_claim_approve'),
+    path('expense-claims/<int:pk>/reject/', views.crud_views.ExpenseClaimRejectView.as_view(), name='expense_claim_reject'),
+
+    # Funding Agreements CRUD
+    path('funding-agreements/', views.crud_views.FundingAgreementListView.as_view(), name='funding_agreement_list'),
+    path('funding-agreements/create/', views.crud_views.FundingAgreementCreateView.as_view(), name='funding_agreement_create'),
+    path('funding-agreements/<int:pk>/', views.crud_views.FundingAgreementDetailView.as_view(), name='funding_agreement_detail'),
+    path('funding-agreements/<int:pk>/edit/', views.crud_views.FundingAgreementUpdateView.as_view(), name='funding_agreement_edit'),
+    path('funding-agreements/<int:pk>/delete/', views.crud_views.FundingAgreementDeleteView.as_view(), name='funding_agreement_delete'),
+
     # Other existing views
     path('reports/', views.reports_views.reports_dashboard_view, name='reports_dashboard'),
     path('land-infra/', views.land_infra_views.land_projects_list_view, name='land_projects_list'),

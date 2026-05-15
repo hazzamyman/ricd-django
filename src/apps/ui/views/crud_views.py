@@ -5,12 +5,16 @@ All views require login via LoginRequiredMixin.
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from django.views.generic import (
-    ListView, CreateView, DetailView, UpdateView, DeleteView,
+    ListView, CreateView, DetailView, UpdateView, DeleteView, View,
 )
+
+from django.contrib import messages
+from django.shortcuts import get_object_or_404, redirect
 
 from apps.core.models import (
     Council, Program, Project, WorkType, FundingSchedule,
     Variation, Payment, StageReport, QuarterlyReport,
+    FundingAgreement, FundingNotice, ExpenseClaim,
 )
 
 
@@ -544,3 +548,234 @@ class QuarterlyReportDeleteView(LoginRequiredMixin, DeleteView):
         ctx = super().get_context_data(**kwargs)
         ctx['back_url'] = reverse_lazy('ui:quarterly_report_list', kwargs={'project_pk': self.kwargs['project_pk']})
         return ctx
+
+
+# ---------------------------------------------------------------------------
+# FundingAgreement
+# ---------------------------------------------------------------------------
+
+class FundingAgreementListView(LoginRequiredMixin, ListView):
+    model = FundingAgreement
+    template_name = 'funding_agreements/list.html'
+    context_object_name = 'agreements'
+    paginate_by = 50
+
+    def get_queryset(self):
+        return FundingAgreement.objects.select_related('council').order_by('-created_at')
+
+
+class FundingAgreementCreateView(LoginRequiredMixin, CreateView):
+    model = FundingAgreement
+    template_name = 'crud/form.html'
+    fields = ['council', 'name', 'execution_date', 'status', 'document_uri', 'notes']
+    success_url = reverse_lazy('ui:funding_agreement_list')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Create Funding Agreement'
+        ctx['back_url'] = reverse_lazy('ui:funding_agreement_list')
+        return ctx
+
+
+class FundingAgreementDetailView(LoginRequiredMixin, DetailView):
+    model = FundingAgreement
+    template_name = 'funding_agreements/detail.html'
+    context_object_name = 'agreement'
+
+    def get_queryset(self):
+        return FundingAgreement.objects.select_related('council')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['schedules'] = self.object.schedules.select_related('payment_rule').order_by('schedule_number')
+        return ctx
+
+
+class FundingAgreementUpdateView(LoginRequiredMixin, UpdateView):
+    model = FundingAgreement
+    template_name = 'crud/form.html'
+    fields = ['council', 'name', 'execution_date', 'status', 'document_uri', 'notes']
+    success_url = reverse_lazy('ui:funding_agreement_list')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit Agreement: {self.object.name}'
+        ctx['back_url'] = reverse_lazy('ui:funding_agreement_list')
+        return ctx
+
+
+class FundingAgreementDeleteView(LoginRequiredMixin, DeleteView):
+    model = FundingAgreement
+    template_name = 'crud/confirm_delete.html'
+    success_url = reverse_lazy('ui:funding_agreement_list')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['back_url'] = reverse_lazy('ui:funding_agreement_list')
+        return ctx
+
+
+# ---------------------------------------------------------------------------
+# FundingNotice
+# ---------------------------------------------------------------------------
+
+class FundingNoticeListView(LoginRequiredMixin, ListView):
+    model = FundingNotice
+    template_name = 'funding_notices/list.html'
+    context_object_name = 'notices'
+    paginate_by = 50
+
+    def get_queryset(self):
+        return FundingNotice.objects.select_related('project').order_by('-issued_date')
+
+
+class FundingNoticeCreateView(LoginRequiredMixin, CreateView):
+    model = FundingNotice
+    template_name = 'crud/form.html'
+    fields = ['project', 'capped_amount', 'issued_date', 'notes']
+    success_url = reverse_lazy('ui:funding_notice_list')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Create Funding Notice'
+        ctx['back_url'] = reverse_lazy('ui:funding_notice_list')
+        return ctx
+
+
+class FundingNoticeDetailView(LoginRequiredMixin, DetailView):
+    model = FundingNotice
+    template_name = 'funding_notices/detail.html'
+    context_object_name = 'notice'
+
+    def get_queryset(self):
+        return FundingNotice.objects.select_related('project')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['claims'] = self.object.claims.select_related('approved_by').order_by('-date_submitted')
+        return ctx
+
+
+class FundingNoticeUpdateView(LoginRequiredMixin, UpdateView):
+    model = FundingNotice
+    template_name = 'crud/form.html'
+    fields = ['project', 'capped_amount', 'issued_date', 'notes']
+    success_url = reverse_lazy('ui:funding_notice_list')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit Funding Notice — {self.object.project.name}'
+        ctx['back_url'] = reverse_lazy('ui:funding_notice_list')
+        return ctx
+
+
+class FundingNoticeDeleteView(LoginRequiredMixin, DeleteView):
+    model = FundingNotice
+    template_name = 'crud/confirm_delete.html'
+    success_url = reverse_lazy('ui:funding_notice_list')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['back_url'] = reverse_lazy('ui:funding_notice_list')
+        return ctx
+
+
+class FundingNoticeCloseView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        notice = get_object_or_404(FundingNotice, pk=pk)
+        notice.status = FundingNotice.Status.CLOSED
+        notice.save()
+        messages.success(request, 'Funding notice closed.')
+        return redirect('ui:funding_notice_detail', pk=pk)
+
+
+# ---------------------------------------------------------------------------
+# ExpenseClaim  (nested under FundingNotice)
+# ---------------------------------------------------------------------------
+
+class ExpenseClaimCreateView(LoginRequiredMixin, CreateView):
+    model = ExpenseClaim
+    template_name = 'crud/form.html'
+    fields = ['amount', 'date_submitted', 'notes']
+
+    def get_success_url(self):
+        return reverse_lazy('ui:funding_notice_detail', kwargs={'pk': self.kwargs['notice_pk']})
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        # Pre-populate so ExpenseClaim.clean() can access self.funding_notice during validation
+        kwargs['instance'] = ExpenseClaim(funding_notice_id=self.kwargs['notice_pk'])
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        notice = get_object_or_404(FundingNotice, pk=self.kwargs['notice_pk'])
+        ctx['title'] = f'Add Expense Claim — {notice.project.name}'
+        ctx['back_url'] = reverse_lazy('ui:funding_notice_detail', kwargs={'pk': self.kwargs['notice_pk']})
+        return ctx
+
+
+class ExpenseClaimUpdateView(LoginRequiredMixin, UpdateView):
+    model = ExpenseClaim
+    template_name = 'crud/form.html'
+    fields = ['amount', 'date_submitted', 'notes']
+
+    def get_success_url(self):
+        return reverse_lazy('ui:funding_notice_detail', kwargs={'pk': self.object.funding_notice_id})
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit Expense Claim #{self.object.pk}'
+        ctx['back_url'] = reverse_lazy('ui:funding_notice_detail', kwargs={'pk': self.object.funding_notice_id})
+        return ctx
+
+
+class ExpenseClaimDeleteView(LoginRequiredMixin, DeleteView):
+    model = ExpenseClaim
+    template_name = 'crud/confirm_delete.html'
+
+    def get_success_url(self):
+        return reverse_lazy('ui:funding_notice_detail', kwargs={'pk': self.object.funding_notice_id})
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['back_url'] = reverse_lazy('ui:funding_notice_detail', kwargs={'pk': self.object.funding_notice_id})
+        return ctx
+
+
+class ExpenseClaimApproveView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        from django.utils import timezone
+        claim = get_object_or_404(ExpenseClaim, pk=pk)
+        notice = claim.funding_notice
+        # Cap enforcement
+        approved_total = notice.approved_claims_total
+        if approved_total + claim.amount > notice.capped_amount:
+            remaining = notice.capped_amount - approved_total
+            messages.error(
+                request,
+                f'Cannot approve: claim ${claim.amount:,.2f} exceeds remaining cap '
+                f'${remaining:,.2f}.'
+            )
+            return redirect('ui:funding_notice_detail', pk=notice.pk)
+        claim.status = ExpenseClaim.Status.APPROVED
+        claim.approved_by = request.user
+        claim.approved_date = timezone.now().date()
+        claim.save()
+        if notice.is_exhausted:
+            notice.status = FundingNotice.Status.CLOSED
+            notice.save()
+            messages.success(request, 'Claim approved. Notice cap exhausted — notice closed.')
+        else:
+            messages.success(request, f'Claim approved. ${notice.remaining:,.2f} remaining.')
+        return redirect('ui:funding_notice_detail', pk=notice.pk)
+
+
+class ExpenseClaimRejectView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        claim = get_object_or_404(ExpenseClaim, pk=pk)
+        notice_pk = claim.funding_notice_id
+        claim.status = ExpenseClaim.Status.REJECTED
+        claim.save()
+        messages.info(request, 'Claim rejected.')
+        return redirect('ui:funding_notice_detail', pk=notice_pk)
