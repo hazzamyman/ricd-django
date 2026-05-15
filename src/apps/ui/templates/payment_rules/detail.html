@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Payment Rule: {{ payment_rule.name }}{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>{{ payment_rule.name }} <small class="text-muted">v{{ payment_rule.version }}</small></h2>
+    <a href="{% url 'ui:payment_rule_list' %}" class="btn btn-outline-secondary">Back</a>
+  </div>
+
+  {% if schedule_count %}
+  <div class="alert alert-warning">This rule is linked to {{ schedule_count }} funding schedule{{ schedule_count|pluralize }} and is <strong>immutable</strong>.</div>
+  {% endif %}
+
+  <dl class="row">
+    <dt class="col-sm-3">Type</dt>
+    <dd class="col-sm-9">{{ payment_rule.get_rule_type_display }}</dd>
+
+    <dt class="col-sm-3">Version</dt>
+    <dd class="col-sm-9">{{ payment_rule.version }}</dd>
+
+    <dt class="col-sm-3">Active</dt>
+    <dd class="col-sm-9">{% if payment_rule.is_active %}Yes{% else %}No{% endif %}</dd>
+
+    <dt class="col-sm-3">Linked Schedules</dt>
+    <dd class="col-sm-9">{{ schedule_count }}</dd>
+  </dl>
+
+  {% if milestones %}
+  <h4 class="mt-4">Milestone Schedule</h4>
+  <table class="table table-sm table-bordered">
+    <thead class="table-light">
+      <tr><th>Milestone</th><th>Trigger</th><th>Percentage</th></tr>
+    </thead>
+    <tbody>
+      {% for m in milestones %}
+      <tr>
+        <td>{{ m.name|default:forloop.counter }}</td>
+        <td>{{ m.trigger|default:"—" }}</td>
+        <td>{{ m.percentage }}%</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <h4 class="mt-4">Configuration</h4>
+  <pre class="bg-light p-3 rounded"><code>{{ payment_rule.config_json }}</code></pre>
+  {% endif %}
+</div>
+{% endblock %}

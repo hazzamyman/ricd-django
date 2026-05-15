@@ -14,8 +14,8 @@ from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
 
 from apps.core.models import (
-    BriefFinancialApproval, Council, DevelopmentApplication, LandTenure,
-    Program, Project, WorkType, FundingSchedule,
+    Approval, Address, BriefFinancialApproval, Council, DevelopmentApplication, LandTenure,
+    PaymentRule, Program, Project, Work, WorkType, FundingSchedule,
     Variation, VariationItem, Payment, StageReport, QuarterlyReport,
     FundingAgreement, FundingNotice, ExpenseClaim, WorkFunding,
 )
@@ -889,6 +889,249 @@ class BriefFinancialApprovalRejectView(LoginRequiredMixin, View):
 
 
 # ---------------------------------------------------------------------------
+# PaymentRule (issue #19 — read-only; admin-create only)
+# ---------------------------------------------------------------------------
+
+class PaymentRuleListView(LoginRequiredMixin, ListView):
+    model = PaymentRule
+    template_name = 'payment_rules/list.html'
+    context_object_name = 'payment_rules'
+    paginate_by = 50
+
+    def get_queryset(self):
+        return PaymentRule.objects.order_by('name', '-version')
+
+
+class PaymentRuleDetailView(LoginRequiredMixin, DetailView):
+    model = PaymentRule
+    template_name = 'payment_rules/detail.html'
+    context_object_name = 'payment_rule'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        rule = self.object
+        ctx['schedule_count'] = FundingSchedule.objects.filter(payment_rule=rule).count()
+        milestones = []
+        if rule.rule_type == PaymentRule.RuleType.SPLIT:
+            milestones = rule.config_json.get('milestones', [])
+        ctx['milestones'] = milestones
+        return ctx
+
+
+# ---------------------------------------------------------------------------
+# Approval (issue #15 — system-generated; approve/reject from UI)
+# ---------------------------------------------------------------------------
+
+class ApprovalListView(LoginRequiredMixin, ListView):
+    model = Approval
+    template_name = 'approvals/list.html'
+    context_object_name = 'approvals'
+    paginate_by = 50
+
+    def get_queryset(self):
+        qs = Approval.objects.select_related('approved_by').order_by('-created_at')
+        status = self.request.GET.get('status', '')
+        approval_type = self.request.GET.get('type', '')
+        if status:
+            qs = qs.filter(status=status)
+        if approval_type:
+            qs = qs.filter(approval_type=approval_type)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['approval_types'] = Approval.ApprovalType.choices
+        ctx['status_choices'] = Approval.Status.choices
+        ctx['selected_status'] = self.request.GET.get('status', '')
+        ctx['selected_type'] = self.request.GET.get('type', '')
+        return ctx
+
+
+class ApprovalDetailView(LoginRequiredMixin, DetailView):
+    model = Approval
+    template_name = 'approvals/detail.html'
+    context_object_name = 'approval'
+
+
+class ApprovalApproveView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        approval = get_object_or_404(Approval, pk=pk)
+        if approval.status != Approval.Status.PENDING:
+            messages.error(request, 'Only pending approvals can be approved.')
+            return redirect('ui:approval_detail', pk=pk)
+        approval.status = Approval.Status.APPROVED
+        approval.approved_by = request.user
+        approval.approved_at = timezone.now()
+        approval.save()
+        messages.success(request, 'Approval granted.')
+        return redirect('ui:approval_detail', pk=pk)
+
+
+class ApprovalRejectView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        approval = get_object_or_404(Approval, pk=pk)
+        if approval.status != Approval.Status.PENDING:
+            messages.error(request, 'Only pending approvals can be rejected.')
+            return redirect('ui:approval_detail', pk=pk)
+        approval.status = Approval.Status.REJECTED
+        approval.save()
+        messages.success(request, 'Approval rejected.')
+        return redirect('ui:approval_detail', pk=pk)
+
+
+# ---------------------------------------------------------------------------
+# Work (issue #18 — nested under project)
+# ---------------------------------------------------------------------------
+
+class WorkListView(LoginRequiredMixin, ListView):
+    model = Work
+    template_name = 'works/list.html'
+    context_object_name = 'works'
+
+    def get_queryset(self):
+        return Work.objects.filter(
+            project_id=self.kwargs['project_pk']
+        ).select_related('work_type', 'address').order_by('created_at')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['project'] = get_object_or_404(Project, pk=self.kwargs['project_pk'])
+        return ctx
+
+
+class WorkCreateView(LoginRequiredMixin, CreateView):
+    model = Work
+    template_name = 'crud/form.html'
+    fields = ['work_type', 'work_type_other', 'bedrooms', 'quantity',
+              'estimated_cost', 'status', 'is_notional_cost', 'actual_cost', 'address']
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        if kwargs.get('instance') is None:
+            kwargs['instance'] = Work(project_id=self.kwargs['project_pk'])
+        return kwargs
+
+    def get_success_url(self):
+        return reverse_lazy('ui:work_list', kwargs={'project_pk': self.kwargs['project_pk']})
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Add Work Item'
+        ctx['back_url'] = reverse_lazy('ui:work_list', kwargs={'project_pk': self.kwargs['project_pk']})
+        return ctx
+
+
+class WorkDetailView(LoginRequiredMixin, DetailView):
+    model = Work
+    template_name = 'works/detail.html'
+    context_object_name = 'work'
+
+
+class WorkUpdateView(LoginRequiredMixin, UpdateView):
+    model = Work
+    template_name = 'crud/form.html'
+    fields = ['work_type', 'work_type_other', 'bedrooms', 'quantity',
+              'estimated_cost', 'status', 'is_notional_cost', 'actual_cost', 'address']
+
+    def get_success_url(self):
+        return reverse_lazy('ui:work_list', kwargs={'project_pk': self.object.project_id})
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit Work: {self.object}'
+        ctx['back_url'] = reverse_lazy('ui:work_list', kwargs={'project_pk': self.object.project_id})
+        return ctx
+
+
+class WorkDeleteView(LoginRequiredMixin, DeleteView):
+    model = Work
+    template_name = 'crud/confirm_delete.html'
+
+    def get_success_url(self):
+        return reverse_lazy('ui:work_list', kwargs={'project_pk': self.object.project_id})
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['back_url'] = reverse_lazy('ui:work_list', kwargs={'project_pk': self.object.project_id})
+        return ctx
+
+
+# ---------------------------------------------------------------------------
+# Address (issue #18 — nested under project)
+# ---------------------------------------------------------------------------
+
+class AddressListView(LoginRequiredMixin, ListView):
+    model = Address
+    template_name = 'addresses/list.html'
+    context_object_name = 'addresses'
+
+    def get_queryset(self):
+        return Address.objects.filter(
+            project_id=self.kwargs['project_pk']
+        ).select_related('suburb').order_by('street')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['project'] = get_object_or_404(Project, pk=self.kwargs['project_pk'])
+        return ctx
+
+
+class AddressCreateView(LoginRequiredMixin, CreateView):
+    model = Address
+    template_name = 'crud/form.html'
+    fields = ['street', 'suburb', 'lot', 'plan', 'residence_plc_ref']
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        if kwargs.get('instance') is None:
+            kwargs['instance'] = Address(project_id=self.kwargs['project_pk'])
+        return kwargs
+
+    def get_success_url(self):
+        return reverse_lazy('ui:address_list', kwargs={'project_pk': self.kwargs['project_pk']})
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Add Address'
+        ctx['back_url'] = reverse_lazy('ui:address_list', kwargs={'project_pk': self.kwargs['project_pk']})
+        return ctx
+
+
+class AddressDetailView(LoginRequiredMixin, DetailView):
+    model = Address
+    template_name = 'addresses/detail.html'
+    context_object_name = 'address'
+
+
+class AddressUpdateView(LoginRequiredMixin, UpdateView):
+    model = Address
+    template_name = 'crud/form.html'
+    fields = ['street', 'suburb', 'lot', 'plan', 'residence_plc_ref']
+
+    def get_success_url(self):
+        return reverse_lazy('ui:address_list', kwargs={'project_pk': self.object.project_id})
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit Address: {self.object}'
+        ctx['back_url'] = reverse_lazy('ui:address_list', kwargs={'project_pk': self.object.project_id})
+        return ctx
+
+
+class AddressDeleteView(LoginRequiredMixin, DeleteView):
+    model = Address
+    template_name = 'crud/confirm_delete.html'
+
+    def get_success_url(self):
+        return reverse_lazy('ui:address_list', kwargs={'project_pk': self.object.project_id})
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['back_url'] = reverse_lazy('ui:address_list', kwargs={'project_pk': self.object.project_id})
+        return ctx
+
+
+# ---------------------------------------------------------------------------
 # StageReport lifecycle actions (nested under project)
 # ---------------------------------------------------------------------------
 
@@ -952,9 +1195,7 @@ class VariationItemCreateView(LoginRequiredMixin, CreateView):
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         if kwargs.get('instance') is None:
-            kwargs['instance'] = VariationItem(
-                variation_id=self.kwargs['variation_pk']
-            )
+            kwargs['instance'] = VariationItem(variation_id=self.kwargs['variation_pk'])
         return kwargs
 
     def get_success_url(self):
