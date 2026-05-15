@@ -93,26 +93,30 @@ def project_completed(council, program):
 # ============================================================================
 
 @pytest.fixture
-def land_project(council):
-    """Create a test land/infra project"""
-    from apps.core.models import LandProject
-    return LandProject.objects.create(
+def land_project(council, program):
+    """Create a test land-type project (Project with project_type='LAND')"""
+    from apps.core.models import Project
+    return Project.objects.create(
         name="Test Land Development",
         council=council,
-        status=LandProject.Status.PROSPECTIVE,
+        program=program,
+        project_type=Project.Type.LAND,
+        state=Project.State.PROSPECTIVE,
         financial_year="2025-2026"
     )
 
 
 @pytest.fixture
-def land_project_completed(council):
-    """Create a completed land/infra project"""
-    from apps.core.models import LandProject
-    return LandProject.objects.create(
+def land_project_completed(council, program):
+    """Create a completed land-type project"""
+    from apps.core.models import Project
+    return Project.objects.create(
         name="Test Completed Land Development",
         council=council,
-        status=LandProject.Status.COMPLETED,
-        financial_year="2024-25",
+        program=program,
+        project_type=Project.Type.LAND,
+        state=Project.State.COMPLETED,
+        financial_year="2025-2026",
         completion_date=date(2025, 3, 15)
     )
 

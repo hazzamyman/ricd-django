@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Land Tenure: Lot {{ land_tenure.lot_number }}{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Lot {{ land_tenure.lot_number }} — {{ land_tenure.council }}</h2>
+    <div>
+      <a href="{% url 'ui:land_tenure_edit' pk=land_tenure.pk %}" class="btn btn-outline-primary">Edit</a>
+      <a href="{% url 'ui:land_tenure_delete' pk=land_tenure.pk %}" class="btn btn-outline-danger">Delete</a>
+      <a href="{% url 'ui:land_tenure_list' %}" class="btn btn-outline-secondary">Back</a>
+    </div>
+  </div>
+
+  <dl class="row">
+    <dt class="col-sm-3">Council</dt>
+    <dd class="col-sm-9">{{ land_tenure.council }}</dd>
+
+    <dt class="col-sm-3">Lot Number</dt>
+    <dd class="col-sm-9">{{ land_tenure.lot_number }}</dd>
+
+    <dt class="col-sm-3">Plan Number</dt>
+    <dd class="col-sm-9">{{ land_tenure.plan_number|default:"—" }}</dd>
+
+    <dt class="col-sm-3">Title Reference</dt>
+    <dd class="col-sm-9">{{ land_tenure.title_reference|default:"—" }}</dd>
+
+    <dt class="col-sm-3">Tenure Type</dt>
+    <dd class="col-sm-9">{{ land_tenure.get_tenure_type_display }}</dd>
+
+    <dt class="col-sm-3">Native Title Status</dt>
+    <dd class="col-sm-9">{{ land_tenure.get_native_title_status_display|default:"—" }}</dd>
+
+    <dt class="col-sm-3">Native Title Reference</dt>
+    <dd class="col-sm-9">{{ land_tenure.native_title_reference|default:"—" }}</dd>
+
+    <dt class="col-sm-3">Cultural Heritage Status</dt>
+    <dd class="col-sm-9">{{ land_tenure.get_cultural_heritage_status_display|default:"—" }}</dd>
+
+    <dt class="col-sm-3">Cultural Heritage Reference</dt>
+    <dd class="col-sm-9">{{ land_tenure.cultural_heritage_reference|default:"—" }}</dd>
+
+    <dt class="col-sm-3">Developed</dt>
+    <dd class="col-sm-9">{% if land_tenure.is_developed %}Yes{% else %}No{% endif %}</dd>
+
+    {% if land_tenure.developed_date %}
+    <dt class="col-sm-3">Developed Date</dt>
+    <dd class="col-sm-9">{{ land_tenure.developed_date }}</dd>
+    {% endif %}
+
+    {% if land_tenure.parent_lot %}
+    <dt class="col-sm-3">Parent Lot</dt>
+    <dd class="col-sm-9">
+      <a href="{% url 'ui:land_tenure_detail' pk=land_tenure.parent_lot.pk %}">
+        Lot {{ land_tenure.parent_lot.lot_number }}
+      </a>
+    </dd>
+    {% endif %}
+
+    <dt class="col-sm-3">Notes</dt>
+    <dd class="col-sm-9">{{ land_tenure.notes|default:"—" }}</dd>
+  </dl>
+</div>
+{% endblock %}

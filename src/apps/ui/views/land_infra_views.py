@@ -1,30 +1,24 @@
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
-from apps.core.models import LandProject, Council, Program
+from apps.core.models import Project, Council
 
 
 @login_required
 def land_projects_list_view(request):
-    """List all land and infrastructure projects with filtering"""
-    # Get filter parameters
+    """List all land-type projects with filtering"""
     council_id = request.GET.get('council', '')
     status_filter = request.GET.get('status', '')
-    
-    # Build queryset
-    land_projects = LandProject.objects.select_related('council').all()
 
-    # Apply filters
+    land_projects = Project.objects.filter(project_type=Project.Type.LAND).select_related('council')
+
     if council_id:
         land_projects = land_projects.filter(council_id=council_id)
     if status_filter:
-        land_projects = land_projects.filter(status=status_filter)
-    
-    # Get filter options
-    councils = Council.objects.all()
+        land_projects = land_projects.filter(state=status_filter)
 
     context = {
         'land_projects': land_projects,
-        'councils': councils,
+        'councils': Council.objects.all(),
         'selected_council': council_id,
         'selected_status': status_filter,
     }

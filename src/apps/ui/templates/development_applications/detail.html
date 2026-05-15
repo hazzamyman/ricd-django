@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}DA: {{ da.application_reference }}{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>{{ da.get_application_type_display }}: {{ da.application_reference }}</h2>
+    <div>
+      <a href="{% url 'ui:development_application_edit' pk=da.pk %}" class="btn btn-outline-primary">Edit</a>
+      <a href="{% url 'ui:development_application_delete' pk=da.pk %}" class="btn btn-outline-danger">Delete</a>
+      <a href="{% url 'ui:development_application_list' %}" class="btn btn-outline-secondary">Back</a>
+    </div>
+  </div>
+
+  <dl class="row">
+    <dt class="col-sm-3">Council</dt>
+    <dd class="col-sm-9">{{ da.council }}</dd>
+
+    <dt class="col-sm-3">Application Type</dt>
+    <dd class="col-sm-9">{{ da.get_application_type_display }}</dd>
+
+    <dt class="col-sm-3">Reference</dt>
+    <dd class="col-sm-9">{{ da.application_reference }}</dd>
+
+    <dt class="col-sm-3">Status</dt>
+    <dd class="col-sm-9">{{ da.get_status_display }}</dd>
+
+    <dt class="col-sm-3">Lodged Date</dt>
+    <dd class="col-sm-9">{{ da.lodged_date|default:"—" }}</dd>
+
+    <dt class="col-sm-3">Decision Date</dt>
+    <dd class="col-sm-9">{{ da.decision_date|default:"—" }}</dd>
+
+    <dt class="col-sm-3">Lapsing Date</dt>
+    <dd class="col-sm-9">{{ da.lapsing_date|default:"—" }}</dd>
+
+    {% if da.decision_notice_link %}
+    <dt class="col-sm-3">Decision Notice</dt>
+    <dd class="col-sm-9"><a href="{{ da.decision_notice_link }}" target="_blank">View</a></dd>
+    {% endif %}
+
+    <dt class="col-sm-3">Conditions</dt>
+    <dd class="col-sm-9">{{ da.conditions|default:"—" }}</dd>
+
+    <dt class="col-sm-3">Notes</dt>
+    <dd class="col-sm-9">{{ da.notes|default:"—" }}</dd>
+  </dl>
+</div>
+{% endblock %}

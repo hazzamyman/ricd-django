@@ -1,63 +1,6 @@
 from django.db import models
 from django.urls import reverse
 
-from apps.core.utils import CURRENT_FINANCIAL_YEAR, FINANCIAL_YEAR_CHOICES
-
-
-class LandProject(models.Model):
-    class Status(models.TextChoices):
-        PROSPECTIVE = 'PROS', 'Prospective'
-        PROGRAMMED = 'PROG', 'Programmed'
-        FUNDED = 'FUND', 'Funded'
-        COMMENCED = 'COMM', 'Commenced'
-        WORKS_UNDERWAY = 'WU', 'Works Underway'
-        COMPLETED = 'COMP', 'Completed'
-
-    council = models.ForeignKey('Council', related_name='land_projects', on_delete=models.CASCADE)
-    name = models.CharField(max_length=255)
-    description = models.TextField(blank=True)
-    financial_year = models.CharField(
-        max_length=9,
-        choices=FINANCIAL_YEAR_CHOICES,
-        default=CURRENT_FINANCIAL_YEAR,
-        help_text="Expected financial year"
-    )
-    status = models.CharField(max_length=4, choices=Status.choices, default=Status.PROSPECTIVE)
-    start_date = models.DateField(null=True, blank=True)
-    completion_date = models.DateField(null=True, blank=True)
-
-    development_application = models.ForeignKey(
-        'DevelopmentApplication',
-        related_name='land_projects',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True
-    )
-
-    infra_water_assessment = models.TextField(
-        blank=True,
-        help_text="Is there sufficient water infrastructure to support the project? What is the connection capacity?"
-    )
-    infra_electricity_assessment = models.TextField(
-        blank=True,
-        help_text="Is there sufficient electricity infrastructure to support the project? What is the transformer capacity?"
-    )
-    infra_sewerage_assessment = models.TextField(
-        blank=True,
-        help_text="Is there sufficient sewerage infrastructure to support the project? What is the treatment capacity?"
-    )
-    infra_comments = models.TextField(blank=True)
-    notes = models.TextField(blank=True)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return self.name
-
-    def get_absolute_url(self):
-        return reverse('land_infra:land_project_detail', args=[self.id])
-
 
 class LandTenure(models.Model):
     class TenureType(models.TextChoices):

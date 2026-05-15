@@ -109,6 +109,20 @@ urlpatterns = [
     path('projects/<int:project_pk>/bfa/<int:pk>/approve/', views.crud_views.BriefFinancialApprovalApproveView.as_view(), name='bfa_approve'),
     path('projects/<int:project_pk>/bfa/<int:pk>/reject/', views.crud_views.BriefFinancialApprovalRejectView.as_view(), name='bfa_reject'),
 
+    # Land Tenures CRUD
+    path('land-tenures/', views.land_crud_views.LandTenureListView.as_view(), name='land_tenure_list'),
+    path('land-tenures/create/', views.land_crud_views.LandTenureCreateView.as_view(), name='land_tenure_create'),
+    path('land-tenures/<int:pk>/', views.land_crud_views.LandTenureDetailView.as_view(), name='land_tenure_detail'),
+    path('land-tenures/<int:pk>/edit/', views.land_crud_views.LandTenureUpdateView.as_view(), name='land_tenure_edit'),
+    path('land-tenures/<int:pk>/delete/', views.land_crud_views.LandTenureDeleteView.as_view(), name='land_tenure_delete'),
+
+    # Development Applications CRUD
+    path('development-applications/', views.land_crud_views.DevelopmentApplicationListView.as_view(), name='development_application_list'),
+    path('development-applications/create/', views.land_crud_views.DevelopmentApplicationCreateView.as_view(), name='development_application_create'),
+    path('development-applications/<int:pk>/', views.land_crud_views.DevelopmentApplicationDetailView.as_view(), name='development_application_detail'),
+    path('development-applications/<int:pk>/edit/', views.land_crud_views.DevelopmentApplicationUpdateView.as_view(), name='development_application_edit'),
+    path('development-applications/<int:pk>/delete/', views.land_crud_views.DevelopmentApplicationDeleteView.as_view(), name='development_application_delete'),
+
     # Other existing views
     path('reports/', views.reports_views.reports_dashboard_view, name='reports_dashboard'),
     path('land-infra/', views.land_infra_views.land_projects_list_view, name='land_projects_list'),
