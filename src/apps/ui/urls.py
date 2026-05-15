@@ -100,6 +100,15 @@ urlpatterns = [
     path('funding-agreements/<int:pk>/edit/', views.crud_views.FundingAgreementUpdateView.as_view(), name='funding_agreement_edit'),
     path('funding-agreements/<int:pk>/delete/', views.crud_views.FundingAgreementDeleteView.as_view(), name='funding_agreement_delete'),
 
+    # Brief Financial Approvals (nested under project)
+    path('projects/<int:project_pk>/bfa/', views.crud_views.BriefFinancialApprovalListView.as_view(), name='bfa_list'),
+    path('projects/<int:project_pk>/bfa/create/', views.crud_views.BriefFinancialApprovalCreateView.as_view(), name='bfa_create'),
+    path('projects/<int:project_pk>/bfa/<int:pk>/', views.crud_views.BriefFinancialApprovalDetailView.as_view(), name='bfa_detail'),
+    path('projects/<int:project_pk>/bfa/<int:pk>/edit/', views.crud_views.BriefFinancialApprovalUpdateView.as_view(), name='bfa_edit'),
+    path('projects/<int:project_pk>/bfa/<int:pk>/delete/', views.crud_views.BriefFinancialApprovalDeleteView.as_view(), name='bfa_delete'),
+    path('projects/<int:project_pk>/bfa/<int:pk>/approve/', views.crud_views.BriefFinancialApprovalApproveView.as_view(), name='bfa_approve'),
+    path('projects/<int:project_pk>/bfa/<int:pk>/reject/', views.crud_views.BriefFinancialApprovalRejectView.as_view(), name='bfa_reject'),
+
     # Other existing views
     path('reports/', views.reports_views.reports_dashboard_view, name='reports_dashboard'),
     path('land-infra/', views.land_infra_views.land_projects_list_view, name='land_projects_list'),

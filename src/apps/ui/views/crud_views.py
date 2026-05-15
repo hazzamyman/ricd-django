@@ -11,8 +11,10 @@ from django.views.generic import (
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect
 
+from django.utils import timezone
+
 from apps.core.models import (
-    Council, Program, Project, WorkType, FundingSchedule,
+    BriefFinancialApproval, Council, Program, Project, WorkType, FundingSchedule,
     Variation, Payment, StageReport, QuarterlyReport,
     FundingAgreement, FundingNotice, ExpenseClaim,
 )
@@ -779,3 +781,107 @@ class ExpenseClaimRejectView(LoginRequiredMixin, View):
         claim.save()
         messages.info(request, 'Claim rejected.')
         return redirect('ui:funding_notice_detail', pk=notice_pk)
+
+
+# ---------------------------------------------------------------------------
+# BriefFinancialApproval  (nested under project)
+# ---------------------------------------------------------------------------
+
+class BriefFinancialApprovalListView(LoginRequiredMixin, ListView):
+    model = BriefFinancialApproval
+    template_name = 'brief_financial_approvals/list.html'
+    context_object_name = 'approvals'
+
+    def get_queryset(self):
+        return BriefFinancialApproval.objects.filter(project_id=self.kwargs['project_pk'])
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['project'] = get_object_or_404(Project, pk=self.kwargs['project_pk'])
+        return ctx
+
+
+class BriefFinancialApprovalCreateView(LoginRequiredMixin, CreateView):
+    model = BriefFinancialApproval
+    template_name = 'crud/form.html'
+    fields = ['funding_amount', 'contingency_amount', 'delegate_level', 'mincor_reference', 'comments']
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['instance'] = BriefFinancialApproval(project_id=self.kwargs['project_pk'])
+        return kwargs
+
+    def get_success_url(self):
+        return reverse_lazy('ui:bfa_list', kwargs={'project_pk': self.kwargs['project_pk']})
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Create Brief Financial Approval'
+        ctx['back_url'] = reverse_lazy('ui:bfa_list', kwargs={'project_pk': self.kwargs['project_pk']})
+        return ctx
+
+
+class BriefFinancialApprovalDetailView(LoginRequiredMixin, DetailView):
+    model = BriefFinancialApproval
+    template_name = 'brief_financial_approvals/detail.html'
+    context_object_name = 'bfa'
+
+
+class BriefFinancialApprovalUpdateView(LoginRequiredMixin, UpdateView):
+    model = BriefFinancialApproval
+    template_name = 'crud/form.html'
+    fields = ['funding_amount', 'contingency_amount', 'delegate_level', 'mincor_reference', 'comments']
+
+    def get_success_url(self):
+        return reverse_lazy('ui:bfa_detail', kwargs={
+            'project_pk': self.kwargs['project_pk'],
+            'pk': self.object.pk,
+        })
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit Brief Financial Approval #{self.object.pk}'
+        ctx['back_url'] = reverse_lazy('ui:bfa_detail', kwargs={
+            'project_pk': self.kwargs['project_pk'],
+            'pk': self.object.pk,
+        })
+        return ctx
+
+
+class BriefFinancialApprovalDeleteView(LoginRequiredMixin, DeleteView):
+    model = BriefFinancialApproval
+    template_name = 'crud/confirm_delete.html'
+
+    def get_success_url(self):
+        return reverse_lazy('ui:bfa_list', kwargs={'project_pk': self.kwargs['project_pk']})
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['back_url'] = reverse_lazy('ui:bfa_list', kwargs={'project_pk': self.kwargs['project_pk']})
+        return ctx
+
+
+class BriefFinancialApprovalApproveView(LoginRequiredMixin, View):
+    def post(self, request, project_pk, pk):
+        bfa = get_object_or_404(BriefFinancialApproval, pk=pk, project_id=project_pk)
+        if bfa.status != BriefFinancialApproval.Status.PENDING:
+            messages.error(request, 'Only pending approvals can be approved.')
+            return redirect('ui:bfa_detail', project_pk=project_pk, pk=pk)
+        bfa.status = BriefFinancialApproval.Status.APPROVED
+        bfa.approved_by = request.user
+        bfa.approved_at = timezone.now()
+        bfa.save()
+        messages.success(request, 'Brief Financial Approval approved.')
+        return redirect('ui:bfa_detail', project_pk=project_pk, pk=pk)
+
+
+class BriefFinancialApprovalRejectView(LoginRequiredMixin, View):
+    def post(self, request, project_pk, pk):
+        bfa = get_object_or_404(BriefFinancialApproval, pk=pk, project_id=project_pk)
+        if bfa.status != BriefFinancialApproval.Status.PENDING:
+            messages.error(request, 'Only pending approvals can be rejected.')
+            return redirect('ui:bfa_detail', project_pk=project_pk, pk=pk)
+        bfa.status = BriefFinancialApproval.Status.REJECTED
+        bfa.save()
+        messages.success(request, 'Brief Financial Approval rejected.')
+        return redirect('ui:bfa_detail', project_pk=project_pk, pk=pk)
