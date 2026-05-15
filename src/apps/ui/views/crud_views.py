@@ -1129,3 +1129,109 @@ class AddressDeleteView(LoginRequiredMixin, DeleteView):
         ctx = super().get_context_data(**kwargs)
         ctx['back_url'] = reverse_lazy('ui:address_list', kwargs={'project_pk': self.object.project_id})
         return ctx
+
+
+# ---------------------------------------------------------------------------
+# FundingSchedule lifecycle actions (issue #21)
+# DRAFT → READY_FOR_EXECUTION → EXECUTED → ACTIVE → COMPLETED/SUPERSEDED/CANCELLED
+# ---------------------------------------------------------------------------
+
+class FundingScheduleMarkReadyView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        fs = get_object_or_404(FundingSchedule, pk=pk)
+        if fs.status != FundingSchedule.Status.DRAFT:
+            messages.error(request, 'Only draft schedules can be marked ready.')
+            return redirect('ui:funding_schedule_detail', pk=pk)
+        fs.status = FundingSchedule.Status.READY_FOR_EXECUTION
+        fs.save()
+        messages.success(request, 'Funding schedule marked ready for execution.')
+        return redirect('ui:funding_schedule_detail', pk=pk)
+
+
+class FundingScheduleCompleteView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        fs = get_object_or_404(FundingSchedule, pk=pk)
+        if fs.status != FundingSchedule.Status.ACTIVE:
+            messages.error(request, 'Only active schedules can be completed.')
+            return redirect('ui:funding_schedule_detail', pk=pk)
+        fs.status = FundingSchedule.Status.COMPLETED
+        fs.save()
+        messages.success(request, 'Funding schedule completed.')
+        return redirect('ui:funding_schedule_detail', pk=pk)
+
+
+class FundingScheduleSupersededView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        fs = get_object_or_404(FundingSchedule, pk=pk)
+        if fs.status in (FundingSchedule.Status.COMPLETED, FundingSchedule.Status.SUPERSEDED, FundingSchedule.Status.CANCELLED):
+            messages.error(request, 'This schedule cannot be superseded.')
+            return redirect('ui:funding_schedule_detail', pk=pk)
+        fs.status = FundingSchedule.Status.SUPERSEDED
+        fs.save()
+        messages.success(request, 'Funding schedule superseded.')
+        return redirect('ui:funding_schedule_detail', pk=pk)
+
+
+class FundingScheduleCancelView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        fs = get_object_or_404(FundingSchedule, pk=pk)
+        if fs.status in (FundingSchedule.Status.COMPLETED, FundingSchedule.Status.SUPERSEDED, FundingSchedule.Status.CANCELLED):
+            messages.error(request, 'This schedule is already finalised.')
+            return redirect('ui:funding_schedule_detail', pk=pk)
+        fs.status = FundingSchedule.Status.CANCELLED
+        fs.save()
+        messages.success(request, 'Funding schedule cancelled.')
+        return redirect('ui:funding_schedule_detail', pk=pk)
+
+
+# ---------------------------------------------------------------------------
+# Payment lifecycle actions (issue #22)
+# PENDING → RECOMMENDED → APPROVED → RELEASED  (or REJECTED at any pre-final step)
+# ---------------------------------------------------------------------------
+
+class PaymentRecommendView(LoginRequiredMixin, View):
+    def post(self, request, project_pk, pk):
+        payment = get_object_or_404(Payment, pk=pk, project_id=project_pk)
+        if payment.status != Payment.Status.PENDING:
+            messages.error(request, 'Only pending payments can be recommended.')
+            return redirect('ui:payment_detail', project_pk=project_pk, pk=pk)
+        payment.status = Payment.Status.RECOMMENDED
+        payment.save()
+        messages.success(request, 'Payment recommended.')
+        return redirect('ui:payment_detail', project_pk=project_pk, pk=pk)
+
+
+class PaymentApproveView(LoginRequiredMixin, View):
+    def post(self, request, project_pk, pk):
+        payment = get_object_or_404(Payment, pk=pk, project_id=project_pk)
+        if payment.status != Payment.Status.RECOMMENDED:
+            messages.error(request, 'Only recommended payments can be approved.')
+            return redirect('ui:payment_detail', project_pk=project_pk, pk=pk)
+        payment.status = Payment.Status.APPROVED
+        payment.save()
+        messages.success(request, 'Payment approved.')
+        return redirect('ui:payment_detail', project_pk=project_pk, pk=pk)
+
+
+class PaymentReleaseView(LoginRequiredMixin, View):
+    def post(self, request, project_pk, pk):
+        payment = get_object_or_404(Payment, pk=pk, project_id=project_pk)
+        if payment.status != Payment.Status.APPROVED:
+            messages.error(request, 'Only approved payments can be released.')
+            return redirect('ui:payment_detail', project_pk=project_pk, pk=pk)
+        payment.status = Payment.Status.RELEASED
+        payment.save()
+        messages.success(request, 'Payment released.')
+        return redirect('ui:payment_detail', project_pk=project_pk, pk=pk)
+
+
+class PaymentRejectView(LoginRequiredMixin, View):
+    def post(self, request, project_pk, pk):
+        payment = get_object_or_404(Payment, pk=pk, project_id=project_pk)
+        if payment.status in (Payment.Status.RELEASED, Payment.Status.REJECTED):
+            messages.error(request, 'This payment is already finalised.')
+            return redirect('ui:payment_detail', project_pk=project_pk, pk=pk)
+        payment.status = Payment.Status.REJECTED
+        payment.save()
+        messages.success(request, 'Payment rejected.')
+        return redirect('ui:payment_detail', project_pk=project_pk, pk=pk)

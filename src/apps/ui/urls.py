@@ -28,6 +28,10 @@ urlpatterns = [
     path('projects/<int:project_pk>/payments/<int:pk>/', views.crud_views.PaymentDetailView.as_view(), name='payment_detail'),
     path('projects/<int:project_pk>/payments/<int:pk>/edit/', views.crud_views.PaymentUpdateView.as_view(), name='payment_edit'),
     path('projects/<int:project_pk>/payments/<int:pk>/delete/', views.crud_views.PaymentDeleteView.as_view(), name='payment_delete'),
+    path('projects/<int:project_pk>/payments/<int:pk>/recommend/', views.crud_views.PaymentRecommendView.as_view(), name='payment_recommend'),
+    path('projects/<int:project_pk>/payments/<int:pk>/approve/', views.crud_views.PaymentApproveView.as_view(), name='payment_approve'),
+    path('projects/<int:project_pk>/payments/<int:pk>/release/', views.crud_views.PaymentReleaseView.as_view(), name='payment_release'),
+    path('projects/<int:project_pk>/payments/<int:pk>/reject/', views.crud_views.PaymentRejectView.as_view(), name='payment_reject'),
 
     # Stage Reports (nested under project)
     path('projects/<int:project_pk>/stage-reports/', views.crud_views.StageReportListView.as_view(), name='stage_report_list'),
@@ -71,12 +75,16 @@ urlpatterns = [
     path('work-types/<int:pk>/edit/', views.crud_views.WorkTypeUpdateView.as_view(), name='work_type_edit'),
     path('work-types/<int:pk>/delete/', views.crud_views.WorkTypeDeleteView.as_view(), name='work_type_delete'),
 
-    # Funding Schedules CRUD
+    # Funding Schedules CRUD + lifecycle actions
     path('funding-schedules/', views.crud_views.FundingScheduleListView.as_view(), name='funding_schedule_list'),
     path('funding-schedules/create/', views.crud_views.FundingScheduleCreateView.as_view(), name='funding_schedule_create'),
     path('funding-schedules/<int:pk>/', views.crud_views.FundingScheduleDetailView.as_view(), name='funding_schedule_detail'),
     path('funding-schedules/<int:pk>/edit/', views.crud_views.FundingScheduleUpdateView.as_view(), name='funding_schedule_edit'),
     path('funding-schedules/<int:pk>/delete/', views.crud_views.FundingScheduleDeleteView.as_view(), name='funding_schedule_delete'),
+    path('funding-schedules/<int:pk>/mark-ready/', views.crud_views.FundingScheduleMarkReadyView.as_view(), name='funding_schedule_mark_ready'),
+    path('funding-schedules/<int:pk>/complete/', views.crud_views.FundingScheduleCompleteView.as_view(), name='funding_schedule_complete'),
+    path('funding-schedules/<int:pk>/supersede/', views.crud_views.FundingScheduleSupersededView.as_view(), name='funding_schedule_supersede'),
+    path('funding-schedules/<int:pk>/cancel/', views.crud_views.FundingScheduleCancelView.as_view(), name='funding_schedule_cancel'),
 
     # Funding Notices CRUD + close action
     path('funding-notices/', views.crud_views.FundingNoticeListView.as_view(), name='funding_notice_list'),
