@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Address: {{ address }}{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>{{ address }}</h2>
+    <div>
+      <a href="{% url 'ui:address_edit' project_pk=address.project_id pk=address.pk %}" class="btn btn-outline-primary">Edit</a>
+      <a href="{% url 'ui:address_delete' project_pk=address.project_id pk=address.pk %}" class="btn btn-outline-danger">Delete</a>
+      <a href="{% url 'ui:address_list' project_pk=address.project_id %}" class="btn btn-outline-secondary">Back</a>
+    </div>
+  </div>
+
+  <dl class="row">
+    <dt class="col-sm-3">Project</dt>
+    <dd class="col-sm-9">{{ address.project.name }}</dd>
+
+    <dt class="col-sm-3">Street</dt>
+    <dd class="col-sm-9">{{ address.street }}</dd>
+
+    <dt class="col-sm-3">Suburb</dt>
+    <dd class="col-sm-9">{% if address.suburb %}{{ address.suburb.name }} {{ address.suburb.postcode }} ({{ address.suburb.state }}){% else %}—{% endif %}</dd>
+
+    <dt class="col-sm-3">Lot</dt>
+    <dd class="col-sm-9">{{ address.lot|default:"—" }}</dd>
+
+    <dt class="col-sm-3">Plan</dt>
+    <dd class="col-sm-9">{{ address.plan|default:"—" }}</dd>
+
+    <dt class="col-sm-3">Reside PLC Ref</dt>
+    <dd class="col-sm-9">{{ address.residence_plc_ref|default:"—" }}</dd>
+  </dl>
+</div>
+{% endblock %}

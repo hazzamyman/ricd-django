@@ -123,6 +123,30 @@ urlpatterns = [
     path('development-applications/<int:pk>/edit/', views.land_crud_views.DevelopmentApplicationUpdateView.as_view(), name='development_application_edit'),
     path('development-applications/<int:pk>/delete/', views.land_crud_views.DevelopmentApplicationDeleteView.as_view(), name='development_application_delete'),
 
+    # PaymentRule (read-only — issue #19)
+    path('payment-rules/', views.crud_views.PaymentRuleListView.as_view(), name='payment_rule_list'),
+    path('payment-rules/<int:pk>/', views.crud_views.PaymentRuleDetailView.as_view(), name='payment_rule_detail'),
+
+    # Approvals (issue #15)
+    path('approvals/', views.crud_views.ApprovalListView.as_view(), name='approval_list'),
+    path('approvals/<int:pk>/', views.crud_views.ApprovalDetailView.as_view(), name='approval_detail'),
+    path('approvals/<int:pk>/approve/', views.crud_views.ApprovalApproveView.as_view(), name='approval_approve'),
+    path('approvals/<int:pk>/reject/', views.crud_views.ApprovalRejectView.as_view(), name='approval_reject'),
+
+    # Works (nested under project — issue #18)
+    path('projects/<int:project_pk>/works/', views.crud_views.WorkListView.as_view(), name='work_list'),
+    path('projects/<int:project_pk>/works/create/', views.crud_views.WorkCreateView.as_view(), name='work_create'),
+    path('projects/<int:project_pk>/works/<int:pk>/', views.crud_views.WorkDetailView.as_view(), name='work_detail'),
+    path('projects/<int:project_pk>/works/<int:pk>/edit/', views.crud_views.WorkUpdateView.as_view(), name='work_edit'),
+    path('projects/<int:project_pk>/works/<int:pk>/delete/', views.crud_views.WorkDeleteView.as_view(), name='work_delete'),
+
+    # Addresses (nested under project — issue #18)
+    path('projects/<int:project_pk>/addresses/', views.crud_views.AddressListView.as_view(), name='address_list'),
+    path('projects/<int:project_pk>/addresses/create/', views.crud_views.AddressCreateView.as_view(), name='address_create'),
+    path('projects/<int:project_pk>/addresses/<int:pk>/', views.crud_views.AddressDetailView.as_view(), name='address_detail'),
+    path('projects/<int:project_pk>/addresses/<int:pk>/edit/', views.crud_views.AddressUpdateView.as_view(), name='address_edit'),
+    path('projects/<int:project_pk>/addresses/<int:pk>/delete/', views.crud_views.AddressDeleteView.as_view(), name='address_delete'),
+
     # Other existing views
     path('reports/', views.reports_views.reports_dashboard_view, name='reports_dashboard'),
     path('land-infra/', views.land_infra_views.land_projects_list_view, name='land_projects_list'),
