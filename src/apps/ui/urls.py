@@ -108,6 +108,25 @@ urlpatterns = [
     path('funding-agreements/<int:pk>/edit/', views.crud_views.FundingAgreementUpdateView.as_view(), name='funding_agreement_edit'),
     path('funding-agreements/<int:pk>/delete/', views.crud_views.FundingAgreementDeleteView.as_view(), name='funding_agreement_delete'),
 
+    # StageReport lifecycle actions
+    path('projects/<int:project_pk>/stage-reports/<int:pk>/submit/', views.crud_views.StageReportSubmitView.as_view(), name='stage_report_submit'),
+    path('projects/<int:project_pk>/stage-reports/<int:pk>/endorse/', views.crud_views.StageReportEndorseView.as_view(), name='stage_report_endorse'),
+    path('projects/<int:project_pk>/stage-reports/<int:pk>/assess/', views.crud_views.StageReportAssessView.as_view(), name='stage_report_assess'),
+    path('projects/<int:project_pk>/stage-reports/<int:pk>/approve/', views.crud_views.StageReportApproveView.as_view(), name='stage_report_approve'),
+
+    # VariationItems (nested under Variation)
+    path('variations/<int:variation_pk>/items/create/', views.crud_views.VariationItemCreateView.as_view(), name='variation_item_create'),
+    path('variations/<int:variation_pk>/items/<int:pk>/edit/', views.crud_views.VariationItemUpdateView.as_view(), name='variation_item_edit'),
+    path('variations/<int:variation_pk>/items/<int:pk>/delete/', views.crud_views.VariationItemDeleteView.as_view(), name='variation_item_delete'),
+    path('variations/<int:pk>/execute/', views.crud_views.VariationExecuteView.as_view(), name='variation_execute'),
+
+    # Allocations (WorkFunding)
+    path('allocations/', views.crud_views.WorkFundingListView.as_view(), name='allocation_list'),
+    path('allocations/create/', views.crud_views.WorkFundingCreateView.as_view(), name='allocation_create'),
+    path('allocations/<int:pk>/', views.crud_views.WorkFundingDetailView.as_view(), name='allocation_detail'),
+    path('allocations/<int:pk>/edit/', views.crud_views.WorkFundingUpdateView.as_view(), name='allocation_edit'),
+    path('allocations/<int:pk>/delete/', views.crud_views.WorkFundingDeleteView.as_view(), name='allocation_delete'),
+
     # Brief Financial Approvals (nested under project)
     path('projects/<int:project_pk>/bfa/', views.crud_views.BriefFinancialApprovalListView.as_view(), name='bfa_list'),
     path('projects/<int:project_pk>/bfa/create/', views.crud_views.BriefFinancialApprovalCreateView.as_view(), name='bfa_create'),
