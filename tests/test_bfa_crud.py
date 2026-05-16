@@ -1,4 +1,4 @@
-"""
+﻿"""
 Tests for BriefFinancialApproval CRUD views (issue #14).
 """
 import pytest
@@ -12,7 +12,7 @@ from apps.core.models import BriefFinancialApproval, Profile
 def auth_client(council):
     client = Client()
     user = User.objects.create_user(username='bfa_user', password='pass')
-    Profile.objects.create(user=user, council=council, officer_role=Profile.OfficerRole.SENIOR_OFFICER)
+    Profile.objects.create(user=user, council=council, officer_role=Profile.OfficerRole.OFFICER)
     client.force_login(user)
     return client, user
 

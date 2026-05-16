@@ -1,4 +1,4 @@
-"""
+﻿"""
 Tests for issues #15 (Approval CRUD), #18 (Work & Address CRUD), #19 (PaymentRule read-only).
 """
 import pytest
@@ -12,7 +12,7 @@ from apps.core.models import Approval, Address, PaymentRule, Work, Profile
 def auth_client(council):
     client = Client()
     user = User.objects.create_user(username='crud_user', password='pass')
-    Profile.objects.create(user=user, council=council, officer_role=Profile.OfficerRole.SENIOR_OFFICER)
+    Profile.objects.create(user=user, council=council, officer_role=Profile.OfficerRole.OFFICER)
     client.force_login(user)
     return client, user
 

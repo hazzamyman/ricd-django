@@ -9,14 +9,11 @@ class Profile(models.Model):
     User profile extending Django's User with council assignment.
     """
     class OfficerRole(models.TextChoices):
-        PRINCIPAL_OFFICER = 'PRINCIPAL_OFFICER', 'Principal Officer'
-        SENIOR_OFFICER = 'SENIOR_OFFICER', 'Senior Officer'
-        PROGRAM_OFFICER = 'PROGRAM_OFFICER', 'Program Officer'
+        OFFICER = 'OFFICER', 'Officer'
         MANAGER = 'MANAGER', 'Manager'
-        DIRECTOR = 'DIRECTOR', 'Director'
         COUNCIL_USER = 'COUNCIL_USER', 'Council User'
         COUNCIL_MANAGER = 'COUNCIL_MANAGER', 'Council Manager'
-        OTHER = 'OTHER', 'Other'
+        READ_ONLY = 'READ_ONLY', 'Read Only'
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     council = models.ForeignKey(Council, on_delete=models.SET_NULL, null=True, blank=True, related_name='users')
@@ -39,12 +36,11 @@ class GroupPermission(models.Model):
     group = models.OneToOneField(Group, on_delete=models.CASCADE, related_name='fnc_permissions')
 
     class GroupType(models.TextChoices):
-        FNC_USER = 'FNC_USER', 'FNC User'
-        FNC_MANAGER = 'FNC_MANAGER', 'FNC Manager'
+        OFFICER = 'OFFICER', 'Officer'
+        MANAGER = 'MANAGER', 'Manager'
         COUNCIL_USER = 'COUNCIL_USER', 'Council User'
         COUNCIL_MANAGER = 'COUNCIL_MANAGER', 'Council Manager'
-        OTHER_TEAM_USER = 'OTHER_TEAM_USER', 'HPW Other Team User'
-        OTHER_TEAM_MANAGER = 'OTHER_TEAM_MANAGER', 'HPW Other Team Manager'
+        READ_ONLY = 'READ_ONLY', 'Read Only'
 
     group_type = models.CharField(max_length=30, choices=GroupType.choices)
     description = models.TextField(blank=True)
@@ -62,19 +58,17 @@ class GroupPermission(models.Model):
     def save(self, *args, **kwargs):
         if not self.group_type and self.group.name:
             name_lower = self.group.name.lower()
-            if 'fnc manager' in name_lower:
-                self.group_type = self.GroupType.FNC_MANAGER
+            if 'manager' in name_lower and 'council' not in name_lower:
+                self.group_type = self.GroupType.MANAGER
                 self.can_approve_reports = True
                 self.can_approve_payments = True
-            elif 'fnc user' in name_lower:
-                self.group_type = self.GroupType.FNC_USER
+            elif 'officer' in name_lower or 'fnc' in name_lower:
+                self.group_type = self.GroupType.OFFICER
             elif 'council manager' in name_lower:
                 self.group_type = self.GroupType.COUNCIL_MANAGER
-            elif 'council user' in name_lower:
+            elif 'council' in name_lower:
                 self.group_type = self.GroupType.COUNCIL_USER
-            elif 'other team manager' in name_lower:
-                self.group_type = self.GroupType.OTHER_TEAM_MANAGER
-            elif 'other team user' in name_lower:
-                self.group_type = self.GroupType.OTHER_TEAM_USER
+            elif 'read' in name_lower or 'audit' in name_lower or 'finance' in name_lower:
+                self.group_type = self.GroupType.READ_ONLY
 
         super().save(*args, **kwargs)
