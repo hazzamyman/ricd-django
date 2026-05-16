@@ -19,10 +19,13 @@ from decimal import Decimal
 
 def _json_safe(val):
     """Convert a value to be JSON-serializable."""
+    import datetime as _dt
     if hasattr(val, 'pk'):
         return val.pk
     if isinstance(val, Decimal):
         return str(val)
+    if isinstance(val, (_dt.datetime, _dt.date, _dt.time)):
+        return val.isoformat()
     if isinstance(val, (set, frozenset)):
         return list(val)
     if hasattr(val, '__iter__') and not isinstance(val, str):
@@ -36,9 +39,6 @@ def _json_safe(val):
 def log_workflow_action(entity_type, entity_id, action_type, user=None, metadata=None):
     """Create a WorkflowAction record. Silently no-ops if table not ready."""
     try:
-        import sys
-        if 'pytest' in sys.modules:
-            return
         from apps.core.models import WorkflowAction
         WorkflowAction.objects.create(
             entity_type=entity_type,
@@ -54,9 +54,6 @@ def log_workflow_action(entity_type, entity_id, action_type, user=None, metadata
 def log_audit(user, action, instance, old_values=None):
     """Create an AuditLog record for data-level changes. Silently no-ops if table not ready."""
     try:
-        import sys
-        if 'pytest' in sys.modules:
-            return
         from apps.core.models import AuditLog
         before = {}
         after = {}

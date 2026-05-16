@@ -267,6 +267,14 @@ class FundingScheduleDetailView(LoginRequiredMixin, DetailView):
     template_name = 'funding_schedules/detail.html'
     context_object_name = 'funding_schedule'
 
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        from apps.core.models import AuditLog
+        ctx['audit_logs'] = AuditLog.objects.filter(
+            entity_type='fundingschedule', entity_id=self.object.pk
+        ).order_by('-timestamp')[:10]
+        return ctx
+
 
 class FundingScheduleUpdateView(LoginRequiredMixin, UpdateView):
     model = FundingSchedule
@@ -382,6 +390,14 @@ class PaymentDetailView(LoginRequiredMixin, DetailView):
     model = Payment
     template_name = 'payments/detail.html'
     context_object_name = 'payment'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        from apps.core.models import AuditLog
+        ctx['audit_logs'] = AuditLog.objects.filter(
+            entity_type='payment', entity_id=self.object.pk
+        ).order_by('-timestamp')[:10]
+        return ctx
 
 
 class PaymentUpdateView(LoginRequiredMixin, UpdateView):

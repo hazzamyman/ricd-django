@@ -10,6 +10,7 @@ Handles:
 from django.db.models.signals import post_save, pre_save, pre_delete
 from django.dispatch import receiver
 from django.utils import timezone
+from apps.core.middleware import get_current_user
 
 
 FINANCIAL_MODELS = {
@@ -54,11 +55,12 @@ def audit_log_post_save(sender, instance, created, **kwargs):
     
     action = 'CREATE' if created else 'UPDATE'
     old_values = getattr(instance, '_pre_save_state', {})
-    
+    user = getattr(instance, '_current_user', None) or get_current_user()
+
     try:
         from apps.core.business_rules import log_audit
         log_audit(
-            user=getattr(instance, '_current_user', None),
+            user=user,
             action=action,
             instance=instance,
             old_values=old_values if not created else {}
@@ -85,10 +87,11 @@ def audit_log_pre_delete(sender, instance, **kwargs):
             val = list(val)
         old_values[f.name] = val
     
+    user = getattr(instance, '_current_user', None) or get_current_user()
     try:
         from apps.core.business_rules import log_audit
         log_audit(
-            user=getattr(instance, '_current_user', None),
+            user=user,
             action='DELETE',
             instance=instance,
             old_values=old_values
@@ -187,8 +190,8 @@ def emit_workflow_action(sender, instance, created, **kwargs):
         from apps.core.business_rules import log_workflow_action
         from apps.core.models import WorkflowAction
         
-        user = getattr(instance, '_current_user', None)
-        
+        user = getattr(instance, '_current_user', None) or get_current_user()
+
         if created:
             action_type = 'CREATE'
         elif hasattr(instance, '_state_action_type') and instance._state_action_type:

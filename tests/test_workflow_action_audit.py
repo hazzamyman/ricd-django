@@ -279,6 +279,8 @@ class TestAuditTrailSequence:
 
     def test_workflow_action_history(self, funding_schedule, actor_user):
         """Test WorkflowAction history can be queried"""
+        # Clear any signal-emitted entries from fixture setup before asserting exact count
+        WorkflowAction.objects.filter(entity_type="FundingSchedule", entity_id=funding_schedule.id).delete()
         WorkflowAction.objects.create(
             entity_type="FundingSchedule",
             entity_id=funding_schedule.id,
