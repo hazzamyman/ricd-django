@@ -42,4 +42,28 @@
     <dt class="col-sm-3">Reference</dt><dd class="col-sm-9">{{ payment.reference|default:"-" }}</dd>
   </dl>
 </div></div>
+
+{% if audit_logs %}
+<div class="mt-4">
+  <h6 class="text-muted">Audit History (last {{ audit_logs|length }})</h6>
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead class="table-light">
+          <tr><th>Time</th><th>Action</th><th>User</th></tr>
+        </thead>
+        <tbody>
+          {% for log in audit_logs %}
+          <tr>
+            <td>{{ log.timestamp|date:"Y-m-d H:i" }}</td>
+            <td><span class="badge {% if log.action == 'CREATE' %}bg-success{% elif log.action == 'DELETE' %}bg-danger{% else %}bg-secondary{% endif %}">{{ log.action }}</span></td>
+            <td>{{ log.user|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}
