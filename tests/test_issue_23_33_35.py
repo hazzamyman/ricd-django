@@ -1,4 +1,4 @@
-"""
+﻿"""
 Tests for issue #23 (FundingNotice→ExpenseClaim pipeline),
 #33 (Allocation XOR validation), and #35 (document_uri display).
 """
@@ -82,7 +82,7 @@ def funding_schedule(project):
 def auth_client(council):
     client = Client()
     user = User.objects.create_user(username='pipeline_user', password='pass')
-    Profile.objects.create(user=user, council=council, officer_role=Profile.OfficerRole.SENIOR_OFFICER)
+    Profile.objects.create(user=user, council=council, officer_role=Profile.OfficerRole.OFFICER)
     client.force_login(user)
     return client, user
 

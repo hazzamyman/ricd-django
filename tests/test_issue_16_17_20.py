@@ -1,4 +1,4 @@
-"""
+﻿"""
 Tests for issues #16 (VariationItem CRUD + execute), #17 (WorkFunding/Allocation CRUD),
 #20 (StageReport lifecycle actions: submit/endorse/assess/approve).
 """
@@ -83,7 +83,17 @@ def stage_report(project, funding_schedule):
 def auth_client(council):
     client = Client()
     user = User.objects.create_user(username='test_user_16_17_20', password='pass')
-    Profile.objects.create(user=user, council=council, officer_role=Profile.OfficerRole.SENIOR_OFFICER)
+    Profile.objects.create(user=user, council=council, officer_role=Profile.OfficerRole.OFFICER)
+    client.force_login(user)
+    return client, user
+
+
+@pytest.fixture
+def council_client(council):
+    """Council-side user for submit actions."""
+    client = Client()
+    user = User.objects.create_user(username='council_user_16_17_20', password='pass')
+    Profile.objects.create(user=user, council=council, officer_role=Profile.OfficerRole.COUNCIL_USER)
     client.force_login(user)
     return client, user
 
@@ -94,8 +104,8 @@ def auth_client(council):
 
 @pytest.mark.django_db
 class TestStageReportSubmit:
-    def test_submit_draft_report(self, auth_client, stage_report):
-        client, _ = auth_client
+    def test_submit_draft_report(self, council_client, stage_report):
+        client, _ = council_client
         response = client.post(
             f'/projects/{stage_report.project_id}/stage-reports/{stage_report.pk}/submit/'
         )

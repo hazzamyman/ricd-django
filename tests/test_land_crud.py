@@ -1,4 +1,4 @@
-"""
+﻿"""
 Tests for Land infrastructure CRUD views: LandTenure, DevelopmentApplication (issue #31).
 
 LandProject is not a separate model — land projects are Project(project_type='LAND').
@@ -13,7 +13,7 @@ from apps.core.models import DevelopmentApplication, LandTenure, Profile
 def auth_client(council):
     client = Client()
     user = User.objects.create_user(username='land_user', password='pass')
-    Profile.objects.create(user=user, council=council, officer_role=Profile.OfficerRole.SENIOR_OFFICER)
+    Profile.objects.create(user=user, council=council, officer_role=Profile.OfficerRole.OFFICER)
     client.force_login(user)
     return client, user
 

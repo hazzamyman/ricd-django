@@ -1,4 +1,4 @@
-"""
+﻿"""
 Funding Views Tests
 Tests for funding schedule create, edit, delete views
 """
@@ -22,7 +22,7 @@ class TestFundingScheduleCreateView:
         Profile.objects.create(
             user=user,
             council=council,
-            officer_role=Profile.OfficerRole.SENIOR_OFFICER
+            officer_role=Profile.OfficerRole.OFFICER
         )
         client.force_login(user)
         return client
@@ -70,7 +70,7 @@ class TestFundingScheduleListView:
         user = User.objects.create_user(username='funding_lister', password='test123')
         Profile.objects.create(
             user=user,
-            officer_role=Profile.OfficerRole.SENIOR_OFFICER
+            officer_role=Profile.OfficerRole.OFFICER
         )
         client.force_login(user)
         return client
@@ -98,7 +98,7 @@ class TestFundingScheduleDeleteView:
         user = User.objects.create_user(username='funding_deleter', password='test123')
         Profile.objects.create(
             user=user,
-            officer_role=Profile.OfficerRole.SENIOR_OFFICER
+            officer_role=Profile.OfficerRole.OFFICER
         )
         client.force_login(user)
         return client
@@ -129,7 +129,7 @@ class TestWorkFundingView:
         user = User.objects.create_user(username='work_funder', password='test123')
         Profile.objects.create(
             user=user,
-            officer_role=Profile.OfficerRole.SENIOR_OFFICER
+            officer_role=Profile.OfficerRole.OFFICER
         )
         client.force_login(user)
         return client
@@ -157,7 +157,7 @@ class TestFundingCalculations:
         user = User.objects.create_user(username='calc_tester', password='test123')
         Profile.objects.create(
             user=user,
-            officer_role=Profile.OfficerRole.PROGRAM_OFFICER
+            officer_role=Profile.OfficerRole.OFFICER
         )
         client.force_login(user)
         return client
@@ -186,7 +186,7 @@ class TestFundingDualTrack:
         user = User.objects.create_user(username='dual_funder', password='test123')
         Profile.objects.create(
             user=user,
-            officer_role=Profile.OfficerRole.SENIOR_OFFICER
+            officer_role=Profile.OfficerRole.OFFICER
         )
         client.force_login(user)
         return client

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Tests for issue #21 (FundingSchedule lifecycle) and #22 (Payment release pipeline).
 """
 import pytest
@@ -63,7 +63,7 @@ def payment(project, funding_schedule):
 def auth_client(council):
     client = Client()
     user = User.objects.create_user(username='lifecycle_user', password='pass')
-    Profile.objects.create(user=user, council=council, officer_role=Profile.OfficerRole.SENIOR_OFFICER)
+    Profile.objects.create(user=user, council=council, officer_role=Profile.OfficerRole.OFFICER)
     client.force_login(user)
     return client, user
 
