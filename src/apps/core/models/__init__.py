@@ -11,7 +11,7 @@ from .programs_models import Program, ProgramBudget
 from .projects_models import Project
 
 # Comment system
-from .comments_models import Comment, CommentSettings
+from .comments_models import Comment, CommentSettings, Notice, NoticeTarget
 
 # Land Infrastructure models
 from .land_infra_models import LandTenure, DevelopmentApplication
@@ -78,7 +78,7 @@ __all__ = [
     # Project
     'Project',
     # Comment system
-    'Comment', 'CommentSettings',
+    'Comment', 'CommentSettings', 'Notice', 'NoticeTarget',
     # Land Infrastructure
     'LandTenure', 'DevelopmentApplication',
     # Funding & Payment

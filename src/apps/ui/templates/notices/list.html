@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Notices — RICD{% endblock %}
+{% block breadcrumbs %}
+  <span class="sep">/</span><span class="current">Notices</span>
+{% endblock %}
+
+{% block content %}
+<div class="ricd-pagehead">
+  <div>
+    <h1>Notices</h1>
+    <div class="meta">Broadcast updates that affect multiple records at once</div>
+  </div>
+  {% if is_fnc or user.is_superuser %}
+  <div class="actions">
+    <a href="{% url 'ui:notice_create' %}" class="btn btn-primary btn-sm">
+      <i class="bi bi-plus-lg"></i> New Notice
+    </a>
+  </div>
+  {% endif %}
+</div>
+
+{% if notices %}
+<div class="d-flex flex-column gap-3">
+  {% for notice in notices %}
+  <div class="card"
+       style="border-left:4px solid {% if notice.visibility == 'INTERNAL' %}#e6c229{% else %}#3a7d5a{% endif %}">
+    <div class="card-body py-3 px-4">
+      <div class="d-flex align-items-start justify-content-between gap-3">
+        <div style="flex:1;min-width:0">
+          {% if notice.title %}
+          <div class="fw-semibold mb-1" style="font-size:14px">{{ notice.title }}</div>
+          {% endif %}
+          <div style="font-size:13px;white-space:pre-wrap">{{ notice.body }}</div>
+
+          {# Targets #}
+          {% with targets=notice.targets.all %}
+          {% if targets %}
+          <div class="d-flex flex-wrap gap-1 mt-2">
+            {% for t in targets %}
+            <span class="badge bg-light text-dark border" style="font-size:11px;font-weight:400">
+              {{ t.content_type.model }} #{{ t.object_id }}
+              {% if notice.author == user or user.is_superuser %}
+              <form method="post" action="{% url 'ui:notice_remove_target' notice.pk %}" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="content_type_id" value="{{ t.content_type_id }}">
+                <input type="hidden" name="object_id" value="{{ t.object_id }}">
+                <button class="btn btn-link p-0 ms-1 text-danger" style="font-size:10px;line-height:1"
+                        title="Remove this target" onclick="return confirm('Remove this target from the notice?')">
+                  <i class="bi bi-x"></i>
+                </button>
+              </form>
+              {% endif %}
+            </span>
+            {% endfor %}
+          </div>
+          {% endif %}
+          {% endwith %}
+
+          <div class="d-flex align-items-center gap-2 mt-2 flex-wrap" style="font-size:11px;color:#888">
+            <span>{{ notice.author.get_full_name|default:notice.author.username }}</span>
+            <span>&middot;</span>
+            <span>{{ notice.created_at|date:"j M Y, H:i" }}</span>
+            <span>&middot;</span>
+            {% if notice.visibility == 'INTERNAL' %}
+            <span class="badge bg-warning text-dark" style="font-size:10px">Internal</span>
+            {% else %}
+            <span class="badge bg-success" style="font-size:10px">Council visible</span>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if notice.author == user or user.is_superuser %}
+        <form method="post" action="{% url 'ui:notice_delete' notice.pk %}" class="d-inline flex-shrink-0">
+          {% csrf_token %}
+          <button class="btn btn-sm btn-outline-danger" style="font-size:11px"
+                  onclick="return confirm('Delete this notice from all its targets?')">
+            <i class="bi bi-trash me-1"></i>Delete
+          </button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card">
+  <div class="card-body text-center text-muted py-5">
+    <i class="bi bi-megaphone" style="font-size:32px;opacity:.3"></i>
+    <p class="mt-2 mb-3">No notices yet.</p>
+    {% if is_fnc or user.is_superuser %}
+    <a href="{% url 'ui:notice_create' %}" class="btn btn-primary btn-sm">Create the first notice</a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

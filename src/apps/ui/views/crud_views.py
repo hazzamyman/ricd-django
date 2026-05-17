@@ -19,6 +19,7 @@ from django.contrib.contenttypes.models import ContentType
 from apps.core.models import (
     Approval, Address, BriefFinancialApproval, Comment, CommentSettings,
     Council, DevelopmentApplication, LandTenure,
+    Notice, NoticeTarget,
     PaymentRule, Program, Project, Work, WorkType, FundingSchedule,
     Variation, VariationItem, Payment, StageReport, QuarterlyReport,
     FundingAgreement, FundingNotice, ExpenseClaim, WorkFunding,
@@ -75,6 +76,33 @@ class CommentsMixin:
         return ctx
 
 
+class NoticesMixin:
+    """
+    Injects broadcast notices into any DetailView context.
+
+    Context variables added:
+      notices           — Notice queryset targeting this object (visibility-filtered)
+      notice_entity_key — model_name key used in the notice create URL (?entity_type=...)
+      notice_object_id  — pk of the current object (for the pre-select query param)
+    """
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        role = _officer_role(self.request.user)
+        is_council = role in COUNCIL_ROLES
+        ct = ContentType.objects.get_for_model(self.model)
+        qs = Notice.objects.filter(
+            targets__content_type=ct,
+            targets__object_id=self.object.pk,
+        ).prefetch_related('targets').order_by('-created_at')
+        if is_council:
+            qs = qs.filter(visibility=Notice.Visibility.EXTERNAL)
+        ctx['notices'] = qs
+        ctx['notice_entity_key'] = self.model._meta.model_name
+        ctx['notice_object_id'] = self.object.pk
+        return ctx
+
+
 # ---------------------------------------------------------------------------
 # Council
 # ---------------------------------------------------------------------------
@@ -101,7 +129,7 @@ class CouncilCreateView(LoginRequiredMixin, CreateView):
         return ctx
 
 
-class CouncilDetailView(LoginRequiredMixin, DetailView):
+class CouncilDetailView(LoginRequiredMixin, NoticesMixin, DetailView):
     model = Council
     template_name = 'councils/detail.html'
     context_object_name = 'council'
@@ -207,7 +235,7 @@ class ProjectCreateView(LoginRequiredMixin, CreateView):
         return ctx
 
 
-class ProjectDetailView(LoginRequiredMixin, CommentsMixin, DetailView):
+class ProjectDetailView(LoginRequiredMixin, CommentsMixin, NoticesMixin, DetailView):
     model = Project
     template_name = 'projects/detail.html'
     context_object_name = 'project'
@@ -321,7 +349,7 @@ class FundingScheduleCreateView(LoginRequiredMixin, CreateView):
         return ctx
 
 
-class FundingScheduleDetailView(LoginRequiredMixin, CommentsMixin, DetailView):
+class FundingScheduleDetailView(LoginRequiredMixin, CommentsMixin, NoticesMixin, DetailView):
     model = FundingSchedule
     template_name = 'funding_schedules/detail.html'
     context_object_name = 'funding_schedule'
@@ -377,7 +405,7 @@ class VariationCreateView(LoginRequiredMixin, CreateView):
         return ctx
 
 
-class VariationDetailView(LoginRequiredMixin, CommentsMixin, DetailView):
+class VariationDetailView(LoginRequiredMixin, CommentsMixin, NoticesMixin, DetailView):
     model = Variation
     template_name = 'variations/detail.html'
     context_object_name = 'variation'
@@ -445,7 +473,7 @@ class PaymentCreateView(LoginRequiredMixin, CreateView):
         return ctx
 
 
-class PaymentDetailView(LoginRequiredMixin, DetailView):
+class PaymentDetailView(LoginRequiredMixin, NoticesMixin, DetailView):
     model = Payment
     template_name = 'payments/detail.html'
     context_object_name = 'payment'
@@ -915,7 +943,7 @@ class BriefFinancialApprovalCreateView(LoginRequiredMixin, CreateView):
         return ctx
 
 
-class BriefFinancialApprovalDetailView(LoginRequiredMixin, DetailView):
+class BriefFinancialApprovalDetailView(LoginRequiredMixin, NoticesMixin, DetailView):
     model = BriefFinancialApproval
     template_name = 'brief_financial_approvals/detail.html'
     context_object_name = 'bfa'

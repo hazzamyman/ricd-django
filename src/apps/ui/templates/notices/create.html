@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}New Notice — RICD{% endblock %}
+{% block breadcrumbs %}
+  <span class="sep">/</span><a href="{% url 'ui:notice_list' %}">Notices</a>
+  <span class="sep">/</span><span class="current">New</span>
+{% endblock %}
+
+{% block content %}
+<div class="ricd-pagehead">
+  <div>
+    <h1>New Notice</h1>
+    <div class="meta">Broadcast a note to multiple projects, councils, or other records in one go</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-8">
+    <form method="post" id="notice-form">
+      {% csrf_token %}
+
+      {# Notice body #}
+      <div class="card mb-3">
+        <div class="card-header py-2 px-3" style="font-size:12px;font-weight:600;color:#555;background:#fafaf8">
+          Notice content
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label">Title <span class="text-muted fw-normal">(optional)</span></label>
+            <input type="text" name="title" class="form-control" placeholder="e.g. Barge down — all coastal projects delayed">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Body <span class="text-danger">*</span></label>
+            <textarea name="body" class="form-control" rows="4" placeholder="Describe the notice…"></textarea>
+          </div>
+          {% if not is_council %}
+          <div class="mb-0">
+            <label class="form-label">Visibility</label>
+            <div class="d-flex gap-3">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="visibility" id="vis_internal"
+                       value="INTERNAL" checked>
+                <label class="form-check-label" for="vis_internal">Internal — RICD staff only</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="visibility" id="vis_external"
+                       value="EXTERNAL">
+                <label class="form-check-label" for="vis_external">Council visible</label>
+              </div>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      {# Target groups #}
+      <div class="card mb-3">
+        <div class="card-header py-2 px-3 d-flex align-items-center justify-content-between"
+             style="font-size:12px;font-weight:600;color:#555;background:#fafaf8">
+          <span>Target objects <span class="text-danger">*</span></span>
+          <button type="button" class="btn btn-sm btn-outline-secondary" style="font-size:11px"
+                  onclick="addGroup()">+ Add another entity type</button>
+        </div>
+        <div class="card-body">
+          <p class="text-muted mb-3" style="font-size:12px">
+            Select which records this notice applies to.
+            Hold <kbd>Ctrl</kbd> / <kbd>⌘</kbd> to select multiple items.
+          </p>
+          <div id="target-groups"></div>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Post Notice</button>
+        <a href="{% url 'ui:notice_list' %}" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card bg-light border-0">
+      <div class="card-body" style="font-size:12.5px">
+        <strong>How it works</strong>
+        <ul class="mt-2 mb-0 ps-3" style="line-height:1.8">
+          <li>Pick an entity type, then select one or more records.</li>
+          <li>Use <em>Add another entity type</em> to mix entity types in one notice.</li>
+          <li>The notice appears on each selected record's detail page.</li>
+          <li>Deleting a notice removes it from all its targets at once.</li>
+          <li>You can also remove it from individual records via the × button on the list.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const ENTITY_DATA = {{ entity_data_json|safe }};
+// ENTITY_LABELS and ENTITY_KEYS contain only server-defined strings, never user data
+const ENTITY_LABELS = {{ entity_labels|safe }};
+const ENTITY_KEYS = {{ entity_keys|safe }};
+const INITIAL_TYPE = "{{ initial_entity_type }}";
+const INITIAL_PRESELECT = {{ initial_preselect|default:"null" }};
+
+let groupCount = 0;
+
+/* Build a <select> for entity types (server-defined values only) */
+function makeEntityTypeSelect(idx, selectedType) {
+  const sel = document.createElement('select');
+  sel.name = 'entity_type_' + idx;
+  sel.className = 'form-select form-select-sm mb-2';
+  sel.addEventListener('change', () => populateObjectSelect(idx));
+  ENTITY_KEYS.forEach(key => {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = ENTITY_LABELS[key];   // server-defined label, safe
+    if (key === selectedType) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  return sel;
+}
+
+/* Build a <select multiple> for objects — labels come from the database */
+function makeObjectSelect(idx, entityType, preselect) {
+  const sel = document.createElement('select');
+  sel.name = 'object_ids_' + idx;
+  sel.multiple = true;
+  sel.className = 'form-select';
+  sel.style.height = '160px';
+  (ENTITY_DATA[entityType] || []).forEach(([id, label]) => {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = label;   // user-sourced content — textContent, never innerHTML
+    if (id === preselect) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  return sel;
+}
+
+function populateObjectSelect(idx) {
+  const entityType = document.querySelector('[name="entity_type_' + idx + '"]').value;
+  const container = document.getElementById('obj-container-' + idx);
+  container.replaceChildren(makeObjectSelect(idx, entityType, null));
+}
+
+function addGroup(selectedType, preselect) {
+  const idx = groupCount++;
+  selectedType = selectedType || ENTITY_KEYS[0];
+
+  const wrapper = document.createElement('div');
+  wrapper.id = 'group-' + idx;
+  wrapper.className = 'target-group mb-3' + (idx > 0 ? ' border-top pt-3' : '');
+
+  const row = document.createElement('div');
+  row.className = 'd-flex align-items-start gap-2';
+
+  const inner = document.createElement('div');
+  inner.style.flex = '1';
+
+  const etLabel = document.createElement('label');
+  etLabel.className = 'form-label';
+  etLabel.textContent = 'Entity type';
+  inner.appendChild(etLabel);
+  inner.appendChild(makeEntityTypeSelect(idx, selectedType));
+
+  const objLabel = document.createElement('label');
+  objLabel.className = 'form-label';
+  objLabel.textContent = 'Objects (hold Ctrl/⌘ for multiple)';
+  inner.appendChild(objLabel);
+
+  const objContainer = document.createElement('div');
+  objContainer.id = 'obj-container-' + idx;
+  objContainer.appendChild(makeObjectSelect(idx, selectedType, preselect));
+  inner.appendChild(objContainer);
+
+  row.appendChild(inner);
+
+  if (idx > 0) {
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'btn btn-link text-danger p-0 mt-4';
+    removeBtn.title = 'Remove';
+    removeBtn.innerHTML = '<i class="bi bi-x-circle"></i>';
+    removeBtn.addEventListener('click', () => wrapper.remove());
+    row.appendChild(removeBtn);
+  }
+
+  wrapper.appendChild(row);
+  document.getElementById('target-groups').appendChild(wrapper);
+}
+
+addGroup(INITIAL_TYPE, INITIAL_PRESELECT);
+</script>
+{% endblock %}

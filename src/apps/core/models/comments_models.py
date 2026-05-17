@@ -81,3 +81,55 @@ class CommentSettings(models.Model):
             return cls.objects.get(model_name=model_name).is_enabled
         except cls.DoesNotExist:
             return True
+
+
+class Notice(models.Model):
+    """
+    A broadcast notice that can target multiple objects across any entity type.
+
+    Unlike a Comment (1-to-1 with one object), a Notice is a 1-to-many
+    announcement: e.g. "barge down — all coastal projects delayed" can target
+    a dozen projects and several councils in one hit.
+    """
+    class Visibility(models.TextChoices):
+        INTERNAL = 'INTERNAL', 'Internal (RICD only)'
+        EXTERNAL = 'EXTERNAL', 'Visible to Council'
+
+    title = models.CharField(max_length=200, blank=True, help_text="Short headline (optional)")
+    body = models.TextField()
+    visibility = models.CharField(
+        max_length=10, choices=Visibility.choices, default=Visibility.INTERNAL,
+    )
+    author = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, related_name='notices',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.title or self.body[:80]
+
+    @property
+    def target_count(self):
+        return self.targets.count()
+
+
+class NoticeTarget(models.Model):
+    """
+    One row per (notice, object) pair.  A single Notice can have many targets
+    across any mix of entity types.
+    """
+    notice = models.ForeignKey(Notice, on_delete=models.CASCADE, related_name='targets')
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey('content_type', 'object_id')
+
+    class Meta:
+        unique_together = [('notice', 'content_type', 'object_id')]
+        indexes = [models.Index(fields=['content_type', 'object_id'])]
+
+    def __str__(self):
+        return f"{self.notice_id} → {self.content_type.model} #{self.object_id}"

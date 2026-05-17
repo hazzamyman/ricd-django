@@ -234,6 +234,9 @@
 
   {# Governance #}
   <div class="group-title">Governance</div>
+  <a href="{% url 'ui:notice_list' %}" class="nav-item {% if active_nav == 'notices' %}active{% endif %}">
+    <i class="bi bi-megaphone"></i> Notices
+  </a>
   <a href="{% url 'ui:variations_list' %}" class="nav-item {% if active_nav == 'variations' %}active{% endif %}">
     <i class="bi bi-file-diff"></i> Variations
   </a>

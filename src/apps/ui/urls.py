@@ -180,6 +180,12 @@ urlpatterns = [
     path('comments/<int:pk>/edit/', views.comment_views.edit_comment, name='comment_edit'),
     path('comments/<int:pk>/delete/', views.comment_views.delete_comment, name='comment_delete'),
 
+    # Notices (broadcast to multiple objects)
+    path('notices/', views.notice_views.notice_list, name='notice_list'),
+    path('notices/create/', views.notice_views.notice_create, name='notice_create'),
+    path('notices/<int:pk>/delete/', views.notice_views.notice_delete, name='notice_delete'),
+    path('notices/<int:pk>/remove-target/', views.notice_views.notice_remove_target, name='notice_remove_target'),
+
     # Other existing views
     path('reports/', views.reports_views.reports_dashboard_view, name='reports_dashboard'),
     path('land-infra/', views.land_infra_views.land_projects_list_view, name='land_projects_list'),
