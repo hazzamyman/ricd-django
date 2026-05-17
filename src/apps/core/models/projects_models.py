@@ -115,7 +115,7 @@ class Project(models.Model):
         return self.name
 
     def get_absolute_url(self):
-        return reverse('projects:project_detail', args=[self.id])
+        return reverse('ui:project_detail', args=[self.id])
 
     def transition_state(self, new_state, changed_by=None, reason=''):
         """State transition method with validation and logging."""

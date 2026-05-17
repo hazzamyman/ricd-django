@@ -49,7 +49,6 @@ class Payment(models.Model):
     payment_split = models.CharField(max_length=10, choices=PaymentSplit.choices, default=PaymentSplit.STANDARD)
     
     # Status
-    release_date = models.DateField(null=True, blank=True)
     reference = models.CharField(max_length=100, blank=True)
     gl_code = models.CharField(max_length=50, blank=True, help_text="GL code from program")
     business_case_ref = models.CharField(max_length=100, blank=True, help_text="Business case reference from program")

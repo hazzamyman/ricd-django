@@ -24,7 +24,7 @@
                 <div class="card bg-light">
                     <div class="card-body">
                         <h5 class="card-title text-muted">Total Projects</h5>
-                        <p class="card-text display-4">{{ metrics.total_projects }}</p>
+                        <p class="card-text display-4">{{ total_projects }}</p>
                     </div>
                 </div>
             </div>
@@ -32,7 +32,7 @@
                 <div class="card bg-light">
                     <div class="card-body">
                         <h5 class="card-title text-muted">Active Projects</h5>
-                        <p class="card-text display-4">{{ metrics.active_projects }}</p>
+                        <p class="card-text display-4">{{ active_projects }}</p>
                     </div>
                 </div>
             </div>
@@ -40,7 +40,7 @@
                 <div class="card bg-light">
                     <div class="card-body">
                         <h5 class="card-title text-muted">Total Budget</h5>
-                        <p class="card-text display-4">${{ metrics.total_budget|floatformat:0 }}</p>
+                        <p class="card-text display-4">${{ total_budget|floatformat:0 }}</p>
                     </div>
                 </div>
             </div>
@@ -48,14 +48,14 @@
                 <div class="card bg-light">
                     <div class="card-body">
                         <h5 class="card-title text-muted">On Track</h5>
-                        <p class="card-text display-4">{{ metrics.on_track_projects }}</p>
+                        <p class="card-text display-4">{{ on_track_projects }}</p>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Status Breakdown -->
-        {% if status_breakdown %}
+        {% if projects_by_state %}
         <div class="row mb-4">
             <div class="col-md-12">
                 <div class="card">
@@ -64,13 +64,13 @@
                     </div>
                     <div class="card-body">
                         <div class="row">
-                            {% for status, count in status_breakdown.items %}
+                            {% for item in projects_by_state %}
                             <div class="col-md-4 mb-3">
-                                <div class="d-flex align-items-center">
-                                    <span class="badge badge-{% if status == 'on_track' %}success{% elif status == 'late' %}warning{% elif status == 'overdue' %}danger{% else %}secondary{% endif %} mr-2" style="font-size: 1rem;">
-                                        {{ count }}
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge {% if item.state == 'ACTIVE' %}bg-success{% elif item.state == 'PROSPECTIVE' %}bg-warning text-dark{% elif item.state == 'COMPLETED' %}bg-secondary{% else %}bg-danger{% endif %}" style="font-size: 1rem;">
+                                        {{ item.count }}
                                     </span>
-                                    <span>{{ status|title }}</span>
+                                    <span>{{ item.state|title }}</span>
                                 </div>
                             </div>
                             {% endfor %}
@@ -89,30 +89,30 @@
                         <h5 class="mb-0">Filter Projects</h5>
                     </div>
                     <div class="card-body">
-                        <form method="get" class="form-inline">
-                            <div class="form-group mr-3 mb-2">
-                                <label for="council" class="mr-2">Council:</label>
-                                <select name="council" id="council" class="form-control">
+                        <form method="get" class="d-flex flex-wrap align-items-center gap-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <label for="council">Council:</label>
+                                <select name="council" id="council" class="form-select form-select-sm" style="width:auto;">
                                     <option value="">All Councils</option>
-                                    {% for council in councils %}
-                                        <option value="{{ council.id }}" {% if council.id == selected_council %}selected{% endif %}>
-                                            {{ council.name }}
+                                    {% for c in councils %}
+                                        <option value="{{ c.id }}" {% if c.id|stringformat:"s" == selected_council %}selected{% endif %}>
+                                            {{ c.name }}
                                         </option>
                                     {% endfor %}
                                 </select>
                             </div>
-                            <div class="form-group mr-3 mb-2">
-                                <label for="program" class="mr-2">Program:</label>
-                                <select name="program" id="program" class="form-control">
+                            <div class="d-flex align-items-center gap-2">
+                                <label for="program">Program:</label>
+                                <select name="program" id="program" class="form-select form-select-sm" style="width:auto;">
                                     <option value="">All Programs</option>
-                                    {% for program in programs %}
-                                        <option value="{{ program.id }}" {% if program.id == selected_program %}selected{% endif %}>
-                                            {{ program.name }}
+                                    {% for p in programs %}
+                                        <option value="{{ p.id }}" {% if p.id|stringformat:"s" == selected_program %}selected{% endif %}>
+                                            {{ p.name }}
                                         </option>
                                     {% endfor %}
                                 </select>
                             </div>
-                            <button type="submit" class="btn btn-primary mb-2">Filter</button>
+                            <button type="submit" class="btn btn-primary btn-sm">Filter</button>
                         </form>
                     </div>
                 </div>
@@ -126,7 +126,7 @@
                     <div class="card-header">
                         <h5 class="mb-0">Projects</h5>
                     </div>
-                    {% if projects_list %}
+                    {% if projects %}
                     <div class="table-responsive">
                         <table class="table table-hover mb-0">
                             <thead class="table-light">
@@ -135,23 +135,21 @@
                                     <th>Council</th>
                                     <th>Program</th>
                                     <th>State</th>
-                                    <th>Budget</th>
-                                    <th>Status</th>
+                                    <th>Financial Year</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for project in projects_list %}
+                                {% for project in projects %}
                                 <tr>
-                                    <td><a href="#">{{ project.name }}</a></td>
+                                    <td><a href="{% url 'ui:project_detail' project.pk %}">{{ project.name }}</a></td>
                                     <td>{{ project.council.name }}</td>
                                     <td>{{ project.program.name }}</td>
-                                    <td>{{ project.state }}</td>
-                                    <td>${{ project.total_budget|floatformat:0 }}</td>
                                     <td>
-                                        <span class="badge badge-{% if project.state == 'active' %}success{% elif project.state == 'pending' %}warning{% elif project.state == 'completed' %}secondary{% else %}danger{% endif %}">
+                                        <span class="badge {% if project.state == 'ACTIVE' %}bg-success{% elif project.state == 'PROSPECTIVE' %}bg-warning text-dark{% elif project.state == 'COMPLETED' %}bg-secondary{% else %}bg-danger{% endif %}">
                                             {{ project.state|title }}
                                         </span>
                                     </td>
+                                    <td>{{ project.financial_year }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -170,8 +168,10 @@
         <div class="row mb-4">
             <div class="col-md-12">
                 <h5>Quick Links</h5>
-                <a href="{% url 'ui:cashflow' %}" class="btn btn-outline-primary mr-2">Cashflow Forecast</a>
-                <a href="{% url 'ui:aggregate_outputs' %}" class="btn btn-outline-primary">Aggregate Outputs</a>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'ui:cashflow' %}" class="btn btn-outline-primary">Cashflow Forecast</a>
+                    <a href="{% url 'ui:aggregate_outputs' %}" class="btn btn-outline-primary">Aggregate Outputs</a>
+                </div>
             </div>
         </div>
     {% endif %}

@@ -326,7 +326,7 @@ class VariationCreateView(WriteRequiredMixin, CreateView):
 
 class VariationDetailView(CouncilScopedMixin, CouncilOrFNCMixin, DetailView):
     model = Variation
-    council_filter_field = 'council'
+    council_filter_field = 'funding_schedule__project__council'
     template_name = 'variations/detail.html'
     context_object_name = 'variation'
 
