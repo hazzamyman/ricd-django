@@ -1,97 +1,199 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Cashflow Forecast - RICD{% endblock %}
+{% block title %}Cashflow Forecast — RICD{% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-5">
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <h1>Cashflow Forecast</h1>
-            <p class="text-muted">Forecast vs actual payments by program and fiscal year</p>
-        </div>
+<div class="container-fluid mt-4">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h1 class="mb-0">Cashflow Forecast</h1>
+      <p class="text-muted mb-0">Planned vs actual payment releases by month</p>
     </div>
+    <a href="{% url 'ui:dashboard' %}" class="btn btn-outline-secondary btn-sm">← Dashboard</a>
+  </div>
 
-    <!-- Summary Cards -->
-    <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="card bg-light">
-                <div class="card-body">
-                    <h5 class="card-title text-muted">Total Forecast</h5>
-                    <p class="card-text display-4">${{ total_forecast|floatformat:0 }}</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card bg-light">
-                <div class="card-body">
-                    <h5 class="card-title text-muted">Released (Actual)</h5>
-                    <p class="card-text display-4">${{ actual_payments|floatformat:0 }}</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card bg-light">
-                <div class="card-body">
-                    <h5 class="card-title text-muted">Remaining</h5>
-                    <p class="card-text display-4">${{ remaining|floatformat:0 }}</p>
-                </div>
-            </div>
-        </div>
+  <!-- Filters -->
+  <form method="get" class="row g-2 mb-4">
+    <div class="col-auto">
+      <select name="program" class="form-select form-select-sm" onchange="this.form.submit()">
+        <option value="">All Programs</option>
+        {% for prog in programs %}
+          <option value="{{ prog.pk }}" {% if selected_program == prog.pk|stringformat:"s" %}selected{% endif %}>{{ prog.name }}</option>
+        {% endfor %}
+      </select>
     </div>
+    <div class="col-auto">
+      <select name="council" class="form-select form-select-sm" onchange="this.form.submit()">
+        <option value="">All Councils</option>
+        {% for c in councils %}
+          <option value="{{ c.pk }}" {% if selected_council == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% if selected_program or selected_council %}
+    <div class="col-auto">
+      <a href="{% url 'ui:cashflow' %}" class="btn btn-outline-secondary btn-sm">Clear</a>
+    </div>
+    {% endif %}
+  </form>
 
-    <!-- Cashflow by Program -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Cashflow by Program</h5>
-                </div>
-                {% if by_program %}
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Program</th>
-                                <th class="text-right">Forecast</th>
-                                <th class="text-right">Released</th>
-                                <th class="text-right">Remaining</th>
-                                <th class="text-right">Drawdown %</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in by_program %}
-                            <tr>
-                                <td>{{ item.program.name }}</td>
-                                <td class="text-right">${{ item.forecast|floatformat:0 }}</td>
-                                <td class="text-right">${{ item.actual|floatformat:0 }}</td>
-                                <td class="text-right">${{ item.remaining|floatformat:0 }}</td>
-                                <td class="text-right">
-                                    {% if item.drawdown_percent %}
-                                        {{ item.drawdown_percent|floatformat:1 }}%
-                                    {% else %}
-                                        N/A
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="card-body">
-                    <p class="text-muted">No cashflow data available.</p>
-                </div>
-                {% endif %}
-            </div>
+  <!-- Summary Cards -->
+  <div class="row mb-4">
+    <div class="col-md-4">
+      <div class="card bg-light">
+        <div class="card-body">
+          <h6 class="card-title text-muted">Total in Pipeline</h6>
+          <p class="card-text fs-4 fw-semibold">${{ total_forecast|floatformat:0 }}</p>
+          <small class="text-muted">Approved + Released + Reconciled</small>
         </div>
+      </div>
     </div>
+    <div class="col-md-4">
+      <div class="card bg-light">
+        <div class="card-body">
+          <h6 class="card-title text-muted">Released (Actual)</h6>
+          <p class="card-text fs-4 fw-semibold text-success">${{ total_released|floatformat:0 }}</p>
+          <small class="text-muted">Released + Reconciled</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card bg-light">
+        <div class="card-body">
+          <h6 class="card-title text-muted">Remaining</h6>
+          <p class="card-text fs-4 fw-semibold text-warning">${{ remaining|floatformat:0 }}</p>
+          <small class="text-muted">Yet to be released</small>
+        </div>
+      </div>
+    </div>
+  </div>
 
-    <!-- Back Link -->
-    <div class="row">
-        <div class="col-md-12">
-            <a href="{% url 'ui:dashboard' %}" class="btn btn-outline-primary">Back to Dashboard</a>
-        </div>
+  <!-- Bar chart (planned vs actual by month) -->
+  {% if chart_labels != "[]" %}
+  <div class="card mb-4">
+    <div class="card-header">
+      <h6 class="mb-0">Monthly Payment Profile</h6>
     </div>
+    <div class="card-body">
+      <canvas id="cashflowChart" height="80"></canvas>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- By Program table -->
+  {% if by_program %}
+  <div class="card mb-4">
+    <div class="card-header"><h6 class="mb-0">Summary by Program</h6></div>
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Program</th>
+            <th class="text-end">Pipeline</th>
+            <th class="text-end">Released</th>
+            <th class="text-end">Remaining</th>
+            <th class="text-end">Drawdown %</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in by_program %}
+          {% if item.forecast %}
+          <tr>
+            <td>{{ item.program.name }}</td>
+            <td class="text-end">${{ item.forecast|floatformat:0 }}</td>
+            <td class="text-end text-success">${{ item.actual|floatformat:0 }}</td>
+            <td class="text-end text-warning">${{ item.remaining|floatformat:0 }}</td>
+            <td class="text-end">
+              <div class="d-flex align-items-center justify-content-end gap-2">
+                <div class="progress flex-grow-1" style="height:6px;max-width:80px;">
+                  <div class="progress-bar bg-success" style="width:{{ item.drawdown_percent }}%;"></div>
+                </div>
+                {{ item.drawdown_percent }}%
+              </div>
+            </td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Payment breakdown table -->
+  {% if payments %}
+  <div class="card mb-4">
+    <div class="card-header"><h6 class="mb-0">Payment Breakdown</h6></div>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Project</th>
+            <th>Schedule</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Release Date</th>
+            <th class="text-end">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for pmt in payments %}
+          <tr>
+            <td>
+              <a href="{% url 'ui:project_detail' pk=pmt.project.pk %}">{{ pmt.project.name }}</a>
+              <small class="text-muted d-block">{{ pmt.project.council.name }}</small>
+            </td>
+            <td>
+              {% if pmt.funding_schedule %}
+              <a href="{% url 'ui:funding_schedule_detail' pk=pmt.funding_schedule.pk %}">FS#{{ pmt.funding_schedule.schedule_number }}</a>
+              {% else %}—{% endif %}
+            </td>
+            <td>{{ pmt.get_payment_type_display }}</td>
+            <td>
+              <span class="badge {% if pmt.status == 'RELEASED' or pmt.status == 'RECONCILED' %}bg-success{% elif pmt.status == 'APPROVED' %}bg-primary{% else %}bg-secondary{% endif %}">
+                {{ pmt.get_status_display }}
+              </span>
+            </td>
+            <td>{{ pmt.release_date|default:"—" }}</td>
+            <td class="text-end">${{ pmt.amount|floatformat:0 }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <div class="alert alert-light border">No approved/released payments match the current filter.</div>
+  {% endif %}
+
 </div>
+
+{% if chart_labels != "[]" %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+  const labels = {{ chart_labels|safe }};
+  const planned = {{ chart_planned|safe }};
+  const actual  = {{ chart_actual|safe }};
+  new Chart(document.getElementById('cashflowChart'), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        {label: 'Planned (Approved)', data: planned, backgroundColor: 'rgba(13,110,253,0.5)', borderColor: 'rgba(13,110,253,1)', borderWidth: 1},
+        {label: 'Actual (Released/Reconciled)', data: actual, backgroundColor: 'rgba(25,135,84,0.5)', borderColor: 'rgba(25,135,84,1)', borderWidth: 1},
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {legend: {position: 'top'}},
+      scales: {
+        y: {beginAtZero: true, ticks: {callback: v => '$' + v.toLocaleString()}}
+      }
+    }
+  });
+})();
+</script>
+{% endif %}
 {% endblock %}

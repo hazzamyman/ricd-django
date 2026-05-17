@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Project Status Board — RICD{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h1 class="mb-0">Project Status Board</h1>
+      <p class="text-muted mb-0">{{ total_projects }} project{{ total_projects|pluralize }} across all stages</p>
+    </div>
+    <a href="{% url 'ui:dashboard' %}" class="btn btn-outline-secondary btn-sm">← Dashboard</a>
+  </div>
+
+  <!-- Filters -->
+  <form method="get" class="row g-2 mb-4">
+    <div class="col-auto">
+      <select name="program" class="form-select form-select-sm" onchange="this.form.submit()">
+        <option value="">All Programs</option>
+        {% for prog in programs %}
+          <option value="{{ prog.pk }}" {% if selected_program == prog.pk|stringformat:"s" %}selected{% endif %}>{{ prog.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto">
+      <select name="council" class="form-select form-select-sm" onchange="this.form.submit()">
+        <option value="">All Councils</option>
+        {% for c in councils %}
+          <option value="{{ c.pk }}" {% if selected_council == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto">
+      <select name="financial_year" class="form-select form-select-sm" onchange="this.form.submit()">
+        <option value="">All Years</option>
+        {% for fy in financial_years %}
+          <option value="{{ fy }}" {% if selected_year == fy %}selected{% endif %}>{{ fy }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% if selected_program or selected_council or selected_year %}
+    <div class="col-auto">
+      <a href="{% url 'ui:projects_board' %}" class="btn btn-outline-secondary btn-sm">Clear</a>
+    </div>
+    {% endif %}
+  </form>
+
+  <!-- Kanban columns -->
+  <div class="d-flex gap-3 overflow-auto pb-3" style="min-height: 70vh;">
+    {% for col in columns %}
+    <div class="flex-shrink-0" style="width: 220px;">
+      <div class="card h-100 border-0 bg-light">
+        <div class="card-header bg-secondary text-white py-2 px-3 d-flex justify-content-between align-items-center">
+          <strong class="small">{{ col.label }}</strong>
+          <span class="badge bg-white text-secondary">{{ col.count }}</span>
+        </div>
+        <div class="card-body p-2 overflow-auto" style="max-height: 65vh;">
+          {% for card in col.projects %}
+          <a href="{% url 'ui:project_detail' pk=card.project.pk %}" class="text-decoration-none">
+            <div class="card mb-2 shadow-sm {% if card.overdue %}border-danger{% endif %}">
+              <div class="card-body p-2">
+                <p class="fw-semibold small mb-1 text-dark">{{ card.project.name }}</p>
+                <p class="text-muted small mb-1">{{ card.project.council.name }}</p>
+                <p class="text-muted small mb-1">{{ card.project.program.name }}</p>
+                {% if card.total_funding %}
+                <p class="small mb-1 text-success fw-semibold">${{ card.total_funding|floatformat:0 }}</p>
+                {% endif %}
+                {% if card.days_left is not None %}
+                  {% if card.overdue %}
+                  <span class="badge bg-danger small">{{ card.days_left|cut:"-" }}d overdue</span>
+                  {% elif card.days_left <= 30 %}
+                  <span class="badge bg-warning text-dark small">{{ card.days_left }}d left</span>
+                  {% else %}
+                  <span class="badge bg-light text-muted small">{{ card.days_left }}d left</span>
+                  {% endif %}
+                {% endif %}
+              </div>
+            </div>
+          </a>
+          {% empty %}
+          <p class="text-muted small text-center mt-3">No projects</p>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
