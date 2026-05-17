@@ -7,6 +7,7 @@ from . import land_infra_views
 from . import documents_views
 from . import crud_views
 from . import land_crud_views
+from . import comment_views
 
 __all__ = [
     'dashboard_views',
@@ -18,4 +19,5 @@ __all__ = [
     'documents_views',
     'crud_views',
     'land_crud_views',
+    'comment_views',
 ]

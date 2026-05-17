@@ -175,6 +175,11 @@ urlpatterns = [
     path('projects/<int:project_pk>/addresses/<int:pk>/edit/', views.crud_views.AddressUpdateView.as_view(), name='address_edit'),
     path('projects/<int:project_pk>/addresses/<int:pk>/delete/', views.crud_views.AddressDeleteView.as_view(), name='address_delete'),
 
+    # Comments (generic — works for any entity via ContentType)
+    path('comments/add/', views.comment_views.add_comment, name='comment_add'),
+    path('comments/<int:pk>/edit/', views.comment_views.edit_comment, name='comment_edit'),
+    path('comments/<int:pk>/delete/', views.comment_views.delete_comment, name='comment_delete'),
+
     # Other existing views
     path('reports/', views.reports_views.reports_dashboard_view, name='reports_dashboard'),
     path('land-infra/', views.land_infra_views.land_projects_list_view, name='land_projects_list'),

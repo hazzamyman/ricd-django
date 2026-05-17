@@ -19,5 +19,6 @@
 </div></div>
 <div class="card mb-2"><div class="card-header d-flex justify-content-between">Payments <a href="{% url 'ui:payment_list' project.pk %}" class="btn btn-sm btn-outline-primary">View All</a></div></div>
 <div class="card mb-2"><div class="card-header d-flex justify-content-between">Stage Reports <a href="{% url 'ui:stage_report_list' project.pk %}" class="btn btn-sm btn-outline-primary">View All</a></div></div>
-<div class="card"><div class="card-header d-flex justify-content-between">Quarterly Reports <a href="{% url 'ui:quarterly_report_list' project.pk %}" class="btn btn-sm btn-outline-primary">View All</a></div></div>
+<div class="card mb-3"><div class="card-header d-flex justify-content-between">Quarterly Reports <a href="{% url 'ui:quarterly_report_list' project.pk %}" class="btn btn-sm btn-outline-primary">View All</a></div></div>
+{% include 'partials/_comments.html' %}
 {% endblock %}

@@ -13,12 +13,65 @@ from django.shortcuts import get_object_or_404, redirect
 
 from django.utils import timezone
 
+from django.contrib.contenttypes.models import ContentType
+
 from apps.core.models import (
-    Approval, Address, BriefFinancialApproval, Council, DevelopmentApplication, LandTenure,
+    Approval, Address, BriefFinancialApproval, Comment, CommentSettings,
+    Council, DevelopmentApplication, LandTenure,
     PaymentRule, Program, Project, Work, WorkType, FundingSchedule,
     Variation, VariationItem, Payment, StageReport, QuarterlyReport,
     FundingAgreement, FundingNotice, ExpenseClaim, WorkFunding,
 )
+
+COUNCIL_ROLES = frozenset({'COUNCIL_USER', 'COUNCIL_MANAGER'})
+
+
+def _officer_role(user):
+    return getattr(getattr(user, 'profile', None), 'officer_role', None)
+
+
+class CommentsMixin:
+    """
+    Injects threaded comments into any DetailView context.
+
+    Context variables added:
+      comments          — top-level Comment queryset (visibility-filtered, with prefetched replies)
+      comment_ct_id     — ContentType pk for the form hidden field
+      comment_object_id — object pk for the form hidden field
+      user_is_fnc       — True if the user is FNC staff (can see/post INTERNAL comments)
+      can_comment       — True if the user may post a comment
+    """
+
+    def _comments_enabled(self):
+        model_name = self.model._meta.model_name
+        return CommentSettings.is_comments_enabled(model_name)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        if not self._comments_enabled():
+            ctx['comments_disabled'] = True
+            return ctx
+
+        user = self.request.user
+        role = _officer_role(user)
+        is_council = role in COUNCIL_ROLES
+        is_fnc = role is not None and not is_council
+
+        ct = ContentType.objects.get_for_model(self.model)
+        qs = Comment.objects.filter(
+            content_type=ct, object_id=self.object.pk, parent=None,
+        ).select_related('author').prefetch_related(
+            'replies__author',
+        )
+        if is_council:
+            qs = qs.filter(visibility=Comment.Visibility.EXTERNAL)
+
+        ctx['comments'] = qs
+        ctx['comment_ct_id'] = ct.pk
+        ctx['comment_object_id'] = self.object.pk
+        ctx['user_is_fnc'] = is_fnc
+        ctx['can_comment'] = role is not None
+        return ctx
 
 
 # ---------------------------------------------------------------------------
@@ -153,7 +206,7 @@ class ProjectCreateView(LoginRequiredMixin, CreateView):
         return ctx
 
 
-class ProjectDetailView(LoginRequiredMixin, DetailView):
+class ProjectDetailView(LoginRequiredMixin, CommentsMixin, DetailView):
     model = Project
     template_name = 'projects/detail.html'
     context_object_name = 'project'
@@ -262,7 +315,7 @@ class FundingScheduleCreateView(LoginRequiredMixin, CreateView):
         return ctx
 
 
-class FundingScheduleDetailView(LoginRequiredMixin, DetailView):
+class FundingScheduleDetailView(LoginRequiredMixin, CommentsMixin, DetailView):
     model = FundingSchedule
     template_name = 'funding_schedules/detail.html'
     context_object_name = 'funding_schedule'
@@ -318,7 +371,7 @@ class VariationCreateView(LoginRequiredMixin, CreateView):
         return ctx
 
 
-class VariationDetailView(LoginRequiredMixin, DetailView):
+class VariationDetailView(LoginRequiredMixin, CommentsMixin, DetailView):
     model = Variation
     template_name = 'variations/detail.html'
     context_object_name = 'variation'

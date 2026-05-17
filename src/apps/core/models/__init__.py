@@ -8,7 +8,10 @@ from .councils_models import Council, CouncilContact
 from .programs_models import Program, ProgramBudget
 
 # Project models
-from .projects_models import Project, Comment
+from .projects_models import Project
+
+# Comment system
+from .comments_models import Comment, CommentSettings
 
 # Land Infrastructure models
 from .land_infra_models import LandTenure, DevelopmentApplication
@@ -73,7 +76,9 @@ __all__ = [
     # Council & Program
     'Council', 'CouncilContact', 'Program', 'ProgramBudget',
     # Project
-    'Project', 'Comment',
+    'Project',
+    # Comment system
+    'Comment', 'CommentSettings',
     # Land Infrastructure
     'LandTenure', 'DevelopmentApplication',
     # Funding & Payment

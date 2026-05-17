@@ -1,0 +1,205 @@
+{% load static %}
+{% if not comments_disabled %}
+<section class="mt-5" id="comments">
+  <h5 class="mb-3">Comments</h5>
+
+  {% if comments %}
+    {% for comment in comments %}
+    <div class="card mb-2 {% if comment.visibility == 'INTERNAL' %}border-warning{% endif %}" id="comment-{{ comment.pk }}">
+      <div class="card-body py-2 px-3">
+        <div class="d-flex justify-content-between align-items-start">
+          <div class="flex-grow-1">
+            <small class="text-muted fw-semibold">
+              {{ comment.author.get_full_name|default:comment.author.username }}
+              <span class="text-muted fw-normal">&middot; {{ comment.created_at|date:"d M Y H:i" }}</span>
+              {% if comment.is_edited %}<span class="text-muted fst-italic">(edited)</span>{% endif %}
+              {% if comment.visibility == 'INTERNAL' %}
+                <span class="badge bg-warning text-dark ms-1">RICD only</span>
+              {% else %}
+                <span class="badge bg-info text-dark ms-1">Visible to council</span>
+              {% endif %}
+            </small>
+            <p class="mb-1 mt-1" id="comment-body-{{ comment.pk }}">{{ comment.body|linebreaksbr }}</p>
+          </div>
+
+          {% if user == comment.author or user.is_superuser %}
+          <div class="ms-3 d-flex gap-2 flex-shrink-0">
+            <button class="btn btn-link btn-sm p-0 text-secondary"
+                    onclick="toggleEdit({{ comment.pk }})"
+                    title="Edit">Edit</button>
+            <form method="post" action="{% url 'ui:comment_delete' comment.pk %}" class="d-inline"
+                  onsubmit="return confirm('Delete this comment?')">
+              {% csrf_token %}
+              <button class="btn btn-link btn-sm p-0 text-danger" title="Delete">Delete</button>
+            </form>
+          </div>
+          {% endif %}
+        </div>
+
+        {# inline edit form (hidden by default) #}
+        {% if user == comment.author or user.is_superuser %}
+        <form method="post" action="{% url 'ui:comment_edit' comment.pk %}"
+              class="mt-2 d-none" id="edit-form-{{ comment.pk }}">
+          {% csrf_token %}
+          <textarea name="body" class="form-control form-control-sm mb-2" rows="3">{{ comment.body }}</textarea>
+          {% if user_is_fnc %}
+          <div class="d-flex align-items-center gap-3 mb-2">
+            <span class="small text-muted">Visibility:</span>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="visibility" value="INTERNAL"
+                     id="edit-vis-int-{{ comment.pk }}"
+                     {% if comment.visibility == 'INTERNAL' %}checked{% endif %}>
+              <label class="form-check-label small" for="edit-vis-int-{{ comment.pk }}">RICD only</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="visibility" value="EXTERNAL"
+                     id="edit-vis-ext-{{ comment.pk }}"
+                     {% if comment.visibility == 'EXTERNAL' %}checked{% endif %}>
+              <label class="form-check-label small" for="edit-vis-ext-{{ comment.pk }}">Visible to council</label>
+            </div>
+          </div>
+          {% endif %}
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-sm btn-primary">Save</button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEdit({{ comment.pk }})">Cancel</button>
+          </div>
+        </form>
+        {% endif %}
+
+        {# replies #}
+        {% if comment.replies.all %}
+        <div class="border-start border-2 ps-3 mt-2">
+          {% for reply in comment.replies.all %}
+          <div class="mb-2" id="comment-{{ reply.pk }}">
+            <small class="text-muted fw-semibold">
+              {{ reply.author.get_full_name|default:reply.author.username }}
+              <span class="text-muted fw-normal">&middot; {{ reply.created_at|date:"d M Y H:i" }}</span>
+              {% if reply.is_edited %}<span class="text-muted fst-italic">(edited)</span>{% endif %}
+              {% if reply.visibility == 'INTERNAL' %}
+                <span class="badge bg-warning text-dark ms-1">RICD only</span>
+              {% endif %}
+            </small>
+            <p class="mb-0 mt-1">{{ reply.body|linebreaksbr }}</p>
+            {% if user == reply.author or user.is_superuser %}
+            <div class="d-flex gap-2 mt-1">
+              <button class="btn btn-link btn-sm p-0 text-secondary small"
+                      onclick="toggleEdit({{ reply.pk }})">Edit</button>
+              <form method="post" action="{% url 'ui:comment_delete' reply.pk %}" class="d-inline"
+                    onsubmit="return confirm('Delete this reply?')">
+                {% csrf_token %}
+                <button class="btn btn-link btn-sm p-0 text-danger small">Delete</button>
+              </form>
+            </div>
+            <form method="post" action="{% url 'ui:comment_edit' reply.pk %}"
+                  class="mt-1 d-none" id="edit-form-{{ reply.pk }}">
+              {% csrf_token %}
+              <textarea name="body" class="form-control form-control-sm mb-1" rows="2">{{ reply.body }}</textarea>
+              {% if user_is_fnc %}
+              <div class="d-flex gap-3 mb-1 align-items-center">
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="visibility" value="INTERNAL"
+                         {% if reply.visibility == 'INTERNAL' %}checked{% endif %}>
+                  <label class="form-check-label small">RICD only</label>
+                </div>
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="visibility" value="EXTERNAL"
+                         {% if reply.visibility == 'EXTERNAL' %}checked{% endif %}>
+                  <label class="form-check-label small">Visible to council</label>
+                </div>
+              </div>
+              {% endif %}
+              <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEdit({{ reply.pk }})">Cancel</button>
+              </div>
+            </form>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        {# reply form (collapsed) #}
+        {% if can_comment %}
+        <div class="mt-2">
+          <button class="btn btn-link btn-sm p-0 text-secondary small"
+                  onclick="toggleReply({{ comment.pk }})">&#8629; Reply</button>
+          <form method="post" action="{% url 'ui:comment_add' %}"
+                class="mt-1 d-none" id="reply-form-{{ comment.pk }}">
+            {% csrf_token %}
+            <input type="hidden" name="content_type_id" value="{{ comment_ct_id }}">
+            <input type="hidden" name="object_id" value="{{ comment_object_id }}">
+            <input type="hidden" name="parent_id" value="{{ comment.pk }}">
+            <textarea name="body" class="form-control form-control-sm mb-1" rows="2" placeholder="Write a reply…"></textarea>
+            {% if user_is_fnc %}
+            <div class="d-flex gap-3 mb-1 align-items-center">
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="visibility" value="INTERNAL" checked>
+                <label class="form-check-label small">RICD only</label>
+              </div>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="visibility" value="EXTERNAL">
+                <label class="form-check-label small">Visible to council</label>
+              </div>
+            </div>
+            {% endif %}
+            <div class="d-flex gap-2">
+              <button type="submit" class="btn btn-sm btn-primary">Post reply</button>
+              <button type="button" class="btn btn-sm btn-secondary" onclick="toggleReply({{ comment.pk }})">Cancel</button>
+            </div>
+          </form>
+        </div>
+        {% endif %}
+
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <p class="text-muted small">No comments yet.</p>
+  {% endif %}
+
+  {# new top-level comment form #}
+  {% if can_comment %}
+  <div class="card mt-3">
+    <div class="card-body">
+      <h6 class="card-title mb-2">Add a comment</h6>
+      <form method="post" action="{% url 'ui:comment_add' %}">
+        {% csrf_token %}
+        <input type="hidden" name="content_type_id" value="{{ comment_ct_id }}">
+        <input type="hidden" name="object_id" value="{{ comment_object_id }}">
+        <textarea name="body" class="form-control mb-2" rows="3" placeholder="Write a comment…" required></textarea>
+        {% if user_is_fnc %}
+        <div class="d-flex align-items-center gap-3 mb-2">
+          <span class="small text-muted">Visibility:</span>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="visibility" value="INTERNAL"
+                   id="vis-internal" checked>
+            <label class="form-check-label" for="vis-internal">RICD only (default)</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="visibility" value="EXTERNAL"
+                   id="vis-external">
+            <label class="form-check-label" for="vis-external">Visible to council</label>
+          </div>
+        </div>
+        {% endif %}
+        <button type="submit" class="btn btn-primary btn-sm">Post comment</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</section>
+
+<script>
+function toggleEdit(pk) {
+  const form = document.getElementById('edit-form-' + pk);
+  const body = document.getElementById('comment-body-' + pk);
+  if (form) form.classList.toggle('d-none');
+  if (body) body.classList.toggle('d-none');
+}
+function toggleReply(pk) {
+  const form = document.getElementById('reply-form-' + pk);
+  if (form) form.classList.toggle('d-none');
+}
+</script>
+{% endif %}

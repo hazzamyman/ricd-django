@@ -115,7 +115,7 @@ class Project(models.Model):
         return self.name
 
     def get_absolute_url(self):
-        return reverse('projects:project_detail', args=[self.id])
+        return reverse('ui:project_detail', args=[self.id])
 
     def transition_state(self, new_state, changed_by=None, reason=''):
         """State transition method with validation and logging."""
@@ -209,44 +209,3 @@ class Project(models.Model):
             new_state=self.State.FUNDED,
             reason__icontains='funding approval'
         ).exists()
-
-
-class Comment(models.Model):
-    """Project comments with visibility control"""
-    
-    class Visibility(models.TextChoices):
-        ALL = 'ALL', 'All Users'
-        FNC_ONLY = 'FNC_ONLY', 'FNC Users Only'
-        COUNCIL_ONLY = 'COUNCIL_ONLY', 'Council Users Only'
-        PROJECT_TEAM = 'PROJECT_TEAM', 'Project Team Only'
-    
-    project = models.ForeignKey(Project, related_name='comments', on_delete=models.CASCADE)
-    author = models.ForeignKey('auth.User', on_delete=models.CASCADE)
-    content = models.TextField()
-    visibility = models.CharField(max_length=20, choices=Visibility.choices, default=Visibility.ALL)
-    is_internal = models.BooleanField(default=False, help_text="Internal notes not visible to council")
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        ordering = ['-created_at']
-    
-    def __str__(self):
-        return f"Comment by {self.author.username} on {self.project.name}"
-    
-    def can_view(self, user):
-        """Check if user can view this comment"""
-        if self.visibility == self.Visibility.ALL:
-            return True
-        if user.is_superuser:
-            return True
-        # Check user's groups
-        user_groups = set(user.groups.values_list('name', flat=True))
-        if self.visibility == self.Visibility.FNC_ONLY:
-            return any('FNC' in g for g in user_groups)
-        if self.visibility == self.Visibility.COUNCIL_ONLY:
-            return any('Council' in g for g in user_groups)
-        if self.visibility == self.Visibility.PROJECT_TEAM:
-            # Project team = same council
-            return user.profile.council == self.project.council if hasattr(user, 'profile') else False
-        return False
