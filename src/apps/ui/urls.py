@@ -8,6 +8,8 @@ urlpatterns = [
     path('dashboard/', views.dashboard_views.dashboard_view, name='dashboard'),
     path('cashflow/', views.dashboard_views.cashflow_view, name='cashflow'),
     path('aggregate/', views.dashboard_views.aggregate_outputs_view, name='aggregate_outputs'),
+    path('dashboard/projects/', views.dashboard_views.projects_board_view, name='projects_board'),
+    path('dashboard/traceability/', views.dashboard_views.traceability_view, name='traceability'),
 
     # Maintenance views
     # path('maintenance/', views.maintenance_views.maintenance_list, name='maintenance_list'),
