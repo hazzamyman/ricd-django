@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Maintenance — RICD{% endblock %}
+{% block breadcrumbs %}
+  <span class="sep">/</span><span class="current">Maintenance</span>
+{% endblock %}
+
+{% block content %}
+<div class="ricd-pagehead">
+  <div>
+    <h1>Maintenance &amp; Configuration</h1>
+    <div class="meta">Manage lookup data, user access, and system settings</div>
+  </div>
+</div>
+
+<div class="row g-3">
+
+  {# Councils #}
+  <div class="col-sm-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="ricd-section-title mb-1">
+          <h2><i class="bi bi-building me-1 text-muted"></i>Councils</h2>
+        </div>
+        <div class="text-muted mb-3" style="font-size:12px">{{ council_count }} council{{ council_count|pluralize }} registered</div>
+        <div class="d-flex gap-2">
+          <a href="{% url 'ui:council_list' %}" class="btn btn-sm btn-outline-secondary">View all</a>
+          {% if is_manager %}
+          <a href="{% url 'ui:council_create' %}" class="btn btn-sm btn-primary">Add</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Programs #}
+  <div class="col-sm-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="ricd-section-title mb-1">
+          <h2><i class="bi bi-collection me-1 text-muted"></i>Programs</h2>
+        </div>
+        <div class="text-muted mb-3" style="font-size:12px">{{ program_count }} program{{ program_count|pluralize }} registered</div>
+        <div class="d-flex gap-2">
+          <a href="{% url 'ui:program_list' %}" class="btn btn-sm btn-outline-secondary">View all</a>
+          {% if is_manager %}
+          <a href="{% url 'ui:program_create' %}" class="btn btn-sm btn-primary">Add</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Work Types #}
+  <div class="col-sm-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="ricd-section-title mb-1">
+          <h2><i class="bi bi-hammer me-1 text-muted"></i>Work Types</h2>
+        </div>
+        <div class="text-muted mb-3" style="font-size:12px">{{ work_type_count }} work type{{ work_type_count|pluralize }}</div>
+        <div class="d-flex gap-2">
+          <a href="{% url 'ui:work_type_list' %}" class="btn btn-sm btn-outline-secondary">View all</a>
+          {% if is_manager %}
+          <a href="{% url 'ui:work_type_create' %}" class="btn btn-sm btn-primary">Add</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Payment Rules #}
+  <div class="col-sm-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="ricd-section-title mb-1">
+          <h2><i class="bi bi-list-check me-1 text-muted"></i>Payment Rules</h2>
+        </div>
+        <div class="text-muted mb-3" style="font-size:12px">Immutable versioned rules</div>
+        <div class="d-flex gap-2">
+          <a href="{% url 'ui:payment_rule_list' %}" class="btn btn-sm btn-outline-secondary">View all</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Funding Agreements #}
+  <div class="col-sm-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="ricd-section-title mb-1">
+          <h2><i class="bi bi-file-earmark-text me-1 text-muted"></i>Funding Agreements</h2>
+        </div>
+        <div class="text-muted mb-3" style="font-size:12px">Legal umbrella agreements</div>
+        <div class="d-flex gap-2">
+          <a href="{% url 'ui:funding_agreement_list' %}" class="btn btn-sm btn-outline-secondary">View all</a>
+          {% if is_manager %}
+          <a href="{% url 'ui:funding_agreement_create' %}" class="btn btn-sm btn-primary">Add</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Users #}
+  <div class="col-sm-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="ricd-section-title mb-1">
+          <h2><i class="bi bi-people me-1 text-muted"></i>Users</h2>
+        </div>
+        <div class="text-muted mb-3" style="font-size:12px">{{ user_count }} user{{ user_count|pluralize }} in system</div>
+        <div class="d-flex gap-2">
+          <a href="/admin/auth/user/" class="btn btn-sm btn-outline-secondary">Manage via Admin</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{# Feature toggles #}
+<div class="mt-4">
+  <div class="ricd-section-title mb-2">
+    <h2>Feature Toggles</h2>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <p class="text-muted mb-2" style="font-size:13px">
+        Comments are enabled by default on all entities. Per-model overrides are managed via
+        <code>CommentSettings</code> in the Django admin.
+      </p>
+      <a href="/admin/core/commentsettings/" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-toggle-on me-1"></i>Comment settings
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

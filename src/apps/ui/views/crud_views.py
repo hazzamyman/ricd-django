@@ -3,9 +3,10 @@ CRUD views for core domain entities using Django class-based views.
 All views require login via LoginRequiredMixin.
 """
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth import get_user_model
 from django.urls import reverse_lazy
 from django.views.generic import (
-    ListView, CreateView, DetailView, UpdateView, DeleteView, View,
+    ListView, CreateView, DetailView, UpdateView, DeleteView, View, TemplateView,
 )
 
 from django.contrib import messages
@@ -210,6 +211,11 @@ class ProjectDetailView(LoginRequiredMixin, CommentsMixin, DetailView):
     model = Project
     template_name = 'projects/detail.html'
     context_object_name = 'project'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['active_tab'] = self.request.GET.get('tab', 'overview')
+        return ctx
 
 
 class ProjectUpdateView(LoginRequiredMixin, UpdateView):
@@ -1500,4 +1506,22 @@ class WorkFundingDeleteView(LoginRequiredMixin, DeleteView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['back_url'] = reverse_lazy('ui:allocation_list')
+        return ctx
+
+
+# ---------------------------------------------------------------------------
+# Maintenance dashboard
+# ---------------------------------------------------------------------------
+
+class MaintenanceView(LoginRequiredMixin, TemplateView):
+    template_name = 'maintenance/index.html'
+
+    def get_context_data(self, **kwargs):
+        User = get_user_model()
+        ctx = super().get_context_data(**kwargs)
+        ctx['council_count'] = Council.objects.count()
+        ctx['program_count'] = Program.objects.count()
+        ctx['work_type_count'] = WorkType.objects.count()
+        ctx['user_count'] = User.objects.count()
+        ctx['active_nav'] = 'maintenance'
         return ctx

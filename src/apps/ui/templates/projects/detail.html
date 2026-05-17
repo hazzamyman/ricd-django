@@ -1,24 +1,552 @@
 {% extends "base.html" %}
-{% block title %}{{ project.name }} - RICD{% endblock %}
+{% block title %}{{ project.name }} — RICD{% endblock %}
+
+{% block active_nav %}{% with active_nav='projects' %}{% endwith %}{% endblock %}
+
+{% block breadcrumbs %}
+<span class="sep">/</span>
+<a href="{% url 'ui:projects_list' %}">Projects</a>
+<span class="sep">/</span>
+<span class="current">{{ project.name }}</span>
+{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h2>{{ project.name }}</h2>
-  <div class="d-flex gap-2">
-    <a href="{% url 'ui:project_edit' project.pk %}" class="btn btn-secondary">Edit</a>
-    <a href="{% url 'ui:projects_list' %}" class="btn btn-outline-secondary">Back</a>
+{# ===== Page header ===== #}
+<div class="ricd-pagehead">
+  <div>
+    <h1>{{ project.name }}</h1>
+    <div class="meta">
+      {% if project.state == 'PROS' %}
+        <span class="state-badge state-prospective">Prospective</span>
+      {% elif project.state == 'PROG' %}
+        <span class="state-badge state-programmed">Programmed</span>
+      {% elif project.state == 'FUND' %}
+        <span class="state-badge state-funded">Funded</span>
+      {% elif project.state == 'COMM' %}
+        <span class="state-badge state-commenced">Commenced</span>
+      {% elif project.state == 'UC' %}
+        <span class="state-badge state-uc">Under Construction</span>
+      {% elif project.state == 'COMP' %}
+        <span class="state-badge state-comp">Completed</span>
+      {% endif %}
+      <span><b>Council:</b> {{ project.council }}</span>
+      <span><b>Program:</b> {{ project.program }}</span>
+      {% if project.financial_year %}<span><b>FY:</b> {{ project.financial_year }}</span>{% endif %}
+      {% if project.completion_date %}<span><b>Completion:</b> {{ project.completion_date|date:"d M Y" }}</span>{% endif %}
+    </div>
+  </div>
+  <div class="actions">
+    {% if is_fnc %}
+    <a href="{% url 'ui:project_edit' project.pk %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-pencil"></i> Edit
+    </a>
+    {% endif %}
+    <a href="{% url 'ui:projects_list' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left"></i> Back
+    </a>
   </div>
 </div>
-<div class="card mb-3"><div class="card-header">Project Details</div><div class="card-body">
-  <dl class="row">
-    <dt class="col-sm-3">Council</dt><dd class="col-sm-9">{{ project.council }}</dd>
-    <dt class="col-sm-3">Program</dt><dd class="col-sm-9">{{ project.program }}</dd>
-    <dt class="col-sm-3">Type</dt><dd class="col-sm-9">{{ project.get_project_type_display }}</dd>
-    <dt class="col-sm-3">State</dt><dd class="col-sm-9">{{ project.get_state_display }}</dd>
-    <dt class="col-sm-3">Financial Year</dt><dd class="col-sm-9">{{ project.financial_year|default:"-" }}</dd>
-  </dl>
-</div></div>
-<div class="card mb-2"><div class="card-header d-flex justify-content-between">Payments <a href="{% url 'ui:payment_list' project.pk %}" class="btn btn-sm btn-outline-primary">View All</a></div></div>
-<div class="card mb-2"><div class="card-header d-flex justify-content-between">Stage Reports <a href="{% url 'ui:stage_report_list' project.pk %}" class="btn btn-sm btn-outline-primary">View All</a></div></div>
-<div class="card mb-3"><div class="card-header d-flex justify-content-between">Quarterly Reports <a href="{% url 'ui:quarterly_report_list' project.pk %}" class="btn btn-sm btn-outline-primary">View All</a></div></div>
-{% include 'partials/_comments.html' %}
+
+{# ===== Tab strip ===== #}
+<ul class="nav ricd-tabs" id="projectTabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if active_tab == 'overview' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-overview" type="button">Overview</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if active_tab == 'works' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-works" type="button">Addresses &amp; Works</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if active_tab == 'funding' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-funding" type="button">Funding</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if active_tab == 'payments' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-payments" type="button">Payments</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if active_tab == 'reports' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-reports" type="button">Reports</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if active_tab == 'documents' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-documents" type="button">Documents</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if active_tab == 'comments' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-comments" type="button">Comments</button>
+  </li>
+</ul>
+
+<div class="tab-content" id="projectTabContent">
+
+  {# ===== Overview tab ===== #}
+  <div class="tab-pane fade {% if active_tab == 'overview' %}show active{% endif %}" id="tab-overview" role="tabpanel">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="card h-100">
+          <div class="card-body">
+            <div class="ricd-section-title mb-2"><h2>Project Details</h2></div>
+            <dl class="row mb-0" style="font-size:13px;">
+              <dt class="col-5 text-muted">Type</dt>
+              <dd class="col-7">{{ project.get_project_type_display }}</dd>
+              <dt class="col-5 text-muted">Status flag</dt>
+              <dd class="col-7">{{ project.get_status_flag_display }}</dd>
+              <dt class="col-5 text-muted">Dwelling status</dt>
+              <dd class="col-7">{{ project.get_dwelling_status_display|default:"—" }}</dd>
+              <dt class="col-5 text-muted">Start date</dt>
+              <dd class="col-7">{{ project.start_date|date:"d M Y"|default:"—" }}</dd>
+              <dt class="col-5 text-muted">Funding approval</dt>
+              <dd class="col-7">{{ project.funding_approval_date|date:"d M Y"|default:"—" }}</dd>
+              <dt class="col-5 text-muted">Stage 1 target</dt>
+              <dd class="col-7">{{ project.stage1_target_date|date:"d M Y"|default:"—" }}</dd>
+              <dt class="col-5 text-muted">Stage 2 target</dt>
+              <dd class="col-7">{{ project.stage2_target_date|date:"d M Y"|default:"—" }}</dd>
+              <dt class="col-5 text-muted">Completion</dt>
+              <dd class="col-7">{{ project.completion_date|date:"d M Y"|default:"—" }}</dd>
+              {% if project.warranty_end_date %}
+              <dt class="col-5 text-muted">Warranty end</dt>
+              <dd class="col-7">{{ project.warranty_end_date|date:"d M Y" }}</dd>
+              {% endif %}
+            </dl>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card h-100">
+          <div class="card-body">
+            <div class="ricd-section-title mb-2"><h2>Infrastructure</h2></div>
+            {% if project.infra_water_assessment or project.infra_electricity_assessment or project.infra_sewerage_assessment %}
+            <dl class="row mb-0" style="font-size:13px;">
+              {% if project.infra_water_assessment %}
+              <dt class="col-4 text-muted">Water</dt>
+              <dd class="col-8">{{ project.infra_water_assessment }}</dd>
+              {% endif %}
+              {% if project.infra_electricity_assessment %}
+              <dt class="col-4 text-muted">Electricity</dt>
+              <dd class="col-8">{{ project.infra_electricity_assessment }}</dd>
+              {% endif %}
+              {% if project.infra_sewerage_assessment %}
+              <dt class="col-4 text-muted">Sewerage</dt>
+              <dd class="col-8">{{ project.infra_sewerage_assessment }}</dd>
+              {% endif %}
+              {% if project.infra_comments %}
+              <dt class="col-4 text-muted">Notes</dt>
+              <dd class="col-8">{{ project.infra_comments }}</dd>
+              {% endif %}
+            </dl>
+            {% else %}
+            <p class="text-muted mb-0" style="font-size:13px;">No infrastructure assessments recorded.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% if project.parent_land_project or project.development_application %}
+      <div class="col-12">
+        <div class="card">
+          <div class="card-body">
+            <div class="ricd-section-title mb-2"><h2>Land &amp; Development</h2></div>
+            <dl class="row mb-0" style="font-size:13px;">
+              {% if project.parent_land_project %}
+              <dt class="col-3 text-muted">Parent land project</dt>
+              <dd class="col-9"><a href="{{ project.parent_land_project.get_absolute_url }}">{{ project.parent_land_project }}</a></dd>
+              {% endif %}
+              {% if project.development_application %}
+              <dt class="col-3 text-muted">Development application</dt>
+              <dd class="col-9">{{ project.development_application }}</dd>
+              {% endif %}
+              {% if project.lease_signed_date %}
+              <dt class="col-3 text-muted">Lease signed</dt>
+              <dd class="col-9">{{ project.lease_signed_date|date:"d M Y" }}</dd>
+              {% endif %}
+            </dl>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ===== Addresses & Works tab ===== #}
+  <div class="tab-pane fade {% if active_tab == 'works' %}show active{% endif %}" id="tab-works" role="tabpanel">
+    <div class="row g-3">
+      <div class="col-12">
+        <div class="ricd-section-title">
+          <h2>Addresses</h2>
+          {% if is_fnc %}
+          <a href="{% url 'ui:address_create' project.pk %}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus"></i> Add Address
+          </a>
+          {% endif %}
+        </div>
+        {% with addresses=project.addresses.all %}
+        {% if addresses %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Street</th>
+                <th>Suburb</th>
+                <th>Lot</th>
+                <th>Plan</th>
+                <th>PLC Ref</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for addr in addresses %}
+              <tr>
+                <td>{{ addr.street }}</td>
+                <td>{{ addr.suburb|default:"—" }}</td>
+                <td>{{ addr.lot|default:"—" }}</td>
+                <td>{{ addr.plan|default:"—" }}</td>
+                <td>{{ addr.residence_plc_ref|default:"—" }}</td>
+                <td>
+                  {% if is_fnc %}
+                  <a href="{% url 'ui:address_edit' project.pk addr.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="text-muted" style="font-size:13px;">No addresses recorded.</p>
+        {% endif %}
+        {% endwith %}
+      </div>
+
+      <div class="col-12 mt-2">
+        <div class="ricd-section-title">
+          <h2>Works</h2>
+          {% if is_fnc %}
+          <a href="{% url 'ui:work_create' project.pk %}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus"></i> Add Work
+          </a>
+          {% endif %}
+        </div>
+        {% with works=project.works.all %}
+        {% if works %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Type</th>
+                <th>Qty</th>
+                <th>Bedrooms</th>
+                <th>Est. Cost</th>
+                <th>Actual Cost</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for work in works %}
+              <tr>
+                <td>{{ work.work_type|default:work.work_type_other|default:"—" }}</td>
+                <td>{{ work.quantity }}</td>
+                <td>{{ work.bedrooms|default:"—" }}</td>
+                <td>${{ work.estimated_cost|floatformat:0 }}</td>
+                <td>{% if work.actual_cost %}${{ work.actual_cost|floatformat:0 }}{% else %}—{% endif %}</td>
+                <td><span class="state-badge state-{{ work.status|lower }}">{{ work.get_status_display }}</span></td>
+                <td>
+                  {% if is_fnc %}
+                  <a href="{% url 'ui:work_edit' project.pk work.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="text-muted" style="font-size:13px;">No work items recorded.</p>
+        {% endif %}
+        {% endwith %}
+      </div>
+    </div>
+  </div>
+
+  {# ===== Funding tab ===== #}
+  <div class="tab-pane fade {% if active_tab == 'funding' %}show active{% endif %}" id="tab-funding" role="tabpanel">
+    <div class="row g-3">
+      <div class="col-12">
+        <div class="ricd-section-title">
+          <h2>Funding Schedules</h2>
+          {% if is_fnc %}
+          <a href="{% url 'ui:funding_schedule_create' %}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus"></i> New Schedule
+          </a>
+          {% endif %}
+        </div>
+        {% with schedules=project.funding_schedules.all %}
+        {% if schedules %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>#</th>
+                <th>Amount</th>
+                <th>Contingency</th>
+                <th>Status</th>
+                <th>Payment Split</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for fs in schedules %}
+              <tr>
+                <td>{{ fs.pk }}</td>
+                <td>${{ fs.amount|floatformat:0 }}</td>
+                <td>{% if fs.contingency %}${{ fs.contingency|floatformat:0 }}{% else %}—{% endif %}</td>
+                <td><span class="state-badge state-{{ fs.status|lower }}">{{ fs.get_status_display }}</span></td>
+                <td>{{ fs.get_payment_split_display|default:"—" }}</td>
+                <td><a href="{% url 'ui:funding_schedule_detail' fs.pk %}" class="btn btn-outline-secondary btn-sm">View</a></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="text-muted" style="font-size:13px;">No funding schedules linked to this project.</p>
+        {% endif %}
+        {% endwith %}
+      </div>
+
+      <div class="col-12 mt-2">
+        <div class="ricd-section-title">
+          <h2>Brief Financial Approvals</h2>
+          {% if is_fnc %}
+          <a href="{% url 'ui:bfa_create' project.pk %}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus"></i> New BFA
+          </a>
+          {% endif %}
+        </div>
+        {% with bfas=project.briefs.all %}
+        {% if bfas %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>#</th>
+                <th>Funding Amount</th>
+                <th>Contingency</th>
+                <th>Delegate</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for bfa in bfas %}
+              <tr>
+                <td>{{ bfa.pk }}</td>
+                <td>${{ bfa.funding_amount|floatformat:0 }}</td>
+                <td>{% if bfa.contingency_amount %}${{ bfa.contingency_amount|floatformat:0 }}{% else %}—{% endif %}</td>
+                <td>{{ bfa.get_delegate_level_display|default:"—" }}</td>
+                <td><span class="state-badge state-{{ bfa.status|lower }}">{{ bfa.get_status_display }}</span></td>
+                <td><a href="{% url 'ui:bfa_detail' project.pk bfa.pk %}" class="btn btn-outline-secondary btn-sm">View</a></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="text-muted" style="font-size:13px;">No brief financial approvals recorded.</p>
+        {% endif %}
+        {% endwith %}
+      </div>
+    </div>
+  </div>
+
+  {# ===== Payments tab ===== #}
+  <div class="tab-pane fade {% if active_tab == 'payments' %}show active{% endif %}" id="tab-payments" role="tabpanel">
+    <div class="ricd-section-title">
+      <h2>Payments</h2>
+      {% if is_fnc %}
+      <a href="{% url 'ui:payment_create' project.pk %}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus"></i> New Payment
+      </a>
+      {% endif %}
+    </div>
+    {% with payments=project.payments.all %}
+    {% if payments %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>#</th>
+            <th>Type</th>
+            <th>Amount</th>
+            <th>Split</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for payment in payments %}
+          <tr>
+            <td>{{ payment.pk }}</td>
+            <td>{{ payment.get_payment_type_display }}</td>
+            <td>${{ payment.amount|floatformat:0 }}</td>
+            <td>{{ payment.get_payment_split_display|default:"—" }}</td>
+            <td><span class="state-badge state-{{ payment.status|lower }}">{{ payment.get_status_display }}</span></td>
+            <td><a href="{% url 'ui:payment_detail' project.pk payment.pk %}" class="btn btn-outline-secondary btn-sm">View</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-muted" style="font-size:13px;">No payments recorded for this project.</p>
+    {% endif %}
+    {% endwith %}
+  </div>
+
+  {# ===== Reports tab ===== #}
+  <div class="tab-pane fade {% if active_tab == 'reports' %}show active{% endif %}" id="tab-reports" role="tabpanel">
+    <div class="row g-3">
+      <div class="col-12">
+        <div class="ricd-section-title">
+          <h2>Stage Reports</h2>
+          {% if is_fnc %}
+          <a href="{% url 'ui:stage_report_create' project.pk %}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus"></i> New Stage Report
+          </a>
+          {% endif %}
+        </div>
+        {% with stage_reports=project.stage_reports.all %}
+        {% if stage_reports %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>#</th>
+                <th>Stage</th>
+                <th>Status</th>
+                <th>Notes</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for sr in stage_reports %}
+              <tr>
+                <td>{{ sr.pk }}</td>
+                <td>{{ sr.get_stage_type_display }}</td>
+                <td><span class="state-badge state-{{ sr.status|lower }}">{{ sr.get_status_display }}</span></td>
+                <td>{{ sr.notes|truncatechars:60|default:"—" }}</td>
+                <td><a href="{% url 'ui:stage_report_detail' project.pk sr.pk %}" class="btn btn-outline-secondary btn-sm">View</a></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="text-muted" style="font-size:13px;">No stage reports recorded.</p>
+        {% endif %}
+        {% endwith %}
+      </div>
+
+      <div class="col-12 mt-2">
+        <div class="ricd-section-title">
+          <h2>Quarterly Reports</h2>
+          {% if is_fnc %}
+          <a href="{% url 'ui:quarterly_report_create' project.pk %}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus"></i> New Quarterly Report
+          </a>
+          {% endif %}
+        </div>
+        {% with quarterly_reports=project.quarterly_reports.all %}
+        {% if quarterly_reports %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>#</th>
+                <th>Year</th>
+                <th>Quarter</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for qr in quarterly_reports %}
+              <tr>
+                <td>{{ qr.pk }}</td>
+                <td>{{ qr.year }}</td>
+                <td>Q{{ qr.quarter }}</td>
+                <td><span class="state-badge state-{{ qr.status|lower }}">{{ qr.get_status_display }}</span></td>
+                <td><a href="{% url 'ui:quarterly_report_detail' project.pk qr.pk %}" class="btn btn-outline-secondary btn-sm">View</a></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="text-muted" style="font-size:13px;">No quarterly reports recorded.</p>
+        {% endif %}
+        {% endwith %}
+      </div>
+    </div>
+  </div>
+
+  {# ===== Documents tab ===== #}
+  <div class="tab-pane fade {% if active_tab == 'documents' %}show active{% endif %}" id="tab-documents" role="tabpanel">
+    <div class="ricd-section-title">
+      <h2>Documents</h2>
+    </div>
+    <div class="row g-2" style="font-size:13px;">
+      {% if project.handover_checklist_link %}
+      <div class="col-12">
+        <i class="bi bi-file-earmark-check text-success"></i>
+        <a href="{{ project.handover_checklist_link }}" target="_blank" rel="noopener">Handover Checklist</a>
+      </div>
+      {% endif %}
+      {% for fs in project.funding_schedules.all %}
+        {% if fs.document_link %}
+        <div class="col-12">
+          <i class="bi bi-file-earmark-text" style="color:var(--ric-navy)"></i>
+          <a href="{{ fs.document_link }}" target="_blank" rel="noopener">Funding Schedule #{{ fs.pk }} Document</a>
+        </div>
+        {% endif %}
+      {% endfor %}
+      {% if not project.handover_checklist_link %}
+      <div class="col-12">
+        <p class="text-muted mb-0">No documents attached.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ===== Comments tab ===== #}
+  <div class="tab-pane fade {% if active_tab == 'comments' %}show active{% endif %}" id="tab-comments" role="tabpanel">
+    {% if comments_disabled %}
+    <p class="text-muted" style="font-size:13px;">Comments are not enabled for projects.</p>
+    {% else %}
+    {% include 'partials/_comments.html' %}
+    {% endif %}
+  </div>
+
+</div>{# /tab-content #}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Restore active tab from URL hash or query param
+  (function() {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    if (tab) {
+      const btn = document.querySelector('[data-bs-target="#tab-' + tab + '"]');
+      if (btn) {
+        const tabInstance = new bootstrap.Tab(btn);
+        tabInstance.show();
+      }
+    }
+    // Update URL when tab changes
+    document.querySelectorAll('[data-bs-toggle="tab"]').forEach(function(btn) {
+      btn.addEventListener('shown.bs.tab', function(e) {
+        const target = e.target.getAttribute('data-bs-target').replace('#tab-', '');
+        const url = new URL(window.location);
+        url.searchParams.set('tab', target);
+        window.history.replaceState({}, '', url);
+      });
+    });
+  })();
+</script>
 {% endblock %}

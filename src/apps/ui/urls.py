@@ -9,8 +9,8 @@ urlpatterns = [
     path('cashflow/', views.dashboard_views.cashflow_view, name='cashflow'),
     path('aggregate/', views.dashboard_views.aggregate_outputs_view, name='aggregate_outputs'),
 
-    # Maintenance views
-    # path('maintenance/', views.maintenance_views.maintenance_list, name='maintenance_list'),
+    # Maintenance
+    path('maintenance/', views.crud_views.MaintenanceView.as_view(), name='maintenance'),
 
     # Planning views
     path('planning/', views.planning_views.planning_list, name='planning_list'),

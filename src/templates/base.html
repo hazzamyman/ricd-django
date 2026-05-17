@@ -1,129 +1,294 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}FNC - First Nations Capital{% endblock %}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <style>
-        body { padding-top: 70px; }
-        .navbar-brand { font-weight: 600; }
-        .nav-link { padding: 0.5rem 1rem; }
-    </style>
-    {% block extra_css %}{% endblock %}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}RICD{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    :root {
+      --ric-navy: #1f3557;
+      --ric-navy-2: #2a4673;
+      --ric-ink: #1a1a1a;
+      --ric-panel: #f7f7f5;
+      --ric-line: #d9d6cf;
+      --ric-line-2: #c8c4bc;
+      --ric-muted: #6b6b6b;
+      --ric-accent: #3a7d5a;
+    }
+    body { font-family: 'Inter', system-ui, sans-serif; background: #fff; color: var(--ric-ink); padding-top: 88px; }
+
+    /* Navbar */
+    .ricd-navbar {
+      position: fixed; top: 0; left: 0; right: 0; height: 52px; z-index: 1030;
+      background: var(--ric-navy); color: #fff;
+      display: flex; align-items: center; padding: 0 16px; gap: 12px;
+    }
+    .ricd-navbar .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; letter-spacing: .02em; text-decoration: none; color: #fff; }
+    .ricd-navbar .brand .logo { width: 28px; height: 28px; border-radius: 5px; background: #fff; color: var(--ric-navy); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; }
+    .ricd-navbar .nav-spacer { flex: 1; }
+    .ricd-navbar .search-wrap { position: relative; width: 220px; }
+    .ricd-navbar .search-wrap i { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: #9bb0d1; font-size: 12px; }
+    .ricd-navbar .search-wrap input { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2); color: #fff; border-radius: 4px; padding: 4px 10px 4px 28px; font-size: 12.5px; width: 100%; }
+    .ricd-navbar .search-wrap input::placeholder { color: #9bb0d1; }
+    .ricd-navbar .search-wrap input:focus { outline: none; background: rgba(255,255,255,.15); }
+    .ricd-navbar .icon-btn { background: transparent; border: 0; color: #cfd6e2; padding: 6px 8px; border-radius: 4px; cursor: pointer; line-height: 1; }
+    .ricd-navbar .icon-btn:hover { background: rgba(255,255,255,.1); color: #fff; }
+    .ricd-navbar .user-chip { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #fff; }
+    .ricd-navbar .role-pill { font-size: 10px; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.2); letter-spacing: .03em; text-transform: uppercase; }
+
+    /* Breadcrumb */
+    .ricd-breadcrumb {
+      position: fixed; top: 52px; left: 0; right: 0; height: 36px; z-index: 1020;
+      background: #faf9f6; border-bottom: 1px solid var(--ric-line);
+      display: flex; align-items: center; padding: 0 16px 0 236px;
+      font-size: 12px; color: var(--ric-muted);
+    }
+    .ricd-breadcrumb a { color: var(--ric-navy); text-decoration: none; }
+    .ricd-breadcrumb a:hover { text-decoration: underline; }
+    .ricd-breadcrumb .sep { margin: 0 8px; color: var(--ric-line-2); }
+    .ricd-breadcrumb .current { color: var(--ric-ink); font-weight: 500; }
+
+    /* Sidebar */
+    .ricd-sidebar {
+      position: fixed; top: 88px; left: 0; width: 220px; bottom: 0;
+      background: var(--ric-panel); border-right: 1px solid var(--ric-line);
+      overflow-y: auto; z-index: 1010; padding: 12px 0;
+      font-size: 13px;
+    }
+    .ricd-sidebar .group-title {
+      font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+      color: #8a8a8a; padding: 14px 18px 5px;
+    }
+    .ricd-sidebar .nav-item {
+      display: flex; align-items: center; gap: 9px;
+      padding: 6px 18px; color: #2a2a2a; text-decoration: none;
+      border-left: 3px solid transparent;
+      transition: background .12s;
+    }
+    .ricd-sidebar .nav-item i { font-size: 14px; color: #777; width: 16px; text-align: center; }
+    .ricd-sidebar .nav-item:hover { background: #efece6; color: #1a1a1a; }
+    .ricd-sidebar .nav-item.active {
+      background: #e9eef6; color: var(--ric-navy); font-weight: 600;
+      border-left-color: var(--ric-navy);
+    }
+    .ricd-sidebar .nav-item.active i { color: var(--ric-navy); }
+    .ricd-sidebar .super-divider { margin: 10px 0; border-top: 1px dashed var(--ric-line-2); padding-top: 10px; }
+
+    /* Main content */
+    .ricd-main { margin-left: 220px; padding: 20px 24px; min-height: calc(100vh - 88px); }
+
+    /* State badges */
+    .state-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 9px; border-radius: 999px;
+      font-size: 11px; font-weight: 600;
+      letter-spacing: .04em; text-transform: uppercase;
+      border: 1px solid transparent;
+    }
+    .state-prospective { background:#fff4e0; color:#7a5400; border-color:#e8c98f; }
+    .state-programmed  { background:#fff0d4; color:#7a4d00; border-color:#e8c070; }
+    .state-funded      { background:#e6f3ff; color:#1a5f8a; border-color:#90c4e8; }
+    .state-active, .state-commenced { background:#e4f2ea; color:#1f6240; border-color:#9ec9b1; }
+    .state-uc          { background:#d4edff; color:#0d4c7a; border-color:#80b8e8; }
+    .state-completed, .state-comp { background:#e6ecf4; color:#27416b; border-color:#a3b5cf; }
+    .state-pending     { background:#f3eee3; color:#6c5a32; border-color:#d8c9a3; }
+    .state-approved    { background:#e4f2ea; color:#1f6240; border-color:#9ec9b1; }
+    .state-rejected    { background:#f7e3e3; color:#8a2424; border-color:#dca5a5; }
+    .state-draft       { background:#eee; color:#555; border-color:#cfcfcf; }
+    .state-released    { background:#e6ecf4; color:#27416b; border-color:#a3b5cf; }
+    .state-recommended { background:#e8f4e4; color:#1f5a30; border-color:#95c8a5; }
+
+    /* Warn banner */
+    .ricd-warn {
+      background: #fff7e0; border: 1px solid #e6cf85; color: #6a4f0a;
+      border-radius: 4px; padding: 8px 12px; font-size: 12.5px;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    /* Page header */
+    .ricd-pagehead {
+      display: flex; align-items: flex-start; gap: 16px;
+      padding-bottom: 14px; margin-bottom: 16px;
+      border-bottom: 1px solid var(--ric-line);
+    }
+    .ricd-pagehead h1 { font-size: 22px; font-weight: 700; margin: 0 0 4px 0; }
+    .ricd-pagehead .meta { font-size: 12.5px; color: var(--ric-muted); display: flex; gap: 14px; flex-wrap: wrap; }
+    .ricd-pagehead .meta b { color: #333; font-weight: 600; }
+    .ricd-pagehead .actions { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+
+    /* Card/section title */
+    .ricd-section-title {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .ricd-section-title h2 { font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #444; margin: 0; }
+
+    /* Tabs */
+    .ricd-tabs { border-bottom: 1px solid var(--ric-line); margin-bottom: 18px; }
+    .ricd-tabs .nav-link { color: #555; border: none; border-bottom: 2px solid transparent; border-radius: 0; padding: 10px 16px; font-size: 13px; }
+    .ricd-tabs .nav-link.active { color: var(--ric-navy); border-bottom-color: var(--ric-navy); font-weight: 600; background: transparent; }
+    .ricd-tabs .nav-link:hover:not(.active) { color: var(--ric-navy); background: #f7f7f5; }
+
+    /* Table tweaks */
+    .table { font-size: 13px; }
+    .table > :not(caption) > * > * { padding: .5rem .75rem; }
+
+    /* Form tweaks */
+    .form-label { font-size: 12px; font-weight: 600; color: #444; margin-bottom: .25rem; }
+    .form-control, .form-select { font-size: 13px; }
+
+    .btn { font-size: 13px; font-weight: 500; }
+    .btn-primary { background: var(--ric-navy); border-color: var(--ric-navy); }
+    .btn-primary:hover { background: var(--ric-navy-2); border-color: var(--ric-navy-2); }
+    .card { border-color: var(--ric-line); border-radius: 6px; }
+
+    /* Stat card */
+    .ricd-stat .stat-label { font-size: 11px; text-transform: uppercase; color: #777; letter-spacing: .06em; }
+    .ricd-stat .stat-value { font-size: 26px; font-weight: 700; }
+    .ricd-stat .stat-delta { font-size: 11px; color: var(--ric-muted); }
+  </style>
+  {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <!-- Top Navigation Bar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top" style="top: 0;">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="{% url 'ui:dashboard' %}">
-                <i class="bi bi-house-door"></i> FNC
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <!-- Dashboard -->
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'ui:dashboard' %}">
-                            <i class="bi bi-speedometer2"></i> Dashboard
-                        </a>
-                    </li>
-                    
-                    <!-- Projects -->
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'ui:projects_list' %}">
-                            <i class="bi bi-folder"></i> Projects
-                        </a>
-                    </li>
 
-                    <!-- Variations -->
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'ui:variations_list' %}">
-                            <i class="bi bi-arrow-left-right"></i> Variations
-                        </a>
-                    </li>
+{# ===== Fixed top navbar ===== #}
+<nav class="ricd-navbar">
+  <button class="icon-btn" id="sidebar-toggle" onclick="document.querySelector('.ricd-sidebar').classList.toggle('d-none')" title="Toggle sidebar">
+    <i class="bi bi-list" style="font-size:18px"></i>
+  </button>
+  <a href="{% url 'ui:dashboard' %}" class="brand">
+    <div class="logo">R</div>
+    <span>RICD</span>
+  </a>
+  <div class="nav-spacer"></div>
+  <div class="search-wrap d-none d-lg-block">
+    <i class="bi bi-search"></i>
+    <input type="text" placeholder="Search projects, councils…">
+  </div>
+  <button class="icon-btn" title="Notifications"><i class="bi bi-bell"></i></button>
+  <div class="user-chip">
+    {% if user.is_authenticated %}
+    <span>{{ user.get_full_name|default:user.username }}</span>
+    <span class="role-pill">{{ user_role_display|default:user.username }}</span>
+    {% endif %}
+  </div>
+  <a href="/accounts/logout/" class="icon-btn" title="Logout"><i class="bi bi-box-arrow-right"></i></a>
+</nav>
 
-                    <!-- Reports -->
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'ui:reports_dashboard' %}">
-                            <i class="bi bi-file-text"></i> Reports
-                        </a>
-                    </li>
-                    
-                    <!-- Maintenance - FNC only -->
-                    {# TODO: Implement maintenance app with dashboard view #}
-                    {# {% if is_ricd_user %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'maintenance:dashboard' %}">
-                            <i class="bi bi-gear"></i> Maintenance
-                        </a>
-                    </li> #}
-                    
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'ui:cashflow' %}">
-                            <i class="bi bi-currency-dollar"></i> Cashflow
-                        </a>
-                    </li>
-                    
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'ui:aggregate_outputs' %}">
-                            <i class="bi bi-bar-chart"></i> Outputs
-                        </a>
-                    </li>
-                    {% endif %}
-                    
-                    <!-- Planning - FNC only -->
-                    {% if is_ricd_user %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'ui:planning_list' %}">
-                            <i class="bi bi-map"></i> Planning
-                        </a>
-                    </li>
+{# ===== Breadcrumb ===== #}
+<div class="ricd-breadcrumb">
+  <a href="{% url 'ui:dashboard' %}">Home</a>
+  {% block breadcrumbs %}{% endblock %}
+</div>
 
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'ui:land_projects_list' %}">
-                            <i class="bi bi-geo-alt"></i> Land & Infra
-                        </a>
-                    </li>
+{# ===== Left sidebar ===== #}
+{% block active_nav %}{% endblock %}
+<aside class="ricd-sidebar">
 
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'ui:documents_list' %}">
-                            <i class="bi bi-folder2-open"></i> Documents
-                        </a>
-                    </li>
-                    {% endif %}
-                </ul>
-                
-                <!-- User Menu -->
-                <ul class="navbar-nav">
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="bi bi-person-circle"></i> {{ user.username }}
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><span class="dropdown-item-text">
-                                <small class="text-muted">{{ user_group|default:"No Role" }}</small>
-                            </span></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="/admin/">Admin</a></li>
-                            <li><a class="dropdown-item" href="/accounts/logout/">Logout</a></li>
-                        </ul>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
+  {# Portfolio #}
+  <div class="group-title">Portfolio</div>
+  <a href="{% url 'ui:dashboard' %}" class="nav-item {% if active_nav == 'dashboard' %}active{% endif %}">
+    <i class="bi bi-speedometer2"></i> Dashboard
+  </a>
+  <a href="{% url 'ui:projects_list' %}" class="nav-item {% if active_nav == 'projects' %}active{% endif %}">
+    <i class="bi bi-kanban"></i> Projects Board
+  </a>
+  <a href="{% url 'ui:cashflow' %}" class="nav-item {% if active_nav == 'cashflow' %}active{% endif %}">
+    <i class="bi bi-graph-up"></i> Cashflow Forecast
+  </a>
+  <a href="{% url 'ui:aggregate_outputs' %}" class="nav-item {% if active_nav == 'aggregate' %}active{% endif %}">
+    <i class="bi bi-bar-chart-line"></i> Aggregate Outputs
+  </a>
 
-    <!-- Main Content -->
-    <div class="container-fluid py-3">
-        {% block content %}{% endblock %}
-    </div>
+  {# Funding #}
+  <div class="group-title">Funding</div>
+  <a href="{% url 'ui:funding_agreement_list' %}" class="nav-item {% if active_nav == 'funding_agreements' %}active{% endif %}">
+    <i class="bi bi-file-earmark-text"></i> Funding Agreements
+  </a>
+  <a href="{% url 'ui:funding_schedule_list' %}" class="nav-item {% if active_nav == 'funding_schedules' %}active{% endif %}">
+    <i class="bi bi-calendar3"></i> Funding Schedules
+  </a>
+  <a href="{% url 'ui:payment_rule_list' %}" class="nav-item {% if active_nav == 'payment_rules' %}active{% endif %}">
+    <i class="bi bi-list-check"></i> Payment Rules
+  </a>
+  <a href="{% url 'ui:projects_list' %}" class="nav-item {% if active_nav == 'bfa' %}active{% endif %}">
+    <i class="bi bi-receipt-cutoff"></i> BFA
+  </a>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    {% block extra_js %}{% endblock %}
+  {# Payments #}
+  <div class="group-title">Payments</div>
+  <a href="{% url 'ui:projects_list' %}" class="nav-item {% if active_nav == 'payments' %}active{% endif %}">
+    <i class="bi bi-cash-coin"></i> Payments
+  </a>
+  <a href="{% url 'ui:approval_list' %}" class="nav-item {% if active_nav == 'approvals' %}active{% endif %}">
+    <i class="bi bi-check2-circle"></i> Approvals
+  </a>
+  <a href="{% url 'ui:funding_notice_list' %}" class="nav-item {% if active_nav == 'expense_claims' %}active{% endif %}">
+    <i class="bi bi-journal-text"></i> Expense Claims
+  </a>
+  <a href="{% url 'ui:funding_notice_list' %}" class="nav-item {% if active_nav == 'funding_notices' %}active{% endif %}">
+    <i class="bi bi-envelope-paper"></i> Funding Notices
+  </a>
+
+  {# Governance #}
+  <div class="group-title">Governance</div>
+  <a href="{% url 'ui:variations_list' %}" class="nav-item {% if active_nav == 'variations' %}active{% endif %}">
+    <i class="bi bi-file-diff"></i> Variations
+  </a>
+  <a href="{% url 'ui:reports_dashboard' %}" class="nav-item {% if active_nav == 'stage_reports' %}active{% endif %}">
+    <i class="bi bi-clipboard-data"></i> Stage Reports
+  </a>
+  <a href="{% url 'ui:reports_dashboard' %}" class="nav-item {% if active_nav == 'quarterly_reports' %}active{% endif %}">
+    <i class="bi bi-calendar2-week"></i> Quarterly Reports
+  </a>
+  <a href="{% url 'ui:reports_dashboard' %}" class="nav-item {% if active_nav == 'audit' %}active{% endif %}">
+    <i class="bi bi-shield-lock"></i> Audit Log
+  </a>
+
+  {# Admin — FNC staff only #}
+  {% if is_fnc or user.is_superuser %}
+  <div class="group-title">Admin</div>
+  <a href="{% url 'ui:council_list' %}" class="nav-item {% if active_nav == 'councils' %}active{% endif %}">
+    <i class="bi bi-building"></i> Councils
+  </a>
+  <a href="{% url 'ui:program_list' %}" class="nav-item {% if active_nav == 'programs' %}active{% endif %}">
+    <i class="bi bi-collection"></i> Programs
+  </a>
+  <a href="{% url 'ui:work_type_list' %}" class="nav-item {% if active_nav == 'work_types' %}active{% endif %}">
+    <i class="bi bi-hammer"></i> Work Types
+  </a>
+  <a href="/admin/auth/user/" class="nav-item {% if active_nav == 'users' %}active{% endif %}">
+    <i class="bi bi-people"></i> Users
+  </a>
+  {% endif %}
+
+  {# Maintenance — superuser only #}
+  {% if user.is_superuser %}
+  <div class="super-divider">
+    <a href="{% url 'ui:maintenance' %}" class="nav-item {% if active_nav == 'maintenance' %}active{% endif %}">
+      <i class="bi bi-gear"></i> Maintenance
+    </a>
+  </div>
+  {% endif %}
+</aside>
+
+{# ===== Main content ===== #}
+<main class="ricd-main">
+  {% if messages %}
+  {% for message in messages %}
+  <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+    {{ message }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {% block content %}{% endblock %}
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+{% block extra_js %}{% endblock %}
 </body>
 </html>
