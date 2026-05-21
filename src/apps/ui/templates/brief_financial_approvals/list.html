@@ -1,17 +1,22 @@
 {% extends "base.html" %}
-{% block title %}Brief Financial Approvals — {{ project.name }}{% endblock %}
+{% block title %}Brief Financial Approvals{% if project %} — {{ project.name }}{% endif %}{% endblock %}
 {% block content %}
 <div class="container mt-4">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h2>Brief Financial Approvals</h2>
-    <a href="{% url 'ui:bfa_create' project_pk=project.pk %}" class="btn btn-primary">+ New BFA</a>
+    {% if project %}
+      <a href="{% url 'ui:bfa_create' project_pk=project.pk %}" class="btn btn-primary">+ New BFA</a>
+    {% endif %}
   </div>
-  <p class="text-muted">Project: <strong>{{ project.name }}</strong></p>
+  {% if project %}
+    <p class="text-muted">Project: <strong><a href="{% url 'ui:project_detail' project.pk %}?tab=funding">{{ project.name }} (ID {{ project.pk }})</a></strong></p>
+  {% endif %}
 
   {% if approvals %}
   <table class="table table-hover">
     <thead>
       <tr>
+        {% if not project %}<th>Project</th>{% endif %}
         <th>Funding Amount</th>
         <th>Contingency</th>
         <th>Total</th>
@@ -24,6 +29,9 @@
     <tbody>
       {% for bfa in approvals %}
       <tr>
+        {% if not project %}
+          <td><a href="{% url 'ui:project_detail' bfa.project.pk %}?tab=funding">{{ bfa.project.name }} (ID {{ bfa.project.pk }})</a></td>
+        {% endif %}
         <td>${{ bfa.funding_amount|floatformat:0 }}</td>
         <td>${{ bfa.contingency_amount|floatformat:0 }}</td>
         <td>${{ bfa.total_amount|floatformat:0 }}</td>
@@ -41,8 +49,8 @@
           {% if bfa.approved_by %}{{ bfa.approved_by.get_full_name|default:bfa.approved_by.username }}{% else %}—{% endif %}
         </td>
         <td>
-          <a href="{% url 'ui:bfa_detail' project_pk=project.pk pk=bfa.pk %}" class="btn btn-sm btn-outline-secondary">View</a>
-          <a href="{% url 'ui:bfa_edit' project_pk=project.pk pk=bfa.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
+          <a href="{% url 'ui:bfa_detail' project_pk=bfa.project.pk pk=bfa.pk %}" class="btn btn-sm btn-outline-secondary">View</a>
+          <a href="{% url 'ui:bfa_edit' project_pk=bfa.project.pk pk=bfa.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
         </td>
       </tr>
       {% endfor %}

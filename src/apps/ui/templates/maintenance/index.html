@@ -101,6 +101,42 @@
     </div>
   </div>
 
+  {# Suburbs #}
+  <div class="col-sm-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="ricd-section-title mb-1">
+          <h2><i class="bi bi-geo-alt me-1 text-muted"></i>Suburbs</h2>
+        </div>
+        <div class="text-muted mb-3" style="font-size:12px">{{ suburb_count }} suburb{{ suburb_count|pluralize }} registered</div>
+        <div class="d-flex gap-2">
+          <a href="{% url 'ui:suburb_list' %}" class="btn btn-sm btn-outline-secondary">View all</a>
+          {% if is_manager %}
+          <a href="{% url 'ui:suburb_create' %}" class="btn btn-sm btn-primary">Add</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Work Step Definitions #}
+  <div class="col-sm-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="ricd-section-title mb-1">
+          <h2><i class="bi bi-list-ol me-1 text-muted"></i>Work Step Definitions</h2>
+        </div>
+        <div class="text-muted mb-3" style="font-size:12px">{{ workstep_definition_count }} step{{ workstep_definition_count|pluralize }} in catalogue</div>
+        <div class="d-flex gap-2">
+          <a href="{% url 'ui:work_step_definition_list' %}" class="btn btn-sm btn-outline-secondary">View all</a>
+          {% if is_manager %}
+          <a href="{% url 'ui:work_step_definition_create' %}" class="btn btn-sm btn-primary">Add</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
   {# Users #}
   <div class="col-sm-6 col-xl-4">
     <div class="card h-100">

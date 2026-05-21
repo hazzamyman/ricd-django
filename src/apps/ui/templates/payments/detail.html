@@ -32,7 +32,7 @@
 </div>
 <div class="card"><div class="card-body">
   <dl class="row">
-    <dt class="col-sm-3">Project</dt><dd class="col-sm-9">{{ payment.project }}</dd>
+    <dt class="col-sm-3">Project</dt><dd class="col-sm-9"><a href="{% url 'ui:project_detail' payment.project.pk %}?tab=payments">{{ payment.project.name }} (ID {{ payment.project.pk }})</a></dd>
     <dt class="col-sm-3">Funding Schedule</dt><dd class="col-sm-9">{{ payment.funding_schedule }}</dd>
     <dt class="col-sm-3">Payment Type</dt><dd class="col-sm-9">{{ payment.get_payment_type_display }}</dd>
     <dt class="col-sm-3">Calculation</dt><dd class="col-sm-9">{{ payment.get_calculation_type_display }}</dd>

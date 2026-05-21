@@ -75,6 +75,33 @@ urlpatterns = [
     path('work-types/<int:pk>/edit/', views.crud_views.WorkTypeUpdateView.as_view(), name='work_type_edit'),
     path('work-types/<int:pk>/delete/', views.crud_views.WorkTypeDeleteView.as_view(), name='work_type_delete'),
 
+    # Notional Costs (nested under WorkType)
+    path('work-types/<int:wt_pk>/costs/create/', views.crud_views.NotionalCostCreateView.as_view(), name='notional_cost_create'),
+    path('work-types/<int:wt_pk>/costs/<int:pk>/edit/', views.crud_views.NotionalCostUpdateView.as_view(), name='notional_cost_edit'),
+    path('work-types/<int:wt_pk>/costs/<int:pk>/delete/', views.crud_views.NotionalCostDeleteView.as_view(), name='notional_cost_delete'),
+
+    # Suburbs CRUD
+    path('suburbs/', views.crud_views.SuburbListView.as_view(), name='suburb_list'),
+    path('suburbs/create/', views.crud_views.SuburbCreateView.as_view(), name='suburb_create'),
+    path('suburbs/<int:pk>/edit/', views.crud_views.SuburbUpdateView.as_view(), name='suburb_edit'),
+    path('suburbs/<int:pk>/delete/', views.crud_views.SuburbDeleteView.as_view(), name='suburb_delete'),
+
+    # WorkStepDefinition CRUD (global catalogue)
+    path('work-step-definitions/', views.crud_views.WorkStepDefinitionListView.as_view(), name='work_step_definition_list'),
+    path('work-step-definitions/create/', views.crud_views.WorkStepDefinitionCreateView.as_view(), name='work_step_definition_create'),
+    path('work-step-definitions/<int:pk>/edit/', views.crud_views.WorkStepDefinitionUpdateView.as_view(), name='work_step_definition_edit'),
+    path('work-step-definitions/<int:pk>/delete/', views.crud_views.WorkStepDefinitionDeleteView.as_view(), name='work_step_definition_delete'),
+
+    # WorkStepGroup CRUD (nested under WorkType)
+    path('work-types/<int:wt_pk>/step-groups/create/', views.crud_views.WorkStepGroupCreateView.as_view(), name='work_step_group_create'),
+    path('work-types/<int:wt_pk>/step-groups/<int:pk>/edit/', views.crud_views.WorkStepGroupUpdateView.as_view(), name='work_step_group_edit'),
+    path('work-types/<int:wt_pk>/step-groups/<int:pk>/delete/', views.crud_views.WorkStepGroupDeleteView.as_view(), name='work_step_group_delete'),
+
+    # WorkStepGroupItem CRUD (nested under WorkStepGroup)
+    path('step-groups/<int:group_pk>/items/create/', views.crud_views.WorkStepGroupItemCreateView.as_view(), name='work_step_group_item_create'),
+    path('step-groups/<int:group_pk>/items/<int:pk>/edit/', views.crud_views.WorkStepGroupItemUpdateView.as_view(), name='work_step_group_item_edit'),
+    path('step-groups/<int:group_pk>/items/<int:pk>/delete/', views.crud_views.WorkStepGroupItemDeleteView.as_view(), name='work_step_group_item_delete'),
+
     # Funding Schedules CRUD + lifecycle actions
     path('funding-schedules/', views.crud_views.FundingScheduleListView.as_view(), name='funding_schedule_list'),
     path('funding-schedules/create/', views.crud_views.FundingScheduleCreateView.as_view(), name='funding_schedule_create'),
@@ -128,7 +155,8 @@ urlpatterns = [
     path('allocations/<int:pk>/edit/', views.crud_views.WorkFundingUpdateView.as_view(), name='allocation_edit'),
     path('allocations/<int:pk>/delete/', views.crud_views.WorkFundingDeleteView.as_view(), name='allocation_delete'),
 
-    # Brief Financial Approvals (nested under project)
+    # Brief Financial Approvals
+    path('bfa/', views.crud_views.BriefFinancialApprovalGlobalListView.as_view(), name='bfa_global_list'),
     path('projects/<int:project_pk>/bfa/', views.crud_views.BriefFinancialApprovalListView.as_view(), name='bfa_list'),
     path('projects/<int:project_pk>/bfa/create/', views.crud_views.BriefFinancialApprovalCreateView.as_view(), name='bfa_create'),
     path('projects/<int:project_pk>/bfa/<int:pk>/', views.crud_views.BriefFinancialApprovalDetailView.as_view(), name='bfa_detail'),

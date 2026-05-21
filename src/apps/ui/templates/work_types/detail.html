@@ -8,7 +8,7 @@
     <a href="{% url 'ui:work_type_list' %}" class="btn btn-outline-secondary">Back</a>
   </div>
 </div>
-<div class="card"><div class="card-body">
+<div class="card mb-4"><div class="card-body">
   <dl class="row">
     <dt class="col-sm-3">Category</dt><dd class="col-sm-9">{{ work_type.get_category_display }}</dd>
     <dt class="col-sm-3">Has Bedrooms</dt><dd class="col-sm-9">{{ work_type.has_bedrooms|yesno:"Yes,No" }}</dd>
@@ -17,4 +17,95 @@
     <dt class="col-sm-3">Description</dt><dd class="col-sm-9">{{ work_type.description|default:"-" }}</dd>
   </dl>
 </div></div>
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <h5>Notional Costs</h5>
+  <a href="{% url 'ui:notional_cost_create' wt_pk=work_type.pk %}" class="btn btn-sm btn-outline-primary">Add Cost</a>
+</div>
+<div class="card"><div class="card-body p-0">
+<table class="table table-sm mb-0">
+  <thead class="table-light">
+    <tr>
+      <th>Financial Year</th>
+      <th>Bedrooms</th>
+      <th>Cost per Unit</th>
+      <th>Default</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for cost in notional_costs %}
+    <tr>
+      <td>{{ cost.financial_year }}</td>
+      <td>{{ cost.bedrooms|default:"—" }}</td>
+      <td>${{ cost.cost_per_unit|floatformat:2 }}</td>
+      <td>{% if cost.is_default %}<span class="badge bg-success">Yes</span>{% else %}—{% endif %}</td>
+      <td>
+        <a href="{% url 'ui:notional_cost_edit' wt_pk=work_type.pk pk=cost.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+        <a href="{% url 'ui:notional_cost_delete' wt_pk=work_type.pk pk=cost.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="5" class="text-center text-muted py-3">No notional costs set. <a href="{% url 'ui:notional_cost_create' wt_pk=work_type.pk %}">Add one.</a></td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div></div>
+
+{# Step Groups #}
+<div class="d-flex justify-content-between align-items-center mt-4 mb-2">
+  <h5>Work Step Groups</h5>
+  <a href="{% url 'ui:work_step_group_create' wt_pk=work_type.pk %}" class="btn btn-sm btn-outline-primary">Add Group</a>
+</div>
+
+{% for group in work_type.step_groups.all %}
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center py-2">
+    <div>
+      <strong>{{ group.name }}</strong>
+      {% if not group.is_active %}<span class="badge bg-secondary ms-2">Inactive</span>{% endif %}
+      {% with total=group.total_cost_percentage %}
+        {% if total == 100 %}<span class="badge bg-success ms-2">{{ total }}%</span>
+        {% else %}<span class="badge bg-warning text-dark ms-2" title="Must total 100%">{{ total }}% ⚠</span>
+        {% endif %}
+      {% endwith %}
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'ui:work_step_group_item_create' group_pk=group.pk %}" class="btn btn-sm btn-outline-secondary">Add Step</a>
+      <a href="{% url 'ui:work_step_group_edit' wt_pk=work_type.pk pk=group.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+      <a href="{% url 'ui:work_step_group_delete' wt_pk=work_type.pk pk=group.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-sm mb-0">
+      <thead class="table-light">
+        <tr><th style="width:3rem">#</th><th>Step</th><th>Duration (days)</th><th>Cost %</th><th>Stage Gate</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for item in group.items.all %}
+        <tr>
+          <td class="text-muted">{{ item.order }}</td>
+          <td>{{ item.step.name }}</td>
+          <td>{{ item.expected_duration_days }}</td>
+          <td>{{ item.cost_percentage }}%</td>
+          <td>
+            {% if item.stage_gate == 'STAGE1' %}<span class="badge bg-info text-dark">Stage 1</span>
+            {% elif item.stage_gate == 'STAGE2' %}<span class="badge bg-primary">Stage 2</span>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            <a href="{% url 'ui:work_step_group_item_edit' group_pk=group.pk pk=item.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+            <a href="{% url 'ui:work_step_group_item_delete' group_pk=group.pk pk=item.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center text-muted py-2">No steps yet. <a href="{% url 'ui:work_step_group_item_create' group_pk=group.pk %}">Add the first.</a></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% empty %}
+<div class="text-muted mt-1" style="font-size:13px">No step groups yet. <a href="{% url 'ui:work_step_group_create' wt_pk=work_type.pk %}">Add one.</a></div>
+{% endfor %}
 {% endblock %}

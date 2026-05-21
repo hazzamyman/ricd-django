@@ -70,7 +70,10 @@ from .documents_models import DocumentType, ProjectDocument
 
 # Defect & Work models
 from .defects_models import Defect
-from .works_models import WorkType, NotionalCost, NotionalCostSettings, Work, WorkStepTemplate
+from .works_models import (
+    WorkType, NotionalCost, NotionalCostSettings, Work, WorkStepTemplate,
+    WorkStepDefinition, WorkStepGroup, WorkStepGroupItem,
+)
 
 __all__ = [
     # Council & Program
@@ -103,4 +106,5 @@ __all__ = [
     'Contract', 'ContractMeeting', 'DocumentType', 'ProjectDocument',
     # Defect & Work
     'Defect', 'WorkType', 'NotionalCost', 'NotionalCostSettings', 'Work', 'WorkStepTemplate',
+    'WorkStepDefinition', 'WorkStepGroup', 'WorkStepGroupItem',
 ]

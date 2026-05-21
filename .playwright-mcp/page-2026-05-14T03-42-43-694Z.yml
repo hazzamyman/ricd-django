@@ -1,0 +1,24 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - link " FNC" [ref=e4] [cursor=pointer]:
+        - /url: /dashboard/
+        - generic [ref=e5]: 
+        - text: FNC
+      - button [ref=e6] [cursor=pointer]
+      - text:     
+  - generic [ref=e9]:
+    - generic [ref=e11]:
+      - heading "Aggregate Outputs" [level=1] [ref=e12]
+      - paragraph [ref=e13]: Summary metrics by council, program, and work type
+    - generic [ref=e16]:
+      - heading "Projects by Council (LGA)" [level=5] [ref=e18]
+      - paragraph [ref=e20]: No data available.
+    - generic [ref=e23]:
+      - heading "Projects by Program" [level=5] [ref=e25]
+      - paragraph [ref=e27]: No data available.
+    - generic [ref=e30]:
+      - heading "Output by Work Type (Commenced/Under Construction)" [level=5] [ref=e32]
+      - paragraph [ref=e34]: No data available.
+    - link "Back to Dashboard" [ref=e37] [cursor=pointer]:
+      - /url: /dashboard/

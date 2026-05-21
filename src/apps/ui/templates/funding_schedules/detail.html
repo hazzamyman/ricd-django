@@ -33,7 +33,7 @@
 </div>
 <div class="card"><div class="card-body">
   <dl class="row">
-    <dt class="col-sm-3">Project</dt><dd class="col-sm-9">{{ funding_schedule.project|default:"-" }}</dd>
+    <dt class="col-sm-3">Project</dt><dd class="col-sm-9">{% if funding_schedule.project %}<a href="{% url 'ui:project_detail' funding_schedule.project.pk %}?tab=funding">{{ funding_schedule.project.name }} (ID {{ funding_schedule.project.pk }})</a>{% else %}-{% endif %}</dd>
     <dt class="col-sm-3">Funding Agreement</dt><dd class="col-sm-9">{{ funding_schedule.funding_agreement|default:"-" }}</dd>
     <dt class="col-sm-3">Amount</dt><dd class="col-sm-9">${{ funding_schedule.amount|floatformat:2 }}</dd>
     <dt class="col-sm-3">Contingency</dt><dd class="col-sm-9">${{ funding_schedule.contingency|floatformat:2 }}</dd>

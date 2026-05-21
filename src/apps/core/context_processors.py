@@ -17,7 +17,7 @@ def ricd_user_context(request):
         return {'is_fnc': False, 'is_council': False, 'is_manager': False, 'user_role_display': ''}
     role = getattr(getattr(request.user, 'profile', None), 'officer_role', None)
     is_council = role in COUNCIL_ROLES
-    is_fnc = role is not None and not is_council
+    is_fnc = (role is not None and not is_council) or request.user.is_superuser
     is_manager = role in MANAGER_ROLES or request.user.is_superuser
     return {
         'user_role': role or '',

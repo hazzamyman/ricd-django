@@ -19,6 +19,7 @@ class WorkType(models.Model):
     has_bedrooms = models.BooleanField(default=False, help_text="Does this work type use bedroom counts?")
     default_bedrooms = models.PositiveIntegerField(default=0, help_text="Default bedrooms for this work type")
     description = models.TextField(blank=True)
+    short_code = models.CharField(max_length=10, blank=True, help_text="Abbreviation for reports, e.g. DH, TRI, EXT")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -139,6 +140,21 @@ class Work(models.Model):
     estimated_cost = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
     
+    class CashflowMethod(models.TextChoices):
+        PAYMENT_MILESTONE = 'MILESTONE', 'Capital Grants (Payment Milestone)'
+        WORKSTEP_PROGRESSIVE = 'WORKSTEP', 'Capital Works (WorkStep Progressive)'
+
+    cashflow_method = models.CharField(
+        max_length=10, choices=CashflowMethod.choices,
+        default=CashflowMethod.PAYMENT_MILESTONE,
+        help_text="How cashflow is forecast for this work item"
+    )
+    step_group = models.ForeignKey(
+        'WorkStepGroup', related_name='works', on_delete=models.SET_NULL,
+        null=True, blank=True,
+        help_text="Required when cashflow_method = WORKSTEP"
+    )
+
     is_notional_cost = models.BooleanField(default=True, help_text="If True, cost is calculated from notional rates. If False, use actual_cost.")
     actual_cost = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True, help_text="Actual cost (manual override)")
     
@@ -226,3 +242,88 @@ class WorkStepTemplate(models.Model):
 
     def __str__(self):
         return f"{self.work_type.name} - {self.name}"
+
+
+# ============================================================================
+# WorkStep catalogue + grouping (Capital Works cashflow)
+# ============================================================================
+
+class WorkStepDefinition(models.Model):
+    """Global catalogue of named work steps. Not tied to any work type."""
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'Work Step Definition'
+        verbose_name_plural = 'Work Step Definitions'
+
+    def __str__(self):
+        return self.name
+
+
+class WorkStepGroup(models.Model):
+    """Named package of ordered work steps for a specific work type."""
+    work_type = models.ForeignKey(WorkType, related_name='step_groups', on_delete=models.PROTECT)
+    name = models.CharField(max_length=200, help_text="e.g. Standard 3BR New House, Minor Extension")
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['work_type', 'name']
+        verbose_name = 'Work Step Group'
+        verbose_name_plural = 'Work Step Groups'
+
+    def __str__(self):
+        return f"{self.work_type.name} — {self.name}"
+
+    def total_cost_percentage(self):
+        return sum(item.cost_percentage for item in self.items.all())
+
+
+class WorkStepGroupItem(models.Model):
+    """Ordered step within a WorkStepGroup, with cost % and duration."""
+
+    class StageGate(models.TextChoices):
+        NONE = '', 'No gate'
+        STAGE_1 = 'STAGE1', 'Stage 1 completion'
+        STAGE_2 = 'STAGE2', 'Stage 2 completion'
+
+    group = models.ForeignKey(WorkStepGroup, related_name='items', on_delete=models.CASCADE)
+    step = models.ForeignKey(WorkStepDefinition, related_name='group_items', on_delete=models.PROTECT)
+    order = models.PositiveIntegerField()
+    cost_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    expected_duration_days = models.PositiveIntegerField(default=0)
+    stage_gate = models.CharField(
+        max_length=10, choices=StageGate.choices, blank=True, default='',
+        help_text="Mark this step as the completion point for Stage 1 or Stage 2 works"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order']
+        unique_together = ['group', 'order']
+        verbose_name = 'Work Step Group Item'
+        verbose_name_plural = 'Work Step Group Items'
+
+    def __str__(self):
+        return f"{self.group.name} [{self.order}] {self.step.name}"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.stage_gate:
+            qs = WorkStepGroupItem.objects.filter(
+                group=self.group, stage_gate=self.stage_gate
+            )
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            if qs.exists():
+                raise ValidationError(
+                    f"A {self.get_stage_gate_display()} gate already exists in this group."
+                )

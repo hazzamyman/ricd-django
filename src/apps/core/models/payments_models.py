@@ -47,8 +47,12 @@ class Payment(models.Model):
     # Payment timing
     payment_type = models.CharField(max_length=10, choices=PaymentType.choices)
     payment_split = models.CharField(max_length=10, choices=PaymentSplit.choices, default=PaymentSplit.STANDARD)
-    
+
     # Status
+    forecast_release_date = models.DateField(
+        null=True, blank=True,
+        help_text="Forecast release date for Capital Grants cashflow planning"
+    )
     release_date = models.DateField(null=True, blank=True)
     reference = models.CharField(max_length=100, blank=True)
     gl_code = models.CharField(max_length=50, blank=True, help_text="GL code from program")

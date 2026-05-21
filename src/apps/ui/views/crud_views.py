@@ -4,7 +4,7 @@ All views require login via LoginRequiredMixin.
 """
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth import get_user_model
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.views.generic import (
     ListView, CreateView, DetailView, UpdateView, DeleteView, View, TemplateView,
 )
@@ -20,7 +20,8 @@ from apps.core.models import (
     Approval, Address, BriefFinancialApproval, Comment, CommentSettings,
     Council, DevelopmentApplication, LandTenure,
     Notice, NoticeTarget,
-    PaymentRule, Program, Project, Work, WorkType, FundingSchedule,
+    NotionalCost, PaymentRule, Program, Project, Suburb, Work, WorkType, FundingSchedule,
+    WorkStepDefinition, WorkStepGroup, WorkStepGroupItem,
     Variation, VariationItem, Payment, StageReport, QuarterlyReport,
     FundingAgreement, FundingNotice, ExpenseClaim, WorkFunding,
 )
@@ -57,7 +58,7 @@ class CommentsMixin:
         user = self.request.user
         role = _officer_role(user)
         is_council = role in COUNCIL_ROLES
-        is_fnc = role is not None and not is_council
+        is_fnc = (role is not None and not is_council) or user.is_superuser
 
         ct = ContentType.objects.get_for_model(self.model)
         qs = Comment.objects.filter(
@@ -72,7 +73,7 @@ class CommentsMixin:
         ctx['comment_ct_id'] = ct.pk
         ctx['comment_object_id'] = self.object.pk
         ctx['user_is_fnc'] = is_fnc
-        ctx['can_comment'] = role is not None
+        ctx['can_comment'] = role is not None or user.is_superuser
         return ctx
 
 
@@ -299,6 +300,14 @@ class WorkTypeDetailView(LoginRequiredMixin, DetailView):
     model = WorkType
     template_name = 'work_types/detail.html'
     context_object_name = 'work_type'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['notional_costs'] = (
+            self.object.costs.select_related()
+            .order_by('financial_year', 'bedrooms')
+        )
+        return ctx
 
 
 class WorkTypeUpdateView(LoginRequiredMixin, UpdateView):
@@ -909,6 +918,21 @@ class ExpenseClaimRejectView(LoginRequiredMixin, View):
 # BriefFinancialApproval  (nested under project)
 # ---------------------------------------------------------------------------
 
+class BriefFinancialApprovalGlobalListView(LoginRequiredMixin, ListView):
+    """All BFAs across all projects — used by the sidebar nav link."""
+    model = BriefFinancialApproval
+    template_name = 'brief_financial_approvals/list.html'
+    context_object_name = 'approvals'
+
+    def get_queryset(self):
+        return BriefFinancialApproval.objects.select_related('project').order_by('-created_at')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['project'] = None  # no project filter
+        return ctx
+
+
 class BriefFinancialApprovalListView(LoginRequiredMixin, ListView):
     model = BriefFinancialApproval
     template_name = 'brief_financial_approvals/list.html'
@@ -934,12 +958,12 @@ class BriefFinancialApprovalCreateView(LoginRequiredMixin, CreateView):
         return kwargs
 
     def get_success_url(self):
-        return reverse_lazy('ui:bfa_list', kwargs={'project_pk': self.kwargs['project_pk']})
+        return reverse('ui:project_detail', kwargs={'pk': self.kwargs['project_pk']}) + '?tab=funding'
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['title'] = 'Create Brief Financial Approval'
-        ctx['back_url'] = reverse_lazy('ui:bfa_list', kwargs={'project_pk': self.kwargs['project_pk']})
+        ctx['back_url'] = reverse('ui:project_detail', kwargs={'pk': self.kwargs['project_pk']}) + '?tab=funding'
         return ctx
 
 
@@ -1538,6 +1562,260 @@ class WorkFundingDeleteView(LoginRequiredMixin, DeleteView):
 
 
 # ---------------------------------------------------------------------------
+# Suburb
+# ---------------------------------------------------------------------------
+
+class SuburbListView(LoginRequiredMixin, ListView):
+    model = Suburb
+    template_name = 'suburbs/list.html'
+    context_object_name = 'suburbs'
+    paginate_by = 100
+
+    def get_queryset(self):
+        qs = Suburb.objects.order_by('name')
+        q = self.request.GET.get('q', '').strip()
+        if q:
+            qs = qs.filter(name__icontains=q)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['q'] = self.request.GET.get('q', '')
+        return ctx
+
+
+class SuburbCreateView(LoginRequiredMixin, CreateView):
+    model = Suburb
+    template_name = 'crud/form.html'
+    fields = ['name', 'postcode', 'state', 'state_electorate', 'federal_electorate', 'qhigi_region', 'is_active']
+    success_url = reverse_lazy('ui:suburb_list')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Add Suburb'
+        ctx['back_url'] = reverse_lazy('ui:suburb_list')
+        return ctx
+
+
+class SuburbUpdateView(LoginRequiredMixin, UpdateView):
+    model = Suburb
+    template_name = 'crud/form.html'
+    fields = ['name', 'postcode', 'state', 'state_electorate', 'federal_electorate', 'qhigi_region', 'is_active']
+    success_url = reverse_lazy('ui:suburb_list')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit Suburb — {self.object.name}'
+        ctx['back_url'] = reverse_lazy('ui:suburb_list')
+        return ctx
+
+
+class SuburbDeleteView(LoginRequiredMixin, DeleteView):
+    model = Suburb
+    template_name = 'crud/confirm_delete.html'
+    success_url = reverse_lazy('ui:suburb_list')
+
+
+# ---------------------------------------------------------------------------
+# NotionalCost (nested under WorkType)
+# ---------------------------------------------------------------------------
+
+class NotionalCostCreateView(LoginRequiredMixin, CreateView):
+    model = NotionalCost
+    template_name = 'crud/form.html'
+    fields = ['financial_year', 'bedrooms', 'cost_per_unit', 'is_default']
+
+    def _work_type(self):
+        return get_object_or_404(WorkType, pk=self.kwargs['wt_pk'])
+
+    def form_valid(self, form):
+        form.instance.work_type = self._work_type()
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse('ui:work_type_detail', kwargs={'pk': self.kwargs['wt_pk']})
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        wt = self._work_type()
+        ctx['title'] = f'Add Notional Cost — {wt.name}'
+        ctx['back_url'] = reverse('ui:work_type_detail', kwargs={'pk': wt.pk})
+        return ctx
+
+
+class NotionalCostUpdateView(LoginRequiredMixin, UpdateView):
+    model = NotionalCost
+    template_name = 'crud/form.html'
+    fields = ['financial_year', 'bedrooms', 'cost_per_unit', 'is_default']
+
+    def get_success_url(self):
+        return reverse('ui:work_type_detail', kwargs={'pk': self.kwargs['wt_pk']})
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit Notional Cost — {self.object}'
+        ctx['back_url'] = reverse('ui:work_type_detail', kwargs={'pk': self.kwargs['wt_pk']})
+        return ctx
+
+
+class NotionalCostDeleteView(LoginRequiredMixin, DeleteView):
+    model = NotionalCost
+    template_name = 'crud/confirm_delete.html'
+
+    def get_success_url(self):
+        return reverse('ui:work_type_detail', kwargs={'pk': self.kwargs['wt_pk']})
+
+
+# ---------------------------------------------------------------------------
+# WorkStepDefinition — global step catalogue
+# ---------------------------------------------------------------------------
+
+class WorkStepDefinitionListView(LoginRequiredMixin, ListView):
+    model = WorkStepDefinition
+    template_name = 'work_step_definitions/list.html'
+    context_object_name = 'definitions'
+    paginate_by = 50
+
+    def get_queryset(self):
+        qs = WorkStepDefinition.objects.order_by('name')
+        q = self.request.GET.get('q', '').strip()
+        if q:
+            qs = qs.filter(name__icontains=q)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['q'] = self.request.GET.get('q', '')
+        return ctx
+
+
+class WorkStepDefinitionCreateView(LoginRequiredMixin, CreateView):
+    model = WorkStepDefinition
+    template_name = 'crud/form.html'
+    fields = ['name', 'description', 'is_active']
+    success_url = reverse_lazy('ui:work_step_definition_list')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Add Work Step Definition'
+        return ctx
+
+
+class WorkStepDefinitionUpdateView(LoginRequiredMixin, UpdateView):
+    model = WorkStepDefinition
+    template_name = 'crud/form.html'
+    fields = ['name', 'description', 'is_active']
+    success_url = reverse_lazy('ui:work_step_definition_list')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit Step — {self.object.name}'
+        return ctx
+
+
+class WorkStepDefinitionDeleteView(LoginRequiredMixin, DeleteView):
+    model = WorkStepDefinition
+    template_name = 'crud/confirm_delete.html'
+    success_url = reverse_lazy('ui:work_step_definition_list')
+
+
+# ---------------------------------------------------------------------------
+# WorkStepGroup — nested under WorkType
+# ---------------------------------------------------------------------------
+
+class WorkStepGroupCreateView(LoginRequiredMixin, CreateView):
+    model = WorkStepGroup
+    template_name = 'crud/form.html'
+    fields = ['name', 'description', 'is_active']
+
+    def _work_type(self):
+        return get_object_or_404(WorkType, pk=self.kwargs['wt_pk'])
+
+    def form_valid(self, form):
+        form.instance.work_type = self._work_type()
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Add Step Group — {self._work_type().name}'
+        return ctx
+
+    def get_success_url(self):
+        return reverse('ui:work_type_detail', kwargs={'pk': self.kwargs['wt_pk']})
+
+
+class WorkStepGroupUpdateView(LoginRequiredMixin, UpdateView):
+    model = WorkStepGroup
+    template_name = 'crud/form.html'
+    fields = ['name', 'description', 'is_active']
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit Step Group — {self.object.name}'
+        return ctx
+
+    def get_success_url(self):
+        return reverse('ui:work_type_detail', kwargs={'pk': self.object.work_type_id})
+
+
+class WorkStepGroupDeleteView(LoginRequiredMixin, DeleteView):
+    model = WorkStepGroup
+    template_name = 'crud/confirm_delete.html'
+
+    def get_success_url(self):
+        return reverse('ui:work_type_detail', kwargs={'pk': self.object.work_type_id})
+
+
+# ---------------------------------------------------------------------------
+# WorkStepGroupItem — nested under WorkStepGroup
+# ---------------------------------------------------------------------------
+
+class WorkStepGroupItemCreateView(LoginRequiredMixin, CreateView):
+    model = WorkStepGroupItem
+    template_name = 'crud/form.html'
+    fields = ['step', 'order', 'cost_percentage', 'expected_duration_days', 'stage_gate']
+
+    def _group(self):
+        return get_object_or_404(WorkStepGroup, pk=self.kwargs['group_pk'])
+
+    def form_valid(self, form):
+        form.instance.group = self._group()
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        group = self._group()
+        ctx['title'] = f'Add Step to {group.name}'
+        ctx['group'] = group
+        return ctx
+
+    def get_success_url(self):
+        return reverse('ui:work_type_detail', kwargs={'pk': self._group().work_type_id})
+
+
+class WorkStepGroupItemUpdateView(LoginRequiredMixin, UpdateView):
+    model = WorkStepGroupItem
+    template_name = 'crud/form.html'
+    fields = ['step', 'order', 'cost_percentage', 'expected_duration_days', 'stage_gate']
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit Step — {self.object.step.name}'
+        return ctx
+
+    def get_success_url(self):
+        return reverse('ui:work_type_detail', kwargs={'pk': self.object.group.work_type_id})
+
+
+class WorkStepGroupItemDeleteView(LoginRequiredMixin, DeleteView):
+    model = WorkStepGroupItem
+    template_name = 'crud/confirm_delete.html'
+
+    def get_success_url(self):
+        return reverse('ui:work_type_detail', kwargs={'pk': self.object.group.work_type_id})
+
+
+# ---------------------------------------------------------------------------
 # Maintenance dashboard
 # ---------------------------------------------------------------------------
 
@@ -1550,6 +1828,8 @@ class MaintenanceView(LoginRequiredMixin, TemplateView):
         ctx['council_count'] = Council.objects.count()
         ctx['program_count'] = Program.objects.count()
         ctx['work_type_count'] = WorkType.objects.count()
+        ctx['suburb_count'] = Suburb.objects.count()
+        ctx['workstep_definition_count'] = WorkStepDefinition.objects.count()
         ctx['user_count'] = User.objects.count()
         ctx['active_nav'] = 'maintenance'
         return ctx

@@ -29,7 +29,9 @@
 
   <dl class="row">
     <dt class="col-sm-3">Project</dt>
-    <dd class="col-sm-9">{{ bfa.project.name }}</dd>
+    <dd class="col-sm-9">
+      <a href="{% url 'ui:project_detail' bfa.project.pk %}?tab=funding">{{ bfa.project.name }} (ID {{ bfa.project.pk }})</a>
+    </dd>
 
     <dt class="col-sm-3">Status</dt>
     <dd class="col-sm-9">

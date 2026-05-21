@@ -1,0 +1,1586 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - heading "TemplateSyntaxError at /cashflow/" [level=1] [ref=e3]
+    - generic [ref=e4]: "Invalid filter: 'mul'"
+    - table [ref=e5]:
+      - rowgroup [ref=e6]:
+        - 'row "Request Method: GET" [ref=e7]':
+          - rowheader "Request Method:" [ref=e8]
+          - cell "GET" [ref=e9]
+        - 'row "Request URL: http://127.0.0.1:8000/cashflow/" [ref=e10]':
+          - rowheader "Request URL:" [ref=e11]
+          - cell "http://127.0.0.1:8000/cashflow/" [ref=e12]
+        - 'row "Django Version: 5.2.12" [ref=e13]':
+          - rowheader "Django Version:" [ref=e14]
+          - cell "5.2.12" [ref=e15]
+        - 'row "Exception Type: TemplateSyntaxError" [ref=e16]':
+          - rowheader "Exception Type:" [ref=e17]
+          - cell "TemplateSyntaxError" [ref=e18]
+        - 'row "Exception Value: Invalid filter: ''mul''" [ref=e19]':
+          - rowheader "Exception Value:" [ref=e20]
+          - 'cell "Invalid filter: ''mul''" [ref=e21]':
+            - generic [ref=e22]: "Invalid filter: 'mul'"
+        - 'row "Exception Location: C:\\Users\\hazza\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\template\\base.py, line 616, in find_filter" [ref=e23]':
+          - rowheader "Exception Location:" [ref=e24]
+          - cell "C:\\Users\\hazza\\AppData\\Roaming\\Python\\Python313\\site-packages\\django\\template\\base.py, line 616, in find_filter" [ref=e25]
+        - 'row "Raised during: apps.ui.views.dashboard_views.cashflow_view" [ref=e26]':
+          - rowheader "Raised during:" [ref=e27]
+          - cell "apps.ui.views.dashboard_views.cashflow_view" [ref=e28]
+        - 'row "Python Executable: C:\\Python313\\python.exe" [ref=e29]':
+          - rowheader "Python Executable:" [ref=e30]
+          - cell "C:\\Python313\\python.exe" [ref=e31]
+        - 'row "Python Version: 3.13.5" [ref=e32]':
+          - rowheader "Python Version:" [ref=e33]
+          - cell "3.13.5" [ref=e34]
+        - 'row "Python Path: [''Z:\\\\coding\\\\RICDapp\\\\.claude\\\\worktrees\\\\inspiring-shockley-d7e655\\\\src'', ''C:\\\\Python313\\\\python313.zip'', ''C:\\\\Python313\\\\DLLs'', ''C:\\\\Python313\\\\Lib'', ''C:\\\\Python313'', ''C:\\\\Users\\\\hazza\\\\AppData\\\\Roaming\\\\Python\\\\Python313\\\\site-packages'', ''C:\\\\Python313\\\\Lib\\\\site-packages'']" [ref=e35]':
+          - rowheader "Python Path:" [ref=e36]
+          - cell "['Z:\\\\coding\\\\RICDapp\\\\.claude\\\\worktrees\\\\inspiring-shockley-d7e655\\\\src', 'C:\\\\Python313\\\\python313.zip', 'C:\\\\Python313\\\\DLLs', 'C:\\\\Python313\\\\Lib', 'C:\\\\Python313', 'C:\\\\Users\\\\hazza\\\\AppData\\\\Roaming\\\\Python\\\\Python313\\\\site-packages', 'C:\\\\Python313\\\\Lib\\\\site-packages']" [ref=e37]:
+            - code [ref=e39]: "['Z:\\\\coding\\\\RICDapp\\\\.claude\\\\worktrees\\\\inspiring-shockley-d7e655\\\\src', 'C:\\\\Python313\\\\python313.zip', 'C:\\\\Python313\\\\DLLs', 'C:\\\\Python313\\\\Lib', 'C:\\\\Python313', 'C:\\\\Users\\\\hazza\\\\AppData\\\\Roaming\\\\Python\\\\Python313\\\\site-packages', 'C:\\\\Python313\\\\Lib\\\\site-packages']"
+        - 'row "Server time: Thu, 14 May 2026 13:37:18 +1000" [ref=e40]':
+          - rowheader "Server time:" [ref=e41]
+          - cell "Thu, 14 May 2026 13:37:18 +1000" [ref=e42]
+  - main [ref=e43]:
+    - generic [ref=e44]:
+      - heading "Error during template rendering" [level=2] [ref=e45]
+      - paragraph [ref=e46]:
+        - text: In template
+        - code [ref=e47]: Z:\coding\RICDapp\.claude\worktrees\inspiring-shockley-d7e655\src\apps\ui\templates\dashboard\cashflow.html
+        - text: ", error at line"
+        - strong [ref=e48]: "71"
+      - 'heading "Invalid filter: ''mul''" [level=3] [ref=e49]'
+      - table [ref=e50]:
+        - rowgroup [ref=e51]:
+          - row "61 </thead>" [ref=e52]:
+            - rowheader "61" [ref=e53]
+            - cell "</thead>" [ref=e54]
+          - row "62 <tbody>" [ref=e55]:
+            - rowheader "62" [ref=e56]
+            - cell "<tbody>" [ref=e57]
+          - 'row "63 {% for item in by_program %}" [ref=e58]':
+            - rowheader "63" [ref=e59]
+            - 'cell "{% for item in by_program %}" [ref=e60]'
+          - row "64 <tr>" [ref=e61]:
+            - rowheader "64" [ref=e62]
+            - cell "<tr>" [ref=e63]
+          - 'row "65 <td>{{ item.program.name }}</td>" [ref=e64]':
+            - rowheader "65" [ref=e65]
+            - 'cell "<td>{{ item.program.name }}</td>" [ref=e66]'
+          - 'row "66 <td class=\"text-right\">${{ item.forecast|floatformat:0 }}</td>" [ref=e67]':
+            - rowheader "66" [ref=e68]
+            - 'cell "<td class=\"text-right\">${{ item.forecast|floatformat:0 }}</td>" [ref=e69]'
+          - 'row "67 <td class=\"text-right\">${{ item.actual|floatformat:0 }}</td>" [ref=e70]':
+            - rowheader "67" [ref=e71]
+            - 'cell "<td class=\"text-right\">${{ item.actual|floatformat:0 }}</td>" [ref=e72]'
+          - 'row "68 <td class=\"text-right\">${{ item.remaining|floatformat:0 }}</td>" [ref=e73]':
+            - rowheader "68" [ref=e74]
+            - 'cell "<td class=\"text-right\">${{ item.remaining|floatformat:0 }}</td>" [ref=e75]'
+          - row "69 <td class=\"text-right\">" [ref=e76]:
+            - rowheader "69" [ref=e77]
+            - cell "<td class=\"text-right\">" [ref=e78]
+          - 'row "70 {% if item.forecast > 0 %}" [ref=e79]':
+            - rowheader "70" [ref=e80]
+            - 'cell "{% if item.forecast > 0 %}" [ref=e81]'
+          - 'row "71 {{ item.actual|add:0|mul:100|div:item.forecast|floatformat:1 }}%" [ref=e82]':
+            - rowheader "71" [ref=e83]
+            - 'cell "{{ item.actual|add:0|mul:100|div:item.forecast|floatformat:1 }}%" [ref=e84]'
+          - 'row "72 {% else %}" [ref=e85]':
+            - rowheader "72" [ref=e86]
+            - 'cell "{% else %}" [ref=e87]'
+          - row "73 N/A" [ref=e88]:
+            - rowheader "73" [ref=e89]
+            - cell "N/A" [ref=e90]
+          - 'row "74 {% endif %}" [ref=e91]':
+            - rowheader "74" [ref=e92]
+            - 'cell "{% endif %}" [ref=e93]'
+          - row "75 </td>" [ref=e94]:
+            - rowheader "75" [ref=e95]
+            - cell "</td>" [ref=e96]
+          - row "76 </tr>" [ref=e97]:
+            - rowheader "76" [ref=e98]
+            - cell "</tr>" [ref=e99]
+          - 'row "77 {% endfor %}" [ref=e100]':
+            - rowheader "77" [ref=e101]
+            - 'cell "{% endfor %}" [ref=e102]'
+          - row "78 </tbody>" [ref=e103]:
+            - rowheader "78" [ref=e104]
+            - cell "</tbody>" [ref=e105]
+          - row "79 </table>" [ref=e106]:
+            - rowheader "79" [ref=e107]
+            - cell "</table>" [ref=e108]
+          - row "80 </div>" [ref=e109]:
+            - rowheader "80" [ref=e110]
+            - cell "</div>" [ref=e111]
+          - 'row "81 {% else %}" [ref=e112]':
+            - rowheader "81" [ref=e113]
+            - 'cell "{% else %}" [ref=e114]'
+    - generic [ref=e115]:
+      - heading "Traceback Switch to copy-and-paste view" [level=2] [ref=e116]:
+        - text: Traceback
+        - button "Switch to copy-and-paste view" [ref=e118] [cursor=pointer]
+      - list [ref=e120]:
+        - listitem [ref=e121]:
+          - code [ref=e122]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\core\handlers\exception.py
+          - text: ", line 55, in inner"
+          - list [ref=e124]:
+            - listitem [ref=e125] [cursor=pointer]:
+              - text: response = get_response(request) ^^^^^^^^^^^^^^^^^^^^^
+              - generic [ref=e126]: …
+          - group [ref=e127]:
+            - generic "Local vars" [ref=e128] [cursor=pointer]
+        - listitem [ref=e129]:
+          - code [ref=e130]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\core\handlers\base.py
+          - text: ", line 197, in _get_response"
+          - list [ref=e132]:
+            - listitem [ref=e133] [cursor=pointer]:
+              - text: response = wrapped_callback(request, *callback_args, **callback_kwargs) ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+              - generic [ref=e134]: …
+          - group [ref=e135]:
+            - generic "Local vars" [ref=e136] [cursor=pointer]
+        - listitem [ref=e137]:
+          - code [ref=e138]: Z:\coding\RICDapp\.claude\worktrees\inspiring-shockley-d7e655\src\apps\ui\views\dashboard_views.py
+          - text: ", line 194, in cashflow_view"
+          - list [ref=e140]:
+            - listitem [ref=e141] [cursor=pointer]:
+              - text: return render(request, 'dashboard/cashflow.html', context) ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+              - generic [ref=e142]: …
+          - group [ref=e143]:
+            - generic "Local vars" [ref=e144] [cursor=pointer]
+        - listitem [ref=e145]:
+          - code [ref=e146]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\shortcuts.py
+          - text: ", line 25, in render"
+          - list [ref=e148]:
+            - listitem [ref=e149] [cursor=pointer]:
+              - text: content = loader.render_to_string(template_name, context, request, using=using) ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+              - generic [ref=e150]: …
+          - group [ref=e151]:
+            - generic "Local vars" [ref=e152] [cursor=pointer]
+        - listitem [ref=e153]:
+          - code [ref=e154]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\loader.py
+          - text: ", line 61, in render_to_string"
+          - list [ref=e156]:
+            - listitem [ref=e157] [cursor=pointer]:
+              - text: template = get_template(template_name, using=using) ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+              - generic [ref=e158]: …
+          - group [ref=e159]:
+            - generic "Local vars" [ref=e160] [cursor=pointer]
+        - listitem [ref=e161]:
+          - code [ref=e162]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\loader.py
+          - text: ", line 15, in get_template"
+          - list [ref=e164]:
+            - listitem [ref=e165] [cursor=pointer]:
+              - text: return engine.get_template(template_name) ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+              - generic [ref=e166]: …
+          - group [ref=e167]:
+            - generic "Local vars" [ref=e168] [cursor=pointer]
+        - listitem [ref=e169]:
+          - code [ref=e170]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\backends\django.py
+          - text: ", line 79, in get_template"
+          - list [ref=e172]:
+            - listitem [ref=e173] [cursor=pointer]:
+              - text: return Template(self.engine.get_template(template_name), self) ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+              - generic [ref=e174]: …
+          - group [ref=e175]:
+            - generic "Local vars" [ref=e176] [cursor=pointer]
+        - listitem [ref=e177]:
+          - code [ref=e178]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\engine.py
+          - text: ", line 177, in get_template"
+          - list [ref=e180]:
+            - listitem [ref=e181] [cursor=pointer]:
+              - text: template, origin = self.find_template(template_name) ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+              - generic [ref=e182]: …
+          - group [ref=e183]:
+            - generic "Local vars" [ref=e184] [cursor=pointer]
+        - listitem [ref=e185]:
+          - code [ref=e186]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\engine.py
+          - text: ", line 159, in find_template"
+          - list [ref=e188]:
+            - listitem [ref=e189] [cursor=pointer]:
+              - text: template = loader.get_template(name, skip=skip) ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+              - generic [ref=e190]: …
+          - group [ref=e191]:
+            - generic "Local vars" [ref=e192] [cursor=pointer]
+        - listitem [ref=e193]:
+          - code [ref=e194]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\loaders\cached.py
+          - text: ", line 57, in get_template"
+          - list [ref=e196]:
+            - listitem [ref=e197] [cursor=pointer]:
+              - text: template = super().get_template(template_name, skip) ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+              - generic [ref=e198]: …
+          - group [ref=e199]:
+            - generic "Local vars" [ref=e200] [cursor=pointer]
+        - listitem [ref=e201]:
+          - code [ref=e202]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\loaders\base.py
+          - text: ", line 28, in get_template"
+          - list [ref=e204]:
+            - listitem [ref=e205] [cursor=pointer]:
+              - text: return Template(
+              - generic [ref=e206]: …
+          - group [ref=e207]:
+            - generic "Local vars" [ref=e208] [cursor=pointer]
+        - listitem [ref=e209]:
+          - code [ref=e210]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\base.py
+          - text: ", line 155, in __init__"
+          - list [ref=e212]:
+            - listitem [ref=e213] [cursor=pointer]:
+              - text: self.nodelist = self.compile_nodelist() ^^^^^^^^^^^^^^^^^^^^^^^
+              - generic [ref=e214]: …
+          - group [ref=e215]:
+            - generic "Local vars" [ref=e216] [cursor=pointer]
+        - listitem [ref=e217]:
+          - code [ref=e218]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\base.py
+          - text: ", line 197, in compile_nodelist"
+          - list [ref=e220]:
+            - listitem [ref=e221] [cursor=pointer]:
+              - text: nodelist = parser.parse() ^^^^^^^^^^^^^^
+              - generic [ref=e222]: …
+          - group [ref=e223]:
+            - generic "Local vars" [ref=e224] [cursor=pointer]
+        - listitem [ref=e225]:
+          - code [ref=e226]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\base.py
+          - text: ", line 519, in parse"
+          - list [ref=e228]:
+            - listitem [ref=e229] [cursor=pointer]:
+              - text: raise self.error(token, e) ^^^^^^^^^^^^^^^^^^^^^^^^^^
+              - generic [ref=e230]: …
+          - group [ref=e231]:
+            - generic "Local vars" [ref=e232] [cursor=pointer]
+        - listitem [ref=e233]:
+          - code [ref=e234]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\base.py
+          - text: ", line 517, in parse"
+          - list [ref=e236]:
+            - listitem [ref=e237] [cursor=pointer]:
+              - text: compiled_result = compile_func(self, token) ^^^^^^^^^^^^^^^^^^^^^^^^^
+              - generic [ref=e238]: …
+          - group [ref=e239]:
+            - generic "Local vars" [ref=e240] [cursor=pointer]
+        - listitem [ref=e241]:
+          - code [ref=e242]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\loader_tags.py
+          - text: ", line 299, in do_extends"
+          - list [ref=e244]:
+            - listitem [ref=e245] [cursor=pointer]:
+              - text: nodelist = parser.parse() ^^^^^^^^^^^^^^
+              - generic [ref=e246]: …
+          - group [ref=e247]:
+            - generic "Local vars" [ref=e248] [cursor=pointer]
+        - listitem [ref=e249]:
+          - code [ref=e250]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\base.py
+          - text: ", line 519, in parse"
+          - list [ref=e252]:
+            - listitem [ref=e253] [cursor=pointer]:
+              - text: raise self.error(token, e) ^^^^^^^^^^^^^^^^^^^^^^^^^^
+              - generic [ref=e254]: …
+          - group [ref=e255]:
+            - generic "Local vars" [ref=e256] [cursor=pointer]
+        - listitem [ref=e257]:
+          - code [ref=e258]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\base.py
+          - text: ", line 517, in parse"
+          - list [ref=e260]:
+            - listitem [ref=e261] [cursor=pointer]:
+              - text: compiled_result = compile_func(self, token) ^^^^^^^^^^^^^^^^^^^^^^^^^
+              - generic [ref=e262]: …
+          - group [ref=e263]:
+            - generic "Local vars" [ref=e264] [cursor=pointer]
+        - listitem [ref=e265]:
+          - code [ref=e266]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\loader_tags.py
+          - text: ", line 234, in do_block"
+          - list [ref=e268]:
+            - listitem [ref=e269] [cursor=pointer]:
+              - text: nodelist = parser.parse(("endblock",)) ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+              - generic [ref=e270]: …
+          - group [ref=e271]:
+            - generic "Local vars" [ref=e272] [cursor=pointer]
+        - listitem [ref=e273]:
+          - code [ref=e274]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\base.py
+          - text: ", line 519, in parse"
+          - list [ref=e276]:
+            - listitem [ref=e277] [cursor=pointer]:
+              - text: raise self.error(token, e) ^^^^^^^^^^^^^^^^^^^^^^^^^^
+              - generic [ref=e278]: …
+          - group [ref=e279]:
+            - generic "Local vars" [ref=e280] [cursor=pointer]
+        - listitem [ref=e281]:
+          - code [ref=e282]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\base.py
+          - text: ", line 517, in parse"
+          - list [ref=e284]:
+            - listitem [ref=e285] [cursor=pointer]:
+              - text: compiled_result = compile_func(self, token) ^^^^^^^^^^^^^^^^^^^^^^^^^
+              - generic [ref=e286]: …
+          - group [ref=e287]:
+            - generic "Local vars" [ref=e288] [cursor=pointer]
+        - listitem [ref=e289]:
+          - code [ref=e290]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\defaulttags.py
+          - text: ", line 962, in do_if"
+          - list [ref=e292]:
+            - listitem [ref=e293] [cursor=pointer]:
+              - text: nodelist = parser.parse(("elif", "else", "endif")) ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+              - generic [ref=e294]: …
+          - group [ref=e295]:
+            - generic "Local vars" [ref=e296] [cursor=pointer]
+        - listitem [ref=e297]:
+          - code [ref=e298]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\base.py
+          - text: ", line 519, in parse"
+          - list [ref=e300]:
+            - listitem [ref=e301] [cursor=pointer]:
+              - text: raise self.error(token, e) ^^^^^^^^^^^^^^^^^^^^^^^^^^
+              - generic [ref=e302]: …
+          - group [ref=e303]:
+            - generic "Local vars" [ref=e304] [cursor=pointer]
+        - listitem [ref=e305]:
+          - code [ref=e306]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\base.py
+          - text: ", line 517, in parse"
+          - list [ref=e308]:
+            - listitem [ref=e309] [cursor=pointer]:
+              - text: compiled_result = compile_func(self, token) ^^^^^^^^^^^^^^^^^^^^^^^^^
+              - generic [ref=e310]: …
+          - group [ref=e311]:
+            - generic "Local vars" [ref=e312] [cursor=pointer]
+        - listitem [ref=e313]:
+          - code [ref=e314]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\defaulttags.py
+          - text: ", line 862, in do_for"
+          - list [ref=e316]:
+            - listitem [ref=e317] [cursor=pointer]:
+              - text: nodelist_loop = parser.parse(
+              - generic [ref=e318]: …
+          - group [ref=e319]:
+            - generic "Local vars" [ref=e320] [cursor=pointer]
+        - listitem [ref=e321]:
+          - code [ref=e322]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\base.py
+          - text: ", line 519, in parse"
+          - list [ref=e324]:
+            - listitem [ref=e325] [cursor=pointer]:
+              - text: raise self.error(token, e) ^^^^^^^^^^^^^^^^^^^^^^^^^^
+              - generic [ref=e326]: …
+          - group [ref=e327]:
+            - generic "Local vars" [ref=e328] [cursor=pointer]
+        - listitem [ref=e329]:
+          - code [ref=e330]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\base.py
+          - text: ", line 517, in parse"
+          - list [ref=e332]:
+            - listitem [ref=e333] [cursor=pointer]:
+              - text: compiled_result = compile_func(self, token) ^^^^^^^^^^^^^^^^^^^^^^^^^
+              - generic [ref=e334]: …
+          - group [ref=e335]:
+            - generic "Local vars" [ref=e336] [cursor=pointer]
+        - listitem [ref=e337]:
+          - code [ref=e338]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\defaulttags.py
+          - text: ", line 962, in do_if"
+          - list [ref=e340]:
+            - listitem [ref=e341] [cursor=pointer]:
+              - text: nodelist = parser.parse(("elif", "else", "endif")) ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+              - generic [ref=e342]: …
+          - group [ref=e343]:
+            - generic "Local vars" [ref=e344] [cursor=pointer]
+        - listitem [ref=e345]:
+          - code [ref=e346]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\base.py
+          - text: ", line 490, in parse"
+          - list [ref=e348]:
+            - listitem [ref=e349] [cursor=pointer]:
+              - text: raise self.error(token, e) ^^^^^^^^^^^^^^^^^^^^^^^^^^
+              - generic [ref=e350]: …
+          - group [ref=e351]:
+            - generic "Local vars" [ref=e352] [cursor=pointer]
+        - listitem [ref=e353]:
+          - code [ref=e354]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\base.py
+          - text: ", line 488, in parse"
+          - list [ref=e356]:
+            - listitem [ref=e357] [cursor=pointer]:
+              - text: filter_expression = self.compile_filter(token.contents) ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+              - generic [ref=e358]: …
+          - group [ref=e359]:
+            - generic "Local vars" [ref=e360] [cursor=pointer]
+        - listitem [ref=e361]:
+          - code [ref=e362]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\base.py
+          - text: ", line 610, in compile_filter"
+          - list [ref=e364]:
+            - listitem [ref=e365] [cursor=pointer]:
+              - text: return FilterExpression(token, self) ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+              - generic [ref=e366]: …
+          - group [ref=e367]:
+            - generic "Local vars" [ref=e368] [cursor=pointer]
+        - listitem [ref=e369]:
+          - code [ref=e370]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\base.py
+          - text: ", line 706, in __init__"
+          - list [ref=e372]:
+            - listitem [ref=e373] [cursor=pointer]:
+              - text: filter_func = parser.find_filter(filter_name) ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+              - generic [ref=e374]: …
+          - group [ref=e375]:
+            - generic "Local vars" [ref=e376] [cursor=pointer]
+        - listitem [ref=e377]:
+          - code [ref=e378]: C:\Users\hazza\AppData\Roaming\Python\Python313\site-packages\django\template\base.py
+          - text: ", line 616, in find_filter"
+          - list [ref=e380]:
+            - listitem [ref=e381] [cursor=pointer]:
+              - text: "raise TemplateSyntaxError(\"Invalid filter: '%s'\" % filter_name) ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
+              - generic [ref=e382]: …
+          - group [ref=e383]:
+            - generic "Local vars" [ref=e384] [cursor=pointer]
+    - generic [ref=e385]:
+      - heading "Request information" [level=2] [ref=e386]
+      - heading "USER" [level=3] [ref=e387]
+      - paragraph [ref=e388]: admin
+      - heading "GET" [level=3] [ref=e389]
+      - paragraph [ref=e390]: No GET data
+      - heading "POST" [level=3] [ref=e391]
+      - paragraph [ref=e392]: No POST data
+      - heading "FILES" [level=3] [ref=e393]
+      - paragraph [ref=e394]: No FILES data
+      - heading "COOKIES" [level=3] [ref=e395]
+      - table [ref=e396]:
+        - rowgroup [ref=e397]:
+          - row "Variable Value" [ref=e398]:
+            - columnheader "Variable" [ref=e399]
+            - columnheader "Value" [ref=e400]
+        - rowgroup [ref=e401]:
+          - row "csrftoken '********************'" [ref=e402]:
+            - cell "csrftoken" [ref=e403]
+            - cell "'********************'" [ref=e404]:
+              - generic [ref=e405]: "'********************'"
+          - row "sessionid '********************'" [ref=e406]:
+            - cell "sessionid" [ref=e407]
+            - cell "'********************'" [ref=e408]:
+              - generic [ref=e409]: "'********************'"
+      - heading "META" [level=3] [ref=e410]
+      - table [ref=e411]:
+        - rowgroup [ref=e412]:
+          - row "Variable Value" [ref=e413]:
+            - columnheader "Variable" [ref=e414]
+            - columnheader "Value" [ref=e415]
+        - rowgroup [ref=e416]:
+          - row "AI_AGENT 'claude-code_2-1-138_agent'" [ref=e417]:
+            - cell "AI_AGENT" [ref=e418]
+            - cell "'claude-code_2-1-138_agent'" [ref=e419]:
+              - generic [ref=e420]: "'claude-code_2-1-138_agent'"
+          - row "ALLUSERSPROFILE 'C:\\\\ProgramData'" [ref=e421]:
+            - cell "ALLUSERSPROFILE" [ref=e422]
+            - cell "'C:\\\\ProgramData'" [ref=e423]:
+              - generic [ref=e424]: "'C:\\\\ProgramData'"
+          - row "ANSIBLE 'C:\\\\Users\\\\hazza\\\\AppData\\\\Local\\\\Packages\\\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\\\LocalCache\\\\local-packages\\\\Python311\\\\Scripts'" [ref=e425]:
+            - cell "ANSIBLE" [ref=e426]
+            - cell "'C:\\\\Users\\\\hazza\\\\AppData\\\\Local\\\\Packages\\\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\\\LocalCache\\\\local-packages\\\\Python311\\\\Scripts'" [ref=e427]:
+              - generic [ref=e428]: "'C:\\\\Users\\\\hazza\\\\AppData\\\\Local\\\\Packages\\\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\\\LocalCache\\\\local-packages\\\\Python311\\\\Scripts'"
+          - row "ANTHROPIC_API_KEY '********************'" [ref=e429]:
+            - cell "ANTHROPIC_API_KEY" [ref=e430]
+            - cell "'********************'" [ref=e431]:
+              - generic [ref=e432]: "'********************'"
+          - row "ANTHROPIC_BASE_URL 'https://api.anthropic.com'" [ref=e433]:
+            - cell "ANTHROPIC_BASE_URL" [ref=e434]
+            - cell "'https://api.anthropic.com'" [ref=e435]:
+              - generic [ref=e436]: "'https://api.anthropic.com'"
+          - row "API_TIMEOUT_MS '********************'" [ref=e437]:
+            - cell "API_TIMEOUT_MS" [ref=e438]
+            - cell "'********************'" [ref=e439]:
+              - generic [ref=e440]: "'********************'"
+          - row "APPDATA 'C:\\\\Users\\\\hazza\\\\AppData\\\\Roaming'" [ref=e441]:
+            - cell "APPDATA" [ref=e442]
+            - cell "'C:\\\\Users\\\\hazza\\\\AppData\\\\Roaming'" [ref=e443]:
+              - generic [ref=e444]: "'C:\\\\Users\\\\hazza\\\\AppData\\\\Roaming'"
+          - row "BAGGAGE 'sentry-environment=production,sentry-release=Claude%401.7196.0,sentry-public_key=2f98127cbffe4740b1f767a2de77d23b,sentry-trace_id=0fc90c92ece243c6b15332e4cd84291f,sentry-org_id=1158394'" [ref=e445]:
+            - cell "BAGGAGE" [ref=e446]
+            - cell "'sentry-environment=production,sentry-release=Claude%401.7196.0,sentry-public_key=2f98127cbffe4740b1f767a2de77d23b,sentry-trace_id=0fc90c92ece243c6b15332e4cd84291f,sentry-org_id=1158394'" [ref=e447]:
+              - generic [ref=e448]: "'sentry-environment=production,sentry-release=Claude%401.7196.0,sentry-public_key=2f98127cbffe4740b1f767a2de77d23b,sentry-trace_id=0fc90c92ece243c6b15332e4cd84291f,sentry-org_id=1158394'"
+          - row "CHOCOLATEYINSTALL 'C:\\\\ProgramData\\\\chocolatey'" [ref=e449]:
+            - cell "CHOCOLATEYINSTALL" [ref=e450]
+            - cell "'C:\\\\ProgramData\\\\chocolatey'" [ref=e451]:
+              - generic [ref=e452]: "'C:\\\\ProgramData\\\\chocolatey'"
+          - row "CHOCOLATEYLASTPATHUPDATE '133943510097485386'" [ref=e453]:
+            - cell "CHOCOLATEYLASTPATHUPDATE" [ref=e454]
+            - cell "'133943510097485386'" [ref=e455]:
+              - generic [ref=e456]: "'133943510097485386'"
+          - row "CHROME_CRASHPAD_PIPE_NAME '\\\\\\\\.\\\\pipe\\\\crashpad_18212_SSSPXUECZDPEVOVW'" [ref=e457]:
+            - cell "CHROME_CRASHPAD_PIPE_NAME" [ref=e458]
+            - cell "'\\\\\\\\.\\\\pipe\\\\crashpad_18212_SSSPXUECZDPEVOVW'" [ref=e459]:
+              - generic [ref=e460]: "'\\\\\\\\.\\\\pipe\\\\crashpad_18212_SSSPXUECZDPEVOVW'"
+          - row "CLAUDE 'C:\\\\Users\\\\hazza\\\\.local\\\\bin'" [ref=e461]:
+            - cell "CLAUDE" [ref=e462]
+            - cell "'C:\\\\Users\\\\hazza\\\\.local\\\\bin'" [ref=e463]:
+              - generic [ref=e464]: "'C:\\\\Users\\\\hazza\\\\.local\\\\bin'"
+          - row "CLAUDECODE '1'" [ref=e465]:
+            - cell "CLAUDECODE" [ref=e466]
+            - cell "'1'" [ref=e467]:
+              - generic [ref=e468]: "'1'"
+          - row "CLAUDE_CODE_DISABLE_CRON ''" [ref=e469]:
+            - cell "CLAUDE_CODE_DISABLE_CRON" [ref=e470]
+            - cell "''" [ref=e471]:
+              - generic [ref=e472]: "''"
+          - row "CLAUDE_CODE_EMIT_TOOL_USE_SUMMARIES 'false'" [ref=e473]:
+            - cell "CLAUDE_CODE_EMIT_TOOL_USE_SUMMARIES" [ref=e474]
+            - cell "'false'" [ref=e475]:
+              - generic [ref=e476]: "'false'"
+          - row "CLAUDE_CODE_ENABLE_ASK_USER_QUESTION_TOOL 'true'" [ref=e477]:
+            - cell "CLAUDE_CODE_ENABLE_ASK_USER_QUESTION_TOOL" [ref=e478]
+            - cell "'true'" [ref=e479]:
+              - generic [ref=e480]: "'true'"
+          - row "CLAUDE_CODE_ENTRYPOINT 'claude-desktop'" [ref=e481]:
+            - cell "CLAUDE_CODE_ENTRYPOINT" [ref=e482]
+            - cell "'claude-desktop'" [ref=e483]:
+              - generic [ref=e484]: "'claude-desktop'"
+          - row "CLAUDE_CODE_EXECPATH 'C:\\\\Users\\\\hazza\\\\AppData\\\\Roaming\\\\Claude\\\\claude-code\\\\2.1.138\\\\claude.exe'" [ref=e485]:
+            - cell "CLAUDE_CODE_EXECPATH" [ref=e486]
+            - cell "'C:\\\\Users\\\\hazza\\\\AppData\\\\Roaming\\\\Claude\\\\claude-code\\\\2.1.138\\\\claude.exe'" [ref=e487]:
+              - generic [ref=e488]: "'C:\\\\Users\\\\hazza\\\\AppData\\\\Roaming\\\\Claude\\\\claude-code\\\\2.1.138\\\\claude.exe'"
+          - row "CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST '1'" [ref=e489]:
+            - cell "CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST" [ref=e490]
+            - cell "'1'" [ref=e491]:
+              - generic [ref=e492]: "'1'"
+          - row "CLAUDE_CODE_SDK_HAS_OAUTH_REFRESH '********************'" [ref=e493]:
+            - cell "CLAUDE_CODE_SDK_HAS_OAUTH_REFRESH" [ref=e494]
+            - cell "'********************'" [ref=e495]:
+              - generic [ref=e496]: "'********************'"
+          - row "CLAUDE_CODE_SESSION_ID 'b976001e-d8e3-484f-9ece-5008b22c7fb5'" [ref=e497]:
+            - cell "CLAUDE_CODE_SESSION_ID" [ref=e498]
+            - cell "'b976001e-d8e3-484f-9ece-5008b22c7fb5'" [ref=e499]:
+              - generic [ref=e500]: "'b976001e-d8e3-484f-9ece-5008b22c7fb5'"
+          - row "COMMONPROGRAMFILES 'C:\\\\Program Files\\\\Common Files'" [ref=e501]:
+            - cell "COMMONPROGRAMFILES" [ref=e502]
+            - cell "'C:\\\\Program Files\\\\Common Files'" [ref=e503]:
+              - generic [ref=e504]: "'C:\\\\Program Files\\\\Common Files'"
+          - row "COMMONPROGRAMFILES(X86) 'C:\\\\Program Files (x86)\\\\Common Files'" [ref=e505]:
+            - cell "COMMONPROGRAMFILES(X86)" [ref=e506]
+            - cell "'C:\\\\Program Files (x86)\\\\Common Files'" [ref=e507]:
+              - generic [ref=e508]: "'C:\\\\Program Files (x86)\\\\Common Files'"
+          - row "COMMONPROGRAMW6432 'C:\\\\Program Files\\\\Common Files'" [ref=e509]:
+            - cell "COMMONPROGRAMW6432" [ref=e510]
+            - cell "'C:\\\\Program Files\\\\Common Files'" [ref=e511]:
+              - generic [ref=e512]: "'C:\\\\Program Files\\\\Common Files'"
+          - row "COMPUTERNAME 'HARRY-SOYO'" [ref=e513]:
+            - cell "COMPUTERNAME" [ref=e514]
+            - cell "'HARRY-SOYO'" [ref=e515]:
+              - generic [ref=e516]: "'HARRY-SOYO'"
+          - row "COMSPEC 'C:\\\\WINDOWS\\\\system32\\\\cmd.exe'" [ref=e517]:
+            - cell "COMSPEC" [ref=e518]
+            - cell "'C:\\\\WINDOWS\\\\system32\\\\cmd.exe'" [ref=e519]:
+              - generic [ref=e520]: "'C:\\\\WINDOWS\\\\system32\\\\cmd.exe'"
+          - row "CONTENT_LENGTH ''" [ref=e521]:
+            - cell "CONTENT_LENGTH" [ref=e522]
+            - cell "''" [ref=e523]:
+              - generic [ref=e524]: "''"
+          - row "CONTENT_TYPE 'text/plain'" [ref=e525]:
+            - cell "CONTENT_TYPE" [ref=e526]
+            - cell "'text/plain'" [ref=e527]:
+              - generic [ref=e528]: "'text/plain'"
+          - row "COREPACK_ENABLE_AUTO_PIN '0'" [ref=e529]:
+            - cell "COREPACK_ENABLE_AUTO_PIN" [ref=e530]
+            - cell "'0'" [ref=e531]:
+              - generic [ref=e532]: "'0'"
+          - row "CSRF_COOKIE '9ER83gxu1h0768vrLwIAGogS2PTHDfID'" [ref=e533]:
+            - cell "CSRF_COOKIE" [ref=e534]
+            - cell "'9ER83gxu1h0768vrLwIAGogS2PTHDfID'" [ref=e535]:
+              - generic [ref=e536]: "'9ER83gxu1h0768vrLwIAGogS2PTHDfID'"
+          - row "CURL 'C:\\\\Windows\\\\System32\\\\Curl\\\\curl.exe'" [ref=e537]:
+            - cell "CURL" [ref=e538]
+            - cell "'C:\\\\Windows\\\\System32\\\\Curl\\\\curl.exe'" [ref=e539]:
+              - generic [ref=e540]: "'C:\\\\Windows\\\\System32\\\\Curl\\\\curl.exe'"
+          - row "DISABLE_AUTOUPDATER '1'" [ref=e541]:
+            - cell "DISABLE_AUTOUPDATER" [ref=e542]
+            - cell "'1'" [ref=e543]:
+              - generic [ref=e544]: "'1'"
+          - row "DISABLE_MICROCOMPACT '1'" [ref=e545]:
+            - cell "DISABLE_MICROCOMPACT" [ref=e546]
+            - cell "'1'" [ref=e547]:
+              - generic [ref=e548]: "'1'"
+          - row "DJANGO_SETTINGS_MODULE 'ricdapp.settings'" [ref=e549]:
+            - cell "DJANGO_SETTINGS_MODULE" [ref=e550]
+            - cell "'ricdapp.settings'" [ref=e551]:
+              - generic [ref=e552]: "'ricdapp.settings'"
+          - row "DRIVERDATA 'C:\\\\Windows\\\\System32\\\\Drivers\\\\DriverData'" [ref=e553]:
+            - cell "DRIVERDATA" [ref=e554]
+            - cell "'C:\\\\Windows\\\\System32\\\\Drivers\\\\DriverData'" [ref=e555]:
+              - generic [ref=e556]: "'C:\\\\Windows\\\\System32\\\\Drivers\\\\DriverData'"
+          - row "EFC_17796_1262719628 '1'" [ref=e557]:
+            - cell "EFC_17796_1262719628" [ref=e558]
+            - cell "'1'" [ref=e559]:
+              - generic [ref=e560]: "'1'"
+          - row "EFC_17796_1592913036 '1'" [ref=e561]:
+            - cell "EFC_17796_1592913036" [ref=e562]
+            - cell "'1'" [ref=e563]:
+              - generic [ref=e564]: "'1'"
+          - row "EFC_17796_2283032206 '1'" [ref=e565]:
+            - cell "EFC_17796_2283032206" [ref=e566]
+            - cell "'1'" [ref=e567]:
+              - generic [ref=e568]: "'1'"
+          - row "EFC_17796_2775293581 '1'" [ref=e569]:
+            - cell "EFC_17796_2775293581" [ref=e570]
+            - cell "'1'" [ref=e571]:
+              - generic [ref=e572]: "'1'"
+          - row "EFC_17796_2946480783 '1'" [ref=e573]:
+            - cell "EFC_17796_2946480783" [ref=e574]
+            - cell "'1'" [ref=e575]:
+              - generic [ref=e576]: "'1'"
+          - row "EFC_17796_3789132940 '1'" [ref=e577]:
+            - cell "EFC_17796_3789132940" [ref=e578]
+            - cell "'1'" [ref=e579]:
+              - generic [ref=e580]: "'1'"
+          - row "EFC_17796_4126798990 '1'" [ref=e581]:
+            - cell "EFC_17796_4126798990" [ref=e582]
+            - cell "'1'" [ref=e583]:
+              - generic [ref=e584]: "'1'"
+          - row "EXEPATH 'C:\\\\Program Files\\\\Git\\\\bin'" [ref=e585]:
+            - cell "EXEPATH" [ref=e586]
+            - cell "'C:\\\\Program Files\\\\Git\\\\bin'" [ref=e587]:
+              - generic [ref=e588]: "'C:\\\\Program Files\\\\Git\\\\bin'"
+          - row "FPS_BROWSER_APP_PROFILE_STRING 'Internet Explorer'" [ref=e589]:
+            - cell "FPS_BROWSER_APP_PROFILE_STRING" [ref=e590]
+            - cell "'Internet Explorer'" [ref=e591]:
+              - generic [ref=e592]: "'Internet Explorer'"
+          - row "FPS_BROWSER_USER_PROFILE_STRING 'Default'" [ref=e593]:
+            - cell "FPS_BROWSER_USER_PROFILE_STRING" [ref=e594]
+            - cell "'Default'" [ref=e595]:
+              - generic [ref=e596]: "'Default'"
+          - row "GATEWAY_INTERFACE 'CGI/1.1'" [ref=e597]:
+            - cell "GATEWAY_INTERFACE" [ref=e598]
+            - cell "'CGI/1.1'" [ref=e599]:
+              - generic [ref=e600]: "'CGI/1.1'"
+          - row "GIT_EDITOR 'true'" [ref=e601]:
+            - cell "GIT_EDITOR" [ref=e602]
+            - cell "'true'" [ref=e603]:
+              - generic [ref=e604]: "'true'"
+          - row "HOME 'C:\\\\Users\\\\hazza'" [ref=e605]:
+            - cell "HOME" [ref=e606]
+            - cell "'C:\\\\Users\\\\hazza'" [ref=e607]:
+              - generic [ref=e608]: "'C:\\\\Users\\\\hazza'"
+          - row "HOMEDRIVE 'C:'" [ref=e609]:
+            - cell "HOMEDRIVE" [ref=e610]
+            - cell "'C:'" [ref=e611]:
+              - generic [ref=e612]: "'C:'"
+          - row "HOMEPATH '\\\\Users\\\\hazza'" [ref=e613]:
+            - cell "HOMEPATH" [ref=e614]
+            - cell "'\\\\Users\\\\hazza'" [ref=e615]:
+              - generic [ref=e616]: "'\\\\Users\\\\hazza'"
+          - row "HTTP_ACCEPT 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7'" [ref=e617]:
+            - cell "HTTP_ACCEPT" [ref=e618]
+            - cell "'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7'" [ref=e619]:
+              - generic [ref=e620]: "'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7'"
+          - row "HTTP_ACCEPT_ENCODING 'gzip, deflate, br, zstd'" [ref=e621]:
+            - cell "HTTP_ACCEPT_ENCODING" [ref=e622]
+            - cell "'gzip, deflate, br, zstd'" [ref=e623]:
+              - generic [ref=e624]: "'gzip, deflate, br, zstd'"
+          - row "HTTP_ACCEPT_LANGUAGE 'en-GB,en-US;q=0.9,en;q=0.8'" [ref=e625]:
+            - cell "HTTP_ACCEPT_LANGUAGE" [ref=e626]
+            - cell "'en-GB,en-US;q=0.9,en;q=0.8'" [ref=e627]:
+              - generic [ref=e628]: "'en-GB,en-US;q=0.9,en;q=0.8'"
+          - row "HTTP_CONNECTION 'keep-alive'" [ref=e629]:
+            - cell "HTTP_CONNECTION" [ref=e630]
+            - cell "'keep-alive'" [ref=e631]:
+              - generic [ref=e632]: "'keep-alive'"
+          - row "HTTP_COOKIE '********************'" [ref=e633]:
+            - cell "HTTP_COOKIE" [ref=e634]
+            - cell "'********************'" [ref=e635]:
+              - generic [ref=e636]: "'********************'"
+          - row "HTTP_HOST '127.0.0.1:8000'" [ref=e637]:
+            - cell "HTTP_HOST" [ref=e638]
+            - cell "'127.0.0.1:8000'" [ref=e639]:
+              - generic [ref=e640]: "'127.0.0.1:8000'"
+          - row "HTTP_REFERER 'http://127.0.0.1:8000/dashboard/'" [ref=e641]:
+            - cell "HTTP_REFERER" [ref=e642]
+            - cell "'http://127.0.0.1:8000/dashboard/'" [ref=e643]:
+              - generic [ref=e644]: "'http://127.0.0.1:8000/dashboard/'"
+          - row "HTTP_SEC_CH_UA '\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"'" [ref=e645]:
+            - cell "HTTP_SEC_CH_UA" [ref=e646]
+            - cell "'\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"'" [ref=e647]:
+              - generic [ref=e648]: "'\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"'"
+          - row "HTTP_SEC_CH_UA_MOBILE '?0'" [ref=e649]:
+            - cell "HTTP_SEC_CH_UA_MOBILE" [ref=e650]
+            - cell "'?0'" [ref=e651]:
+              - generic [ref=e652]: "'?0'"
+          - row "HTTP_SEC_CH_UA_PLATFORM '\"Windows\"'" [ref=e653]:
+            - cell "HTTP_SEC_CH_UA_PLATFORM" [ref=e654]
+            - cell "'\"Windows\"'" [ref=e655]:
+              - generic [ref=e656]: "'\"Windows\"'"
+          - row "HTTP_SEC_FETCH_DEST 'document'" [ref=e657]:
+            - cell "HTTP_SEC_FETCH_DEST" [ref=e658]
+            - cell "'document'" [ref=e659]:
+              - generic [ref=e660]: "'document'"
+          - row "HTTP_SEC_FETCH_MODE 'navigate'" [ref=e661]:
+            - cell "HTTP_SEC_FETCH_MODE" [ref=e662]
+            - cell "'navigate'" [ref=e663]:
+              - generic [ref=e664]: "'navigate'"
+          - row "HTTP_SEC_FETCH_SITE 'same-origin'" [ref=e665]:
+            - cell "HTTP_SEC_FETCH_SITE" [ref=e666]
+            - cell "'same-origin'" [ref=e667]:
+              - generic [ref=e668]: "'same-origin'"
+          - row "HTTP_SEC_FETCH_USER '?1'" [ref=e669]:
+            - cell "HTTP_SEC_FETCH_USER" [ref=e670]
+            - cell "'?1'" [ref=e671]:
+              - generic [ref=e672]: "'?1'"
+          - row "HTTP_UPGRADE_INSECURE_REQUESTS '1'" [ref=e673]:
+            - cell "HTTP_UPGRADE_INSECURE_REQUESTS" [ref=e674]
+            - cell "'1'" [ref=e675]:
+              - generic [ref=e676]: "'1'"
+          - row "HTTP_USER_AGENT ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like ' 'Gecko) Chrome/148.0.0.0 Safari/537.36')" [ref=e677]:
+            - cell "HTTP_USER_AGENT" [ref=e678]
+            - cell "('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like ' 'Gecko) Chrome/148.0.0.0 Safari/537.36')" [ref=e679]:
+              - generic [ref=e680]: ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like ' 'Gecko) Chrome/148.0.0.0 Safari/537.36')
+          - row "LOCALAPPDATA 'C:\\\\Users\\\\hazza\\\\AppData\\\\Local'" [ref=e681]:
+            - cell "LOCALAPPDATA" [ref=e682]
+            - cell "'C:\\\\Users\\\\hazza\\\\AppData\\\\Local'" [ref=e683]:
+              - generic [ref=e684]: "'C:\\\\Users\\\\hazza\\\\AppData\\\\Local'"
+          - row "LOGONSERVER '\\\\\\\\HARRY-SOYO'" [ref=e685]:
+            - cell "LOGONSERVER" [ref=e686]
+            - cell "'\\\\\\\\HARRY-SOYO'" [ref=e687]:
+              - generic [ref=e688]: "'\\\\\\\\HARRY-SOYO'"
+          - row "MCP_CONNECTION_NONBLOCKING 'true'" [ref=e689]:
+            - cell "MCP_CONNECTION_NONBLOCKING" [ref=e690]
+            - cell "'true'" [ref=e691]:
+              - generic [ref=e692]: "'true'"
+          - row "MSYS 'disable_pcon'" [ref=e693]:
+            - cell "MSYS" [ref=e694]
+            - cell "'disable_pcon'" [ref=e695]:
+              - generic [ref=e696]: "'disable_pcon'"
+          - row "MSYSTEM 'MINGW64'" [ref=e697]:
+            - cell "MSYSTEM" [ref=e698]
+            - cell "'MINGW64'" [ref=e699]:
+              - generic [ref=e700]: "'MINGW64'"
+          - row "NODEFAULTCURRENTDIRECTORYINEXEPATH '1'" [ref=e701]:
+            - cell "NODEFAULTCURRENTDIRECTORYINEXEPATH" [ref=e702]
+            - cell "'1'" [ref=e703]:
+              - generic [ref=e704]: "'1'"
+          - row "NODE_USE_SYSTEM_CA '1'" [ref=e705]:
+            - cell "NODE_USE_SYSTEM_CA" [ref=e706]
+            - cell "'1'" [ref=e707]:
+              - generic [ref=e708]: "'1'"
+          - row "NUMBER_OF_PROCESSORS '16'" [ref=e709]:
+            - cell "NUMBER_OF_PROCESSORS" [ref=e710]
+            - cell "'16'" [ref=e711]:
+              - generic [ref=e712]: "'16'"
+          - row "OLDPWD 'Z:/coding/RICDapp/.claude/worktrees/inspiring-shockley-d7e655'" [ref=e713]:
+            - cell "OLDPWD" [ref=e714]
+            - cell "'Z:/coding/RICDapp/.claude/worktrees/inspiring-shockley-d7e655'" [ref=e715]:
+              - generic [ref=e716]: "'Z:/coding/RICDapp/.claude/worktrees/inspiring-shockley-d7e655'"
+          - row "ONEDRIVE 'C:\\\\Users\\\\hazza\\\\OneDrive'" [ref=e717]:
+            - cell "ONEDRIVE" [ref=e718]
+            - cell "'C:\\\\Users\\\\hazza\\\\OneDrive'" [ref=e719]:
+              - generic [ref=e720]: "'C:\\\\Users\\\\hazza\\\\OneDrive'"
+          - row "ONEDRIVECONSUMER 'C:\\\\Users\\\\hazza\\\\OneDrive'" [ref=e721]:
+            - cell "ONEDRIVECONSUMER" [ref=e722]
+            - cell "'C:\\\\Users\\\\hazza\\\\OneDrive'" [ref=e723]:
+              - generic [ref=e724]: "'C:\\\\Users\\\\hazza\\\\OneDrive'"
+          - row "OPENROUTER_API_KEY '********************'" [ref=e725]:
+            - cell "OPENROUTER_API_KEY" [ref=e726]
+            - cell "'********************'" [ref=e727]:
+              - generic [ref=e728]: "'********************'"
+          - row "OPENSSL_CONF 'C:\\\\Program Files\\\\PostgreSQL\\\\psqlODBC\\\\etc\\\\openssl.cnf'" [ref=e729]:
+            - cell "OPENSSL_CONF" [ref=e730]
+            - cell "'C:\\\\Program Files\\\\PostgreSQL\\\\psqlODBC\\\\etc\\\\openssl.cnf'" [ref=e731]:
+              - generic [ref=e732]: "'C:\\\\Program Files\\\\PostgreSQL\\\\psqlODBC\\\\etc\\\\openssl.cnf'"
+          - row "OS 'Windows_NT'" [ref=e733]:
+            - cell "OS" [ref=e734]
+            - cell "'Windows_NT'" [ref=e735]:
+              - generic [ref=e736]: "'Windows_NT'"
+          - row [ref=e737]:
+            - cell "PATH" [ref=e738]
+            - cell [ref=e739]:
+              - generic [ref=e740]: ('C:\\Users\\hazza\\bin;C:\\Program Files\\Git\\mingw64\\bin;C:\\Program ' 'Files\\Git\\usr\\local\\bin;C:\\Program Files\\Git\\usr\\bin;C:\\Program ' 'Files\\Git\\usr\\bin;C:\\Program Files\\Git\\mingw64\\bin;C:\\Program ' 'Files\\Git\\usr\\bin;C:\\Users\\hazza\\bin;C:\\Python313\\Scripts;C:\\Python313;C:\\Program ' 'Files\\Common ' 'Files\\Oracle\\Java\\javapath;C:\\WINDOWS\\system32;C:\\WINDOWS;C:\\WINDOWS\\System32\\Wbem;C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0;C:\\WINDOWS\\System32\\OpenSSH;C:\\Program ' 'Files\\dotnet;C:\\Program Files\\Docker\\Docker\\resources\\bin;C:\\Program ' 'Files\\Git\\cmd;C:\\Program Files\\Calibre2;C:\\Program ' 'Files\\gs\\gs10.04.0\\bin;C:\\Program Files\\PuTTY;C:\\Program Files\\Common ' 'Files\\Autodesk Shared;C:\\Program Files\\Microsoft SQL ' 'Server\\150\\Tools\\Binn;C:\\Program ' 'Files\\nodejs;C:\\ProgramData\\chocolatey\\bin;C:\\FFmpeg\\bin;C:\\Program ' 'Files\\Meld;C:\\Users\\hazza\\AppData\\Local\\Microsoft\\WindowsApps;C:\\Users\\hazza\\AppData\\Local\\Programs\\Microsoft ' 'VS Code\\bin;C:\\Program Files ' '(x86)\\Terraform;C:\\Users\\hazza\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python311\\Scripts;C:\\Users\\hazza\\AppData\\Local\\Programs\\Ollama;C:\\Users\\hazza\\.lmstudio\\bin;C:\\Users\\hazza\\AppData\\Roaming\\npm;C:\\Users\\hazza\\AppData\\Local\\Programs\\cursor\\resources\\app\\bin;C:\\Users\\hazza\\.local\\bin;C:\\users\\hazza\\appdata\\roaming\\python\\python313\\scripts;C:\\Users\\hazza\\.bun\\bin;C:\\Program ' 'Files\\Tesseract-OCR;C:\\Program Files\\nodejs;C:\\Python313;C:\\Program ' 'Files\\Git\\mingw64\\bin;C:\\Program ' 'Files\\Git\\usr\\bin\\vendor_perl;C:\\Program ' 'Files\\Git\\usr\\bin\\core_perl;C:\\Users\\hazza\\AppData\\Roaming\\Claude\\local-agent-mode-sessions\\skills-plugin\\50b8ea73-ba3e-41b1-853f-318a82a5b90f\\f2138c43-47da-49e7-854e-1bada3c52b3e\\bin;C:\\Users\\hazza\\.claude\\plugins\\cache\\claude-plugins-official\\frontend-design\\unknown\\bin;C:\\Users\\hazza\\.claude\\plugins\\cache\\claude-plugins-official\\superpowers\\5.1.0\\bin;C:\\Users\\hazza\\.claude\\plugins\\cache\\claude-plugins-official\\context7\\unknown\\bin;C:\\Users\\hazza\\.claude\\plugins\\cache\\claude-plugins-official\\code-review\\unknown\\bin;C:\\Users\\hazza\\.claude\\plugins\\cache\\claude-plugins-official\\code-simplifier\\1.0.0\\bin;C:\\Users\\hazza\\.claude\\plugins\\cache\\claude-plugins-official\\github\\unknown\\bin;C:\\Users\\hazza\\.claude\\plugins\\cache\\claude-plugins-official\\skill-creator\\unknown\\bin;C:\\Users\\hazza\\.claude\\plugins\\cache\\claude-plugins-official\\playwright\\unknown\\bin;C:\\Users\\hazza\\.claude\\plugins\\cache\\claude-plugins-official\\feature-dev\\unknown\\bin;C:\\Users\\hazza\\.claude\\plugins\\cache\\claude-plugins-official\\claude-md-management\\1.0.0\\bin;C:\\Users\\hazza\\.claude\\plugins\\cache\\claude-plugins-official\\ralph-loop\\1.0.0\\bin;C:\\Users\\hazza\\.claude\\plugins\\cache\\claude-plugins-official\\security-guidance\\unknown\\bin;C:\\Users\\hazza\\.claude\\plugins\\cache\\claude-plugins-official\\typescript-lsp\\1.0.0\\bin;C:\\Users\\hazza\\.claude\\plugins\\cache\\claude-plugins-official\\figma\\2.1.30\\bin;C:\\Users\\hazza\\.claude\\plugins\\cache\\claude-plugins-official\\pyright-lsp\\1.0.0\\bin;C:\\Users\\hazza\\.claude\\plugins\\cache\\claude-plugins-official\\serena\\unknown\\bin;C:\\Users\\hazza\\.claude\\plugins\\cache\\claude-plugins-official\\commit-commands\\unknown\\bin;C:\\Users\\hazza\\.claude\\plugins\\cache\\claude-plugins-official\\claude-code-setup\\1.0.0\\bin;C:\\Users\\hazza\\.claude\\plugins\\cache\\claude-plugins-official\\pr-review-toolkit\\unknown\\bin;C:\\Users\\hazza\\.claude\\plugins\\cache\\karpathy-skills\\andrej-karpathy-skills\\1.0.0\\bin;C:\\Users\\hazza\\.claude\\plugins\\cache\\thedotmack\\claude-mem\\12.4.8\\bin;C:\\Users\\hazza\\.claude\\plugins\\cache\\everything-claude-code\\everything-claude-code\\2.0.0-rc.1\\bin;C:\\Users\\hazza\\.claude\\plugins\\cache\\codedna\\codedna\\1.0.0\\bin;C:\\Users\\hazza\\.claude\\plugins\\cache\\claude-plugins-official\\typescript-lsp\\1.0.0\\bin;C:\\Users\\hazza\\.claude\\plugins\\cache\\claude-plugins-official\\pyright-lsp\\1.0.0\\bin')
+          - row "PATHEXT '.COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC;.PY;.PYW'" [ref=e741]:
+            - cell "PATHEXT" [ref=e742]
+            - cell "'.COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC;.PY;.PYW'" [ref=e743]:
+              - generic [ref=e744]: "'.COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC;.PY;.PYW'"
+          - row "PATH_INFO '/cashflow/'" [ref=e745]:
+            - cell "PATH_INFO" [ref=e746]
+            - cell "'/cashflow/'" [ref=e747]:
+              - generic [ref=e748]: "'/cashflow/'"
+          - row "PLINK_PROTOCOL 'ssh'" [ref=e749]:
+            - cell "PLINK_PROTOCOL" [ref=e750]
+            - cell "'ssh'" [ref=e751]:
+              - generic [ref=e752]: "'ssh'"
+          - row "PROCESSOR_ARCHITECTURE 'AMD64'" [ref=e753]:
+            - cell "PROCESSOR_ARCHITECTURE" [ref=e754]
+            - cell "'AMD64'" [ref=e755]:
+              - generic [ref=e756]: "'AMD64'"
+          - row "PROCESSOR_IDENTIFIER 'AMD64 Family 25 Model 33 Stepping 2, AuthenticAMD'" [ref=e757]:
+            - cell "PROCESSOR_IDENTIFIER" [ref=e758]
+            - cell "'AMD64 Family 25 Model 33 Stepping 2, AuthenticAMD'" [ref=e759]:
+              - generic [ref=e760]: "'AMD64 Family 25 Model 33 Stepping 2, AuthenticAMD'"
+          - row "PROCESSOR_LEVEL '25'" [ref=e761]:
+            - cell "PROCESSOR_LEVEL" [ref=e762]
+            - cell "'25'" [ref=e763]:
+              - generic [ref=e764]: "'25'"
+          - row "PROCESSOR_REVISION '2102'" [ref=e765]:
+            - cell "PROCESSOR_REVISION" [ref=e766]
+            - cell "'2102'" [ref=e767]:
+              - generic [ref=e768]: "'2102'"
+          - row "PROGRAMDATA 'C:\\\\ProgramData'" [ref=e769]:
+            - cell "PROGRAMDATA" [ref=e770]
+            - cell "'C:\\\\ProgramData'" [ref=e771]:
+              - generic [ref=e772]: "'C:\\\\ProgramData'"
+          - row "PROGRAMFILES 'C:\\\\Program Files'" [ref=e773]:
+            - cell "PROGRAMFILES" [ref=e774]
+            - cell "'C:\\\\Program Files'" [ref=e775]:
+              - generic [ref=e776]: "'C:\\\\Program Files'"
+          - row "PROGRAMFILES(X86) 'C:\\\\Program Files (x86)'" [ref=e777]:
+            - cell "PROGRAMFILES(X86)" [ref=e778]
+            - cell "'C:\\\\Program Files (x86)'" [ref=e779]:
+              - generic [ref=e780]: "'C:\\\\Program Files (x86)'"
+          - row "PROGRAMW6432 'C:\\\\Program Files'" [ref=e781]:
+            - cell "PROGRAMW6432" [ref=e782]
+            - cell "'C:\\\\Program Files'" [ref=e783]:
+              - generic [ref=e784]: "'C:\\\\Program Files'"
+          - row "PSMODULEPATH ('C:\\\\Program ' 'Files\\\\WindowsPowerShell\\\\Modules;C:\\\\WINDOWS\\\\system32\\\\WindowsPowerShell\\\\v1.0\\\\Modules;C:\\\\Program ' 'Files\\\\Veeam\\\\Backup and Replication\\\\Console\\\\;C:\\\\Program ' 'Files\\\\Veeam\\\\Backup and Replication\\\\Explorers\\\\Exchange\\\\;C:\\\\Program ' 'Files\\\\Veeam\\\\Backup and Replication\\\\Explorers\\\\SharePoint\\\\;C:\\\\Program ' 'Files\\\\Veeam\\\\Backup and Replication\\\\Explorers\\\\SQL\\\\;C:\\\\Program ' 'Files\\\\Veeam\\\\Backup and ' 'Replication\\\\Explorers\\\\ActiveDirectory\\\\;C:\\\\Program Files\\\\Veeam\\\\Backup ' 'and Replication\\\\Explorers\\\\Oracle\\\\;C:\\\\Program Files\\\\Veeam\\\\Backup and ' 'Replication\\\\Explorers\\\\Teams\\\\;C:\\\\Program Files\\\\Veeam\\\\Backup and ' 'Replication\\\\Explorers\\\\PostgreSQL\\\\;C:\\\\Program Files\\\\Veeam\\\\Backup and ' 'Replication\\\\Explorers\\\\SapHana\\\\;C:\\\\Program Files\\\\Veeam\\\\Backup and ' 'Replication\\\\Explorers\\\\MongoDB\\\\')" [ref=e785]:
+            - cell "PSMODULEPATH" [ref=e786]
+            - cell "('C:\\\\Program ' 'Files\\\\WindowsPowerShell\\\\Modules;C:\\\\WINDOWS\\\\system32\\\\WindowsPowerShell\\\\v1.0\\\\Modules;C:\\\\Program ' 'Files\\\\Veeam\\\\Backup and Replication\\\\Console\\\\;C:\\\\Program ' 'Files\\\\Veeam\\\\Backup and Replication\\\\Explorers\\\\Exchange\\\\;C:\\\\Program ' 'Files\\\\Veeam\\\\Backup and Replication\\\\Explorers\\\\SharePoint\\\\;C:\\\\Program ' 'Files\\\\Veeam\\\\Backup and Replication\\\\Explorers\\\\SQL\\\\;C:\\\\Program ' 'Files\\\\Veeam\\\\Backup and ' 'Replication\\\\Explorers\\\\ActiveDirectory\\\\;C:\\\\Program Files\\\\Veeam\\\\Backup ' 'and Replication\\\\Explorers\\\\Oracle\\\\;C:\\\\Program Files\\\\Veeam\\\\Backup and ' 'Replication\\\\Explorers\\\\Teams\\\\;C:\\\\Program Files\\\\Veeam\\\\Backup and ' 'Replication\\\\Explorers\\\\PostgreSQL\\\\;C:\\\\Program Files\\\\Veeam\\\\Backup and ' 'Replication\\\\Explorers\\\\SapHana\\\\;C:\\\\Program Files\\\\Veeam\\\\Backup and ' 'Replication\\\\Explorers\\\\MongoDB\\\\')" [ref=e787]:
+              - generic [ref=e788]: ('C:\\Program ' 'Files\\WindowsPowerShell\\Modules;C:\\WINDOWS\\system32\\WindowsPowerShell\\v1.0\\Modules;C:\\Program ' 'Files\\Veeam\\Backup and Replication\\Console\\;C:\\Program ' 'Files\\Veeam\\Backup and Replication\\Explorers\\Exchange\\;C:\\Program ' 'Files\\Veeam\\Backup and Replication\\Explorers\\SharePoint\\;C:\\Program ' 'Files\\Veeam\\Backup and Replication\\Explorers\\SQL\\;C:\\Program ' 'Files\\Veeam\\Backup and ' 'Replication\\Explorers\\ActiveDirectory\\;C:\\Program Files\\Veeam\\Backup ' 'and Replication\\Explorers\\Oracle\\;C:\\Program Files\\Veeam\\Backup and ' 'Replication\\Explorers\\Teams\\;C:\\Program Files\\Veeam\\Backup and ' 'Replication\\Explorers\\PostgreSQL\\;C:\\Program Files\\Veeam\\Backup and ' 'Replication\\Explorers\\SapHana\\;C:\\Program Files\\Veeam\\Backup and ' 'Replication\\Explorers\\MongoDB\\')
+          - row "PUBLIC 'C:\\\\Users\\\\Public'" [ref=e789]:
+            - cell "PUBLIC" [ref=e790]
+            - cell "'C:\\\\Users\\\\Public'" [ref=e791]:
+              - generic [ref=e792]: "'C:\\\\Users\\\\Public'"
+          - row "PWD 'Z:/coding/RICDapp/.claude/worktrees/inspiring-shockley-d7e655/src'" [ref=e793]:
+            - cell "PWD" [ref=e794]
+            - cell "'Z:/coding/RICDapp/.claude/worktrees/inspiring-shockley-d7e655/src'" [ref=e795]:
+              - generic [ref=e796]: "'Z:/coding/RICDapp/.claude/worktrees/inspiring-shockley-d7e655/src'"
+          - row "QUERY_STRING ''" [ref=e797]:
+            - cell "QUERY_STRING" [ref=e798]
+            - cell "''" [ref=e799]:
+              - generic [ref=e800]: "''"
+          - row "REMOTE_ADDR '127.0.0.1'" [ref=e801]:
+            - cell "REMOTE_ADDR" [ref=e802]
+            - cell "'127.0.0.1'" [ref=e803]:
+              - generic [ref=e804]: "'127.0.0.1'"
+          - row "REMOTE_HOST ''" [ref=e805]:
+            - cell "REMOTE_HOST" [ref=e806]
+            - cell "''" [ref=e807]:
+              - generic [ref=e808]: "''"
+          - row "REQUEST_METHOD 'GET'" [ref=e809]:
+            - cell "REQUEST_METHOD" [ref=e810]
+            - cell "'GET'" [ref=e811]:
+              - generic [ref=e812]: "'GET'"
+          - row "RUN_MAIN 'true'" [ref=e813]:
+            - cell "RUN_MAIN" [ref=e814]
+            - cell "'true'" [ref=e815]:
+              - generic [ref=e816]: "'true'"
+          - row "SCRIPT_NAME ''" [ref=e817]:
+            - cell "SCRIPT_NAME" [ref=e818]
+            - cell "''" [ref=e819]:
+              - generic [ref=e820]: "''"
+          - row "SENTRY-TRACE '0fc90c92ece243c6b15332e4cd84291f-922fa7df828508b4'" [ref=e821]:
+            - cell "SENTRY-TRACE" [ref=e822]
+            - cell "'0fc90c92ece243c6b15332e4cd84291f-922fa7df828508b4'" [ref=e823]:
+              - generic [ref=e824]: "'0fc90c92ece243c6b15332e4cd84291f-922fa7df828508b4'"
+          - row "SERVER_NAME 'kubernetes.docker.internal'" [ref=e825]:
+            - cell "SERVER_NAME" [ref=e826]
+            - cell "'kubernetes.docker.internal'" [ref=e827]:
+              - generic [ref=e828]: "'kubernetes.docker.internal'"
+          - row "SERVER_PORT '8000'" [ref=e829]:
+            - cell "SERVER_PORT" [ref=e830]
+            - cell "'8000'" [ref=e831]:
+              - generic [ref=e832]: "'8000'"
+          - row "SERVER_PROTOCOL 'HTTP/1.1'" [ref=e833]:
+            - cell "SERVER_PROTOCOL" [ref=e834]
+            - cell "'HTTP/1.1'" [ref=e835]:
+              - generic [ref=e836]: "'HTTP/1.1'"
+          - row "SERVER_SOFTWARE 'WSGIServer/0.2'" [ref=e837]:
+            - cell "SERVER_SOFTWARE" [ref=e838]
+            - cell "'WSGIServer/0.2'" [ref=e839]:
+              - generic [ref=e840]: "'WSGIServer/0.2'"
+          - row "SESSIONNAME 'Console'" [ref=e841]:
+            - cell "SESSIONNAME" [ref=e842]
+            - cell "'Console'" [ref=e843]:
+              - generic [ref=e844]: "'Console'"
+          - row "SHELL 'C:\\\\Program Files\\\\Git\\\\bin\\\\bash.exe'" [ref=e845]:
+            - cell "SHELL" [ref=e846]
+            - cell "'C:\\\\Program Files\\\\Git\\\\bin\\\\bash.exe'" [ref=e847]:
+              - generic [ref=e848]: "'C:\\\\Program Files\\\\Git\\\\bin\\\\bash.exe'"
+          - row "SHLVL '1'" [ref=e849]:
+            - cell "SHLVL" [ref=e850]
+            - cell "'1'" [ref=e851]:
+              - generic [ref=e852]: "'1'"
+          - row "SYSTEMDRIVE 'C:'" [ref=e853]:
+            - cell "SYSTEMDRIVE" [ref=e854]
+            - cell "'C:'" [ref=e855]:
+              - generic [ref=e856]: "'C:'"
+          - row "SYSTEMROOT 'C:\\\\WINDOWS'" [ref=e857]:
+            - cell "SYSTEMROOT" [ref=e858]
+            - cell "'C:\\\\WINDOWS'" [ref=e859]:
+              - generic [ref=e860]: "'C:\\\\WINDOWS'"
+          - row "TEMP 'C:\\\\Users\\\\hazza\\\\AppData\\\\Local\\\\Temp'" [ref=e861]:
+            - cell "TEMP" [ref=e862]
+            - cell "'C:\\\\Users\\\\hazza\\\\AppData\\\\Local\\\\Temp'" [ref=e863]:
+              - generic [ref=e864]: "'C:\\\\Users\\\\hazza\\\\AppData\\\\Local\\\\Temp'"
+          - row "TERM 'xterm-256color'" [ref=e865]:
+            - cell "TERM" [ref=e866]
+            - cell "'xterm-256color'" [ref=e867]:
+              - generic [ref=e868]: "'xterm-256color'"
+          - row "TERRAFORM 'C:\\\\Program Files (x86)\\\\Terraform'" [ref=e869]:
+            - cell "TERRAFORM" [ref=e870]
+            - cell "'C:\\\\Program Files (x86)\\\\Terraform'" [ref=e871]:
+              - generic [ref=e872]: "'C:\\\\Program Files (x86)\\\\Terraform'"
+          - row "TMP 'C:\\\\Users\\\\hazza\\\\AppData\\\\Local\\\\Temp'" [ref=e873]:
+            - cell "TMP" [ref=e874]
+            - cell "'C:\\\\Users\\\\hazza\\\\AppData\\\\Local\\\\Temp'" [ref=e875]:
+              - generic [ref=e876]: "'C:\\\\Users\\\\hazza\\\\AppData\\\\Local\\\\Temp'"
+          - row "USERDOMAIN 'HARRY-SOYO'" [ref=e877]:
+            - cell "USERDOMAIN" [ref=e878]
+            - cell "'HARRY-SOYO'" [ref=e879]:
+              - generic [ref=e880]: "'HARRY-SOYO'"
+          - row "USERDOMAIN_ROAMINGPROFILE 'HARRY-SOYO'" [ref=e881]:
+            - cell "USERDOMAIN_ROAMINGPROFILE" [ref=e882]
+            - cell "'HARRY-SOYO'" [ref=e883]:
+              - generic [ref=e884]: "'HARRY-SOYO'"
+          - row "USERNAME 'hazza'" [ref=e885]:
+            - cell "USERNAME" [ref=e886]
+            - cell "'hazza'" [ref=e887]:
+              - generic [ref=e888]: "'hazza'"
+          - row "USERPROFILE 'C:\\\\Users\\\\hazza'" [ref=e889]:
+            - cell "USERPROFILE" [ref=e890]
+            - cell "'C:\\\\Users\\\\hazza'" [ref=e891]:
+              - generic [ref=e892]: "'C:\\\\Users\\\\hazza'"
+          - row "USE_LOCAL_OAUTH '********************'" [ref=e893]:
+            - cell "USE_LOCAL_OAUTH" [ref=e894]
+            - cell "'********************'" [ref=e895]:
+              - generic [ref=e896]: "'********************'"
+          - row "USE_STAGING_OAUTH '********************'" [ref=e897]:
+            - cell "USE_STAGING_OAUTH" [ref=e898]
+            - cell "'********************'" [ref=e899]:
+              - generic [ref=e900]: "'********************'"
+          - row "VBOX_MSI_INSTALL_PATH 'C:\\\\Program Files\\\\Oracle\\\\VirtualBox\\\\'" [ref=e901]:
+            - cell "VBOX_MSI_INSTALL_PATH" [ref=e902]
+            - cell "'C:\\\\Program Files\\\\Oracle\\\\VirtualBox\\\\'" [ref=e903]:
+              - generic [ref=e904]: "'C:\\\\Program Files\\\\Oracle\\\\VirtualBox\\\\'"
+          - row "WINDIR 'C:\\\\WINDOWS'" [ref=e905]:
+            - cell "WINDIR" [ref=e906]
+            - cell "'C:\\\\WINDOWS'" [ref=e907]:
+              - generic [ref=e908]: "'C:\\\\WINDOWS'"
+          - row "_ 'C:/Python313/python'" [ref=e909]:
+            - cell "_" [ref=e910]
+            - cell "'C:/Python313/python'" [ref=e911]:
+              - generic [ref=e912]: "'C:/Python313/python'"
+          - row "wsgi.errors <_io.TextIOWrapper name='<stderr>' mode='w' encoding='cp1252'>" [ref=e913]:
+            - cell "wsgi.errors" [ref=e914]
+            - cell "<_io.TextIOWrapper name='<stderr>' mode='w' encoding='cp1252'>" [ref=e915]:
+              - generic [ref=e916]: <_io.TextIOWrapper name='<stderr>' mode='w' encoding='cp1252'>
+          - row "wsgi.file_wrapper <class 'wsgiref.util.FileWrapper'>" [ref=e917]:
+            - cell "wsgi.file_wrapper" [ref=e918]
+            - cell "<class 'wsgiref.util.FileWrapper'>" [ref=e919]:
+              - generic [ref=e920]: <class 'wsgiref.util.FileWrapper'>
+          - row "wsgi.input <django.core.handlers.wsgi.LimitedStream object at 0x0000015268954B80>" [ref=e921]:
+            - cell "wsgi.input" [ref=e922]
+            - cell "<django.core.handlers.wsgi.LimitedStream object at 0x0000015268954B80>" [ref=e923]:
+              - generic [ref=e924]: <django.core.handlers.wsgi.LimitedStream object at 0x0000015268954B80>
+          - row "wsgi.multiprocess False" [ref=e925]:
+            - cell "wsgi.multiprocess" [ref=e926]
+            - cell "False" [ref=e927]:
+              - generic [ref=e928]: "False"
+          - row "wsgi.multithread True" [ref=e929]:
+            - cell "wsgi.multithread" [ref=e930]
+            - cell "True" [ref=e931]:
+              - generic [ref=e932]: "True"
+          - row "wsgi.run_once False" [ref=e933]:
+            - cell "wsgi.run_once" [ref=e934]
+            - cell "False" [ref=e935]:
+              - generic [ref=e936]: "False"
+          - row "wsgi.url_scheme 'http'" [ref=e937]:
+            - cell "wsgi.url_scheme" [ref=e938]
+            - cell "'http'" [ref=e939]:
+              - generic [ref=e940]: "'http'"
+          - row "wsgi.version (1, 0)" [ref=e941]:
+            - cell "wsgi.version" [ref=e942]
+            - cell "(1, 0)" [ref=e943]:
+              - generic [ref=e944]: (1, 0)
+      - heading "Settings" [level=3] [ref=e945]
+      - heading "Using settings module ricdapp.settings" [level=4] [ref=e946]:
+        - text: Using settings module
+        - code [ref=e947]: ricdapp.settings
+      - table [ref=e948]:
+        - rowgroup [ref=e949]:
+          - row "Setting Value" [ref=e950]:
+            - columnheader "Setting" [ref=e951]
+            - columnheader "Value" [ref=e952]
+        - rowgroup [ref=e953]:
+          - 'row "ABSOLUTE_URL_OVERRIDES {}" [ref=e954]':
+            - cell "ABSOLUTE_URL_OVERRIDES" [ref=e955]
+            - 'cell "{}" [ref=e956]':
+              - generic [ref=e957]: "{}"
+          - row "ADMINS []" [ref=e958]:
+            - cell "ADMINS" [ref=e959]
+            - cell "[]" [ref=e960]:
+              - generic [ref=e961]: "[]"
+          - row "ALLOWED_HOSTS ['localhost', '127.0.0.1', 'testserver']" [ref=e962]:
+            - cell "ALLOWED_HOSTS" [ref=e963]
+            - cell "['localhost', '127.0.0.1', 'testserver']" [ref=e964]:
+              - generic [ref=e965]: "['localhost', '127.0.0.1', 'testserver']"
+          - row "APPEND_SLASH True" [ref=e966]:
+            - cell "APPEND_SLASH" [ref=e967]
+            - cell "True" [ref=e968]:
+              - generic [ref=e969]: "True"
+          - row "AUTHENTICATION_BACKENDS '********************'" [ref=e970]:
+            - cell "AUTHENTICATION_BACKENDS" [ref=e971]
+            - cell "'********************'" [ref=e972]:
+              - generic [ref=e973]: "'********************'"
+          - row "AUTH_PASSWORD_VALIDATORS '********************'" [ref=e974]:
+            - cell "AUTH_PASSWORD_VALIDATORS" [ref=e975]
+            - cell "'********************'" [ref=e976]:
+              - generic [ref=e977]: "'********************'"
+          - row "AUTH_USER_MODEL '********************'" [ref=e978]:
+            - cell "AUTH_USER_MODEL" [ref=e979]
+            - cell "'********************'" [ref=e980]:
+              - generic [ref=e981]: "'********************'"
+          - row "BASE_DIR WindowsPath('Z:/coding/RICDapp/.claude/worktrees/inspiring-shockley-d7e655/src')" [ref=e982]:
+            - cell "BASE_DIR" [ref=e983]
+            - cell "WindowsPath('Z:/coding/RICDapp/.claude/worktrees/inspiring-shockley-d7e655/src')" [ref=e984]:
+              - generic [ref=e985]: WindowsPath('Z:/coding/RICDapp/.claude/worktrees/inspiring-shockley-d7e655/src')
+          - 'row "CACHES {''default'': {''BACKEND'': ''django.core.cache.backends.locmem.LocMemCache''}}" [ref=e986]':
+            - cell "CACHES" [ref=e987]
+            - 'cell "{''default'': {''BACKEND'': ''django.core.cache.backends.locmem.LocMemCache''}}" [ref=e988]':
+              - generic [ref=e989]: "{'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}}"
+          - row "CACHE_MIDDLEWARE_ALIAS 'default'" [ref=e990]:
+            - cell "CACHE_MIDDLEWARE_ALIAS" [ref=e991]
+            - cell "'default'" [ref=e992]:
+              - generic [ref=e993]: "'default'"
+          - row "CACHE_MIDDLEWARE_KEY_PREFIX '********************'" [ref=e994]:
+            - cell "CACHE_MIDDLEWARE_KEY_PREFIX" [ref=e995]
+            - cell "'********************'" [ref=e996]:
+              - generic [ref=e997]: "'********************'"
+          - row "CACHE_MIDDLEWARE_SECONDS 600" [ref=e998]:
+            - cell "CACHE_MIDDLEWARE_SECONDS" [ref=e999]
+            - cell "600" [ref=e1000]:
+              - generic [ref=e1001]: "600"
+          - row "CSRF_COOKIE_AGE 31449600" [ref=e1002]:
+            - cell "CSRF_COOKIE_AGE" [ref=e1003]
+            - cell "31449600" [ref=e1004]:
+              - generic [ref=e1005]: "31449600"
+          - row "CSRF_COOKIE_DOMAIN None" [ref=e1006]:
+            - cell "CSRF_COOKIE_DOMAIN" [ref=e1007]
+            - cell "None" [ref=e1008]:
+              - generic [ref=e1009]: None
+          - row "CSRF_COOKIE_HTTPONLY False" [ref=e1010]:
+            - cell "CSRF_COOKIE_HTTPONLY" [ref=e1011]
+            - cell "False" [ref=e1012]:
+              - generic [ref=e1013]: "False"
+          - row "CSRF_COOKIE_NAME 'csrftoken'" [ref=e1014]:
+            - cell "CSRF_COOKIE_NAME" [ref=e1015]
+            - cell "'csrftoken'" [ref=e1016]:
+              - generic [ref=e1017]: "'csrftoken'"
+          - row "CSRF_COOKIE_PATH '/'" [ref=e1018]:
+            - cell "CSRF_COOKIE_PATH" [ref=e1019]
+            - cell "'/'" [ref=e1020]:
+              - generic [ref=e1021]: "'/'"
+          - row "CSRF_COOKIE_SAMESITE 'Lax'" [ref=e1022]:
+            - cell "CSRF_COOKIE_SAMESITE" [ref=e1023]
+            - cell "'Lax'" [ref=e1024]:
+              - generic [ref=e1025]: "'Lax'"
+          - row "CSRF_COOKIE_SECURE False" [ref=e1026]:
+            - cell "CSRF_COOKIE_SECURE" [ref=e1027]
+            - cell "False" [ref=e1028]:
+              - generic [ref=e1029]: "False"
+          - row "CSRF_FAILURE_VIEW 'django.views.csrf.csrf_failure'" [ref=e1030]:
+            - cell "CSRF_FAILURE_VIEW" [ref=e1031]
+            - cell "'django.views.csrf.csrf_failure'" [ref=e1032]:
+              - generic [ref=e1033]: "'django.views.csrf.csrf_failure'"
+          - row "CSRF_HEADER_NAME 'HTTP_X_CSRFTOKEN'" [ref=e1034]:
+            - cell "CSRF_HEADER_NAME" [ref=e1035]
+            - cell "'HTTP_X_CSRFTOKEN'" [ref=e1036]:
+              - generic [ref=e1037]: "'HTTP_X_CSRFTOKEN'"
+          - row "CSRF_TRUSTED_ORIGINS []" [ref=e1038]:
+            - cell "CSRF_TRUSTED_ORIGINS" [ref=e1039]
+            - cell "[]" [ref=e1040]:
+              - generic [ref=e1041]: "[]"
+          - row "CSRF_USE_SESSIONS False" [ref=e1042]:
+            - cell "CSRF_USE_SESSIONS" [ref=e1043]
+            - cell "False" [ref=e1044]:
+              - generic [ref=e1045]: "False"
+          - 'row "DATABASES {''default'': {''ATOMIC_REQUESTS'': False, ''AUTOCOMMIT'': True, ''CONN_HEALTH_CHECKS'': False, ''CONN_MAX_AGE'': 0, ''ENGINE'': ''django.db.backends.sqlite3'', ''HOST'': '''', ''NAME'': WindowsPath(''Z:/coding/RICDapp/.claude/worktrees/inspiring-shockley-d7e655/src/db.sqlite3''), ''OPTIONS'': {}, ''PASSWORD'': ''********************'', ''PORT'': '''', ''TEST'': {''CHARSET'': None, ''COLLATION'': None, ''MIGRATE'': True, ''MIRROR'': None, ''NAME'': None}, ''TIME_ZONE'': None, ''USER'': ''''}}" [ref=e1046]':
+            - cell "DATABASES" [ref=e1047]
+            - 'cell "{''default'': {''ATOMIC_REQUESTS'': False, ''AUTOCOMMIT'': True, ''CONN_HEALTH_CHECKS'': False, ''CONN_MAX_AGE'': 0, ''ENGINE'': ''django.db.backends.sqlite3'', ''HOST'': '''', ''NAME'': WindowsPath(''Z:/coding/RICDapp/.claude/worktrees/inspiring-shockley-d7e655/src/db.sqlite3''), ''OPTIONS'': {}, ''PASSWORD'': ''********************'', ''PORT'': '''', ''TEST'': {''CHARSET'': None, ''COLLATION'': None, ''MIGRATE'': True, ''MIRROR'': None, ''NAME'': None}, ''TIME_ZONE'': None, ''USER'': ''''}}" [ref=e1048]':
+              - generic [ref=e1049]: "{'default': {'ATOMIC_REQUESTS': False, 'AUTOCOMMIT': True, 'CONN_HEALTH_CHECKS': False, 'CONN_MAX_AGE': 0, 'ENGINE': 'django.db.backends.sqlite3', 'HOST': '', 'NAME': WindowsPath('Z:/coding/RICDapp/.claude/worktrees/inspiring-shockley-d7e655/src/db.sqlite3'), 'OPTIONS': {}, 'PASSWORD': '********************', 'PORT': '', 'TEST': {'CHARSET': None, 'COLLATION': None, 'MIGRATE': True, 'MIRROR': None, 'NAME': None}, 'TIME_ZONE': None, 'USER': ''}}"
+          - row "DATABASE_ROUTERS []" [ref=e1050]:
+            - cell "DATABASE_ROUTERS" [ref=e1051]
+            - cell "[]" [ref=e1052]:
+              - generic [ref=e1053]: "[]"
+          - row "DATA_UPLOAD_MAX_MEMORY_SIZE 2621440" [ref=e1054]:
+            - cell "DATA_UPLOAD_MAX_MEMORY_SIZE" [ref=e1055]
+            - cell "2621440" [ref=e1056]:
+              - generic [ref=e1057]: "2621440"
+          - row "DATA_UPLOAD_MAX_NUMBER_FIELDS 1000" [ref=e1058]:
+            - cell "DATA_UPLOAD_MAX_NUMBER_FIELDS" [ref=e1059]
+            - cell "1000" [ref=e1060]:
+              - generic [ref=e1061]: "1000"
+          - row "DATA_UPLOAD_MAX_NUMBER_FILES 100" [ref=e1062]:
+            - cell "DATA_UPLOAD_MAX_NUMBER_FILES" [ref=e1063]
+            - cell "100" [ref=e1064]:
+              - generic [ref=e1065]: "100"
+          - row "DATETIME_FORMAT 'N j, Y, P'" [ref=e1066]:
+            - cell "DATETIME_FORMAT" [ref=e1067]
+            - cell "'N j, Y, P'" [ref=e1068]:
+              - generic [ref=e1069]: "'N j, Y, P'"
+          - row "DATETIME_INPUT_FORMATS ['%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M', '%m/%d/%Y %H:%M:%S', '%m/%d/%Y %H:%M:%S.%f', '%m/%d/%Y %H:%M', '%m/%d/%y %H:%M:%S', '%m/%d/%y %H:%M:%S.%f', '%m/%d/%y %H:%M']" [ref=e1070]:
+            - cell "DATETIME_INPUT_FORMATS" [ref=e1071]
+            - cell "['%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M', '%m/%d/%Y %H:%M:%S', '%m/%d/%Y %H:%M:%S.%f', '%m/%d/%Y %H:%M', '%m/%d/%y %H:%M:%S', '%m/%d/%y %H:%M:%S.%f', '%m/%d/%y %H:%M']" [ref=e1072]:
+              - generic [ref=e1073]: "['%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M', '%m/%d/%Y %H:%M:%S', '%m/%d/%Y %H:%M:%S.%f', '%m/%d/%Y %H:%M', '%m/%d/%y %H:%M:%S', '%m/%d/%y %H:%M:%S.%f', '%m/%d/%y %H:%M']"
+          - row "DATE_FORMAT 'N j, Y'" [ref=e1074]:
+            - cell "DATE_FORMAT" [ref=e1075]
+            - cell "'N j, Y'" [ref=e1076]:
+              - generic [ref=e1077]: "'N j, Y'"
+          - row "DATE_INPUT_FORMATS ['%Y-%m-%d', '%m/%d/%Y', '%m/%d/%y', '%b %d %Y', '%b %d, %Y', '%d %b %Y', '%d %b, %Y', '%B %d %Y', '%B %d, %Y', '%d %B %Y', '%d %B, %Y']" [ref=e1078]:
+            - cell "DATE_INPUT_FORMATS" [ref=e1079]
+            - cell "['%Y-%m-%d', '%m/%d/%Y', '%m/%d/%y', '%b %d %Y', '%b %d, %Y', '%d %b %Y', '%d %b, %Y', '%B %d %Y', '%B %d, %Y', '%d %B %Y', '%d %B, %Y']" [ref=e1080]:
+              - generic [ref=e1081]: "['%Y-%m-%d', '%m/%d/%Y', '%m/%d/%y', '%b %d %Y', '%b %d, %Y', '%d %b %Y', '%d %b, %Y', '%B %d %Y', '%B %d, %Y', '%d %B %Y', '%d %B, %Y']"
+          - row "DEBUG True" [ref=e1082]:
+            - cell "DEBUG" [ref=e1083]
+            - cell "True" [ref=e1084]:
+              - generic [ref=e1085]: "True"
+          - row "DEBUG_PROPAGATE_EXCEPTIONS False" [ref=e1086]:
+            - cell "DEBUG_PROPAGATE_EXCEPTIONS" [ref=e1087]
+            - cell "False" [ref=e1088]:
+              - generic [ref=e1089]: "False"
+          - row "DECIMAL_SEPARATOR '.'" [ref=e1090]:
+            - cell "DECIMAL_SEPARATOR" [ref=e1091]
+            - cell "'.'" [ref=e1092]:
+              - generic [ref=e1093]: "'.'"
+          - row "DEFAULT_AUTO_FIELD 'django.db.models.BigAutoField'" [ref=e1094]:
+            - cell "DEFAULT_AUTO_FIELD" [ref=e1095]
+            - cell "'django.db.models.BigAutoField'" [ref=e1096]:
+              - generic [ref=e1097]: "'django.db.models.BigAutoField'"
+          - row "DEFAULT_CHARSET 'utf-8'" [ref=e1098]:
+            - cell "DEFAULT_CHARSET" [ref=e1099]
+            - cell "'utf-8'" [ref=e1100]:
+              - generic [ref=e1101]: "'utf-8'"
+          - row "DEFAULT_EXCEPTION_REPORTER 'django.views.debug.ExceptionReporter'" [ref=e1102]:
+            - cell "DEFAULT_EXCEPTION_REPORTER" [ref=e1103]
+            - cell "'django.views.debug.ExceptionReporter'" [ref=e1104]:
+              - generic [ref=e1105]: "'django.views.debug.ExceptionReporter'"
+          - row "DEFAULT_EXCEPTION_REPORTER_FILTER 'django.views.debug.SafeExceptionReporterFilter'" [ref=e1106]:
+            - cell "DEFAULT_EXCEPTION_REPORTER_FILTER" [ref=e1107]
+            - cell "'django.views.debug.SafeExceptionReporterFilter'" [ref=e1108]:
+              - generic [ref=e1109]: "'django.views.debug.SafeExceptionReporterFilter'"
+          - row "DEFAULT_FROM_EMAIL 'webmaster@localhost'" [ref=e1110]:
+            - cell "DEFAULT_FROM_EMAIL" [ref=e1111]
+            - cell "'webmaster@localhost'" [ref=e1112]:
+              - generic [ref=e1113]: "'webmaster@localhost'"
+          - row "DEFAULT_INDEX_TABLESPACE ''" [ref=e1114]:
+            - cell "DEFAULT_INDEX_TABLESPACE" [ref=e1115]
+            - cell "''" [ref=e1116]:
+              - generic [ref=e1117]: "''"
+          - row "DEFAULT_TABLESPACE ''" [ref=e1118]:
+            - cell "DEFAULT_TABLESPACE" [ref=e1119]
+            - cell "''" [ref=e1120]:
+              - generic [ref=e1121]: "''"
+          - row "DISALLOWED_USER_AGENTS []" [ref=e1122]:
+            - cell "DISALLOWED_USER_AGENTS" [ref=e1123]
+            - cell "[]" [ref=e1124]:
+              - generic [ref=e1125]: "[]"
+          - row "EMAIL_BACKEND 'django.core.mail.backends.smtp.EmailBackend'" [ref=e1126]:
+            - cell "EMAIL_BACKEND" [ref=e1127]
+            - cell "'django.core.mail.backends.smtp.EmailBackend'" [ref=e1128]:
+              - generic [ref=e1129]: "'django.core.mail.backends.smtp.EmailBackend'"
+          - row "EMAIL_HOST 'localhost'" [ref=e1130]:
+            - cell "EMAIL_HOST" [ref=e1131]
+            - cell "'localhost'" [ref=e1132]:
+              - generic [ref=e1133]: "'localhost'"
+          - row "EMAIL_HOST_PASSWORD '********************'" [ref=e1134]:
+            - cell "EMAIL_HOST_PASSWORD" [ref=e1135]
+            - cell "'********************'" [ref=e1136]:
+              - generic [ref=e1137]: "'********************'"
+          - row "EMAIL_HOST_USER ''" [ref=e1138]:
+            - cell "EMAIL_HOST_USER" [ref=e1139]
+            - cell "''" [ref=e1140]:
+              - generic [ref=e1141]: "''"
+          - row "EMAIL_PORT 25" [ref=e1142]:
+            - cell "EMAIL_PORT" [ref=e1143]
+            - cell "25" [ref=e1144]:
+              - generic [ref=e1145]: "25"
+          - row "EMAIL_SSL_CERTFILE None" [ref=e1146]:
+            - cell "EMAIL_SSL_CERTFILE" [ref=e1147]
+            - cell "None" [ref=e1148]:
+              - generic [ref=e1149]: None
+          - row "EMAIL_SSL_KEYFILE '********************'" [ref=e1150]:
+            - cell "EMAIL_SSL_KEYFILE" [ref=e1151]
+            - cell "'********************'" [ref=e1152]:
+              - generic [ref=e1153]: "'********************'"
+          - row "EMAIL_SUBJECT_PREFIX '[Django] '" [ref=e1154]:
+            - cell "EMAIL_SUBJECT_PREFIX" [ref=e1155]
+            - cell "'[Django] '" [ref=e1156]:
+              - generic [ref=e1157]: "'[Django] '"
+          - row "EMAIL_TIMEOUT None" [ref=e1158]:
+            - cell "EMAIL_TIMEOUT" [ref=e1159]
+            - cell "None" [ref=e1160]:
+              - generic [ref=e1161]: None
+          - row "EMAIL_USE_LOCALTIME False" [ref=e1162]:
+            - cell "EMAIL_USE_LOCALTIME" [ref=e1163]
+            - cell "False" [ref=e1164]:
+              - generic [ref=e1165]: "False"
+          - row "EMAIL_USE_SSL False" [ref=e1166]:
+            - cell "EMAIL_USE_SSL" [ref=e1167]
+            - cell "False" [ref=e1168]:
+              - generic [ref=e1169]: "False"
+          - row "EMAIL_USE_TLS False" [ref=e1170]:
+            - cell "EMAIL_USE_TLS" [ref=e1171]
+            - cell "False" [ref=e1172]:
+              - generic [ref=e1173]: "False"
+          - row "FILE_UPLOAD_DIRECTORY_PERMISSIONS None" [ref=e1174]:
+            - cell "FILE_UPLOAD_DIRECTORY_PERMISSIONS" [ref=e1175]
+            - cell "None" [ref=e1176]:
+              - generic [ref=e1177]: None
+          - row "FILE_UPLOAD_HANDLERS ['django.core.files.uploadhandler.MemoryFileUploadHandler', 'django.core.files.uploadhandler.TemporaryFileUploadHandler']" [ref=e1178]:
+            - cell "FILE_UPLOAD_HANDLERS" [ref=e1179]
+            - cell "['django.core.files.uploadhandler.MemoryFileUploadHandler', 'django.core.files.uploadhandler.TemporaryFileUploadHandler']" [ref=e1180]:
+              - generic [ref=e1181]: "['django.core.files.uploadhandler.MemoryFileUploadHandler', 'django.core.files.uploadhandler.TemporaryFileUploadHandler']"
+          - row "FILE_UPLOAD_MAX_MEMORY_SIZE 2621440" [ref=e1182]:
+            - cell "FILE_UPLOAD_MAX_MEMORY_SIZE" [ref=e1183]
+            - cell "2621440" [ref=e1184]:
+              - generic [ref=e1185]: "2621440"
+          - row "FILE_UPLOAD_PERMISSIONS 420" [ref=e1186]:
+            - cell "FILE_UPLOAD_PERMISSIONS" [ref=e1187]
+            - cell "420" [ref=e1188]:
+              - generic [ref=e1189]: "420"
+          - row "FILE_UPLOAD_TEMP_DIR None" [ref=e1190]:
+            - cell "FILE_UPLOAD_TEMP_DIR" [ref=e1191]
+            - cell "None" [ref=e1192]:
+              - generic [ref=e1193]: None
+          - row "FIRST_DAY_OF_WEEK 0" [ref=e1194]:
+            - cell "FIRST_DAY_OF_WEEK" [ref=e1195]
+            - cell "0" [ref=e1196]:
+              - generic [ref=e1197]: "0"
+          - row "FIXTURE_DIRS []" [ref=e1198]:
+            - cell "FIXTURE_DIRS" [ref=e1199]
+            - cell "[]" [ref=e1200]:
+              - generic [ref=e1201]: "[]"
+          - row "FORCE_SCRIPT_NAME None" [ref=e1202]:
+            - cell "FORCE_SCRIPT_NAME" [ref=e1203]
+            - cell "None" [ref=e1204]:
+              - generic [ref=e1205]: None
+          - row "FORMAT_MODULE_PATH None" [ref=e1206]:
+            - cell "FORMAT_MODULE_PATH" [ref=e1207]
+            - cell "None" [ref=e1208]:
+              - generic [ref=e1209]: None
+          - row "FORMS_URLFIELD_ASSUME_HTTPS True" [ref=e1210]:
+            - cell "FORMS_URLFIELD_ASSUME_HTTPS" [ref=e1211]
+            - cell "True" [ref=e1212]:
+              - generic [ref=e1213]: "True"
+          - row "FORM_RENDERER 'django.forms.renderers.DjangoTemplates'" [ref=e1214]:
+            - cell "FORM_RENDERER" [ref=e1215]
+            - cell "'django.forms.renderers.DjangoTemplates'" [ref=e1216]:
+              - generic [ref=e1217]: "'django.forms.renderers.DjangoTemplates'"
+          - row "IGNORABLE_404_URLS []" [ref=e1218]:
+            - cell "IGNORABLE_404_URLS" [ref=e1219]
+            - cell "[]" [ref=e1220]:
+              - generic [ref=e1221]: "[]"
+          - row "INSTALLED_APPS ['django.contrib.admin', 'django.contrib.auth', 'django.contrib.contenttypes', 'django.contrib.sessions', 'django.contrib.messages', 'django.contrib.staticfiles', 'rest_framework', 'apps.core', 'apps.api', 'apps.ui']" [ref=e1222]:
+            - cell "INSTALLED_APPS" [ref=e1223]
+            - cell "['django.contrib.admin', 'django.contrib.auth', 'django.contrib.contenttypes', 'django.contrib.sessions', 'django.contrib.messages', 'django.contrib.staticfiles', 'rest_framework', 'apps.core', 'apps.api', 'apps.ui']" [ref=e1224]:
+              - generic [ref=e1225]: "['django.contrib.admin', 'django.contrib.auth', 'django.contrib.contenttypes', 'django.contrib.sessions', 'django.contrib.messages', 'django.contrib.staticfiles', 'rest_framework', 'apps.core', 'apps.api', 'apps.ui']"
+          - row "INTERNAL_IPS []" [ref=e1226]:
+            - cell "INTERNAL_IPS" [ref=e1227]
+            - cell "[]" [ref=e1228]:
+              - generic [ref=e1229]: "[]"
+          - row [ref=e1230]:
+            - cell "LANGUAGES" [ref=e1231]
+            - cell [ref=e1232]:
+              - generic [ref=e1233]: "[('af', 'Afrikaans'), ('ar', 'Arabic'), ('ar-dz', 'Algerian Arabic'), ('ast', 'Asturian'), ('az', 'Azerbaijani'), ('bg', 'Bulgarian'), ('be', 'Belarusian'), ('bn', 'Bengali'), ('br', 'Breton'), ('bs', 'Bosnian'), ('ca', 'Catalan'), ('ckb', 'Central Kurdish (Sorani)'), ('cs', 'Czech'), ('cy', 'Welsh'), ('da', 'Danish'), ('de', 'German'), ('dsb', 'Lower Sorbian'), ('el', 'Greek'), ('en', 'English'), ('en-au', 'Australian English'), ('en-gb', 'British English'), ('eo', 'Esperanto'), ('es', 'Spanish'), ('es-ar', 'Argentinian Spanish'), ('es-co', 'Colombian Spanish'), ('es-mx', 'Mexican Spanish'), ('es-ni', 'Nicaraguan Spanish'), ('es-ve', 'Venezuelan Spanish'), ('et', 'Estonian'), ('eu', 'Basque'), ('fa', 'Persian'), ('fi', 'Finnish'), ('fr', 'French'), ('fy', 'Frisian'), ('ga', 'Irish'), ('gd', 'Scottish Gaelic'), ('gl', 'Galician'), ('he', 'Hebrew'), ('hi', 'Hindi'), ('hr', 'Croatian'), ('hsb', 'Upper Sorbian'), ('hu', 'Hungarian'), ('hy', 'Armenian'), ('ia', 'Interlingua'), ('id', 'Indonesian'), ('ig', 'Igbo'), ('io', 'Ido'), ('is', 'Icelandic'), ('it', 'Italian'), ('ja', 'Japanese'), ('ka', 'Georgian'), ('kab', 'Kabyle'), ('kk', 'Kazakh'), ('km', 'Khmer'), ('kn', 'Kannada'), ('ko', 'Korean'), ('ky', 'Kyrgyz'), ('lb', 'Luxembourgish'), ('lt', 'Lithuanian'), ('lv', 'Latvian'), ('mk', 'Macedonian'), ('ml', 'Malayalam'), ('mn', 'Mongolian'), ('mr', 'Marathi'), ('ms', 'Malay'), ('my', 'Burmese'), ('nb', 'Norwegian Bokmål'), ('ne', 'Nepali'), ('nl', 'Dutch'), ('nn', 'Norwegian Nynorsk'), ('os', 'Ossetic'), ('pa', 'Punjabi'), ('pl', 'Polish'), ('pt', 'Portuguese'), ('pt-br', 'Brazilian Portuguese'), ('ro', 'Romanian'), ('ru', 'Russian'), ('sk', 'Slovak'), ('sl', 'Slovenian'), ('sq', 'Albanian'), ('sr', 'Serbian'), ('sr-latn', 'Serbian Latin'), ('sv', 'Swedish'), ('sw', 'Swahili'), ('ta', 'Tamil'), ('te', 'Telugu'), ('tg', 'Tajik'), ('th', 'Thai'), ('tk', 'Turkmen'), ('tr', 'Turkish'), ('tt', 'Tatar'), ('udm', 'Udmurt'), ('ug', 'Uyghur'), ('uk', 'Ukrainian'), ('ur', 'Urdu'), ('uz', 'Uzbek'), ('vi', 'Vietnamese'), ('zh-hans', 'Simplified Chinese'), ('zh-hant', 'Traditional Chinese')]"
+          - row "LANGUAGES_BIDI ['he', 'ar', 'ar-dz', 'ckb', 'fa', 'ug', 'ur']" [ref=e1234]:
+            - cell "LANGUAGES_BIDI" [ref=e1235]
+            - cell "['he', 'ar', 'ar-dz', 'ckb', 'fa', 'ug', 'ur']" [ref=e1236]:
+              - generic [ref=e1237]: "['he', 'ar', 'ar-dz', 'ckb', 'fa', 'ug', 'ur']"
+          - row "LANGUAGE_CODE 'en-us'" [ref=e1238]:
+            - cell "LANGUAGE_CODE" [ref=e1239]
+            - cell "'en-us'" [ref=e1240]:
+              - generic [ref=e1241]: "'en-us'"
+          - row "LANGUAGE_COOKIE_AGE None" [ref=e1242]:
+            - cell "LANGUAGE_COOKIE_AGE" [ref=e1243]
+            - cell "None" [ref=e1244]:
+              - generic [ref=e1245]: None
+          - row "LANGUAGE_COOKIE_DOMAIN None" [ref=e1246]:
+            - cell "LANGUAGE_COOKIE_DOMAIN" [ref=e1247]
+            - cell "None" [ref=e1248]:
+              - generic [ref=e1249]: None
+          - row "LANGUAGE_COOKIE_HTTPONLY False" [ref=e1250]:
+            - cell "LANGUAGE_COOKIE_HTTPONLY" [ref=e1251]
+            - cell "False" [ref=e1252]:
+              - generic [ref=e1253]: "False"
+          - row "LANGUAGE_COOKIE_NAME 'django_language'" [ref=e1254]:
+            - cell "LANGUAGE_COOKIE_NAME" [ref=e1255]
+            - cell "'django_language'" [ref=e1256]:
+              - generic [ref=e1257]: "'django_language'"
+          - row "LANGUAGE_COOKIE_PATH '/'" [ref=e1258]:
+            - cell "LANGUAGE_COOKIE_PATH" [ref=e1259]
+            - cell "'/'" [ref=e1260]:
+              - generic [ref=e1261]: "'/'"
+          - row "LANGUAGE_COOKIE_SAMESITE None" [ref=e1262]:
+            - cell "LANGUAGE_COOKIE_SAMESITE" [ref=e1263]
+            - cell "None" [ref=e1264]:
+              - generic [ref=e1265]: None
+          - row "LANGUAGE_COOKIE_SECURE False" [ref=e1266]:
+            - cell "LANGUAGE_COOKIE_SECURE" [ref=e1267]
+            - cell "False" [ref=e1268]:
+              - generic [ref=e1269]: "False"
+          - row "LOCALE_PATHS []" [ref=e1270]:
+            - cell "LOCALE_PATHS" [ref=e1271]
+            - cell "[]" [ref=e1272]:
+              - generic [ref=e1273]: "[]"
+          - 'row "LOGGING {}" [ref=e1274]':
+            - cell "LOGGING" [ref=e1275]
+            - 'cell "{}" [ref=e1276]':
+              - generic [ref=e1277]: "{}"
+          - row "LOGGING_CONFIG 'logging.config.dictConfig'" [ref=e1278]:
+            - cell "LOGGING_CONFIG" [ref=e1279]
+            - cell "'logging.config.dictConfig'" [ref=e1280]:
+              - generic [ref=e1281]: "'logging.config.dictConfig'"
+          - row "LOGIN_REDIRECT_URL '/dashboard/'" [ref=e1282]:
+            - cell "LOGIN_REDIRECT_URL" [ref=e1283]
+            - cell "'/dashboard/'" [ref=e1284]:
+              - generic [ref=e1285]: "'/dashboard/'"
+          - row "LOGIN_URL '/accounts/login/'" [ref=e1286]:
+            - cell "LOGIN_URL" [ref=e1287]
+            - cell "'/accounts/login/'" [ref=e1288]:
+              - generic [ref=e1289]: "'/accounts/login/'"
+          - row "LOGOUT_REDIRECT_URL '/accounts/login/'" [ref=e1290]:
+            - cell "LOGOUT_REDIRECT_URL" [ref=e1291]
+            - cell "'/accounts/login/'" [ref=e1292]:
+              - generic [ref=e1293]: "'/accounts/login/'"
+          - row "MANAGERS []" [ref=e1294]:
+            - cell "MANAGERS" [ref=e1295]
+            - cell "[]" [ref=e1296]:
+              - generic [ref=e1297]: "[]"
+          - row "MEDIA_ROOT WindowsPath('Z:/coding/RICDapp/.claude/worktrees/inspiring-shockley-d7e655/src/media')" [ref=e1298]:
+            - cell "MEDIA_ROOT" [ref=e1299]
+            - cell "WindowsPath('Z:/coding/RICDapp/.claude/worktrees/inspiring-shockley-d7e655/src/media')" [ref=e1300]:
+              - generic [ref=e1301]: WindowsPath('Z:/coding/RICDapp/.claude/worktrees/inspiring-shockley-d7e655/src/media')
+          - row "MEDIA_URL '/media/'" [ref=e1302]:
+            - cell "MEDIA_URL" [ref=e1303]
+            - cell "'/media/'" [ref=e1304]:
+              - generic [ref=e1305]: "'/media/'"
+          - row "MESSAGE_STORAGE 'django.contrib.messages.storage.fallback.FallbackStorage'" [ref=e1306]:
+            - cell "MESSAGE_STORAGE" [ref=e1307]
+            - cell "'django.contrib.messages.storage.fallback.FallbackStorage'" [ref=e1308]:
+              - generic [ref=e1309]: "'django.contrib.messages.storage.fallback.FallbackStorage'"
+          - row "MIDDLEWARE ['django.middleware.security.SecurityMiddleware', 'django.contrib.sessions.middleware.SessionMiddleware', 'django.middleware.common.CommonMiddleware', 'django.middleware.csrf.CsrfViewMiddleware', 'django.contrib.auth.middleware.AuthenticationMiddleware', 'django.contrib.messages.middleware.MessageMiddleware', 'django.middleware.clickjacking.XFrameOptionsMiddleware']" [ref=e1310]:
+            - cell "MIDDLEWARE" [ref=e1311]
+            - cell "['django.middleware.security.SecurityMiddleware', 'django.contrib.sessions.middleware.SessionMiddleware', 'django.middleware.common.CommonMiddleware', 'django.middleware.csrf.CsrfViewMiddleware', 'django.contrib.auth.middleware.AuthenticationMiddleware', 'django.contrib.messages.middleware.MessageMiddleware', 'django.middleware.clickjacking.XFrameOptionsMiddleware']" [ref=e1312]:
+              - generic [ref=e1313]: "['django.middleware.security.SecurityMiddleware', 'django.contrib.sessions.middleware.SessionMiddleware', 'django.middleware.common.CommonMiddleware', 'django.middleware.csrf.CsrfViewMiddleware', 'django.contrib.auth.middleware.AuthenticationMiddleware', 'django.contrib.messages.middleware.MessageMiddleware', 'django.middleware.clickjacking.XFrameOptionsMiddleware']"
+          - 'row "MIGRATION_MODULES {}" [ref=e1314]':
+            - cell "MIGRATION_MODULES" [ref=e1315]
+            - 'cell "{}" [ref=e1316]':
+              - generic [ref=e1317]: "{}"
+          - row "MONTH_DAY_FORMAT 'F j'" [ref=e1318]:
+            - cell "MONTH_DAY_FORMAT" [ref=e1319]
+            - cell "'F j'" [ref=e1320]:
+              - generic [ref=e1321]: "'F j'"
+          - row "NUMBER_GROUPING 0" [ref=e1322]:
+            - cell "NUMBER_GROUPING" [ref=e1323]
+            - cell "0" [ref=e1324]:
+              - generic [ref=e1325]: "0"
+          - row "PASSWORD_HASHERS '********************'" [ref=e1326]:
+            - cell "PASSWORD_HASHERS" [ref=e1327]
+            - cell "'********************'" [ref=e1328]:
+              - generic [ref=e1329]: "'********************'"
+          - row "PASSWORD_RESET_TIMEOUT '********************'" [ref=e1330]:
+            - cell "PASSWORD_RESET_TIMEOUT" [ref=e1331]
+            - cell "'********************'" [ref=e1332]:
+              - generic [ref=e1333]: "'********************'"
+          - row "PREPEND_WWW False" [ref=e1334]:
+            - cell "PREPEND_WWW" [ref=e1335]
+            - cell "False" [ref=e1336]:
+              - generic [ref=e1337]: "False"
+          - row "ROOT_URLCONF 'ricdapp.urls'" [ref=e1338]:
+            - cell "ROOT_URLCONF" [ref=e1339]
+            - cell "'ricdapp.urls'" [ref=e1340]:
+              - generic [ref=e1341]: "'ricdapp.urls'"
+          - row "SECRET_KEY '********************'" [ref=e1342]:
+            - cell "SECRET_KEY" [ref=e1343]
+            - cell "'********************'" [ref=e1344]:
+              - generic [ref=e1345]: "'********************'"
+          - row "SECRET_KEY_FALLBACKS '********************'" [ref=e1346]:
+            - cell "SECRET_KEY_FALLBACKS" [ref=e1347]
+            - cell "'********************'" [ref=e1348]:
+              - generic [ref=e1349]: "'********************'"
+          - row "SECURE_CONTENT_TYPE_NOSNIFF True" [ref=e1350]:
+            - cell "SECURE_CONTENT_TYPE_NOSNIFF" [ref=e1351]
+            - cell "True" [ref=e1352]:
+              - generic [ref=e1353]: "True"
+          - row "SECURE_CROSS_ORIGIN_OPENER_POLICY 'same-origin'" [ref=e1354]:
+            - cell "SECURE_CROSS_ORIGIN_OPENER_POLICY" [ref=e1355]
+            - cell "'same-origin'" [ref=e1356]:
+              - generic [ref=e1357]: "'same-origin'"
+          - row "SECURE_HSTS_INCLUDE_SUBDOMAINS False" [ref=e1358]:
+            - cell "SECURE_HSTS_INCLUDE_SUBDOMAINS" [ref=e1359]
+            - cell "False" [ref=e1360]:
+              - generic [ref=e1361]: "False"
+          - row "SECURE_HSTS_PRELOAD False" [ref=e1362]:
+            - cell "SECURE_HSTS_PRELOAD" [ref=e1363]
+            - cell "False" [ref=e1364]:
+              - generic [ref=e1365]: "False"
+          - row "SECURE_HSTS_SECONDS 0" [ref=e1366]:
+            - cell "SECURE_HSTS_SECONDS" [ref=e1367]
+            - cell "0" [ref=e1368]:
+              - generic [ref=e1369]: "0"
+          - row "SECURE_PROXY_SSL_HEADER None" [ref=e1370]:
+            - cell "SECURE_PROXY_SSL_HEADER" [ref=e1371]
+            - cell "None" [ref=e1372]:
+              - generic [ref=e1373]: None
+          - row "SECURE_REDIRECT_EXEMPT []" [ref=e1374]:
+            - cell "SECURE_REDIRECT_EXEMPT" [ref=e1375]
+            - cell "[]" [ref=e1376]:
+              - generic [ref=e1377]: "[]"
+          - row "SECURE_REFERRER_POLICY 'same-origin'" [ref=e1378]:
+            - cell "SECURE_REFERRER_POLICY" [ref=e1379]
+            - cell "'same-origin'" [ref=e1380]:
+              - generic [ref=e1381]: "'same-origin'"
+          - row "SECURE_SSL_HOST None" [ref=e1382]:
+            - cell "SECURE_SSL_HOST" [ref=e1383]
+            - cell "None" [ref=e1384]:
+              - generic [ref=e1385]: None
+          - row "SECURE_SSL_REDIRECT False" [ref=e1386]:
+            - cell "SECURE_SSL_REDIRECT" [ref=e1387]
+            - cell "False" [ref=e1388]:
+              - generic [ref=e1389]: "False"
+          - row "SERVER_EMAIL 'root@localhost'" [ref=e1390]:
+            - cell "SERVER_EMAIL" [ref=e1391]
+            - cell "'root@localhost'" [ref=e1392]:
+              - generic [ref=e1393]: "'root@localhost'"
+          - row "SESSION_CACHE_ALIAS 'default'" [ref=e1394]:
+            - cell "SESSION_CACHE_ALIAS" [ref=e1395]
+            - cell "'default'" [ref=e1396]:
+              - generic [ref=e1397]: "'default'"
+          - row "SESSION_COOKIE_AGE 1209600" [ref=e1398]:
+            - cell "SESSION_COOKIE_AGE" [ref=e1399]
+            - cell "1209600" [ref=e1400]:
+              - generic [ref=e1401]: "1209600"
+          - row "SESSION_COOKIE_DOMAIN None" [ref=e1402]:
+            - cell "SESSION_COOKIE_DOMAIN" [ref=e1403]
+            - cell "None" [ref=e1404]:
+              - generic [ref=e1405]: None
+          - row "SESSION_COOKIE_HTTPONLY True" [ref=e1406]:
+            - cell "SESSION_COOKIE_HTTPONLY" [ref=e1407]
+            - cell "True" [ref=e1408]:
+              - generic [ref=e1409]: "True"
+          - row "SESSION_COOKIE_NAME 'sessionid'" [ref=e1410]:
+            - cell "SESSION_COOKIE_NAME" [ref=e1411]
+            - cell "'sessionid'" [ref=e1412]:
+              - generic [ref=e1413]: "'sessionid'"
+          - row "SESSION_COOKIE_PATH '/'" [ref=e1414]:
+            - cell "SESSION_COOKIE_PATH" [ref=e1415]
+            - cell "'/'" [ref=e1416]:
+              - generic [ref=e1417]: "'/'"
+          - row "SESSION_COOKIE_SAMESITE 'Lax'" [ref=e1418]:
+            - cell "SESSION_COOKIE_SAMESITE" [ref=e1419]
+            - cell "'Lax'" [ref=e1420]:
+              - generic [ref=e1421]: "'Lax'"
+          - row "SESSION_COOKIE_SECURE False" [ref=e1422]:
+            - cell "SESSION_COOKIE_SECURE" [ref=e1423]
+            - cell "False" [ref=e1424]:
+              - generic [ref=e1425]: "False"
+          - row "SESSION_ENGINE 'django.contrib.sessions.backends.db'" [ref=e1426]:
+            - cell "SESSION_ENGINE" [ref=e1427]
+            - cell "'django.contrib.sessions.backends.db'" [ref=e1428]:
+              - generic [ref=e1429]: "'django.contrib.sessions.backends.db'"
+          - row "SESSION_EXPIRE_AT_BROWSER_CLOSE False" [ref=e1430]:
+            - cell "SESSION_EXPIRE_AT_BROWSER_CLOSE" [ref=e1431]
+            - cell "False" [ref=e1432]:
+              - generic [ref=e1433]: "False"
+          - row "SESSION_FILE_PATH None" [ref=e1434]:
+            - cell "SESSION_FILE_PATH" [ref=e1435]
+            - cell "None" [ref=e1436]:
+              - generic [ref=e1437]: None
+          - row "SESSION_SAVE_EVERY_REQUEST False" [ref=e1438]:
+            - cell "SESSION_SAVE_EVERY_REQUEST" [ref=e1439]
+            - cell "False" [ref=e1440]:
+              - generic [ref=e1441]: "False"
+          - row "SESSION_SERIALIZER 'django.contrib.sessions.serializers.JSONSerializer'" [ref=e1442]:
+            - cell "SESSION_SERIALIZER" [ref=e1443]
+            - cell "'django.contrib.sessions.serializers.JSONSerializer'" [ref=e1444]:
+              - generic [ref=e1445]: "'django.contrib.sessions.serializers.JSONSerializer'"
+          - row "SETTINGS_MODULE 'ricdapp.settings'" [ref=e1446]:
+            - cell "SETTINGS_MODULE" [ref=e1447]
+            - cell "'ricdapp.settings'" [ref=e1448]:
+              - generic [ref=e1449]: "'ricdapp.settings'"
+          - row "SHORT_DATETIME_FORMAT 'm/d/Y P'" [ref=e1450]:
+            - cell "SHORT_DATETIME_FORMAT" [ref=e1451]
+            - cell "'m/d/Y P'" [ref=e1452]:
+              - generic [ref=e1453]: "'m/d/Y P'"
+          - row "SHORT_DATE_FORMAT 'm/d/Y'" [ref=e1454]:
+            - cell "SHORT_DATE_FORMAT" [ref=e1455]
+            - cell "'m/d/Y'" [ref=e1456]:
+              - generic [ref=e1457]: "'m/d/Y'"
+          - row "SIGNING_BACKEND 'django.core.signing.TimestampSigner'" [ref=e1458]:
+            - cell "SIGNING_BACKEND" [ref=e1459]
+            - cell "'django.core.signing.TimestampSigner'" [ref=e1460]:
+              - generic [ref=e1461]: "'django.core.signing.TimestampSigner'"
+          - row "SILENCED_SYSTEM_CHECKS []" [ref=e1462]:
+            - cell "SILENCED_SYSTEM_CHECKS" [ref=e1463]
+            - cell "[]" [ref=e1464]:
+              - generic [ref=e1465]: "[]"
+          - row "STATICFILES_DIRS []" [ref=e1466]:
+            - cell "STATICFILES_DIRS" [ref=e1467]
+            - cell "[]" [ref=e1468]:
+              - generic [ref=e1469]: "[]"
+          - row "STATICFILES_FINDERS ['django.contrib.staticfiles.finders.FileSystemFinder', 'django.contrib.staticfiles.finders.AppDirectoriesFinder']" [ref=e1470]:
+            - cell "STATICFILES_FINDERS" [ref=e1471]
+            - cell "['django.contrib.staticfiles.finders.FileSystemFinder', 'django.contrib.staticfiles.finders.AppDirectoriesFinder']" [ref=e1472]:
+              - generic [ref=e1473]: "['django.contrib.staticfiles.finders.FileSystemFinder', 'django.contrib.staticfiles.finders.AppDirectoriesFinder']"
+          - row "STATIC_ROOT None" [ref=e1474]:
+            - cell "STATIC_ROOT" [ref=e1475]
+            - cell "None" [ref=e1476]:
+              - generic [ref=e1477]: None
+          - row "STATIC_URL '/static/'" [ref=e1478]:
+            - cell "STATIC_URL" [ref=e1479]
+            - cell "'/static/'" [ref=e1480]:
+              - generic [ref=e1481]: "'/static/'"
+          - 'row "STORAGES {''default'': {''BACKEND'': ''django.core.files.storage.FileSystemStorage''}, ''staticfiles'': {''BACKEND'': ''django.contrib.staticfiles.storage.StaticFilesStorage''}}" [ref=e1482]':
+            - cell "STORAGES" [ref=e1483]
+            - 'cell "{''default'': {''BACKEND'': ''django.core.files.storage.FileSystemStorage''}, ''staticfiles'': {''BACKEND'': ''django.contrib.staticfiles.storage.StaticFilesStorage''}}" [ref=e1484]':
+              - generic [ref=e1485]: "{'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'}, 'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'}}"
+          - 'row "TEMPLATES [{''APP_DIRS'': True, ''BACKEND'': ''django.template.backends.django.DjangoTemplates'', ''DIRS'': [WindowsPath(''Z:/coding/RICDapp/.claude/worktrees/inspiring-shockley-d7e655/src/templates'')], ''OPTIONS'': {''context_processors'': [''django.template.context_processors.debug'', ''django.template.context_processors.request'', ''django.contrib.auth.context_processors.auth'', ''django.contrib.messages.context_processors.messages'']}}]" [ref=e1486]':
+            - cell "TEMPLATES" [ref=e1487]
+            - 'cell "[{''APP_DIRS'': True, ''BACKEND'': ''django.template.backends.django.DjangoTemplates'', ''DIRS'': [WindowsPath(''Z:/coding/RICDapp/.claude/worktrees/inspiring-shockley-d7e655/src/templates'')], ''OPTIONS'': {''context_processors'': [''django.template.context_processors.debug'', ''django.template.context_processors.request'', ''django.contrib.auth.context_processors.auth'', ''django.contrib.messages.context_processors.messages'']}}]" [ref=e1488]':
+              - generic [ref=e1489]: "[{'APP_DIRS': True, 'BACKEND': 'django.template.backends.django.DjangoTemplates', 'DIRS': [WindowsPath('Z:/coding/RICDapp/.claude/worktrees/inspiring-shockley-d7e655/src/templates')], 'OPTIONS': {'context_processors': ['django.template.context_processors.debug', 'django.template.context_processors.request', 'django.contrib.auth.context_processors.auth', 'django.contrib.messages.context_processors.messages']}}]"
+          - row "TEST_NON_SERIALIZED_APPS []" [ref=e1490]:
+            - cell "TEST_NON_SERIALIZED_APPS" [ref=e1491]
+            - cell "[]" [ref=e1492]:
+              - generic [ref=e1493]: "[]"
+          - row "TEST_RUNNER 'django.test.runner.DiscoverRunner'" [ref=e1494]:
+            - cell "TEST_RUNNER" [ref=e1495]
+            - cell "'django.test.runner.DiscoverRunner'" [ref=e1496]:
+              - generic [ref=e1497]: "'django.test.runner.DiscoverRunner'"
+          - row "THOUSAND_SEPARATOR ','" [ref=e1498]:
+            - cell "THOUSAND_SEPARATOR" [ref=e1499]
+            - cell "','" [ref=e1500]:
+              - generic [ref=e1501]: "','"
+          - row "TIME_FORMAT 'P'" [ref=e1502]:
+            - cell "TIME_FORMAT" [ref=e1503]
+            - cell "'P'" [ref=e1504]:
+              - generic [ref=e1505]: "'P'"
+          - row "TIME_INPUT_FORMATS ['%H:%M:%S', '%H:%M:%S.%f', '%H:%M']" [ref=e1506]:
+            - cell "TIME_INPUT_FORMATS" [ref=e1507]
+            - cell "['%H:%M:%S', '%H:%M:%S.%f', '%H:%M']" [ref=e1508]:
+              - generic [ref=e1509]: "['%H:%M:%S', '%H:%M:%S.%f', '%H:%M']"
+          - row "TIME_ZONE 'Australia/Brisbane'" [ref=e1510]:
+            - cell "TIME_ZONE" [ref=e1511]
+            - cell "'Australia/Brisbane'" [ref=e1512]:
+              - generic [ref=e1513]: "'Australia/Brisbane'"
+          - row "USE_I18N True" [ref=e1514]:
+            - cell "USE_I18N" [ref=e1515]
+            - cell "True" [ref=e1516]:
+              - generic [ref=e1517]: "True"
+          - row "USE_THOUSAND_SEPARATOR False" [ref=e1518]:
+            - cell "USE_THOUSAND_SEPARATOR" [ref=e1519]
+            - cell "False" [ref=e1520]:
+              - generic [ref=e1521]: "False"
+          - row "USE_TZ True" [ref=e1522]:
+            - cell "USE_TZ" [ref=e1523]
+            - cell "True" [ref=e1524]:
+              - generic [ref=e1525]: "True"
+          - row "USE_X_FORWARDED_HOST False" [ref=e1526]:
+            - cell "USE_X_FORWARDED_HOST" [ref=e1527]
+            - cell "False" [ref=e1528]:
+              - generic [ref=e1529]: "False"
+          - row "USE_X_FORWARDED_PORT False" [ref=e1530]:
+            - cell "USE_X_FORWARDED_PORT" [ref=e1531]
+            - cell "False" [ref=e1532]:
+              - generic [ref=e1533]: "False"
+          - row "WSGI_APPLICATION 'ricdapp.wsgi.application'" [ref=e1534]:
+            - cell "WSGI_APPLICATION" [ref=e1535]
+            - cell "'ricdapp.wsgi.application'" [ref=e1536]:
+              - generic [ref=e1537]: "'ricdapp.wsgi.application'"
+          - row "X_FRAME_OPTIONS 'DENY'" [ref=e1538]:
+            - cell "X_FRAME_OPTIONS" [ref=e1539]
+            - cell "'DENY'" [ref=e1540]:
+              - generic [ref=e1541]: "'DENY'"
+          - row "YEAR_MONTH_FORMAT 'F Y'" [ref=e1542]:
+            - cell "YEAR_MONTH_FORMAT" [ref=e1543]
+            - cell "'F Y'" [ref=e1544]:
+              - generic [ref=e1545]: "'F Y'"
+  - contentinfo [ref=e1546]:
+    - paragraph [ref=e1547]:
+      - text: You’re seeing this error because you have
+      - code [ref=e1548]: DEBUG = True
+      - text: in your Django settings file. Change that to
+      - code [ref=e1549]: "False"
+      - text: ", and Django will display a standard page generated by the handler for this status code."

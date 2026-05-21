@@ -44,7 +44,7 @@ ROOT_URLCONF = 'ricdapp.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates', BASE_DIR / 'apps' / 'ui' / 'templates'],
+        'DIRS': [BASE_DIR / 'apps' / 'ui' / 'templates', BASE_DIR / 'templates'],
         'APP_DIRS': False,
         'OPTIONS': {
             'context_processors': [
