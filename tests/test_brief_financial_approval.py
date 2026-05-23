@@ -147,8 +147,7 @@ class TestBriefFinancialApprovalPreCondition:
             funding_agreement=funding_agreement,
             schedule_number=1,
             payment_rule=payment_rule,
-            status="DRAFT",
-            amount=approved_bfa.funding_amount
+            status="DRAFT"
         )
         assert fs.id is not None
 
@@ -166,6 +165,7 @@ class TestBriefFinancialApprovalPreCondition:
             state=Project.State.PROSPECTIVE
         )
         fs = FundingSchedule(
+            project=project_no_bfa,
             funding_agreement=funding_agreement,
             schedule_number=1,
             payment_rule=payment_rule,

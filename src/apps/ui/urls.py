@@ -195,6 +195,8 @@ urlpatterns = [
     path('projects/<int:project_pk>/works/<int:pk>/', views.crud_views.WorkDetailView.as_view(), name='work_detail'),
     path('projects/<int:project_pk>/works/<int:pk>/edit/', views.crud_views.WorkUpdateView.as_view(), name='work_edit'),
     path('projects/<int:project_pk>/works/<int:pk>/delete/', views.crud_views.WorkDeleteView.as_view(), name='work_delete'),
+    path('projects/<int:project_pk>/works/<int:pk>/apply-group/', views.crud_views.WorkStepApplyGroupView.as_view(), name='work_step_apply_group'),
+    path('projects/<int:project_pk>/works/<int:work_pk>/steps/<int:pk>/edit/', views.crud_views.WorkStepUpdateView.as_view(), name='work_step_edit'),
 
     # Addresses (nested under project — issue #18)
     path('projects/<int:project_pk>/addresses/', views.crud_views.AddressListView.as_view(), name='address_list'),
@@ -214,8 +216,75 @@ urlpatterns = [
     path('notices/<int:pk>/delete/', views.notice_views.notice_delete, name='notice_delete'),
     path('notices/<int:pk>/remove-target/', views.notice_views.notice_remove_target, name='notice_remove_target'),
 
+    # Construction Methods CRUD (Maintenance)
+    path('construction-methods/', views.crud_views.ConstructionMethodListView.as_view(), name='construction_method_list'),
+    path('construction-methods/create/', views.crud_views.ConstructionMethodCreateView.as_view(), name='construction_method_create'),
+    path('construction-methods/<int:pk>/edit/', views.crud_views.ConstructionMethodUpdateView.as_view(), name='construction_method_edit'),
+    path('construction-methods/<int:pk>/delete/', views.crud_views.ConstructionMethodDeleteView.as_view(), name='construction_method_delete'),
+
+    # Forward RPF Agreements CRUD
+    path('agreements/forward-rpf/', views.crud_views.ForwardRPFListView.as_view(), name='forward_rpf_list'),
+    path('agreements/forward-rpf/create/', views.crud_views.ForwardRPFCreateView.as_view(), name='forward_rpf_create'),
+    path('agreements/forward-rpf/<int:pk>/', views.crud_views.ForwardRPFDetailView.as_view(), name='forward_rpf_detail'),
+    path('agreements/forward-rpf/<int:pk>/edit/', views.crud_views.ForwardRPFUpdateView.as_view(), name='forward_rpf_edit'),
+    path('agreements/forward-rpf/<int:pk>/delete/', views.crud_views.ForwardRPFDeleteView.as_view(), name='forward_rpf_delete'),
+
+    # Interim FRP Agreements CRUD
+    path('agreements/interim-frp/', views.crud_views.InterimFRPListView.as_view(), name='interim_frp_list'),
+    path('agreements/interim-frp/create/', views.crud_views.InterimFRPCreateView.as_view(), name='interim_frp_create'),
+    path('agreements/interim-frp/<int:pk>/', views.crud_views.InterimFRPDetailView.as_view(), name='interim_frp_detail'),
+    path('agreements/interim-frp/<int:pk>/edit/', views.crud_views.InterimFRPUpdateView.as_view(), name='interim_frp_edit'),
+    path('agreements/interim-frp/<int:pk>/delete/', views.crud_views.InterimFRPDeleteView.as_view(), name='interim_frp_delete'),
+
+    # Monthly Tracker (per-council)
+    path('monthly-trackers/', views.tracker_views.MonthlyTrackerListView.as_view(), name='monthly_tracker_list'),
+    path('monthly-trackers/council/<int:council_pk>/open/', views.tracker_views.MonthlyTrackerOpenOrCreateView.as_view(), name='monthly_tracker_open'),
+    path('monthly-trackers/<int:pk>/', views.tracker_views.MonthlyTrackerDetailView.as_view(), name='monthly_tracker_detail'),
+    path('monthly-trackers/<int:pk>/submit/', views.tracker_views.MonthlyTrackerSubmitView.as_view(), name='monthly_tracker_submit'),
+    path('monthly-trackers/<int:pk>/review/', views.tracker_views.MonthlyTrackerReviewView.as_view(), name='monthly_tracker_review'),
+
+    # Quarterly Report (per-council)
+    path('quarterly-reports/', views.tracker_views.QuarterlyReportListView.as_view(), name='quarterly_report_global_list'),
+    path('quarterly-reports/council/<int:council_pk>/open/', views.tracker_views.QuarterlyReportOpenOrCreateView.as_view(), name='quarterly_report_open'),
+    path('quarterly-reports/<int:pk>/', views.tracker_views.QuarterlyReportDetailView.as_view(), name='quarterly_report_detail'),
+    path('quarterly-reports/<int:pk>/submit/', views.tracker_views.QuarterlyReportSubmitView.as_view(), name='quarterly_report_submit'),
+    path('quarterly-reports/<int:pk>/approve/', views.tracker_views.QuarterlyReportApproveView.as_view(), name='quarterly_report_approve'),
+
+    # Tracker config (maintenance)
+    path('maintenance/tracker-config/', views.tracker_views.CouncilTrackerConfigListView.as_view(), name='tracker_config_list'),
+    path('maintenance/tracker-config/<int:council_pk>/edit/', views.tracker_views.CouncilTrackerConfigUpdateView.as_view(), name='tracker_config_edit'),
+
+    # Stage Item Definitions (Maintenance)
+    path('maintenance/stage-items/', views.stage_views.StageItemDefinitionListView.as_view(), name='stage_item_definition_list'),
+    path('maintenance/stage-items/create/', views.stage_views.StageItemDefinitionCreateView.as_view(), name='stage_item_definition_create'),
+    path('maintenance/stage-items/<int:pk>/edit/', views.stage_views.StageItemDefinitionUpdateView.as_view(), name='stage_item_definition_edit'),
+    path('maintenance/stage-items/<int:pk>/delete/', views.stage_views.StageItemDefinitionDeleteView.as_view(), name='stage_item_definition_delete'),
+
+    # Stage Item Groups (Maintenance)
+    path('maintenance/stage-groups/', views.stage_views.StageItemGroupListView.as_view(), name='stage_item_group_list'),
+    path('maintenance/stage-groups/create/', views.stage_views.StageItemGroupCreateView.as_view(), name='stage_item_group_create'),
+    path('maintenance/stage-groups/<int:pk>/', views.stage_views.StageItemGroupDetailView.as_view(), name='stage_item_group_detail'),
+    path('maintenance/stage-groups/<int:pk>/edit/', views.stage_views.StageItemGroupUpdateView.as_view(), name='stage_item_group_edit'),
+    path('maintenance/stage-groups/<int:pk>/delete/', views.stage_views.StageItemGroupDeleteView.as_view(), name='stage_item_group_delete'),
+    path('maintenance/stage-groups/<int:group_pk>/items/add/', views.stage_views.StageItemGroupItemCreateView.as_view(), name='stage_item_group_item_create'),
+    path('maintenance/stage-group-items/<int:pk>/edit/', views.stage_views.StageItemGroupItemUpdateView.as_view(), name='stage_item_group_item_edit'),
+    path('maintenance/stage-group-items/<int:pk>/delete/', views.stage_views.StageItemGroupItemDeleteView.as_view(), name='stage_item_group_item_delete'),
+
+    # Stage Report flow (per-project + per-stage open-or-create -> single canonical grid view)
+    path('projects/<int:project_pk>/stage-reports/<str:stage_type>/open/', views.stage_views.StageReportOpenOrCreateView.as_view(), name='stage_report_open'),
+    path('stage-reports/<int:pk>/', views.stage_views.StageReportGridView.as_view(), name='stage_report_grid'),
+    path('stage-reports/<int:pk>/submit/', views.stage_views.StageReportSubmitView.as_view(), name='stage_report_submit'),
+    path('stage-reports/<int:pk>/endorse/', views.stage_views.StageReportEndorseView.as_view(), name='stage_report_endorse'),
+    path('stage-reports/<int:pk>/assess/', views.stage_views.StageReportAssessView.as_view(), name='stage_report_assess'),
+    path('stage-reports/<int:pk>/approve/', views.stage_views.StageReportApproveView.as_view(), name='stage_report_approve'),
+    path('stage-reports/<int:pk>/reject/', views.stage_views.StageReportRejectView.as_view(), name='stage_report_reject'),
+    path('stage-reports/items/<int:item_pk>/attachments/add/', views.stage_views.StageReportAttachmentAddView.as_view(), name='stage_report_attachment_add'),
+    path('stage-reports/attachments/<int:pk>/delete/', views.stage_views.StageReportAttachmentDeleteView.as_view(), name='stage_report_attachment_delete'),
+
     # Other existing views
     path('reports/', views.reports_views.reports_dashboard_view, name='reports_dashboard'),
+    path('reports/monthly/', views.reports_views.monthly_report_council_select, name='monthly_report_select'),
+    path('reports/monthly/<int:council_pk>/', views.reports_views.monthly_report_view, name='monthly_report'),
     path('land-infra/', views.land_infra_views.land_projects_list_view, name='land_projects_list'),
     path('documents/', views.documents_views.documents_list_view, name='documents_list'),
 ]

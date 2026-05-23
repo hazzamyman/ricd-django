@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Quarterly Reports{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Quarterly Reports</h2>
+  {% if councils %}
+  <div class="dropdown">
+    <button class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown">Open Report for Council</button>
+    <ul class="dropdown-menu">
+      {% for c in councils %}
+        <li><a class="dropdown-item" href="{% url 'ui:quarterly_report_open' c.pk %}">{{ c.name }}</a></li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+<div class="card"><div class="card-body p-0">
+<table class="table table-hover mb-0">
+  <thead class="table-light"><tr><th>Council</th><th>Period</th><th>Status</th><th>Submitted</th><th>Approved</th><th></th></tr></thead>
+  <tbody>
+  {% for r in reports %}
+    <tr>
+      <td>{{ r.council.name }}</td>
+      <td>Q{{ r.quarter }} {{ r.year }} ({{ r.quarter_label }})</td>
+      <td><span class="badge bg-{% if r.status == 'DRAFT' %}secondary{% elif r.status == 'IN_PROGRESS' %}warning{% elif r.status == 'SUBMITTED' %}info{% else %}success{% endif %}">{{ r.get_status_display }}</span></td>
+      <td>{{ r.submitted_at|default:"&mdash;" }}</td>
+      <td>{{ r.approved_at|default:"&mdash;" }}</td>
+      <td><a href="{% url 'ui:quarterly_report_detail' r.pk %}" class="btn btn-outline-secondary btn-sm">Open</a></td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="6" class="text-center text-muted py-3">No quarterly reports yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div></div>
+{% endblock %}

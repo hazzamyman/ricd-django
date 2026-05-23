@@ -117,8 +117,7 @@ class TestPaymentRuleImmutability:
             funding_agreement=agreement,
             schedule_number=1,
             payment_rule=split_payment_rule,
-            status="DRAFT",
-            amount=Decimal("1000000.00")
+            status="DRAFT"
         )
         assert split_payment_rule.id in FundingSchedule.objects.values_list('payment_rule', flat=True)
 

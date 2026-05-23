@@ -22,7 +22,7 @@ class TestFundingScheduleCreateView:
         Profile.objects.create(
             user=user,
             council=council,
-            officer_role=Profile.OfficerRole.SENIOR_OFFICER
+            officer_role=Profile.OfficerRole.MANAGER
         )
         client.force_login(user)
         return client
@@ -46,9 +46,7 @@ class TestFundingScheduleCreateView:
         )
         response = funding_create_client.post('/funding-schedules/create/', {
             'project': project.id,
-            'amount': '500000',
-            'contingency': '50000',
-            'payment_split': '30/60/10',
+            'schedule_number': 1,
             'status': 'DRAFT',
         }, follow=True)
         assert response.status_code in [200, 302]
@@ -70,7 +68,7 @@ class TestFundingScheduleListView:
         user = User.objects.create_user(username='funding_lister', password='test123')
         Profile.objects.create(
             user=user,
-            officer_role=Profile.OfficerRole.SENIOR_OFFICER
+            officer_role=Profile.OfficerRole.MANAGER
         )
         client.force_login(user)
         return client
@@ -98,7 +96,7 @@ class TestFundingScheduleDeleteView:
         user = User.objects.create_user(username='funding_deleter', password='test123')
         Profile.objects.create(
             user=user,
-            officer_role=Profile.OfficerRole.SENIOR_OFFICER
+            officer_role=Profile.OfficerRole.MANAGER
         )
         client.force_login(user)
         return client
@@ -129,7 +127,7 @@ class TestWorkFundingView:
         user = User.objects.create_user(username='work_funder', password='test123')
         Profile.objects.create(
             user=user,
-            officer_role=Profile.OfficerRole.SENIOR_OFFICER
+            officer_role=Profile.OfficerRole.MANAGER
         )
         client.force_login(user)
         return client
@@ -173,7 +171,7 @@ class TestFundingCalculations:
         """Test contingency shows correctly"""
         response = calc_client.get(f'/funding/')
         if response.status_code == 200:
-            assert funding_schedule.contingency == Decimal('50000')
+            assert Decimal('0') == Decimal('50000')
 
 
 @pytest.mark.django_db
@@ -186,7 +184,7 @@ class TestFundingDualTrack:
         user = User.objects.create_user(username='dual_funder', password='test123')
         Profile.objects.create(
             user=user,
-            officer_role=Profile.OfficerRole.SENIOR_OFFICER
+            officer_role=Profile.OfficerRole.MANAGER
         )
         client.force_login(user)
         return client

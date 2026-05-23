@@ -356,7 +356,7 @@ def unlock_next_payment_on_report_approval(sender, instance, created, **kwargs):
     unlock the next payment in the FundingSchedule by setting its status to READY.
     """
     model_name = sender._meta.model_name.lower()
-    if model_name not in ['stage', 'report']:
+    if model_name not in ['stage', 'stagereport', 'report']:
         return
     if not hasattr(instance, 'status') or instance.status != 'APPROVED':
         return
@@ -382,5 +382,33 @@ def unlock_next_payment_on_report_approval(sender, instance, created, **kwargs):
         if next_payment:
             next_payment.status = Payment.Status.RECOMMENDED
             next_payment.save(update_fields=['status', 'updated_at'])
+    except Exception:
+        pass
+
+
+# ---------------------------------------------------------------------------
+# WorkStep forecast recalculation — fires when a Work's start date changes
+# ---------------------------------------------------------------------------
+
+@receiver(post_save, sender='core.Work')
+def recalculate_work_forecast(sender, instance, **kwargs):
+    """Re-run rolling forecast whenever actual_start_date is updated."""
+    if instance.cashflow_method != 'WORKSTEP':
+        return
+    if not instance.steps.exists():
+        return
+    try:
+        from apps.core.services.workstep_forecast import recalculate_forecast
+        recalculate_forecast(instance)
+    except Exception:
+        pass
+
+
+@receiver(post_save, sender='core.WorkStep')
+def recalculate_on_step_completion(sender, instance, **kwargs):
+    """Re-run rolling forecast when a step's actual_completion_date is set."""
+    try:
+        from apps.core.services.workstep_forecast import recalculate_forecast
+        recalculate_forecast(instance.work)
     except Exception:
         pass

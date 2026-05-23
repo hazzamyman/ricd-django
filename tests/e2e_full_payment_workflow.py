@@ -82,7 +82,6 @@ class TestEndToEndPaymentWorkflow:
             schedule_number=1,
             payment_rule=rule,
             status="DRAFT",
-            amount=Decimal("1000000.00"),
             project=project
         )
         assert schedule.status == "DRAFT"
@@ -186,7 +185,6 @@ class TestEndToEndPaymentWorkflow:
             schedule_number=1,
             payment_rule=rule,
             status="EXECUTED",
-            amount=Decimal("3000000.00"),
             project=project
         )
 
@@ -301,7 +299,6 @@ class TestEndToEndPaymentWorkflow:
             schedule_number=1,
             payment_rule=rule,
             status="ACTIVE",
-            amount=Decimal("2000000.00"),
             project=project
         )
 
@@ -311,7 +308,6 @@ class TestEndToEndPaymentWorkflow:
             schedule_number=2,
             payment_rule=rule,
             status="EXECUTED",
-            amount=Decimal("2200000.00"),
             replaces_schedule=original_schedule,
             project=project
         )

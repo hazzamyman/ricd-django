@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required
 from apps.core.models import Project
 from apps.core.models import Program
 from apps.core.models import Council
-from apps.core.models import FundingSchedule
+from apps.core.models import FundingSchedule, WorkFunding
 from apps.core.models import MonthlyTracker, QuarterlyReport, StageReport
 from datetime import date
 
@@ -99,10 +99,10 @@ def dashboard_view(request):
     overdue_projects = projects.filter(status_flag=Project.StatusFlag.OVERDUE).count()
     on_track_projects = projects.filter(status_flag=Project.StatusFlag.ON_TRACK).count()
     
-    # Budget metrics (total funding across all funding schedules)
-    total_budget = FundingSchedule.objects.filter(
-        project__in=projects
-    ).aggregate(total=Sum('total_funding'))['total'] or 0
+    # Budget metrics (total funding from WorkFunding allocations)
+    total_budget = WorkFunding.objects.filter(
+        funding_schedule__project__in=projects
+    ).aggregate(total=Sum('amount'))['total'] or 0
     
     # Active projects (not completed)
     active_projects = projects.exclude(
@@ -152,10 +152,10 @@ def cashflow_view(request):
         state=Project.State.COMPLETED
     ).select_related('council', 'program').prefetch_related('funding_schedules', 'payments')
     
-    # Calculate forecast (based on funding schedules)
-    total_forecast = FundingSchedule.objects.filter(
-        project__in=projects
-    ).aggregate(total=Sum('total_funding'))['total'] or 0
+    # Calculate forecast (based on WorkFunding allocations)
+    total_forecast = WorkFunding.objects.filter(
+        funding_schedule__project__in=projects
+    ).aggregate(total=Sum('amount'))['total'] or 0
     
     # Calculate actual (released payments)
     actual_payments = Payment.objects.filter(
@@ -170,9 +170,9 @@ def cashflow_view(request):
     by_program = []
     for program in Program.objects.all():
         program_projects = projects.filter(program=program)
-        forecast = FundingSchedule.objects.filter(project__in=program_projects).aggregate(
-            total=Sum('total_funding')
-        )['total'] or 0
+        forecast = WorkFunding.objects.filter(
+            funding_schedule__project__in=program_projects
+        ).aggregate(total=Sum('amount'))['total'] or 0
         actual = Payment.objects.filter(
             project__in=program_projects,
             status=Payment.Status.RELEASED
@@ -205,15 +205,15 @@ def aggregate_outputs_view(request):
         state=Project.State.COMPLETED
     ).values('council__name').annotate(
         project_count=Count('id'),
-        total_budget=Sum('funding_schedules__total_funding')
+        total_budget=Sum('funding_schedules__work_fundings__amount')
     )
-    
+
     # By Program
     by_program = Project.objects.exclude(
         state=Project.State.COMPLETED
     ).values('program__name').annotate(
         project_count=Count('id'),
-        total_budget=Sum('funding_schedules__total_funding')
+        total_budget=Sum('funding_schedules__work_fundings__amount')
     )
     
     # By Work Type

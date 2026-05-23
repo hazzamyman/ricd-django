@@ -17,7 +17,7 @@ class Defect(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        app_label = 'defects'
+        app_label = 'core'
 
     def __str__(self):
         return f"Defect on {self.project.name}"

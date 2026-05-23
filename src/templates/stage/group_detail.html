@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}{{ group.name }} ({{ group.get_stage_type_display }}){% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h2 class="mb-0">{{ group.name }} <span class="badge bg-{% if group.stage_type == 'STAGE1' %}info{% else %}primary{% endif %} ms-2">{{ group.get_stage_type_display }}</span></h2>
+    {% if group.description %}<small class="text-muted">{{ group.description }}</small>{% endif %}
+  </div>
+  <div>
+    {% if can_edit %}<a href="{% url 'ui:stage_item_group_edit' group.pk %}" class="btn btn-outline-secondary btn-sm">Edit group</a>{% endif %}
+    <a href="{% url 'ui:stage_item_group_list' %}" class="btn btn-outline-secondary btn-sm">Back to groups</a>
+  </div>
+</div>
+
+<div class="card mb-3"><div class="card-body p-0">
+<table class="table table-sm align-middle mb-0">
+  <thead class="table-light">
+    <tr>
+      <th style="width:60px;">Order</th>
+      <th>Item</th>
+      <th>Field type</th>
+      <th>Required</th>
+      <th>Attachment</th>
+      <th>Help text</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for it in items %}
+      <tr>
+        <td>{{ it.order }}</td>
+        <td><strong>{{ it.item.name }}</strong>{% if it.item.description %}<br><small class="text-muted">{{ it.item.description|truncatechars:80 }}</small>{% endif %}</td>
+        <td><span class="badge bg-light text-dark">{{ it.get_field_type_display }}</span></td>
+        <td>{% if it.is_required %}Yes{% else %}<span class="text-muted">No</span>{% endif %}</td>
+        <td>{% if it.requires_attachment %}<span class="badge bg-warning text-dark">Required</span>{% else %}<span class="text-muted">Optional</span>{% endif %}</td>
+        <td class="text-muted small">{{ it.help_text|default:"&mdash;" }}</td>
+        <td class="text-end">
+          {% if can_edit %}
+            <a href="{% url 'ui:stage_item_group_item_edit' it.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+            <form method="post" action="{% url 'ui:stage_item_group_item_delete' it.pk %}" class="d-inline" onsubmit="return confirm('Remove this item from the group?');">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+            </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="7" class="text-center text-muted py-4">No items in this group yet. Add one below.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div></div>
+
+{% if can_edit %}
+<div class="card">
+  <div class="card-header">Add item to this group</div>
+  <div class="card-body">
+    <form method="post" action="{% url 'ui:stage_item_group_item_create' group.pk %}" class="row g-2 align-items-end">
+      {% csrf_token %}
+      <div class="col-md-4">
+        <label class="form-label small text-muted">Item from catalogue</label>
+        <select name="item" class="form-select form-select-sm" required>
+          <option value="">-- Pick an item --</option>
+          {% for av in available_items %}
+            <option value="{{ av.pk }}">{{ av.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small text-muted">Field type</label>
+        <select name="field_type" class="form-select form-select-sm">
+          {% for val, label in field_type_choices %}
+            <option value="{{ val }}" {% if val == 'CHECKBOX' %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-1">
+        <label class="form-label small text-muted">Order</label>
+        <input type="number" name="order" class="form-control form-control-sm" min="1" placeholder="auto">
+      </div>
+      <div class="col-md-3">
+        <div class="form-check form-check-inline mt-3">
+          <input type="checkbox" class="form-check-input" name="is_required" id="is_required" checked>
+          <label class="form-check-label small" for="is_required">Required</label>
+        </div>
+        <div class="form-check form-check-inline">
+          <input type="checkbox" class="form-check-input" name="requires_attachment" id="req_att" checked>
+          <label class="form-check-label small" for="req_att">Needs attachment</label>
+        </div>
+      </div>
+      <div class="col-md-12">
+        <label class="form-label small text-muted">Help text (optional)</label>
+        <input type="text" name="help_text" class="form-control form-control-sm" placeholder="Shown beneath the item on the report">
+      </div>
+      <div class="col-md-12 mt-2 text-end">
+        <button type="submit" class="btn btn-primary btn-sm">Add item</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% else %}
+<p class="text-muted small">Read-only view. Only RICD staff can modify templates.</p>
+{% endif %}
+
+<p class="text-muted small mt-3">
+  Projects use this template by setting <em>Stage 1 item group</em> or <em>Stage 2 item group</em>
+  to "{{ group.name }}" on the Project edit form. When a council opens a stage report,
+  items in this group are auto-populated as checklist rows.
+</p>
+{% endblock %}

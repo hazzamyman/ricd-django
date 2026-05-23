@@ -169,26 +169,42 @@ def address(project):
 
 @pytest.fixture
 def funding_schedule(project):
-    """Create a test funding schedule"""
-    from apps.core.models import FundingSchedule
-    return FundingSchedule.objects.create(
+    """Create a test funding schedule (total derived from WorkFunding allocations).
+    Seeds a project-level WorkFunding so .total_funding == 500_000.00.
+    """
+    from apps.core.models import FundingSchedule, BriefFinancialApproval, WorkFunding
+    BriefFinancialApproval.objects.create(
         project=project,
-        amount=Decimal('500000.00'),
-        contingency=Decimal('50000.00'),
-        payment_split=FundingSchedule.PaymentSplit.STANDARD
+        funding_amount=Decimal('500000.00'),
+        contingency_amount=Decimal('50000.00'),
+        status=BriefFinancialApproval.Status.APPROVED,
     )
+    fs = FundingSchedule.objects.create(project=project)
+    WorkFunding.objects.create(
+        funding_schedule=fs,
+        project=project,  # project-level allocation (work is None)
+        amount=Decimal('500000.00'),
+    )
+    return fs
 
 
 @pytest.fixture
 def funding_schedule_land(project):
-    """Create a test funding schedule for land project"""
-    from apps.core.models import FundingSchedule
-    return FundingSchedule.objects.create(
+    """Create a test funding schedule for land project."""
+    from apps.core.models import FundingSchedule, BriefFinancialApproval, WorkFunding
+    BriefFinancialApproval.objects.create(
+        project=project,
+        funding_amount=Decimal('1000000.00'),
+        contingency_amount=Decimal('100000.00'),
+        status=BriefFinancialApproval.Status.APPROVED,
+    )
+    fs = FundingSchedule.objects.create(project=project)
+    WorkFunding.objects.create(
+        funding_schedule=fs,
         project=project,
         amount=Decimal('1000000.00'),
-        contingency=Decimal('100000.00'),
-        payment_split=FundingSchedule.PaymentSplit.STANDARD
     )
+    return fs
 
 
 @pytest.fixture
@@ -205,17 +221,8 @@ def work_funding(funding_schedule, work):
     )
 
 
-@pytest.fixture
-def funding_approval(project):
-    """Create a test funding approval"""
-    from apps.core.models import FundingApproval
-    fa = FundingApproval.objects.create(
-        total_amount=Decimal('550000.00'),
-        contingency_amount=Decimal('55000.00'),
-        status=FundingApproval.Status.APPROVED
-    )
-    fa.projects.add(project)
-    return fa
+# Note: FundingApproval was removed (replaced by BriefFinancialApproval).
+# A `funding_approval` fixture is no longer needed; use BriefFinancialApproval directly.
 
 
 # ============================================================================

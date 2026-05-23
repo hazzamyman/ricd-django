@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.db.models import Sum, Q
-from apps.core.models import Project, Council, Program, FundingSchedule, Payment
+from apps.core.models import Project, Council, Program, FundingSchedule, Payment, WorkFunding
 
 
 @login_required
@@ -22,11 +22,22 @@ def projects_list_view(request):
         projects = projects.filter(program_id=program_id)
     if state_filter:
         projects = projects.filter(state=state_filter)
+
+    # Council-scope: council users can only see their own council's projects
+    from apps.core.models import Profile
+    role = getattr(getattr(request.user, 'profile', None), 'officer_role', None)
+    if role in ('COUNCIL_USER', 'COUNCIL_MANAGER'):
+        try:
+            user_council = request.user.profile.council
+            if user_council:
+                projects = projects.filter(council=user_council)
+        except Exception:
+            pass
     
     # Add calculated fields
     project_list = []
     for project in projects:
-        total_budget = project.funding_schedules.aggregate(total=Sum('total_funding'))['total'] or 0
+        total_budget = WorkFunding.objects.filter(funding_schedule__project=project).aggregate(total=Sum('amount'))['total'] or 0
         project_list.append({
             'id': project.id,
             'name': project.name,

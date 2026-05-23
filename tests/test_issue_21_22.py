@@ -39,10 +39,7 @@ def project(council, program):
 def funding_schedule(project):
     return FundingSchedule.objects.create(
         project=project,
-        amount=Decimal('500000'),
-        contingency=Decimal('50000'),
-        payment_split=FundingSchedule.PaymentSplit.STANDARD,
-        status=FundingSchedule.Status.DRAFT,
+        status=FundingSchedule.Status.DRAFT
     )
 
 
@@ -63,7 +60,7 @@ def payment(project, funding_schedule):
 def auth_client(council):
     client = Client()
     user = User.objects.create_user(username='lifecycle_user', password='pass')
-    Profile.objects.create(user=user, council=council, officer_role=Profile.OfficerRole.SENIOR_OFFICER)
+    Profile.objects.create(user=user, council=council, officer_role=Profile.OfficerRole.MANAGER)
     client.force_login(user)
     return client, user
 

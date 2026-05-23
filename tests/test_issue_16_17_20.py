@@ -43,10 +43,7 @@ def project(council, program):
 @pytest.fixture
 def funding_schedule(project):
     return FundingSchedule.objects.create(
-        project=project,
-        amount=Decimal('500000'),
-        contingency=Decimal('50000'),
-        payment_split=FundingSchedule.PaymentSplit.STANDARD,
+        project=project
     )
 
 
@@ -83,7 +80,7 @@ def stage_report(project, funding_schedule):
 def auth_client(council):
     client = Client()
     user = User.objects.create_user(username='test_user_16_17_20', password='pass')
-    Profile.objects.create(user=user, council=council, officer_role=Profile.OfficerRole.SENIOR_OFFICER)
+    Profile.objects.create(user=user, council=council, officer_role=Profile.OfficerRole.MANAGER)
     client.force_login(user)
     return client, user
 
@@ -97,7 +94,7 @@ class TestStageReportSubmit:
     def test_submit_draft_report(self, auth_client, stage_report):
         client, _ = auth_client
         response = client.post(
-            f'/projects/{stage_report.project_id}/stage-reports/{stage_report.pk}/submit/'
+            f'/stage-reports/{stage_report.pk}/submit/'
         )
         assert response.status_code == 302
         stage_report.refresh_from_db()
@@ -107,13 +104,13 @@ class TestStageReportSubmit:
         client, _ = auth_client
         stage_report.status = StageReport.Status.SUBMITTED
         stage_report.save()
-        client.post(f'/projects/{stage_report.project_id}/stage-reports/{stage_report.pk}/submit/')
+        client.post(f'/stage-reports/{stage_report.pk}/submit/')
         stage_report.refresh_from_db()
         assert stage_report.status == StageReport.Status.SUBMITTED  # unchanged
 
     def test_submit_requires_login(self, stage_report):
         response = Client().post(
-            f'/projects/{stage_report.project_id}/stage-reports/{stage_report.pk}/submit/'
+            f'/stage-reports/{stage_report.pk}/submit/'
         )
         assert response.status_code == 302
         assert '/accounts/login/' in response['Location']
@@ -125,14 +122,14 @@ class TestStageReportEndorse:
         client, user = auth_client
         stage_report.status = StageReport.Status.SUBMITTED
         stage_report.save()
-        client.post(f'/projects/{stage_report.project_id}/stage-reports/{stage_report.pk}/endorse/')
+        client.post(f'/stage-reports/{stage_report.pk}/endorse/')
         stage_report.refresh_from_db()
         assert stage_report.status == StageReport.Status.ENDORSED
         assert stage_report.endorsed_by == user
 
     def test_endorse_draft_fails(self, auth_client, stage_report):
         client, _ = auth_client
-        client.post(f'/projects/{stage_report.project_id}/stage-reports/{stage_report.pk}/endorse/')
+        client.post(f'/stage-reports/{stage_report.pk}/endorse/')
         stage_report.refresh_from_db()
         assert stage_report.status == StageReport.Status.DRAFT
 
@@ -143,7 +140,7 @@ class TestStageReportAssess:
         client, user = auth_client
         stage_report.status = StageReport.Status.ENDORSED
         stage_report.save()
-        client.post(f'/projects/{stage_report.project_id}/stage-reports/{stage_report.pk}/assess/')
+        client.post(f'/stage-reports/{stage_report.pk}/assess/')
         stage_report.refresh_from_db()
         assert stage_report.status == StageReport.Status.ASSESSED
         assert stage_report.assessed_by == user
@@ -152,7 +149,7 @@ class TestStageReportAssess:
         client, _ = auth_client
         stage_report.status = StageReport.Status.SUBMITTED
         stage_report.save()
-        client.post(f'/projects/{stage_report.project_id}/stage-reports/{stage_report.pk}/assess/')
+        client.post(f'/stage-reports/{stage_report.pk}/assess/')
         stage_report.refresh_from_db()
         assert stage_report.status == StageReport.Status.SUBMITTED
 
@@ -163,7 +160,7 @@ class TestStageReportApprove:
         client, user = auth_client
         stage_report.status = StageReport.Status.ASSESSED
         stage_report.save()
-        client.post(f'/projects/{stage_report.project_id}/stage-reports/{stage_report.pk}/approve/')
+        client.post(f'/stage-reports/{stage_report.pk}/approve/')
         stage_report.refresh_from_db()
         assert stage_report.status == StageReport.Status.APPROVED
         assert stage_report.approved_by == user
@@ -172,7 +169,7 @@ class TestStageReportApprove:
         client, _ = auth_client
         stage_report.status = StageReport.Status.ENDORSED
         stage_report.save()
-        client.post(f'/projects/{stage_report.project_id}/stage-reports/{stage_report.pk}/approve/')
+        client.post(f'/stage-reports/{stage_report.pk}/approve/')
         stage_report.refresh_from_db()
         assert stage_report.status == StageReport.Status.ENDORSED
 

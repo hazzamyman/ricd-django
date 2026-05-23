@@ -21,7 +21,8 @@ from apps.core.models import (
     Council, DevelopmentApplication, LandTenure,
     Notice, NoticeTarget,
     NotionalCost, PaymentRule, Program, Project, Suburb, Work, WorkType, FundingSchedule,
-    WorkStepDefinition, WorkStepGroup, WorkStepGroupItem,
+    WorkStepDefinition, WorkStepGroup, WorkStepGroupItem, WorkStep, ConstructionMethod,
+    ForwardRPFAgreement, InterimFRPAgreement,
     Variation, VariationItem, Payment, StageReport, QuarterlyReport,
     FundingAgreement, FundingNotice, ExpenseClaim, WorkFunding,
 )
@@ -102,6 +103,52 @@ class NoticesMixin:
         ctx['notice_entity_key'] = self.model._meta.model_name
         ctx['notice_object_id'] = self.object.pk
         return ctx
+
+
+# ---------------------------------------------------------------------------
+# Role-based access control mixin
+# ---------------------------------------------------------------------------
+
+MANAGER_ROLES = frozenset({'MANAGER', 'DIRECTOR'})
+
+
+class CouncilScopedQuerysetMixin:
+    """
+    For council-role users: filter the queryset to their council.
+    Attach to any ListView/DetailView that queries Projects.
+    """
+    council_lookup_field = 'council'
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        role = _officer_role(self.request.user)
+        if role in COUNCIL_ROLES:
+            try:
+                council = self.request.user.profile.council
+                if council:
+                    qs = qs.filter(**{self.council_lookup_field: council})
+            except Exception:
+                pass
+        return qs
+
+
+class RoleRequiredMixin:
+    """
+    Mixin that gates a view behind officer_role checks.
+    Set  on the subclass (e.g. MANAGER_ROLES).
+    Superusers bypass the check.
+    On failure: renders a 403 error message and redirects to the HTTP referer.
+    """
+    required_roles: frozenset = frozenset()
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            from django.contrib.auth.views import redirect_to_login
+            return redirect_to_login(request.get_full_path())
+        if request.user.is_superuser or _officer_role(request.user) in self.required_roles:
+            return super().dispatch(request, *args, **kwargs)
+        messages.error(request, 'You do not have permission to perform that action.')
+        return redirect(request.META.get('HTTP_REFERER', '/'))
 
 
 # ---------------------------------------------------------------------------
@@ -226,7 +273,8 @@ class ProjectCreateView(LoginRequiredMixin, CreateView):
     model = Project
     template_name = 'crud/form.html'
     fields = ['name', 'council', 'program', 'project_type', 'financial_year',
-              'state', 'dwelling_status']
+              'state', 'dwelling_status',
+              'stage1_item_group', 'stage2_item_group']
     success_url = reverse_lazy('ui:projects_list')
 
     def get_context_data(self, **kwargs):
@@ -251,7 +299,8 @@ class ProjectUpdateView(LoginRequiredMixin, UpdateView):
     model = Project
     template_name = 'crud/form.html'
     fields = ['name', 'council', 'program', 'project_type', 'financial_year',
-              'state', 'dwelling_status']
+              'state', 'dwelling_status',
+              'stage1_item_group', 'stage2_item_group']
     success_url = reverse_lazy('ui:projects_list')
 
     def get_context_data(self, **kwargs):
@@ -348,7 +397,7 @@ class FundingScheduleListView(LoginRequiredMixin, ListView):
 class FundingScheduleCreateView(LoginRequiredMixin, CreateView):
     model = FundingSchedule
     template_name = 'crud/form.html'
-    fields = ['project', 'amount', 'contingency', 'payment_split', 'status']
+    fields = ['project', 'funding_agreement', 'payment_rule', 'schedule_number', 'status']
     success_url = reverse_lazy('ui:funding_schedule_list')
 
     def get_context_data(self, **kwargs):
@@ -375,7 +424,7 @@ class FundingScheduleDetailView(LoginRequiredMixin, CommentsMixin, NoticesMixin,
 class FundingScheduleUpdateView(LoginRequiredMixin, UpdateView):
     model = FundingSchedule
     template_name = 'crud/form.html'
-    fields = ['project', 'amount', 'contingency', 'payment_split', 'status']
+    fields = ['project', 'funding_agreement', 'payment_rule', 'schedule_number', 'status']
     success_url = reverse_lazy('ui:funding_schedule_list')
 
     def get_context_data(self, **kwargs):
@@ -526,16 +575,19 @@ class PaymentDeleteView(LoginRequiredMixin, DeleteView):
 
 
 # ---------------------------------------------------------------------------
-# StageReport  (nested under project)
+# StageReport (REDESIGNED — see stage_views.py)
+# The old project-nested CRUD endpoints survive as redirect stubs so external
+# bookmarks still work. The real flow lives at /stage-reports/<pk>/.
 # ---------------------------------------------------------------------------
 
 class StageReportListView(LoginRequiredMixin, ListView):
+    """Project-scoped list of stage reports (read-only — the real editor is the grid)."""
     model = StageReport
     template_name = 'stage_reports/list.html'
     context_object_name = 'stage_reports'
 
     def get_queryset(self):
-        return StageReport.objects.filter(project_id=self.kwargs['project_pk'])
+        return StageReport.objects.filter(project_id=self.kwargs['project_pk']).order_by('stage_type')
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -543,43 +595,22 @@ class StageReportListView(LoginRequiredMixin, ListView):
         return ctx
 
 
-class StageReportCreateView(LoginRequiredMixin, CreateView):
-    model = StageReport
-    template_name = 'crud/form.html'
-    fields = ['project', 'stage_type', 'status', 'funding_schedule', 'notes']
-
-    def get_success_url(self):
-        return reverse_lazy('ui:stage_report_list', kwargs={'project_pk': self.kwargs['project_pk']})
-
-    def get_initial(self):
-        return {'project': self.kwargs['project_pk']}
-
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        ctx['title'] = 'Create Stage Report'
-        ctx['back_url'] = reverse_lazy('ui:stage_report_list', kwargs={'project_pk': self.kwargs['project_pk']})
-        return ctx
+class StageReportCreateView(LoginRequiredMixin, View):
+    """Backwards-compat: now sends users to the open-or-create flow (Stage 1 by default)."""
+    def get(self, request, project_pk):
+        return redirect('ui:stage_report_open', project_pk=project_pk, stage_type='STAGE1')
 
 
-class StageReportDetailView(LoginRequiredMixin, DetailView):
-    model = StageReport
-    template_name = 'stage_reports/detail.html'
-    context_object_name = 'stage_report'
+class StageReportDetailView(LoginRequiredMixin, View):
+    """Backwards-compat: redirect to the grid view by pk."""
+    def get(self, request, project_pk, pk):
+        return redirect('ui:stage_report_grid', pk=pk)
 
 
-class StageReportUpdateView(LoginRequiredMixin, UpdateView):
-    model = StageReport
-    template_name = 'crud/form.html'
-    fields = ['project', 'stage_type', 'status', 'funding_schedule', 'notes']
-
-    def get_success_url(self):
-        return reverse_lazy('ui:stage_report_list', kwargs={'project_pk': self.kwargs['project_pk']})
-
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        ctx['title'] = f'Edit Stage Report #{self.object.pk}'
-        ctx['back_url'] = reverse_lazy('ui:stage_report_list', kwargs={'project_pk': self.kwargs['project_pk']})
-        return ctx
+class StageReportUpdateView(LoginRequiredMixin, View):
+    """Backwards-compat: redirect to the grid view by pk."""
+    def get(self, request, project_pk, pk):
+        return redirect('ui:stage_report_grid', pk=pk)
 
 
 class StageReportDeleteView(LoginRequiredMixin, DeleteView):
@@ -596,73 +627,34 @@ class StageReportDeleteView(LoginRequiredMixin, DeleteView):
 
 
 # ---------------------------------------------------------------------------
-# QuarterlyReport  (nested under project)
+# QuarterlyReport  (now per-council — see tracker_views.py)
+# These project-nested URL endpoints redirect to the new per-council list.
 # ---------------------------------------------------------------------------
 
-class QuarterlyReportListView(LoginRequiredMixin, ListView):
-    model = QuarterlyReport
-    template_name = 'quarterly_reports/list.html'
-    context_object_name = 'quarterly_reports'
-
-    def get_queryset(self):
-        return QuarterlyReport.objects.filter(project_id=self.kwargs['project_pk'])
-
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        ctx['project'] = Project.objects.get(pk=self.kwargs['project_pk'])
-        return ctx
+class QuarterlyReportListView(LoginRequiredMixin, View):
+    """Project-nested URL kept for backward compat; redirects to per-council list."""
+    def get(self, request, project_pk):
+        return redirect('ui:quarterly_report_global_list')
 
 
-class QuarterlyReportCreateView(LoginRequiredMixin, CreateView):
-    model = QuarterlyReport
-    template_name = 'crud/form.html'
-    fields = ['project', 'year', 'quarter', 'status', 'notes']
-
-    def get_success_url(self):
-        return reverse_lazy('ui:quarterly_report_list', kwargs={'project_pk': self.kwargs['project_pk']})
-
-    def get_initial(self):
-        return {'project': self.kwargs['project_pk']}
-
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        ctx['title'] = 'Create Quarterly Report'
-        ctx['back_url'] = reverse_lazy('ui:quarterly_report_list', kwargs={'project_pk': self.kwargs['project_pk']})
-        return ctx
+class QuarterlyReportCreateView(LoginRequiredMixin, View):
+    def get(self, request, project_pk):
+        return redirect('ui:quarterly_report_global_list')
 
 
-class QuarterlyReportDetailView(LoginRequiredMixin, DetailView):
-    model = QuarterlyReport
-    template_name = 'quarterly_reports/detail.html'
-    context_object_name = 'quarterly_report'
+class QuarterlyReportDetailView(LoginRequiredMixin, View):
+    def get(self, request, project_pk, pk):
+        return redirect('ui:quarterly_report_detail', pk=pk)
 
 
-class QuarterlyReportUpdateView(LoginRequiredMixin, UpdateView):
-    model = QuarterlyReport
-    template_name = 'crud/form.html'
-    fields = ['project', 'year', 'quarter', 'status', 'notes']
-
-    def get_success_url(self):
-        return reverse_lazy('ui:quarterly_report_list', kwargs={'project_pk': self.kwargs['project_pk']})
-
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        ctx['title'] = f'Edit Quarterly Report #{self.object.pk}'
-        ctx['back_url'] = reverse_lazy('ui:quarterly_report_list', kwargs={'project_pk': self.kwargs['project_pk']})
-        return ctx
+class QuarterlyReportUpdateView(LoginRequiredMixin, View):
+    def get(self, request, project_pk, pk):
+        return redirect('ui:quarterly_report_detail', pk=pk)
 
 
-class QuarterlyReportDeleteView(LoginRequiredMixin, DeleteView):
-    model = QuarterlyReport
-    template_name = 'crud/confirm_delete.html'
-
-    def get_success_url(self):
-        return reverse_lazy('ui:quarterly_report_list', kwargs={'project_pk': self.kwargs['project_pk']})
-
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        ctx['back_url'] = reverse_lazy('ui:quarterly_report_list', kwargs={'project_pk': self.kwargs['project_pk']})
-        return ctx
+class QuarterlyReportDeleteView(LoginRequiredMixin, View):
+    def get(self, request, project_pk, pk):
+        return redirect('ui:quarterly_report_global_list')
 
 
 # ---------------------------------------------------------------------------
@@ -1007,7 +999,8 @@ class BriefFinancialApprovalDeleteView(LoginRequiredMixin, DeleteView):
         return ctx
 
 
-class BriefFinancialApprovalApproveView(LoginRequiredMixin, View):
+class BriefFinancialApprovalApproveView(LoginRequiredMixin, RoleRequiredMixin, View):
+    required_roles = MANAGER_ROLES
     def post(self, request, project_pk, pk):
         bfa = get_object_or_404(BriefFinancialApproval, pk=pk, project_id=project_pk)
         if bfa.status != BriefFinancialApproval.Status.PENDING:
@@ -1176,7 +1169,8 @@ class WorkUpdateView(LoginRequiredMixin, UpdateView):
     model = Work
     template_name = 'crud/form.html'
     fields = ['work_type', 'work_type_other', 'bedrooms', 'quantity',
-              'estimated_cost', 'status', 'is_notional_cost', 'actual_cost', 'address']
+              'estimated_cost', 'status', 'is_notional_cost', 'actual_cost', 'address',
+              'cashflow_method', 'step_group', 'actual_start_date']
 
     def get_success_url(self):
         return reverse_lazy('ui:work_list', kwargs={'project_pk': self.object.project_id})
@@ -1198,6 +1192,44 @@ class WorkDeleteView(LoginRequiredMixin, DeleteView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['back_url'] = reverse_lazy('ui:work_list', kwargs={'project_pk': self.object.project_id})
+        return ctx
+
+
+class WorkStepApplyGroupView(LoginRequiredMixin, View):
+    """POST-only: apply the work's step_group to create WorkStep instances."""
+
+    def post(self, request, project_pk, pk):
+        from apps.core.services.workstep_forecast import apply_group_to_work
+        work = get_object_or_404(Work, pk=pk, project_id=project_pk)
+        if work.step_group:
+            created, skipped = apply_group_to_work(work)
+            messages.success(request, f'Applied group: {created} step(s) created, {skipped} already existed.')
+        else:
+            messages.warning(request, 'No step group assigned to this work item.')
+        return redirect('ui:work_detail', project_pk=project_pk, pk=pk)
+
+
+class WorkStepUpdateView(LoginRequiredMixin, UpdateView):
+    """Update a single WorkStep (actual_completion_date, is_active)."""
+    model = WorkStep
+    template_name = 'crud/form.html'
+    fields = ['actual_completion_date', 'is_active']
+
+    def get_success_url(self):
+        work = self.object.work
+        from apps.core.services.workstep_forecast import recalculate_forecast
+        recalculate_forecast(work)
+        return reverse_lazy('ui:work_detail', kwargs={
+            'project_pk': work.project_id, 'pk': work.pk
+        })
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        work = self.object.work
+        ctx['title'] = f'Update Step: {self.object.step_name}'
+        ctx['back_url'] = reverse_lazy('ui:work_detail', kwargs={
+            'project_pk': work.project_id, 'pk': work.pk
+        })
         return ctx
 
 
@@ -1346,7 +1378,8 @@ class PaymentRecommendView(LoginRequiredMixin, View):
         return redirect('ui:payment_detail', project_pk=project_pk, pk=pk)
 
 
-class PaymentApproveView(LoginRequiredMixin, View):
+class PaymentApproveView(LoginRequiredMixin, RoleRequiredMixin, View):
+    required_roles = MANAGER_ROLES
     def post(self, request, project_pk, pk):
         payment = get_object_or_404(Payment, pk=pk, project_id=project_pk)
         if payment.status != Payment.Status.RECOMMENDED:
@@ -1358,7 +1391,8 @@ class PaymentApproveView(LoginRequiredMixin, View):
         return redirect('ui:payment_detail', project_pk=project_pk, pk=pk)
 
 
-class PaymentReleaseView(LoginRequiredMixin, View):
+class PaymentReleaseView(LoginRequiredMixin, RoleRequiredMixin, View):
+    required_roles = MANAGER_ROLES
     def post(self, request, project_pk, pk):
         payment = get_object_or_404(Payment, pk=pk, project_id=project_pk)
         if payment.status != Payment.Status.APPROVED:
@@ -1382,51 +1416,30 @@ class PaymentRejectView(LoginRequiredMixin, View):
         return redirect('ui:payment_detail', project_pk=project_pk, pk=pk)
 
 
-# StageReport lifecycle actions (nested under project)
+# StageReport lifecycle actions
+# These project-nested URLs survive as redirect stubs; the canonical actions
+# live at /stage-reports/<pk>/{submit,endorse,assess,approve,reject}/ in
+# stage_views.py.
 # ---------------------------------------------------------------------------
 
 class StageReportSubmitView(LoginRequiredMixin, View):
     def post(self, request, project_pk, pk):
-        report = get_object_or_404(StageReport, pk=pk, project_id=project_pk)
-        if report.status != StageReport.Status.DRAFT:
-            messages.error(request, 'Only draft reports can be submitted.')
-            return redirect('ui:stage_report_detail', project_pk=project_pk, pk=pk)
-        report.submit(request.user)
-        messages.success(request, 'Stage report submitted.')
-        return redirect('ui:stage_report_detail', project_pk=project_pk, pk=pk)
+        return redirect('ui:stage_report_submit', pk=pk)
 
 
 class StageReportEndorseView(LoginRequiredMixin, View):
     def post(self, request, project_pk, pk):
-        report = get_object_or_404(StageReport, pk=pk, project_id=project_pk)
-        if report.status != StageReport.Status.SUBMITTED:
-            messages.error(request, 'Only submitted reports can be endorsed.')
-            return redirect('ui:stage_report_detail', project_pk=project_pk, pk=pk)
-        report.endorse(request.user)
-        messages.success(request, 'Stage report endorsed.')
-        return redirect('ui:stage_report_detail', project_pk=project_pk, pk=pk)
+        return redirect('ui:stage_report_endorse', pk=pk)
 
 
 class StageReportAssessView(LoginRequiredMixin, View):
     def post(self, request, project_pk, pk):
-        report = get_object_or_404(StageReport, pk=pk, project_id=project_pk)
-        if report.status != StageReport.Status.ENDORSED:
-            messages.error(request, 'Only endorsed reports can be assessed.')
-            return redirect('ui:stage_report_detail', project_pk=project_pk, pk=pk)
-        report.assess(request.user)
-        messages.success(request, 'Stage report assessed.')
-        return redirect('ui:stage_report_detail', project_pk=project_pk, pk=pk)
+        return redirect('ui:stage_report_assess', pk=pk)
 
 
 class StageReportApproveView(LoginRequiredMixin, View):
     def post(self, request, project_pk, pk):
-        report = get_object_or_404(StageReport, pk=pk, project_id=project_pk)
-        if report.status != StageReport.Status.ASSESSED:
-            messages.error(request, 'Only assessed reports can be approved.')
-            return redirect('ui:stage_report_detail', project_pk=project_pk, pk=pk)
-        report.approve(request.user)
-        messages.success(request, 'Stage report approved.')
-        return redirect('ui:stage_report_detail', project_pk=project_pk, pk=pk)
+        return redirect('ui:stage_report_approve', pk=pk)
 
 
 # ---------------------------------------------------------------------------
@@ -1815,6 +1828,161 @@ class WorkStepGroupItemDeleteView(LoginRequiredMixin, DeleteView):
         return reverse('ui:work_type_detail', kwargs={'pk': self.object.group.work_type_id})
 
 
+
+# ---------------------------------------------------------------------------
+# ConstructionMethod CRUD (Maintenance)
+# ---------------------------------------------------------------------------
+
+class ConstructionMethodListView(LoginRequiredMixin, ListView):
+    model = ConstructionMethod
+    template_name = 'construction_methods/list.html'
+    context_object_name = 'methods'
+
+
+class ConstructionMethodCreateView(LoginRequiredMixin, CreateView):
+    model = ConstructionMethod
+    template_name = 'crud/form.html'
+    fields = ['name', 'code', 'is_active']
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Add Construction Method'
+        ctx['back_url'] = reverse_lazy('ui:construction_method_list')
+        return ctx
+
+    def get_success_url(self):
+        return reverse_lazy('ui:construction_method_list')
+
+
+class ConstructionMethodUpdateView(LoginRequiredMixin, UpdateView):
+    model = ConstructionMethod
+    template_name = 'crud/form.html'
+    fields = ['name', 'code', 'is_active']
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit: {self.object.name}'
+        ctx['back_url'] = reverse_lazy('ui:construction_method_list')
+        return ctx
+
+    def get_success_url(self):
+        return reverse_lazy('ui:construction_method_list')
+
+
+class ConstructionMethodDeleteView(LoginRequiredMixin, DeleteView):
+    model = ConstructionMethod
+    template_name = 'crud/confirm_delete.html'
+    success_url = reverse_lazy('ui:construction_method_list')
+
+
+# ---------------------------------------------------------------------------
+# ForwardRPFAgreement CRUD
+# ---------------------------------------------------------------------------
+
+class ForwardRPFListView(LoginRequiredMixin, ListView):
+    model = ForwardRPFAgreement
+    template_name = 'legacy_agreements/forward_rpf_list.html'
+    context_object_name = 'agreements'
+
+
+class ForwardRPFCreateView(LoginRequiredMixin, CreateView):
+    model = ForwardRPFAgreement
+    template_name = 'crud/form.html'
+    fields = ['council', 'reference', 'status', 'date_sent_to_council',
+              'date_council_signed', 'date_delegate_signed', 'document_uri', 'notes', 'projects']
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Add Forward RPF Agreement'
+        ctx['back_url'] = reverse_lazy('ui:forward_rpf_list')
+        return ctx
+
+    def get_success_url(self):
+        return reverse_lazy('ui:forward_rpf_detail', kwargs={'pk': self.object.pk})
+
+
+class ForwardRPFDetailView(LoginRequiredMixin, DetailView):
+    model = ForwardRPFAgreement
+    template_name = 'legacy_agreements/forward_rpf_detail.html'
+    context_object_name = 'agreement'
+
+
+class ForwardRPFUpdateView(LoginRequiredMixin, UpdateView):
+    model = ForwardRPFAgreement
+    template_name = 'crud/form.html'
+    fields = ['council', 'reference', 'status', 'date_sent_to_council',
+              'date_council_signed', 'date_delegate_signed', 'document_uri', 'notes', 'projects']
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit: {self.object}'
+        ctx['back_url'] = reverse_lazy('ui:forward_rpf_detail', kwargs={'pk': self.object.pk})
+        return ctx
+
+    def get_success_url(self):
+        return reverse_lazy('ui:forward_rpf_detail', kwargs={'pk': self.object.pk})
+
+
+class ForwardRPFDeleteView(LoginRequiredMixin, DeleteView):
+    model = ForwardRPFAgreement
+    template_name = 'crud/confirm_delete.html'
+    success_url = reverse_lazy('ui:forward_rpf_list')
+
+
+# ---------------------------------------------------------------------------
+# InterimFRPAgreement CRUD
+# ---------------------------------------------------------------------------
+
+class InterimFRPListView(LoginRequiredMixin, ListView):
+    model = InterimFRPAgreement
+    template_name = 'legacy_agreements/interim_frp_list.html'
+    context_object_name = 'agreements'
+
+
+class InterimFRPCreateView(LoginRequiredMixin, CreateView):
+    model = InterimFRPAgreement
+    template_name = 'crud/form.html'
+    fields = ['council', 'reference', 'status', 'date_sent_to_council',
+              'date_council_signed', 'date_delegate_signed', 'document_uri', 'notes', 'projects']
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Add Interim FRP Agreement'
+        ctx['back_url'] = reverse_lazy('ui:interim_frp_list')
+        return ctx
+
+    def get_success_url(self):
+        return reverse_lazy('ui:interim_frp_detail', kwargs={'pk': self.object.pk})
+
+
+class InterimFRPDetailView(LoginRequiredMixin, DetailView):
+    model = InterimFRPAgreement
+    template_name = 'legacy_agreements/interim_frp_detail.html'
+    context_object_name = 'agreement'
+
+
+class InterimFRPUpdateView(LoginRequiredMixin, UpdateView):
+    model = InterimFRPAgreement
+    template_name = 'crud/form.html'
+    fields = ['council', 'reference', 'status', 'date_sent_to_council',
+              'date_council_signed', 'date_delegate_signed', 'document_uri', 'notes', 'projects']
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit: {self.object}'
+        ctx['back_url'] = reverse_lazy('ui:interim_frp_detail', kwargs={'pk': self.object.pk})
+        return ctx
+
+    def get_success_url(self):
+        return reverse_lazy('ui:interim_frp_detail', kwargs={'pk': self.object.pk})
+
+
+class InterimFRPDeleteView(LoginRequiredMixin, DeleteView):
+    model = InterimFRPAgreement
+    template_name = 'crud/confirm_delete.html'
+    success_url = reverse_lazy('ui:interim_frp_list')
+
+
 # ---------------------------------------------------------------------------
 # Maintenance dashboard
 # ---------------------------------------------------------------------------
@@ -1830,6 +1998,7 @@ class MaintenanceView(LoginRequiredMixin, TemplateView):
         ctx['work_type_count'] = WorkType.objects.count()
         ctx['suburb_count'] = Suburb.objects.count()
         ctx['workstep_definition_count'] = WorkStepDefinition.objects.count()
+        ctx['construction_method_count'] = ConstructionMethod.objects.count()
         ctx['user_count'] = User.objects.count()
         ctx['active_nav'] = 'maintenance'
         return ctx

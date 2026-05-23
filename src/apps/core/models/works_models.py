@@ -4,6 +4,26 @@ from django.utils import timezone
 from apps.core.utils import CURRENT_FINANCIAL_YEAR, FINANCIAL_YEAR_CHOICES
 
 
+
+class ConstructionMethod(models.Model):
+    """
+    Configurable construction method types (e.g. On-site, Flatpack, Offsite).
+    Managed via Maintenance UI. Used to analyse cost variances across methods.
+    """
+    name = models.CharField(max_length=100, unique=True)
+    code = models.SlugField(max_length=50, unique=True, help_text="Short code e.g. on_site, flatpack")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "Construction Method"
+
+    def __str__(self):
+        return self.name
+
+
 class WorkType(models.Model):
     class Category(models.TextChoices):
         RESIDENTIAL = 'RESIDENTIAL', 'Residential'
@@ -154,6 +174,10 @@ class Work(models.Model):
         null=True, blank=True,
         help_text="Required when cashflow_method = WORKSTEP"
     )
+    actual_start_date = models.DateField(
+        null=True, blank=True,
+        help_text="Date construction actually started — anchors the rolling step forecast"
+    )
 
     is_notional_cost = models.BooleanField(default=True, help_text="If True, cost is calculated from notional rates. If False, use actual_cost.")
     actual_cost = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True, help_text="Actual cost (manual override)")
@@ -229,20 +253,6 @@ class Work(models.Model):
         return None
 
 
-class WorkStepTemplate(models.Model):
-    work_type = models.ForeignKey(WorkType, related_name='step_templates', on_delete=models.CASCADE)
-    name = models.CharField(max_length=255)
-    description = models.TextField(blank=True)
-    order = models.PositiveIntegerField(default=0)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['order']
-
-    def __str__(self):
-        return f"{self.work_type.name} - {self.name}"
-
 
 # ============================================================================
 # WorkStep catalogue + grouping (Capital Works cashflow)
@@ -303,6 +313,10 @@ class WorkStepGroupItem(models.Model):
         max_length=10, choices=StageGate.choices, blank=True, default='',
         help_text="Mark this step as the completion point for Stage 1 or Stage 2 works"
     )
+    is_monthly_tracker_column = models.BooleanField(
+        default=False,
+        help_text="Show this step as a column in the monthly tracker grid"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -327,3 +341,105 @@ class WorkStepGroupItem(models.Model):
                 raise ValidationError(
                     f"A {self.get_stage_gate_display()} gate already exists in this group."
                 )
+
+
+# ============================================================================
+# Stage Item template models (for Stage 1 / Stage 2 Reports)
+# ============================================================================
+# StageItemDefinition: global catalogue of step names (stage-agnostic).
+# StageItemGroup: a templated set of items with a stage_type (Stage 1 OR Stage 2)
+#   -- the same StageItemDefinition can appear in BOTH a Stage 1 group (e.g. for
+#   Land projects) and a Stage 2 group (e.g. for Construction).
+# StageItemGroupItem: ordered membership of items in a group, with field_type
+#   (DATE / CHECKBOX / YES_NO / etc.) and attachment requirement.
+# Projects pre-assign one StageItemGroup per stage (Project.stage1_item_group,
+# Project.stage2_item_group) which seeds the StageReportItems when a council
+# opens that stage report.
+
+
+class StageItemDefinition(models.Model):
+    """Global catalogue of stage report items (steps).
+
+    Not stage-typed -- the same item can appear in a Stage 1 group OR a Stage 2 group
+    depending on the project work type (e.g. site preparation is Stage 1 for
+    construction but might be Stage 2 for land lot development).
+    """
+    name = models.CharField(max_length=255, unique=True)
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'Stage Item Definition'
+        verbose_name_plural = 'Stage Item Definitions'
+
+    def __str__(self):
+        return self.name
+
+
+class StageItemGroup(models.Model):
+    """Templated checklist of stage items for one stage and one work-type context.
+
+    Example groups:
+      - "Stage 1 - Construction"
+      - "Stage 1 - Extension"
+      - "Stage 1 - Land"
+      - "Stage 2 - Construction"
+      - "Stage 2 - Demolition"
+    Pre-assigned to a Project via Project.stage1_item_group / stage2_item_group.
+    """
+
+    class StageType(models.TextChoices):
+        STAGE1 = 'STAGE1', 'Stage 1'
+        STAGE2 = 'STAGE2', 'Stage 2'
+
+    stage_type = models.CharField(max_length=10, choices=StageType.choices, db_index=True)
+    name = models.CharField(max_length=255, help_text="e.g. 'Construction', 'Extension', 'Demolition', 'Land'")
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['stage_type', 'name']
+        unique_together = ('stage_type', 'name')
+        verbose_name = 'Stage Item Group'
+        verbose_name_plural = 'Stage Item Groups'
+
+    def __str__(self):
+        return f"{self.get_stage_type_display()} -- {self.name}"
+
+
+class StageItemGroupItem(models.Model):
+    """Ordered membership of a StageItemDefinition in a StageItemGroup, with field type."""
+
+    class FieldType(models.TextChoices):
+        DATE = 'DATE', 'Date'
+        DATE_NA = 'DATE_NA', 'Date or N/A'
+        NUMBER = 'NUMBER', 'Number'
+        CURRENCY = 'CURRENCY', 'Currency'
+        TEXT = 'TEXT', 'Text'
+        CHECKBOX = 'CHECKBOX', 'Checkbox'
+        YES_NO = 'YES_NO', 'Yes/No'
+        YES_NO_NA = 'YES_NO_NA', 'Yes/No/N/A'
+
+    group = models.ForeignKey(StageItemGroup, related_name='items', on_delete=models.CASCADE)
+    item = models.ForeignKey(StageItemDefinition, related_name='group_memberships', on_delete=models.PROTECT)
+    order = models.PositiveIntegerField(default=0)
+    field_type = models.CharField(max_length=20, choices=FieldType.choices, default=FieldType.CHECKBOX)
+    is_required = models.BooleanField(default=True)
+    requires_attachment = models.BooleanField(default=True, help_text="Council must upload at least one document URI")
+    help_text = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order']
+        unique_together = ('group', 'order')
+        verbose_name = 'Stage Item Group Item'
+        verbose_name_plural = 'Stage Item Group Items'
+
+    def __str__(self):
+        return f"{self.group.name} [{self.order}] {self.item.name}"

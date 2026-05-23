@@ -71,10 +71,7 @@ def submitted_claim(notice):
 def funding_schedule(project):
     return FundingSchedule.objects.create(
         project=project,
-        amount=Decimal('500000'),
-        contingency=Decimal('0'),
-        payment_split=FundingSchedule.PaymentSplit.STANDARD,
-        status=FundingSchedule.Status.DRAFT,
+        status=FundingSchedule.Status.DRAFT
     )
 
 
@@ -82,7 +79,7 @@ def funding_schedule(project):
 def auth_client(council):
     client = Client()
     user = User.objects.create_user(username='pipeline_user', password='pass')
-    Profile.objects.create(user=user, council=council, officer_role=Profile.OfficerRole.SENIOR_OFFICER)
+    Profile.objects.create(user=user, council=council, officer_role=Profile.OfficerRole.MANAGER)
     client.force_login(user)
     return client, user
 

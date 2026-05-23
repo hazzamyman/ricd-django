@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Monthly Trackers{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Monthly Trackers</h2>
+  {% if councils %}
+  <div class="dropdown">
+    <button class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown">Open Tracker for Council</button>
+    <ul class="dropdown-menu">
+      {% for c in councils %}
+        <li><a class="dropdown-item" href="{% url 'ui:monthly_tracker_open' c.pk %}">{{ c.name }}</a></li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+<div class="card"><div class="card-body p-0">
+<table class="table table-hover mb-0">
+  <thead class="table-light"><tr><th>Council</th><th>Period</th><th>Status</th><th>Submitted</th><th>Reviewed</th><th></th></tr></thead>
+  <tbody>
+  {% for t in trackers %}
+    <tr>
+      <td>{{ t.council.name }}</td>
+      <td>{{ t.year }}-{{ t.month|stringformat:"02d" }}</td>
+      <td><span class="badge bg-{% if t.status == 'DRAFT' %}secondary{% elif t.status == 'SUBMITTED' %}info{% else %}success{% endif %}">{{ t.get_status_display }}</span></td>
+      <td>{{ t.submitted_at|default:"&mdash;" }}</td>
+      <td>{{ t.reviewed_at|default:"&mdash;" }}</td>
+      <td><a href="{% url 'ui:monthly_tracker_detail' t.pk %}" class="btn btn-outline-secondary btn-sm">Open</a></td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="6" class="text-center text-muted py-3">No monthly trackers yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div></div>
+{% endblock %}

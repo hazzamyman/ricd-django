@@ -72,15 +72,15 @@ class ProgramBudget(models.Model):
 
     @property
     def committed(self):
-        """Calculate committed amount from projects with funding approval"""
-        from decimal import Decimal
-        from apps.core.models import FundingApproval
-        approvals = FundingApproval.objects.filter(
+        """Calculate committed amount from projects with an approved BriefFinancialApproval."""
+        from apps.core.models import BriefFinancialApproval
+        approvals = BriefFinancialApproval.objects.filter(
             project__program=self.program,
             project__financial_year=self.financial_year,
-            project__state__in=['FUNDED', 'COMMENCED', 'UNDER_CONSTRUCTION', 'COMPLETED']
+            project__state__in=['FUNDED', 'COMMENCED', 'UNDER_CONSTRUCTION', 'COMPLETED'],
+            status='APPROVED',
         )
-        return sum((a.amount or 0) + (a.contingency or 0) for a in approvals)
+        return sum((a.funding_amount or 0) + (a.contingency_amount or 0) for a in approvals)
 
     @property
     def spent(self):

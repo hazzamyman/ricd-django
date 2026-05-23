@@ -100,14 +100,50 @@ class Project(models.Model):
     )
     infra_comments = models.TextField(blank=True)
     
+    # Stage item group assignments (pre-pick which template applies)
+    stage1_item_group = models.ForeignKey(
+        'StageItemGroup',
+        related_name='stage1_projects',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Template group of Stage 1 items for this project's stage report",
+    )
+    stage2_item_group = models.ForeignKey(
+        'StageItemGroup',
+        related_name='stage2_projects',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Template group of Stage 2 items for this project's stage report",
+    )
+
     # Lease fields
     lease_signed_date = models.DateField(null=True, blank=True, help_text="Date lease was signed (only for non-registered housing providers)")
     
+    # Staff assignment
+    principal_officer = models.ForeignKey(
+        'auth.User',
+        related_name='principal_projects',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="RICD Principal Officer responsible for this project"
+    )
+    senior_officer = models.ForeignKey(
+        'auth.User',
+        related_name='senior_projects',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="RICD Senior Officer with carriage of this project"
+    )
+
     # Post-completion fields
     completion_date = models.DateField(null=True, blank=True)
     handover_checklist_link = models.URLField(blank=True)
     warranty_end_date = models.DateField(null=True, blank=True)
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -169,13 +205,13 @@ class Project(models.Model):
         return fs_list.first() if fs_list else None
     
     @property
-    def funding_schedule(self):
-        """Returns the funding schedule this project is linked to (from reverse relation)"""
-        return self.active_funding_schedule
+    def active_funding_schedule_obj(self):
+        """Returns the active FundingSchedule for this project (from reverse relation)."""
+        return self.active_funding_schedule()
     
     def get_inherited_dates(self):
         """Returns dates from FundingSchedule if project has no dates set"""
-        fs = self.funding_schedule
+        fs = self.active_funding_schedule()
         if fs:
             return {
                 'stage1_target': fs.stage1_target_date,

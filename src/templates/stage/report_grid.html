@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+{% block title %}{{ report.get_stage_type_display }} Report &mdash; {{ report.project.name }}{% endblock %}
+{% block breadcrumbs %}
+  <span class="sep">/</span>
+  <a href="{% url 'ui:reports_dashboard' %}">Reports</a>
+  <span class="sep">/</span>
+  <a href="{% url 'ui:project_detail' report.project.pk %}">{{ report.project.name }}</a>
+  <span class="sep">/</span>
+  <span class="current">{{ report.get_stage_type_display }} Report</span>
+{% endblock %}
+{% block content %}
+
+{# ===== Page head ===== #}
+<div class="pg-head" style="margin-bottom:12px; padding-bottom:10px;">
+  <div>
+    <h1>{{ report.get_stage_type_display }} Report &mdash; {{ report.project.name }}</h1>
+    <div class="meta">
+      <span><b>Project</b> <a href="{% url 'ui:project_detail' report.project.pk %}">{{ report.project.name }}</a></span>
+      {% if report.funding_schedule %}
+        <span><b>Agreement</b> <a href="{% url 'ui:funding_schedule_detail' report.funding_schedule.pk %}">FS #{{ report.funding_schedule.schedule_number }}</a></span>
+      {% elif report.interim_frp %}
+        <span><b>Agreement</b> <a href="{% url 'ui:interim_frp_detail' report.interim_frp.pk %}">Interim FRP{% if report.interim_frp.reference %} &middot; {{ report.interim_frp.reference }}{% endif %}</a></span>
+      {% elif report.forward_rpf %}
+        <span><b>Agreement</b> <a href="{% url 'ui:forward_rpf_detail' report.forward_rpf.pk %}">Forward RPF{% if report.forward_rpf.reference %} &middot; {{ report.forward_rpf.reference }}{% endif %}</a></span>
+      {% else %}
+        <span><b>Agreement</b> <span class="text-muted">&mdash;</span></span>
+      {% endif %}
+      <span><b>Council</b> {{ report.project.council.name }}</span>
+      {% if report.stage_type == 'STAGE1' and report.project.stage1_target_date %}
+        <span><b>Target</b> {{ report.project.stage1_target_date|date:"d M Y" }}</span>
+        {% if report.project.stage1_sunset_date %}<span style="color:var(--st-amber-fg);"><b>Sunset</b> {{ report.project.stage1_sunset_date|date:"d M Y" }}</span>{% endif %}
+      {% elif report.stage_type == 'STAGE2' and report.project.stage2_target_date %}
+        <span><b>Target</b> {{ report.project.stage2_target_date|date:"d M Y" }}</span>
+        {% if report.project.stage2_sunset_date %}<span style="color:var(--st-amber-fg);"><b>Sunset</b> {{ report.project.stage2_sunset_date|date:"d M Y" }}</span>{% endif %}
+      {% endif %}
+    </div>
+  </div>
+  <div class="actions">
+    {% with s=report.status %}
+      <span class="pill
+        {% if s == 'DRAFT' %}grey
+        {% elif s == 'IN_PROGRESS' or s == 'ENDORSED' or s == 'ASSESSED' %}amber
+        {% elif s == 'SUBMITTED' %}blue
+        {% elif s == 'APPROVED' %}green
+        {% elif s == 'REJECTED' %}red{% endif %}">
+        {{ report.get_status_display }}
+      </span>
+    {% endwith %}
+    <a href="{% url 'ui:project_detail' report.project.pk %}" class="btn btn-outline-secondary btn-sm">Back to project</a>
+  </div>
+</div>
+
+{# ===== Workflow chip strip ===== #}
+<div class="card mb-3"><div class="card-body py-3">
+  {% with s=report.status %}
+  <div class="flow">
+    <div class="step {% if s == 'DRAFT' %}current{% else %}done{% endif %}">
+      {% if s != 'DRAFT' %}<i class="bi bi-check-lg"></i>{% elif s == 'DRAFT' %}<i class="bi bi-arrow-right-circle"></i>{% endif %}
+      Draft
+    </div>
+    <div class="sep {% if s != 'DRAFT' %}done{% endif %}"></div>
+    <div class="step
+      {% if s == 'IN_PROGRESS' %}current
+      {% elif s == 'SUBMITTED' or s == 'ENDORSED' or s == 'ASSESSED' or s == 'APPROVED' %}done{% endif %}">
+      {% if s == 'IN_PROGRESS' %}<i class="bi bi-arrow-right-circle"></i>{% elif s == 'SUBMITTED' or s == 'ENDORSED' or s == 'ASSESSED' or s == 'APPROVED' %}<i class="bi bi-check-lg"></i>{% endif %}
+      In Progress
+    </div>
+    <div class="sep {% if s == 'SUBMITTED' or s == 'ENDORSED' or s == 'ASSESSED' or s == 'APPROVED' %}done{% endif %}"></div>
+    <div class="step
+      {% if s == 'SUBMITTED' %}current
+      {% elif s == 'ENDORSED' or s == 'ASSESSED' or s == 'APPROVED' %}done{% endif %}">
+      {% if s == 'SUBMITTED' %}<i class="bi bi-arrow-right-circle"></i>{% elif s == 'ENDORSED' or s == 'ASSESSED' or s == 'APPROVED' %}<i class="bi bi-check-lg"></i>{% endif %}
+      Submitted
+    </div>
+    <div class="sep {% if s == 'ENDORSED' or s == 'ASSESSED' or s == 'APPROVED' %}done{% endif %}"></div>
+    <div class="step
+      {% if s == 'ENDORSED' %}current
+      {% elif s == 'ASSESSED' or s == 'APPROVED' %}done{% endif %}">
+      {% if s == 'ENDORSED' %}<i class="bi bi-arrow-right-circle"></i>{% elif s == 'ASSESSED' or s == 'APPROVED' %}<i class="bi bi-check-lg"></i>{% endif %}
+      Endorsed
+    </div>
+    <div class="sep {% if s == 'ASSESSED' or s == 'APPROVED' %}done{% endif %}"></div>
+    <div class="step
+      {% if s == 'ASSESSED' %}current
+      {% elif s == 'APPROVED' %}done{% endif %}">
+      {% if s == 'ASSESSED' %}<i class="bi bi-arrow-right-circle"></i>{% elif s == 'APPROVED' %}<i class="bi bi-check-lg"></i>{% endif %}
+      Assessed
+    </div>
+    <div class="sep {% if s == 'APPROVED' %}done{% endif %}"></div>
+    <div class="step {% if s == 'APPROVED' %}current{% endif %}">
+      {% if s == 'APPROVED' %}<i class="bi bi-check-lg"></i>{% endif %}
+      Approved
+    </div>
+    <div style="flex:1;"></div>
+    {% if s == 'REJECTED' %}
+      <span class="pill red"><i class="bi bi-x-circle"></i> Rejected</span>
+    {% endif %}
+    {% if report.endorsed_at %}
+      <span style="font-size:11.5px; color:var(--muted);"><i class="bi bi-clock"></i> Endorsed {{ report.endorsed_at|date:"d M Y" }}</span>
+    {% endif %}
+  </div>
+  {% endwith %}
+</div></div>
+
+{% if not items %}
+  <div class="empty">
+    <div class="ic"><i class="bi bi-clipboard"></i></div>
+    <h3>No stage items configured</h3>
+    <p>This project has no {{ report.get_stage_type_display }} item template assigned. Edit the project and pick one.</p>
+    <a href="{% url 'ui:project_edit' report.project.pk %}" class="btn btn-primary btn-sm">Edit project</a>
+  </div>
+{% else %}
+
+<div style="display:grid; grid-template-columns:1fr 280px; gap:24px;">
+
+  {# ===== Main column ===== #}
+  <div>
+    <form method="post" id="stage-report-form">
+      {% csrf_token %}
+      <div class="card mb-3"><div class="card-body">
+        <div class="sec-h">
+          <h2>{{ report.item_group.name|default:"Stage items" }}</h2>
+          <span style="font-size:11px; color:var(--muted);">{{ items|length }} item{{ items|length|pluralize }}</span>
+        </div>
+
+        {% for entry in items %}
+          {% with gi=entry.group_item ft=entry.group_item.field_type %}
+          <div style="padding:14px 0; border-bottom:1px solid var(--line-soft);">
+            <div style="display:grid; grid-template-columns:1fr 360px; gap:24px;">
+
+              {# Left: name / help / field / N/A / notes #}
+              <div>
+                <div style="font-weight:600; font-size:13.5px;">
+                  {{ gi.item.name }}
+                  {% if gi.is_required %}<span class="text-danger">*</span>{% endif %}
+                  {% if gi.help_text %}
+                    <span title="{{ gi.help_text }}" style="margin-left:6px; color:var(--muted-2); cursor:help;">
+                      <i class="bi bi-info-circle"></i>
+                    </span>
+                  {% endif %}
+                  {% if entry.is_completed %}<span class="pill green ms-2"><i class="bi bi-check2"></i> Done</span>{% endif %}
+                  {% if entry.is_na %}<span class="pill grey ms-2"><i class="bi bi-slash-circle"></i> N/A</span>{% endif %}
+                </div>
+                {% if gi.help_text %}<div style="font-size:12px; color:var(--muted); margin-top:2px;">{{ gi.help_text }}</div>{% endif %}
+
+                <div style="margin-top:8px;">
+                  {% if entry.is_na %}
+                    <span class="text-muted" style="font-size:12.5px;"><i class="bi bi-slash-circle"></i> Marked N/A</span>
+                  {% elif ft == 'CHECKBOX' %}
+                    <label class="d-inline-flex align-items-center gap-2" style="font-size:13px;">
+                      <input type="checkbox" class="form-check-input" name="item_{{ entry.pk }}_bool" {% if entry.boolean_value %}checked{% endif %} {% if not can_edit %}disabled{% endif %}>
+                      <span>Confirmed</span>
+                    </label>
+                  {% elif ft == 'YES_NO' or ft == 'YES_NO_NA' %}
+                    <select class="form-select form-select-sm" name="item_{{ entry.pk }}_yn" style="max-width:160px;" {% if not can_edit %}disabled{% endif %}>
+                      <option value="">&mdash;</option>
+                      <option value="yes" {% if entry.boolean_value and not entry.is_na %}selected{% endif %}>Yes</option>
+                      <option value="no" {% if entry.boolean_value is False and not entry.is_na %}selected{% endif %}>No</option>
+                      {% if ft == 'YES_NO_NA' %}<option value="na" {% if entry.is_na %}selected{% endif %}>N/A</option>{% endif %}
+                    </select>
+                  {% elif ft == 'DATE' or ft == 'DATE_NA' %}
+                    <input type="date" class="form-control form-control-sm" name="item_{{ entry.pk }}_date" value="{{ entry.date_value|date:'Y-m-d' }}" style="max-width:180px;" {% if not can_edit %}disabled{% endif %}>
+                  {% elif ft == 'NUMBER' %}
+                    <input type="number" class="form-control form-control-sm" name="item_{{ entry.pk }}_num" value="{{ entry.number_value|default_if_none:'' }}" style="max-width:120px;" step="any" {% if not can_edit %}disabled{% endif %}>
+                  {% elif ft == 'CURRENCY' %}
+                    <div class="input-group input-group-sm" style="max-width:180px;">
+                      <span class="input-group-text">$</span>
+                      <input type="number" class="form-control" name="item_{{ entry.pk }}_num" value="{{ entry.number_value|default_if_none:'' }}" step="0.01" {% if not can_edit %}disabled{% endif %}>
+                    </div>
+                  {% else %}
+                    <input type="text" class="form-control form-control-sm" name="item_{{ entry.pk }}_text" value="{{ entry.text_value }}" style="max-width:320px;" {% if not can_edit %}disabled{% endif %}>
+                  {% endif %}
+                </div>
+
+                {% if ft == 'DATE_NA' %}
+                <div style="margin-top:6px;">
+                  <label class="form-check d-inline-flex align-items-center gap-1" style="font-size:11.5px; color:var(--muted);">
+                    <input type="checkbox" class="form-check-input" name="item_{{ entry.pk }}_na" {% if entry.is_na %}checked{% endif %} style="margin:0;" {% if not can_edit %}disabled{% endif %}>
+                    Mark N/A
+                  </label>
+                </div>
+                {% endif %}
+
+                <details style="margin-top:8px;" {% if entry.notes %}open{% endif %}>
+                  <summary style="font-size:11.5px; color:var(--brand); cursor:pointer; list-style:none;">
+                    <i class="bi bi-chevron-right"></i> Notes
+                    {% if entry.notes %}<span style="color:var(--muted);">&middot; "{{ entry.notes|truncatechars:40 }}"</span>{% endif %}
+                  </summary>
+                  <textarea class="form-control form-control-sm mt-2" rows="2" name="item_{{ entry.pk }}_notes" {% if not can_edit %}disabled{% endif %}>{{ entry.notes }}</textarea>
+                </details>
+              </div>
+
+              {# Right: attachments #}
+              <div style="border-left:1px dashed var(--line); padding-left:18px;">
+                <div style="font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:600; margin-bottom:6px;">
+                  Attachments
+                  {% if gi.requires_attachment %}<span style="color:var(--st-amber-fg);">*</span>{% endif %}
+                </div>
+                {% with att_count=entry.attachments.all|length %}
+                {% if att_count > 0 %}
+                  <ul class="list-unstyled mb-2" style="font-size:12.5px;">
+                    {% for att in entry.attachments.all %}
+                      <li class="d-flex gap-2 py-1" style="border-bottom:1px dotted var(--line);">
+                        <i class="bi bi-link-45deg" style="color:var(--brand);"></i>
+                        <div style="flex:1; min-width:0;">
+                          <a href="{{ att.document_uri }}" target="_blank" rel="noopener" style="display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                            {{ att.description|default:att.document_uri }}
+                          </a>
+                          <div style="font-size:10.5px; color:var(--muted);">uploaded by {{ att.uploaded_by|default:"&mdash;" }}</div>
+                        </div>
+                        {% if can_edit %}
+                        <form method="post" action="{% url 'ui:stage_report_attachment_delete' att.pk %}" style="display:inline;" onsubmit="return confirm('Delete this attachment?');">
+                          {% csrf_token %}
+                          <button type="submit" class="btn btn-link btn-sm p-0 text-danger" style="font-size:14px; line-height:1;" title="Remove">&times;</button>
+                        </form>
+                        {% endif %}
+                      </li>
+                    {% endfor %}
+                  </ul>
+                {% else %}
+                  <div style="font-size:11.5px; color:{% if gi.requires_attachment %}var(--st-amber-fg){% else %}var(--muted-2){% endif %}; font-style:italic; padding:4px 0;">
+                    {% if gi.requires_attachment %}No attachments yet (required){% else %}No attachments yet{% endif %}
+                  </div>
+                {% endif %}
+                {% endwith %}
+
+                {% if can_edit %}
+                <form method="post" action="{% url 'ui:stage_report_attachment_add' entry.pk %}" class="mt-1" style="display:flex; flex-direction:column; gap:4px;">
+                  {% csrf_token %}
+                  <input type="url" name="document_uri" class="form-control form-control-sm" placeholder="Paste URL to external doc…" style="font-size:11.5px;" required>
+                  <div style="display:flex; gap:4px;">
+                    <input type="text" name="description" class="form-control form-control-sm" placeholder="Description (optional)" style="font-size:11.5px;">
+                    <button type="submit" class="btn btn-outline-secondary btn-sm">Add</button>
+                  </div>
+                </form>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endwith %}
+        {% endfor %}
+      </div></div>
+    </form>
+
+    {# Sticky bottom action bar #}
+    <div class="card" style="position:sticky; bottom:12px;">
+      <div class="card-body py-2 d-flex align-items-center gap-2 flex-wrap">
+        <span style="font-size:12px; color:var(--muted);">
+          <i class="bi bi-info-circle"></i> {{ items|length }} item{{ items|length|pluralize }}
+          &middot; Status: <b>{{ report.get_status_display }}</b>
+        </span>
+        <div style="flex:1;"></div>
+
+        {% if can_edit %}
+          <button type="submit" form="stage-report-form" class="btn btn-outline-secondary btn-sm">Save Draft</button>
+        {% endif %}
+
+        {% if report.status == 'DRAFT' or report.status == 'IN_PROGRESS' %}
+          {% if can_edit %}
+          <form method="post" action="{% url 'ui:stage_report_submit' report.pk %}" style="display:inline;">{% csrf_token %}
+            <button class="btn btn-primary btn-sm">Submit</button>
+          </form>
+          {% endif %}
+        {% endif %}
+
+        {% if report.status == 'SUBMITTED' %}
+          <form method="post" action="{% url 'ui:stage_report_endorse' report.pk %}" style="display:inline;">{% csrf_token %}
+            <button class="btn btn-outline-secondary btn-sm">Endorse</button>
+          </form>
+        {% endif %}
+
+        {% if report.status == 'ENDORSED' and is_ricd %}
+          <form method="post" action="{% url 'ui:stage_report_assess' report.pk %}" style="display:inline;">{% csrf_token %}
+            <button class="btn btn-outline-secondary btn-sm">Assess</button>
+          </form>
+        {% endif %}
+
+        {% if report.status == 'ASSESSED' and is_manager %}
+          <form method="post" action="{% url 'ui:stage_report_approve' report.pk %}" style="display:inline;">{% csrf_token %}
+            <button class="btn btn-primary btn-sm">Approve</button>
+          </form>
+        {% endif %}
+
+        {% if is_ricd and report.status != 'APPROVED' and report.status != 'REJECTED' %}
+          <form method="post" action="{% url 'ui:stage_report_reject' report.pk %}" style="display:inline;" onsubmit="return confirm('Reject this report? Council will need to amend and resubmit.');">{% csrf_token %}
+            <button class="btn btn-outline-secondary btn-sm" style="color:#991b1b;"><i class="bi bi-x-lg"></i> Reject</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# ===== Side rail ===== #}
+  <aside>
+    <div class="card mb-3"><div class="card-body">
+      <div class="sec-h"><h2>Progress</h2></div>
+      <div style="font-size:13px; line-height:1.7;">
+        <div class="d-flex justify-content-between"><span class="text-muted">Items total</span><b>{{ items|length }}</b></div>
+        <div class="d-flex justify-content-between"><span class="text-muted">Status</span><b>{{ report.get_status_display }}</b></div>
+        <div class="d-flex justify-content-between"><span class="text-muted">Last updated</span><b>{{ report.updated_at|date:"d M H:i" }}</b></div>
+      </div>
+    </div></div>
+
+    <div class="card mb-3"><div class="card-body">
+      <div class="sec-h"><h2>Activity</h2></div>
+      <ul class="list-unstyled mb-0" style="font-size:12px;">
+        {% if report.approved_at %}<li class="py-1 border-bottom"><b>Approved</b> &middot; {{ report.approved_by|default:"&mdash;" }} &middot; {{ report.approved_at|date:"d M H:i" }}</li>{% endif %}
+        {% if report.assessed_at %}<li class="py-1 border-bottom"><b>Assessed</b> &middot; {{ report.assessed_by|default:"&mdash;" }} &middot; {{ report.assessed_at|date:"d M H:i" }}</li>{% endif %}
+        {% if report.endorsed_at %}<li class="py-1 border-bottom"><b>Endorsed</b> &middot; {{ report.endorsed_by|default:"&mdash;" }} &middot; {{ report.endorsed_at|date:"d M H:i" }}</li>{% endif %}
+        {% if report.submitted_at %}<li class="py-1 border-bottom"><b>Submitted</b> &middot; {{ report.submitted_by|default:"&mdash;" }} &middot; {{ report.submitted_at|date:"d M H:i" }}</li>{% endif %}
+        <li class="py-1"><b>Created</b> &middot; {{ report.created_at|date:"d M H:i" }}</li>
+      </ul>
+    </div></div>
+
+    <div class="card"><div class="card-body">
+      <div class="sec-h"><h2>Template</h2></div>
+      {% if report.item_group %}
+        <p style="font-size:12.5px; margin:0;">
+          <i class="bi bi-grid-3x3-gap"></i> <a href="{% url 'ui:stage_item_group_detail' report.item_group.pk %}">{{ report.item_group.name }}</a><br>
+          <span class="text-muted" style="font-size:11.5px;">{{ report.item_group.get_stage_type_display }}</span>
+        </p>
+      {% else %}
+        <p class="text-muted" style="font-size:12px; margin:0;">No template attached.</p>
+      {% endif %}
+    </div></div>
+  </aside>
+</div>
+
+{% endif %}
+
+{% endblock %}

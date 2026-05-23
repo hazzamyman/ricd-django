@@ -281,10 +281,9 @@
             <thead class="table-light">
               <tr>
                 <th>#</th>
-                <th>Amount</th>
-                <th>Contingency</th>
+                <th>Total Funding</th>
+                <th>Payment Rule</th>
                 <th>Status</th>
-                <th>Payment Split</th>
                 <th></th>
               </tr>
             </thead>
@@ -292,10 +291,9 @@
               {% for fs in schedules %}
               <tr>
                 <td>{{ fs.pk }}</td>
-                <td>${{ fs.amount|floatformat:0 }}</td>
-                <td>{% if fs.contingency %}${{ fs.contingency|floatformat:0 }}{% else %}—{% endif %}</td>
+                <td>${{ fs.total_funding|floatformat:0 }}</td>
+                <td>{{ fs.payment_rule|default:"—" }}</td>
                 <td><span class="state-badge state-{{ fs.status|lower }}">{{ fs.get_status_display }}</span></td>
-                <td>{{ fs.get_payment_split_display|default:"—" }}</td>
                 <td><a href="{% url 'ui:funding_schedule_detail' fs.pk %}" class="btn btn-outline-secondary btn-sm">View</a></td>
               </tr>
               {% endfor %}

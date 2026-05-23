@@ -8,12 +8,30 @@ class Council(models.Model):
     contact_email = models.EmailField(blank=True)
     contact_phone = models.CharField(max_length=50, blank=True)
     is_registered_housing_provider = models.BooleanField(default=False, db_index=True)
-    
+
+    # Default RICD staff assigned to projects for this council
+    default_principal_officer = models.ForeignKey(
+        'auth.User',
+        related_name='default_principal_councils',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Default Principal Officer applied to new projects for this council"
+    )
+    default_senior_officer = models.ForeignKey(
+        'auth.User',
+        related_name='default_senior_councils',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Default Senior Officer applied to new projects for this council"
+    )
+
     # RCPA Funding Agreement contact (Option 3)
     rcpa_contact_name = models.CharField(max_length=255, blank=True, help_text="RCPA contact name")
     rcpa_contact_phone = models.CharField(max_length=50, blank=True, help_text="RCPA contact phone")
     rcpa_contact_email = models.EmailField(blank=True, help_text="RCPA contact email")
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
