@@ -6,7 +6,7 @@ from datetime import datetime
 
 def get_current_financial_year():
     """Get current financial year based on today's date.
-    
+
     QLD Financial Year:
     - July 2025 = 2025-26 starts
     - April 2026 = still in 2025-26
@@ -16,6 +16,21 @@ def get_current_financial_year():
         start_year = today.year
     else:
         start_year = today.year - 1
+    return f"{start_year}-{start_year + 1}"
+
+
+def date_to_financial_year(d):
+    """Convert a date or datetime to its Queensland financial year code.
+
+    Returns the same "YYYY-YYYY" format used by ``CURRENT_FINANCIAL_YEAR`` and
+    the ``FINANCIAL_YEAR_CHOICES`` (e.g., "2025-2026"). Returns ``None`` if d is None.
+    """
+    if d is None:
+        return None
+    if d.month >= 7:
+        start_year = d.year
+    else:
+        start_year = d.year - 1
     return f"{start_year}-{start_year + 1}"
 
 

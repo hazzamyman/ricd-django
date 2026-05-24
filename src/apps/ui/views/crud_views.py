@@ -346,13 +346,14 @@ class ProgramCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
 
 
 class ProgramDetailView(LoginRequiredMixin, DetailView):
-    """Program detail with built-in dashboard: budgets per FY, projects."""
+    """Program detail with built-in dashboard: budgets per FY, projects, cashflow extract."""
     model = Program
     template_name = 'programs/detail.html'
     context_object_name = 'program'
 
     def get_context_data(self, **kwargs):
         from apps.core.models import Payment
+        from apps.core.services.cashflow import build_program_cashflow
         from django.db.models import Sum
         ctx = super().get_context_data(**kwargs)
         program = self.object
@@ -370,6 +371,11 @@ class ProgramDetailView(LoginRequiredMixin, DetailView):
             project__program=program, status=Payment.Status.RELEASED
         ).aggregate(total=Sum('amount'))['total'] or 0
         ctx['released_total'] = released
+
+        # Cashflow extract: single-program slice of the full matrix
+        cashflow = build_program_cashflow(program=program)
+        ctx['cashflow'] = cashflow
+        ctx['cashflow_row'] = cashflow['rows'][0] if cashflow['rows'] else None
         return ctx
 
 

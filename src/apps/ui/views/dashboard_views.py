@@ -144,56 +144,41 @@ def dashboard_view(request):
 
 
 def cashflow_view(request):
-    """Cashflow dashboard - forecast vs actual by FY"""
-    from apps.core.models import Payment
-    
-    # Get active projects with funding schedules
-    projects = Project.objects.exclude(
-        state=Project.State.COMPLETED
-    ).select_related('council', 'program').prefetch_related('funding_schedules', 'payments')
-    
-    # Calculate forecast (based on WorkFunding allocations)
-    total_forecast = WorkFunding.objects.filter(
-        funding_schedule__project__in=projects
-    ).aggregate(total=Sum('amount'))['total'] or 0
-    
-    # Calculate actual (released payments)
-    actual_payments = Payment.objects.filter(
-        project__in=projects,
-        status=Payment.Status.RELEASED
-    ).aggregate(total=Sum('amount'))['total'] or 0
-    
-    # Remaining
-    remaining = total_forecast - actual_payments
-    
-    # By program
-    by_program = []
-    for program in Program.objects.all():
-        program_projects = projects.filter(program=program)
-        forecast = WorkFunding.objects.filter(
-            funding_schedule__project__in=program_projects
-        ).aggregate(total=Sum('amount'))['total'] or 0
-        actual = Payment.objects.filter(
-            project__in=program_projects,
-            status=Payment.Status.RELEASED
-        ).aggregate(total=Sum('amount'))['total'] or 0
-        drawdown_percent = (actual / forecast * 100) if forecast > 0 else 0
-        by_program.append({
-            'program': program,
-            'forecast': forecast,
-            'actual': actual,
-            'remaining': forecast - actual,
-            'drawdown_percent': drawdown_percent
-        })
-    
-    context = {
-        'projects': projects,
-        'total_forecast': total_forecast,
-        'actual_payments': actual_payments,
-        'remaining': remaining,
-        'by_program': by_program,
-    }
-    return render(request, 'dashboard/cashflow.html', context)
+    """Cashflow forecast — per-Program x per-FY matrix.
+
+    Compares ProgramBudget (allocated $ per FY) against forecast committed
+    (Payment.forecast_release_date bucketed into FYs) and released (actual)
+    payments. Surfaces over/under-commitment and "undated" projects that are
+    committed but don't yet have a forecast release date.
+    """
+    from apps.core.services.cashflow import build_program_cashflow
+
+    program_id = request.GET.get('program', '').strip()
+    council_id = request.GET.get('council', '').strip()
+
+    program = None
+    if program_id:
+        try:
+            program = Program.objects.get(pk=int(program_id))
+        except (Program.DoesNotExist, ValueError):
+            program = None
+
+    councils = None
+    if council_id:
+        try:
+            councils = [int(council_id)]
+        except ValueError:
+            councils = None
+
+    data = build_program_cashflow(program=program, councils=councils)
+
+    return render(request, 'dashboard/cashflow.html', {
+        'data': data,
+        'programs': Program.objects.filter(is_active=True).order_by('name'),
+        'councils': Council.objects.order_by('name'),
+        'selected_program_id': program_id,
+        'selected_council_id': council_id,
+    })
 
 
 def aggregate_outputs_view(request):
