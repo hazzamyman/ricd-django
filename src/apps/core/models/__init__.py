@@ -19,10 +19,12 @@ from .land_infra_models import LandTenure, DevelopmentApplication
 # Funding & Payment models
 from .funding_models import (
     PaymentRule,
+    PaymentRuleMilestone,
     FundingAgreement,
     BriefFinancialApproval,
     FundingNotice,
     ExpenseClaim,
+    ExpenseClaimAttachment,
     Delegation,
     FundingSchedule,
     ProjectStateLog,
@@ -86,8 +88,8 @@ __all__ = [
     # Land Infrastructure
     'LandTenure', 'DevelopmentApplication',
     # Funding & Payment
-    'PaymentRule', 'FundingAgreement', 'BriefFinancialApproval',
-    'FundingNotice', 'ExpenseClaim', 'Delegation',
+    'PaymentRule', 'PaymentRuleMilestone', 'FundingAgreement', 'BriefFinancialApproval',
+    'FundingNotice', 'ExpenseClaim', 'ExpenseClaimAttachment', 'Delegation',
     'FundingSchedule', 'ProjectStateLog', 'WorkFunding',
     'Approval', 'WorkflowAction', 'AuditLog', 'Payment',
     'ForwardRPFAgreement', 'InterimFRPAgreement',

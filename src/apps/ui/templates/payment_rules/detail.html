@@ -1,49 +1,160 @@
 {% extends "base.html" %}
 {% block title %}Payment Rule: {{ payment_rule.name }}{% endblock %}
+{% block breadcrumbs %}
+  <span class="sep">/</span>
+  <a href="{% url 'ui:payment_rule_list' %}">Payment Rules</a>
+  <span class="sep">/</span>
+  <span class="current">{{ payment_rule.name }}</span>
+{% endblock %}
 {% block content %}
-<div class="container mt-4">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2>{{ payment_rule.name }} <small class="text-muted">v{{ payment_rule.version }}</small></h2>
-    <a href="{% url 'ui:payment_rule_list' %}" class="btn btn-outline-secondary">Back</a>
+
+<div class="pg-head">
+  <div>
+    <h1>{{ payment_rule.name }} <small class="text-muted" style="font-weight:400;">v{{ payment_rule.version }}</small></h1>
+    <div class="meta">
+      <span><b>Type</b> {{ payment_rule.get_rule_type_display }}</span>
+      <span><b>Linked schedules</b> {{ schedule_count }}</span>
+      <span><b>Active</b> {{ payment_rule.is_active|yesno:"Yes,No" }}</span>
+    </div>
   </div>
-
-  {% if schedule_count %}
-  <div class="alert alert-warning">This rule is linked to {{ schedule_count }} funding schedule{{ schedule_count|pluralize }} and is <strong>immutable</strong>.</div>
-  {% endif %}
-
-  <dl class="row">
-    <dt class="col-sm-3">Type</dt>
-    <dd class="col-sm-9">{{ payment_rule.get_rule_type_display }}</dd>
-
-    <dt class="col-sm-3">Version</dt>
-    <dd class="col-sm-9">{{ payment_rule.version }}</dd>
-
-    <dt class="col-sm-3">Active</dt>
-    <dd class="col-sm-9">{% if payment_rule.is_active %}Yes{% else %}No{% endif %}</dd>
-
-    <dt class="col-sm-3">Linked Schedules</dt>
-    <dd class="col-sm-9">{{ schedule_count }}</dd>
-  </dl>
-
-  {% if milestones %}
-  <h4 class="mt-4">Milestone Schedule</h4>
-  <table class="table table-sm table-bordered">
-    <thead class="table-light">
-      <tr><th>Milestone</th><th>Trigger</th><th>Percentage</th></tr>
-    </thead>
-    <tbody>
-      {% for m in milestones %}
-      <tr>
-        <td>{{ m.name|default:forloop.counter }}</td>
-        <td>{{ m.trigger|default:"—" }}</td>
-        <td>{{ m.percentage }}%</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-  <h4 class="mt-4">Configuration</h4>
-  <pre class="bg-light p-3 rounded"><code>{{ payment_rule.config_json }}</code></pre>
-  {% endif %}
+  <div class="actions">
+    {% if is_locked %}
+      <span class="pill amber"><i class="bi bi-lock"></i> Locked (in use)</span>
+    {% else %}
+      <a href="{% url 'ui:payment_rule_edit' payment_rule.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
+      <a href="{% url 'ui:payment_rule_delete' payment_rule.pk %}" class="btn btn-outline-secondary btn-sm" style="color:#991b1b;">Delete</a>
+    {% endif %}
+    <a href="{% url 'ui:payment_rule_list' %}" class="btn btn-outline-secondary btn-sm">Back</a>
+  </div>
 </div>
+
+{% if is_locked %}
+  <div class="ricd-warn mb-3">
+    <i class="bi bi-info-circle"></i>
+    This rule is referenced by {{ schedule_count }} funding schedule{{ schedule_count|pluralize }}.
+    Editing or deleting it is blocked. Create a new version via "+ New Rule" on the list page if you need changes.
+  </div>
+{% endif %}
+
+{% if payment_rule.rule_type == 'SPLIT' %}
+  <div class="card mb-3"><div class="card-body">
+    <div class="sec-h"><h2>Milestone Schedule</h2></div>
+
+    {% if milestones %}
+    <table class="table table-sm align-middle">
+      <thead class="table-light">
+        <tr>
+          <th style="width:80px;">Order</th>
+          <th>Name</th>
+          <th style="width:160px;">Percentage</th>
+          <th style="width:140px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in milestones %}
+        <tr>
+          {% if is_locked %}
+            <td>{{ m.order }}</td>
+            <td>{{ m.name }}</td>
+            <td>{{ m.percentage }}%</td>
+            <td></td>
+          {% else %}
+            <td>
+              <form method="post" action="{% url 'ui:payment_rule_milestone_update' m.pk %}" id="ms-form-{{ m.pk }}">
+                {% csrf_token %}
+                <input type="number" name="order" value="{{ m.order }}" min="1" class="form-control form-control-sm" style="width:70px;">
+              </td>
+              <td>
+                <input type="text" form="ms-form-{{ m.pk }}" name="name" value="{{ m.name }}" class="form-control form-control-sm" required>
+              </td>
+              <td>
+                <div class="input-group input-group-sm" style="max-width:140px;">
+                  <input type="number" form="ms-form-{{ m.pk }}" name="percentage" value="{{ m.percentage }}" step="0.01" min="0" max="100" class="form-control" required>
+                  <span class="input-group-text">%</span>
+                </div>
+              </td>
+              <td class="text-end">
+                <button type="submit" form="ms-form-{{ m.pk }}" class="btn btn-outline-secondary btn-sm">Save</button>
+                <form method="post" action="{% url 'ui:payment_rule_milestone_delete' m.pk %}" class="d-inline" onsubmit="return confirm('Remove this milestone?');">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-outline-secondary btn-sm" style="color:#991b1b;">×</button>
+                </form>
+              </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {# Total row computed in Python via property #}
+    {% with total=payment_rule.milestones.all %}
+      <div class="d-flex justify-content-end" style="font-size:12.5px; color:var(--muted); padding:6px 12px;">
+        Total: <strong class="ms-1" id="ms-total-display">{# JS will compute on load #}</strong>
+      </div>
+    {% endwith %}
+    <script>
+      (function() {
+        var inputs = document.querySelectorAll('input[name="percentage"]');
+        function recalc() {
+          var sum = 0;
+          inputs.forEach(function(i){ var v = parseFloat(i.value) || 0; sum += v; });
+          var el = document.getElementById('ms-total-display');
+          if (el) {
+            el.textContent = sum.toFixed(2) + '%';
+            el.style.color = (Math.abs(sum - 100) < 0.01) ? '#065f46' : '#991b1b';
+          }
+        }
+        inputs.forEach(function(i){ i.addEventListener('input', recalc); });
+        recalc();
+      })();
+    </script>
+
+    {% else %}
+      <p class="text-muted" style="font-size:13px;">No milestones yet. Add one below — the total must reach 100%.</p>
+    {% endif %}
+
+    {% if not is_locked %}
+    <hr style="border-color:var(--line);">
+    <form method="post" action="{% url 'ui:payment_rule_milestone_add' payment_rule.pk %}" class="row g-2 align-items-end mt-2">
+      {% csrf_token %}
+      <div class="col-md-2">
+        <label class="form-label small">Order</label>
+        <input type="number" name="order" class="form-control form-control-sm" min="1" placeholder="auto">
+      </div>
+      <div class="col-md-5">
+        <label class="form-label small">Name</label>
+        <input type="text" name="name" class="form-control form-control-sm" placeholder="e.g. First, Stage 1 completion" required>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small">Percentage</label>
+        <div class="input-group input-group-sm">
+          <input type="number" name="percentage" class="form-control" step="0.01" min="0" max="100" required>
+          <span class="input-group-text">%</span>
+        </div>
+      </div>
+      <div class="col-md-2 text-end">
+        <button type="submit" class="btn btn-primary btn-sm">+ Add</button>
+      </div>
+    </form>
+    {% endif %}
+  </div></div>
+
+{% elif payment_rule.rule_type == 'INVOICE' %}
+  <div class="card mb-3"><div class="card-body">
+    <div class="sec-h"><h2>Invoice Rule</h2></div>
+    <p class="text-muted" style="font-size:13px;">
+      Invoice-based rules pay against actual expense claims up to a cap.
+      Configure caps + approval requirements per funding notice (no milestone rows needed).
+    </p>
+  </div></div>
+{% endif %}
+
+<div class="card"><div class="card-body">
+  <div class="sec-h"><h2>Metadata</h2></div>
+  <dl class="row mb-0">
+    <dt class="col-sm-3">Created</dt><dd class="col-sm-9">{{ payment_rule.created_at|date:"d M Y H:i" }}</dd>
+    <dt class="col-sm-3">Last updated</dt><dd class="col-sm-9">{{ payment_rule.updated_at|date:"d M Y H:i" }}</dd>
+  </dl>
+</div></div>
+
 {% endblock %}

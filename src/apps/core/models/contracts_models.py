@@ -15,7 +15,7 @@ class Contract(models.Model):
     project = models.ForeignKey(Project, related_name='contracts', on_delete=models.CASCADE)
     contract_status = models.CharField(max_length=10, choices=ContractStatus.choices, default=ContractStatus.DRAFT)
     title = models.CharField(max_length=255)
-    document_uri = models.URLField(blank=True, help_text='Link to contract document in OpenDocs/Google Drive')
+    document_uri = models.URLField(blank=True, help_text='Windows Share Drive, Sharepoint or OpenDocs link')
     sent_to_council_date = models.DateField(null=True, blank=True)
     council_executed_date = models.DateField(null=True, blank=True)
     execution_date = models.DateField(null=True, blank=True)

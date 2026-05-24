@@ -112,6 +112,37 @@ class NoticesMixin:
 MANAGER_ROLES = frozenset({'MANAGER', 'DIRECTOR'})
 
 
+class WidgetUpgradeMixin:
+    """Drop-in mixin for ModelForm-based CreateView / UpdateView.
+
+    Upgrades default Django widgets so forms render natively in the design system:
+      * DateField -> HTML5 date picker (<input type="date">)
+      * DecimalField / FloatField -> step="0.01", inputmode="decimal"
+      * All text-style inputs get Bootstrap class="form-control"
+      * Select -> class="form-select"; Checkbox -> class="form-check-input"
+    """
+    def get_form(self, form_class=None):
+        from django import forms as djforms
+        form = super().get_form(form_class)
+        for name, field in form.fields.items():
+            if isinstance(field, djforms.DateField) and not isinstance(field, djforms.DateTimeField):
+                field.widget = djforms.DateInput(attrs={'type': 'date'})
+            elif isinstance(field, (djforms.DecimalField, djforms.FloatField)):
+                attrs = dict(field.widget.attrs)
+                attrs.setdefault('step', '0.01')
+                attrs.setdefault('inputmode', 'decimal')
+                field.widget.attrs = attrs
+            w = field.widget
+            if isinstance(w, (djforms.TextInput, djforms.NumberInput, djforms.DateInput,
+                              djforms.EmailInput, djforms.URLInput, djforms.Textarea)):
+                w.attrs.setdefault('class', 'form-control')
+            elif isinstance(w, (djforms.Select, djforms.SelectMultiple)):
+                w.attrs.setdefault('class', 'form-select')
+            elif isinstance(w, djforms.CheckboxInput):
+                w.attrs.setdefault('class', 'form-check-input')
+        return form
+
+
 class CouncilScopedQuerysetMixin:
     """
     For council-role users: filter the queryset to their council.
@@ -220,7 +251,7 @@ class ProgramListView(LoginRequiredMixin, ListView):
     paginate_by = 50
 
 
-class ProgramCreateView(LoginRequiredMixin, CreateView):
+class ProgramCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = Program
     template_name = 'crud/form.html'
     fields = ['name', 'funding_source', 'funding_source_other', 'budget',
@@ -235,12 +266,78 @@ class ProgramCreateView(LoginRequiredMixin, CreateView):
 
 
 class ProgramDetailView(LoginRequiredMixin, DetailView):
+    """Program detail with built-in dashboard: budgets per FY, projects."""
     model = Program
     template_name = 'programs/detail.html'
     context_object_name = 'program'
 
+    def get_context_data(self, **kwargs):
+        from apps.core.models import Payment
+        from django.db.models import Sum
+        ctx = super().get_context_data(**kwargs)
+        program = self.object
 
-class ProgramUpdateView(LoginRequiredMixin, UpdateView):
+        projects_qs = program.projects.select_related('council').order_by('-created_at')
+        ctx['projects'] = projects_qs[:200]
+        ctx['project_count'] = projects_qs.count()
+        ctx['active_count'] = projects_qs.filter(
+            state__in=[Project.State.COMMENCED, Project.State.UNDER_CONSTRUCTION]
+        ).count()
+
+        ctx['budgets'] = program.budgets.order_by('financial_year')
+
+        released = Payment.objects.filter(
+            project__program=program, status=Payment.Status.RELEASED
+        ).aggregate(total=Sum('amount'))['total'] or 0
+        ctx['released_total'] = released
+        return ctx
+
+
+class ProgramBudgetCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
+    model = ProgramBudget
+    template_name = 'crud/form.html'
+    fields = ['financial_year', 'allocated', 'notes']
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['instance'] = ProgramBudget(program_id=self.kwargs['program_pk'])
+        return kwargs
+
+    def get_success_url(self):
+        return reverse_lazy('ui:program_detail', kwargs={'pk': self.kwargs['program_pk']})
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Add Program Budget (per FY)'
+        ctx['back_url'] = reverse_lazy('ui:program_detail', kwargs={'pk': self.kwargs['program_pk']})
+        return ctx
+
+
+class ProgramBudgetUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
+    model = ProgramBudget
+    template_name = 'crud/form.html'
+    fields = ['financial_year', 'allocated', 'notes']
+
+    def get_success_url(self):
+        return reverse_lazy('ui:program_detail', kwargs={'pk': self.object.program_id})
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit Budget: {self.object.financial_year}'
+        ctx['back_url'] = reverse_lazy('ui:program_detail', kwargs={'pk': self.object.program_id})
+        return ctx
+
+
+class ProgramBudgetDeleteView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        budget = get_object_or_404(ProgramBudget, pk=pk)
+        program_pk = budget.program_id
+        budget.delete()
+        messages.success(request, 'Budget allocation removed.')
+        return redirect('ui:program_detail', pk=program_pk)
+
+
+class ProgramUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = Program
     template_name = 'crud/form.html'
     fields = ['name', 'funding_source', 'funding_source_other', 'budget',
@@ -269,7 +366,7 @@ class ProgramDeleteView(LoginRequiredMixin, DeleteView):
 # Project
 # ---------------------------------------------------------------------------
 
-class ProjectCreateView(LoginRequiredMixin, CreateView):
+class ProjectCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = Project
     template_name = 'crud/form.html'
     fields = ['name', 'council', 'program', 'project_type', 'financial_year',
@@ -295,7 +392,7 @@ class ProjectDetailView(LoginRequiredMixin, CommentsMixin, NoticesMixin, DetailV
         return ctx
 
 
-class ProjectUpdateView(LoginRequiredMixin, UpdateView):
+class ProjectUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = Project
     template_name = 'crud/form.html'
     fields = ['name', 'council', 'program', 'project_type', 'financial_year',
@@ -449,7 +546,7 @@ class FundingScheduleDeleteView(LoginRequiredMixin, DeleteView):
 # Variation
 # ---------------------------------------------------------------------------
 
-class VariationCreateView(LoginRequiredMixin, CreateView):
+class VariationCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = Variation
     template_name = 'crud/form.html'
     fields = ['funding_schedule', 'variation_option', 'status', 'description',
@@ -469,7 +566,7 @@ class VariationDetailView(LoginRequiredMixin, CommentsMixin, NoticesMixin, Detai
     context_object_name = 'variation'
 
 
-class VariationUpdateView(LoginRequiredMixin, UpdateView):
+class VariationUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = Variation
     template_name = 'crud/form.html'
     fields = ['funding_schedule', 'variation_option', 'status', 'description',
@@ -508,11 +605,11 @@ class PaymentListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['project'] = Project.objects.get(pk=self.kwargs['project_pk'])
+        ctx['project'] = get_object_or_404(Project, pk=self.kwargs['project_pk'])
         return ctx
 
 
-class PaymentCreateView(LoginRequiredMixin, CreateView):
+class PaymentCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = Payment
     template_name = 'crud/form.html'
     fields = ['project', 'funding_schedule', 'payment_type', 'calculation_type',
@@ -545,7 +642,7 @@ class PaymentDetailView(LoginRequiredMixin, NoticesMixin, DetailView):
         return ctx
 
 
-class PaymentUpdateView(LoginRequiredMixin, UpdateView):
+class PaymentUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = Payment
     template_name = 'crud/form.html'
     fields = ['project', 'funding_schedule', 'payment_type', 'calculation_type',
@@ -607,7 +704,7 @@ class StageReportDetailView(LoginRequiredMixin, View):
         return redirect('ui:stage_report_grid', pk=pk)
 
 
-class StageReportUpdateView(LoginRequiredMixin, View):
+class StageReportUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, View):
     """Backwards-compat: redirect to the grid view by pk."""
     def get(self, request, project_pk, pk):
         return redirect('ui:stage_report_grid', pk=pk)
@@ -671,7 +768,7 @@ class FundingAgreementListView(LoginRequiredMixin, ListView):
         return FundingAgreement.objects.select_related('council').order_by('-created_at')
 
 
-class FundingAgreementCreateView(LoginRequiredMixin, CreateView):
+class FundingAgreementCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = FundingAgreement
     template_name = 'crud/form.html'
     fields = ['council', 'name', 'execution_date', 'status', 'document_uri', 'notes']
@@ -698,7 +795,7 @@ class FundingAgreementDetailView(LoginRequiredMixin, DetailView):
         return ctx
 
 
-class FundingAgreementUpdateView(LoginRequiredMixin, UpdateView):
+class FundingAgreementUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = FundingAgreement
     template_name = 'crud/form.html'
     fields = ['council', 'name', 'execution_date', 'status', 'document_uri', 'notes']
@@ -736,7 +833,7 @@ class FundingNoticeListView(LoginRequiredMixin, ListView):
         return FundingNotice.objects.select_related('project').order_by('-issued_date')
 
 
-class FundingNoticeCreateView(LoginRequiredMixin, CreateView):
+class FundingNoticeCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = FundingNotice
     template_name = 'crud/form.html'
     fields = ['project', 'capped_amount', 'issued_date', 'notes']
@@ -763,7 +860,7 @@ class FundingNoticeDetailView(LoginRequiredMixin, DetailView):
         return ctx
 
 
-class FundingNoticeUpdateView(LoginRequiredMixin, UpdateView):
+class FundingNoticeUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = FundingNotice
     template_name = 'crud/form.html'
     fields = ['project', 'capped_amount', 'issued_date', 'notes']
@@ -800,17 +897,22 @@ class FundingNoticeCloseView(LoginRequiredMixin, View):
 # ExpenseClaim  (nested under FundingNotice)
 # ---------------------------------------------------------------------------
 
-class ExpenseClaimCreateView(LoginRequiredMixin, CreateView):
+EXPENSE_CLAIM_FIELDS = [
+    'amount', 'date_submitted', 'status', 'approved_date',
+    'sap_document_reference', 'notes',
+]
+
+
+class ExpenseClaimCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = ExpenseClaim
     template_name = 'crud/form.html'
-    fields = ['amount', 'date_submitted', 'notes']
+    fields = EXPENSE_CLAIM_FIELDS
 
     def get_success_url(self):
-        return reverse_lazy('ui:funding_notice_detail', kwargs={'pk': self.kwargs['notice_pk']})
+        return reverse_lazy('ui:expense_claim_detail', kwargs={'pk': self.object.pk})
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
-        # Pre-populate so ExpenseClaim.clean() can access self.funding_notice during validation
         kwargs['instance'] = ExpenseClaim(funding_notice_id=self.kwargs['notice_pk'])
         return kwargs
 
@@ -822,19 +924,60 @@ class ExpenseClaimCreateView(LoginRequiredMixin, CreateView):
         return ctx
 
 
-class ExpenseClaimUpdateView(LoginRequiredMixin, UpdateView):
+class ExpenseClaimUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = ExpenseClaim
     template_name = 'crud/form.html'
-    fields = ['amount', 'date_submitted', 'notes']
+    fields = EXPENSE_CLAIM_FIELDS
 
     def get_success_url(self):
-        return reverse_lazy('ui:funding_notice_detail', kwargs={'pk': self.object.funding_notice_id})
+        return reverse_lazy('ui:expense_claim_detail', kwargs={'pk': self.object.pk})
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['title'] = f'Edit Expense Claim #{self.object.pk}'
-        ctx['back_url'] = reverse_lazy('ui:funding_notice_detail', kwargs={'pk': self.object.funding_notice_id})
+        ctx['back_url'] = reverse_lazy('ui:expense_claim_detail', kwargs={'pk': self.object.pk})
         return ctx
+
+
+class ExpenseClaimDetailView(LoginRequiredMixin, View):
+    """Detail page for an expense claim — fields plus attachment list with add/delete."""
+    def get(self, request, pk):
+        claim = get_object_or_404(
+            ExpenseClaim.objects.select_related('funding_notice__project__council'),
+            pk=pk
+        )
+        return render(request, 'expense_claims/detail.html', {
+            'claim': claim,
+            'attachments': claim.attachments.all(),
+        })
+
+
+class ExpenseClaimAttachmentAddView(LoginRequiredMixin, View):
+    def post(self, request, claim_pk):
+        from apps.core.models import ExpenseClaimAttachment
+        claim = get_object_or_404(ExpenseClaim, pk=claim_pk)
+        uri = (request.POST.get('document_uri') or '').strip()
+        if not uri:
+            messages.error(request, 'A document URL is required.')
+            return redirect('ui:expense_claim_detail', pk=claim_pk)
+        ExpenseClaimAttachment.objects.create(
+            claim=claim,
+            document_uri=uri,
+            description=(request.POST.get('description') or '').strip(),
+            uploaded_by=request.user,
+        )
+        messages.success(request, 'Attachment added.')
+        return redirect('ui:expense_claim_detail', pk=claim_pk)
+
+
+class ExpenseClaimAttachmentDeleteView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        from apps.core.models import ExpenseClaimAttachment
+        att = get_object_or_404(ExpenseClaimAttachment, pk=pk)
+        claim_pk = att.claim_id
+        att.delete()
+        messages.success(request, 'Attachment removed.')
+        return redirect('ui:expense_claim_detail', pk=claim_pk)
 
 
 class ExpenseClaimDeleteView(LoginRequiredMixin, DeleteView):
@@ -939,7 +1082,7 @@ class BriefFinancialApprovalListView(LoginRequiredMixin, ListView):
         return ctx
 
 
-class BriefFinancialApprovalCreateView(LoginRequiredMixin, CreateView):
+class BriefFinancialApprovalCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = BriefFinancialApproval
     template_name = 'crud/form.html'
     fields = ['funding_amount', 'contingency_amount', 'delegate_level', 'mincor_reference', 'comments']
@@ -965,7 +1108,7 @@ class BriefFinancialApprovalDetailView(LoginRequiredMixin, NoticesMixin, DetailV
     context_object_name = 'bfa'
 
 
-class BriefFinancialApprovalUpdateView(LoginRequiredMixin, UpdateView):
+class BriefFinancialApprovalUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = BriefFinancialApproval
     template_name = 'crud/form.html'
     fields = ['funding_amount', 'contingency_amount', 'delegate_level', 'mincor_reference', 'comments']
@@ -1049,11 +1192,136 @@ class PaymentRuleDetailView(LoginRequiredMixin, DetailView):
         ctx = super().get_context_data(**kwargs)
         rule = self.object
         ctx['schedule_count'] = FundingSchedule.objects.filter(payment_rule=rule).count()
-        milestones = []
-        if rule.rule_type == PaymentRule.RuleType.SPLIT:
-            milestones = rule.config_json.get('milestones', [])
-        ctx['milestones'] = milestones
+        ctx['milestones'] = rule.milestones.all().order_by('order')
+        ctx['is_locked'] = rule.is_locked
         return ctx
+
+
+class PaymentRuleCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
+    model = PaymentRule
+    template_name = 'crud/form.html'
+    fields = ['name', 'rule_type', 'version', 'is_active']
+
+    def get_success_url(self):
+        return reverse('ui:payment_rule_detail', kwargs={'pk': self.object.pk})
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Create Payment Rule'
+        ctx['back_url'] = reverse_lazy('ui:payment_rule_list')
+        return ctx
+
+
+class PaymentRuleUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
+    model = PaymentRule
+    template_name = 'crud/form.html'
+    fields = ['name', 'rule_type', 'version', 'is_active']
+
+    def dispatch(self, request, *args, **kwargs):
+        rule = self.get_object()
+        if rule.is_locked:
+            messages.error(
+                request,
+                f"'{rule.name}' is in use by a Funding Schedule. Create a new version instead."
+            )
+            return redirect('ui:payment_rule_detail', pk=rule.pk)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_success_url(self):
+        return reverse('ui:payment_rule_detail', kwargs={'pk': self.object.pk})
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit Payment Rule: {self.object.name}'
+        ctx['back_url'] = reverse_lazy('ui:payment_rule_detail', kwargs={'pk': self.object.pk})
+        return ctx
+
+
+class PaymentRuleDeleteView(LoginRequiredMixin, View):
+    def get(self, request, pk):
+        rule = get_object_or_404(PaymentRule, pk=pk)
+        return render(request, 'crud/confirm_delete.html', {
+            'object': rule,
+            'back_url': reverse('ui:payment_rule_detail', kwargs={'pk': pk}),
+            'extra_warning': "This will also delete all milestone rows." if not rule.is_locked else None,
+        })
+
+    def post(self, request, pk):
+        rule = get_object_or_404(PaymentRule, pk=pk)
+        if rule.is_locked:
+            messages.error(
+                request,
+                f"Cannot delete '{rule.name}' — it is in use by a Funding Schedule."
+            )
+            return redirect('ui:payment_rule_detail', pk=pk)
+        name = rule.name
+        rule.delete()
+        messages.success(request, f"Deleted payment rule '{name}'.")
+        return redirect('ui:payment_rule_list')
+
+
+# ---------------------------------------------------------------------------
+# PaymentRuleMilestone — inline rows under PaymentRule
+# ---------------------------------------------------------------------------
+
+class PaymentRuleMilestoneCreateView(LoginRequiredMixin, View):
+    """POST-only: add a milestone row from the detail page form."""
+    def post(self, request, rule_pk):
+        from apps.core.models import PaymentRuleMilestone
+        rule = get_object_or_404(PaymentRule, pk=rule_pk)
+        if rule.is_locked:
+            messages.error(request, f"'{rule.name}' is in use; cannot add milestones.")
+            return redirect('ui:payment_rule_detail', pk=rule_pk)
+        try:
+            from decimal import Decimal
+            next_order = (rule.milestones.order_by('-order').values_list('order', flat=True).first() or 0) + 1
+            PaymentRuleMilestone.objects.create(
+                rule=rule,
+                order=int(request.POST.get('order') or next_order),
+                name=(request.POST.get('name') or '').strip() or f'Milestone {next_order}',
+                percentage=Decimal(request.POST.get('percentage') or '0'),
+            )
+            rule.sync_config_json()
+            messages.success(request, 'Milestone added.')
+        except Exception as e:
+            messages.error(request, f'Could not add milestone: {e}')
+        return redirect('ui:payment_rule_detail', pk=rule_pk)
+
+
+class PaymentRuleMilestoneUpdateView(LoginRequiredMixin, View):
+    """POST-only: update a milestone row in-place."""
+    def post(self, request, pk):
+        from apps.core.models import PaymentRuleMilestone
+        from decimal import Decimal
+        ms = get_object_or_404(PaymentRuleMilestone, pk=pk)
+        rule = ms.rule
+        if rule.is_locked:
+            messages.error(request, f"'{rule.name}' is in use; cannot edit milestones.")
+            return redirect('ui:payment_rule_detail', pk=rule.pk)
+        try:
+            ms.order = int(request.POST.get('order') or ms.order)
+            ms.name = (request.POST.get('name') or '').strip() or ms.name
+            ms.percentage = Decimal(request.POST.get('percentage') or ms.percentage)
+            ms.save()
+            rule.sync_config_json()
+            messages.success(request, 'Milestone updated.')
+        except Exception as e:
+            messages.error(request, f'Could not update milestone: {e}')
+        return redirect('ui:payment_rule_detail', pk=rule.pk)
+
+
+class PaymentRuleMilestoneDeleteView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        from apps.core.models import PaymentRuleMilestone
+        ms = get_object_or_404(PaymentRuleMilestone, pk=pk)
+        rule = ms.rule
+        if rule.is_locked:
+            messages.error(request, f"'{rule.name}' is in use; cannot delete milestones.")
+            return redirect('ui:payment_rule_detail', pk=rule.pk)
+        ms.delete()
+        rule.sync_config_json()
+        messages.success(request, 'Milestone removed.')
+        return redirect('ui:payment_rule_detail', pk=rule.pk)
 
 
 # ---------------------------------------------------------------------------
@@ -1137,7 +1405,7 @@ class WorkListView(LoginRequiredMixin, ListView):
         return ctx
 
 
-class WorkCreateView(LoginRequiredMixin, CreateView):
+class WorkCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = Work
     template_name = 'crud/form.html'
     fields = ['work_type', 'work_type_other', 'bedrooms', 'quantity',
@@ -1165,7 +1433,7 @@ class WorkDetailView(LoginRequiredMixin, DetailView):
     context_object_name = 'work'
 
 
-class WorkUpdateView(LoginRequiredMixin, UpdateView):
+class WorkUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = Work
     template_name = 'crud/form.html'
     fields = ['work_type', 'work_type_other', 'bedrooms', 'quantity',
@@ -1253,7 +1521,7 @@ class AddressListView(LoginRequiredMixin, ListView):
         return ctx
 
 
-class AddressCreateView(LoginRequiredMixin, CreateView):
+class AddressCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = Address
     template_name = 'crud/form.html'
     fields = ['street', 'suburb', 'lot', 'plan', 'residence_plc_ref']
@@ -1280,7 +1548,7 @@ class AddressDetailView(LoginRequiredMixin, DetailView):
     context_object_name = 'address'
 
 
-class AddressUpdateView(LoginRequiredMixin, UpdateView):
+class AddressUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = Address
     template_name = 'crud/form.html'
     fields = ['street', 'suburb', 'lot', 'plan', 'residence_plc_ref']
@@ -1446,7 +1714,7 @@ class StageReportApproveView(LoginRequiredMixin, View):
 # VariationItem (nested under Variation)
 # ---------------------------------------------------------------------------
 
-class VariationItemCreateView(LoginRequiredMixin, CreateView):
+class VariationItemCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = VariationItem
     template_name = 'crud/form.html'
     fields = ['option', 'description', 'funding_schedule', 'council',
@@ -1471,7 +1739,7 @@ class VariationItemCreateView(LoginRequiredMixin, CreateView):
         return ctx
 
 
-class VariationItemUpdateView(LoginRequiredMixin, UpdateView):
+class VariationItemUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = VariationItem
     template_name = 'crud/form.html'
     fields = ['option', 'description', 'funding_schedule', 'council',
@@ -1531,7 +1799,7 @@ class WorkFundingListView(LoginRequiredMixin, ListView):
         ).order_by('funding_schedule', 'id')
 
 
-class WorkFundingCreateView(LoginRequiredMixin, CreateView):
+class WorkFundingCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = WorkFunding
     template_name = 'crud/form.html'
     fields = ['funding_schedule', 'project', 'work', 'cost_centre', 'gl_code', 'tax_code', 'amount', 'notes']
@@ -1550,7 +1818,7 @@ class WorkFundingDetailView(LoginRequiredMixin, DetailView):
     context_object_name = 'allocation'
 
 
-class WorkFundingUpdateView(LoginRequiredMixin, UpdateView):
+class WorkFundingUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = WorkFunding
     template_name = 'crud/form.html'
     fields = ['funding_schedule', 'project', 'work', 'cost_centre', 'gl_code', 'tax_code', 'amount', 'notes']
@@ -1656,7 +1924,7 @@ class NotionalCostCreateView(LoginRequiredMixin, CreateView):
         return ctx
 
 
-class NotionalCostUpdateView(LoginRequiredMixin, UpdateView):
+class NotionalCostUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = NotionalCost
     template_name = 'crud/form.html'
     fields = ['financial_year', 'bedrooms', 'cost_per_unit', 'is_default']
@@ -1702,7 +1970,7 @@ class WorkStepDefinitionListView(LoginRequiredMixin, ListView):
         return ctx
 
 
-class WorkStepDefinitionCreateView(LoginRequiredMixin, CreateView):
+class WorkStepDefinitionCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = WorkStepDefinition
     template_name = 'crud/form.html'
     fields = ['name', 'description', 'is_active']
@@ -1714,7 +1982,7 @@ class WorkStepDefinitionCreateView(LoginRequiredMixin, CreateView):
         return ctx
 
 
-class WorkStepDefinitionUpdateView(LoginRequiredMixin, UpdateView):
+class WorkStepDefinitionUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = WorkStepDefinition
     template_name = 'crud/form.html'
     fields = ['name', 'description', 'is_active']
@@ -1736,7 +2004,7 @@ class WorkStepDefinitionDeleteView(LoginRequiredMixin, DeleteView):
 # WorkStepGroup — nested under WorkType
 # ---------------------------------------------------------------------------
 
-class WorkStepGroupCreateView(LoginRequiredMixin, CreateView):
+class WorkStepGroupCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = WorkStepGroup
     template_name = 'crud/form.html'
     fields = ['name', 'description', 'is_active']
@@ -1757,7 +2025,7 @@ class WorkStepGroupCreateView(LoginRequiredMixin, CreateView):
         return reverse('ui:work_type_detail', kwargs={'pk': self.kwargs['wt_pk']})
 
 
-class WorkStepGroupUpdateView(LoginRequiredMixin, UpdateView):
+class WorkStepGroupUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = WorkStepGroup
     template_name = 'crud/form.html'
     fields = ['name', 'description', 'is_active']
@@ -1783,7 +2051,7 @@ class WorkStepGroupDeleteView(LoginRequiredMixin, DeleteView):
 # WorkStepGroupItem — nested under WorkStepGroup
 # ---------------------------------------------------------------------------
 
-class WorkStepGroupItemCreateView(LoginRequiredMixin, CreateView):
+class WorkStepGroupItemCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = WorkStepGroupItem
     template_name = 'crud/form.html'
     fields = ['step', 'order', 'cost_percentage', 'expected_duration_days', 'stage_gate']
@@ -1806,7 +2074,7 @@ class WorkStepGroupItemCreateView(LoginRequiredMixin, CreateView):
         return reverse('ui:work_type_detail', kwargs={'pk': self._group().work_type_id})
 
 
-class WorkStepGroupItemUpdateView(LoginRequiredMixin, UpdateView):
+class WorkStepGroupItemUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = WorkStepGroupItem
     template_name = 'crud/form.html'
     fields = ['step', 'order', 'cost_percentage', 'expected_duration_days', 'stage_gate']
@@ -1839,7 +2107,7 @@ class ConstructionMethodListView(LoginRequiredMixin, ListView):
     context_object_name = 'methods'
 
 
-class ConstructionMethodCreateView(LoginRequiredMixin, CreateView):
+class ConstructionMethodCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = ConstructionMethod
     template_name = 'crud/form.html'
     fields = ['name', 'code', 'is_active']
@@ -1854,7 +2122,7 @@ class ConstructionMethodCreateView(LoginRequiredMixin, CreateView):
         return reverse_lazy('ui:construction_method_list')
 
 
-class ConstructionMethodUpdateView(LoginRequiredMixin, UpdateView):
+class ConstructionMethodUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = ConstructionMethod
     template_name = 'crud/form.html'
     fields = ['name', 'code', 'is_active']
@@ -1885,7 +2153,7 @@ class ForwardRPFListView(LoginRequiredMixin, ListView):
     context_object_name = 'agreements'
 
 
-class ForwardRPFCreateView(LoginRequiredMixin, CreateView):
+class ForwardRPFCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = ForwardRPFAgreement
     template_name = 'crud/form.html'
     fields = ['council', 'reference', 'status', 'date_sent_to_council',
@@ -1907,7 +2175,7 @@ class ForwardRPFDetailView(LoginRequiredMixin, DetailView):
     context_object_name = 'agreement'
 
 
-class ForwardRPFUpdateView(LoginRequiredMixin, UpdateView):
+class ForwardRPFUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = ForwardRPFAgreement
     template_name = 'crud/form.html'
     fields = ['council', 'reference', 'status', 'date_sent_to_council',
@@ -1939,7 +2207,7 @@ class InterimFRPListView(LoginRequiredMixin, ListView):
     context_object_name = 'agreements'
 
 
-class InterimFRPCreateView(LoginRequiredMixin, CreateView):
+class InterimFRPCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = InterimFRPAgreement
     template_name = 'crud/form.html'
     fields = ['council', 'reference', 'status', 'date_sent_to_council',
@@ -1961,7 +2229,7 @@ class InterimFRPDetailView(LoginRequiredMixin, DetailView):
     context_object_name = 'agreement'
 
 
-class InterimFRPUpdateView(LoginRequiredMixin, UpdateView):
+class InterimFRPUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = InterimFRPAgreement
     template_name = 'crud/form.html'
     fields = ['council', 'reference', 'status', 'date_sent_to_council',

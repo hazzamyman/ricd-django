@@ -60,6 +60,10 @@ urlpatterns = [
     path('councils/<int:pk>/', views.crud_views.CouncilDetailView.as_view(), name='council_detail'),
     path('councils/<int:pk>/edit/', views.crud_views.CouncilUpdateView.as_view(), name='council_edit'),
     path('councils/<int:pk>/delete/', views.crud_views.CouncilDeleteView.as_view(), name='council_delete'),
+    # Council Contacts (nested under Council)
+    path('councils/<int:council_pk>/contacts/add/', views.crud_views.CouncilContactCreateView.as_view(), name='council_contact_create'),
+    path('council-contacts/<int:pk>/edit/', views.crud_views.CouncilContactUpdateView.as_view(), name='council_contact_edit'),
+    path('council-contacts/<int:pk>/delete/', views.crud_views.CouncilContactDeleteView.as_view(), name='council_contact_delete'),
 
     # Programs CRUD
     path('programs/', views.crud_views.ProgramListView.as_view(), name='program_list'),
@@ -67,6 +71,10 @@ urlpatterns = [
     path('programs/<int:pk>/', views.crud_views.ProgramDetailView.as_view(), name='program_detail'),
     path('programs/<int:pk>/edit/', views.crud_views.ProgramUpdateView.as_view(), name='program_edit'),
     path('programs/<int:pk>/delete/', views.crud_views.ProgramDeleteView.as_view(), name='program_delete'),
+    # Program Budgets (per FY, nested under Program)
+    path('programs/<int:program_pk>/budgets/add/', views.crud_views.ProgramBudgetCreateView.as_view(), name='program_budget_create'),
+    path('program-budgets/<int:pk>/edit/', views.crud_views.ProgramBudgetUpdateView.as_view(), name='program_budget_edit'),
+    path('program-budgets/<int:pk>/delete/', views.crud_views.ProgramBudgetDeleteView.as_view(), name='program_budget_delete'),
 
     # Work Types CRUD
     path('work-types/', views.crud_views.WorkTypeListView.as_view(), name='work_type_list'),
@@ -121,13 +129,17 @@ urlpatterns = [
     path('funding-notices/<int:pk>/delete/', views.crud_views.FundingNoticeDeleteView.as_view(), name='funding_notice_delete'),
     path('funding-notices/<int:pk>/close/', views.crud_views.FundingNoticeCloseView.as_view(), name='funding_notice_close'),
 
-    # Expense Claims (nested under FundingNotice)
+    # Expense Claims (nested under FundingNotice; standalone detail with attachments)
     path('funding-notices/<int:notice_pk>/claims/create/', views.crud_views.ExpenseClaimCreateView.as_view(), name='expense_claim_create'),
+    path('expense-claims/<int:pk>/', views.crud_views.ExpenseClaimDetailView.as_view(), name='expense_claim_detail'),
     path('expense-claims/<int:pk>/edit/', views.crud_views.ExpenseClaimUpdateView.as_view(), name='expense_claim_edit'),
     path('expense-claims/<int:pk>/delete/', views.crud_views.ExpenseClaimDeleteView.as_view(), name='expense_claim_delete'),
     path('expense-claims/<int:pk>/submit/', views.crud_views.ExpenseClaimSubmitView.as_view(), name='expense_claim_submit'),
     path('expense-claims/<int:pk>/approve/', views.crud_views.ExpenseClaimApproveView.as_view(), name='expense_claim_approve'),
     path('expense-claims/<int:pk>/reject/', views.crud_views.ExpenseClaimRejectView.as_view(), name='expense_claim_reject'),
+    # Expense claim attachments
+    path('expense-claims/<int:claim_pk>/attachments/add/', views.crud_views.ExpenseClaimAttachmentAddView.as_view(), name='expense_claim_attachment_add'),
+    path('expense-claim-attachments/<int:pk>/delete/', views.crud_views.ExpenseClaimAttachmentDeleteView.as_view(), name='expense_claim_attachment_delete'),
 
     # Funding Agreements CRUD
     path('funding-agreements/', views.crud_views.FundingAgreementListView.as_view(), name='funding_agreement_list'),
@@ -179,9 +191,15 @@ urlpatterns = [
     path('development-applications/<int:pk>/edit/', views.land_crud_views.DevelopmentApplicationUpdateView.as_view(), name='development_application_edit'),
     path('development-applications/<int:pk>/delete/', views.land_crud_views.DevelopmentApplicationDeleteView.as_view(), name='development_application_delete'),
 
-    # PaymentRule (read-only — issue #19)
+    # PaymentRule CRUD + nested milestone rows
     path('payment-rules/', views.crud_views.PaymentRuleListView.as_view(), name='payment_rule_list'),
+    path('payment-rules/create/', views.crud_views.PaymentRuleCreateView.as_view(), name='payment_rule_create'),
     path('payment-rules/<int:pk>/', views.crud_views.PaymentRuleDetailView.as_view(), name='payment_rule_detail'),
+    path('payment-rules/<int:pk>/edit/', views.crud_views.PaymentRuleUpdateView.as_view(), name='payment_rule_edit'),
+    path('payment-rules/<int:pk>/delete/', views.crud_views.PaymentRuleDeleteView.as_view(), name='payment_rule_delete'),
+    path('payment-rules/<int:rule_pk>/milestones/add/', views.crud_views.PaymentRuleMilestoneCreateView.as_view(), name='payment_rule_milestone_add'),
+    path('payment-rule-milestones/<int:pk>/update/', views.crud_views.PaymentRuleMilestoneUpdateView.as_view(), name='payment_rule_milestone_update'),
+    path('payment-rule-milestones/<int:pk>/delete/', views.crud_views.PaymentRuleMilestoneDeleteView.as_view(), name='payment_rule_milestone_delete'),
 
     # Approvals (issue #15)
     path('approvals/', views.crud_views.ApprovalListView.as_view(), name='approval_list'),

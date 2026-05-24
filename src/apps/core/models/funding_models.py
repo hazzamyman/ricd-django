@@ -11,15 +11,25 @@ from .projects_models import Project
 # ============================================================================
 
 class PaymentRule(models.Model):
-    """Payment calculation rules - versioned and immutable once used"""
+    """Payment calculation rules - versioned, with milestone child rows.
+
+    Two rule types:
+      * SPLIT  -- per-milestone percentage (e.g. 30/60/10). Milestones are stored
+                  as PaymentRuleMilestone rows; config_json is no longer the
+                  source of truth but is auto-synced for backward compatibility.
+      * INVOICE -- expense-claim style, paid against actuals up to a cap.
+    """
     class RuleType(models.TextChoices):
         SPLIT = 'SPLIT', 'Milestone Percentage'
         INVOICE_BASED = 'INVOICE', 'Invoice/Expense Claim'
 
     name = models.CharField(max_length=255, unique=True)
     rule_type = models.CharField(max_length=10, choices=RuleType.choices)
-    config_json = models.JSONField(default=dict, help_text="Milestones for SPLIT, requires_approval for INVOICE")
-    version = models.PositiveIntegerField(default=1, help_text="Version number - increment for new versions")
+    config_json = models.JSONField(
+        default=dict, blank=True,
+        help_text="Auto-synced from milestone rows; do not edit directly."
+    )
+    version = models.PositiveIntegerField(default=1, help_text="Increment for new versions")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -30,24 +40,68 @@ class PaymentRule(models.Model):
     def __str__(self):
         return f"{self.name} (v{self.version}, {self.rule_type})"
 
+    @property
+    def is_locked(self):
+        """True if any FundingSchedule references this rule (per business_rules.check_payment_rule_immutable).
+
+        While locked, the rule cannot be edited or deleted; users should create a new version instead.
+        """
+        try:
+            return self.schedules.exclude(status__in=['CANCELLED', 'COMPLETED']).exists()
+        except Exception:
+            return False
+
+    def sync_config_json(self):
+        """Rebuild config_json from milestone rows (call after milestone changes)."""
+        if self.rule_type == self.RuleType.SPLIT:
+            self.config_json = {
+                'milestones': [
+                    {'name': m.name, 'percentage': float(m.percentage), 'order': m.order}
+                    for m in self.milestones.all().order_by('order')
+                ]
+            }
+        # INVOICE rules keep whatever metadata is already in config_json
+        self.save(update_fields=['config_json', 'updated_at'])
+
     def clean(self):
         from django.core.exceptions import ValidationError
-        if self.rule_type == self.RuleType.SPLIT:
-            milestones = self.config_json.get('milestones', [])
-            if not milestones:
-                raise ValidationError("SPLIT requires 'milestones' in config_json")
-            total_pct = sum(m.get('percentage', 0) for m in milestones)
-            if total_pct != 100:
-                raise ValidationError(f"SPLIT milestones must total 100%, got {total_pct}%")
-        # Immutability: once linked to any FundingSchedule, cannot be modified
+        # Allow saving a SPLIT rule with no milestones yet (caller will add rows next),
+        # but if milestones exist, they must sum to 100%.
+        if self.pk and self.rule_type == self.RuleType.SPLIT:
+            rows = list(self.milestones.all())
+            if rows:
+                total = sum(float(m.percentage) for m in rows)
+                if abs(total - 100.0) > 0.001:
+                    raise ValidationError(f"SPLIT milestones must total 100%, got {total}%")
+        # Immutability while in use
         if self.pk:
             from apps.core.business_rules import check_payment_rule_immutable
             existing = PaymentRule.objects.filter(pk=self.pk).first()
             if existing and check_payment_rule_immutable(existing):
                 raise ValidationError(
-                    f"PaymentRule '{self.name}' is immutable — it is already linked to "
-                    "one or more FundingSchedules. Create a new version instead."
+                    f"PaymentRule '{self.name}' is in use by a FundingSchedule. "
+                    "Create a new version instead of editing this one."
                 )
+
+
+class PaymentRuleMilestone(models.Model):
+    """One row in a SPLIT rule (e.g. 'First payment 30%')."""
+    rule = models.ForeignKey(PaymentRule, related_name='milestones', on_delete=models.CASCADE)
+    order = models.PositiveSmallIntegerField(default=0)
+    name = models.CharField(max_length=100, help_text="e.g. 'First', 'Stage 1 completion'")
+    percentage = models.DecimalField(
+        max_digits=5, decimal_places=2,
+        help_text="0.00 - 100.00"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order']
+        unique_together = ('rule', 'order')
+
+    def __str__(self):
+        return f"{self.rule.name} [{self.order}] {self.name} ({self.percentage}%)"
 
 
 # ============================================================================
@@ -170,6 +224,10 @@ class ExpenseClaim(models.Model):
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT)
     approved_by = models.ForeignKey(User, related_name='expense_approvals', null=True, blank=True, on_delete=models.SET_NULL)
     approved_date = models.DateField(null=True, blank=True)
+    sap_document_reference = models.CharField(
+        max_length=100, blank=True,
+        help_text="SAP Recipient Created Tax Invoice (RCTI) or SAP payment document number"
+    )
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -179,6 +237,27 @@ class ExpenseClaim(models.Model):
 
     def __str__(self):
         return f"ExpenseClaim ${self.amount} for {self.funding_notice.project.name} ({self.status})"
+
+
+class ExpenseClaimAttachment(models.Model):
+    """Linked documents for an expense claim (invoices, SAP RCTI, supporting evidence)."""
+    claim = models.ForeignKey(ExpenseClaim, related_name='attachments', on_delete=models.CASCADE)
+    document_uri = models.URLField(
+        blank=True,
+        help_text="Windows Share Drive, Sharepoint or OpenDocs link"
+    )
+    description = models.CharField(max_length=255, blank=True, help_text="e.g. 'Invoice 1234', 'SAP RCTI'")
+    uploaded_by = models.ForeignKey(
+        'auth.User', null=True, blank=True,
+        related_name='expense_claim_attachments', on_delete=models.SET_NULL
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['uploaded_at']
+
+    def __str__(self):
+        return f"Attachment for {self.claim}: {self.description or self.document_uri}"
 
     def clean(self):
         from django.core.exceptions import ValidationError
@@ -504,7 +583,7 @@ class _LegacyAgreementBase(models.Model):
     date_sent_to_council = models.DateField(null=True, blank=True)
     date_council_signed = models.DateField(null=True, blank=True)
     date_delegate_signed = models.DateField(null=True, blank=True)
-    document_uri = models.URLField(blank=True, help_text="Link to executed agreement in OpenDocs/Google Drive")
+    document_uri = models.URLField(blank=True, help_text="Windows Share Drive, Sharepoint or OpenDocs link")
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -1,22 +1,192 @@
 {% extends "base.html" %}
-{% block title %}{{ council.name }} - RICD{% endblock %}
+{% block title %}{{ council.name }} — RICD{% endblock %}
+{% block breadcrumbs %}
+  <span class="sep">/</span>
+  <a href="{% url 'ui:council_list' %}">Councils</a>
+  <span class="sep">/</span>
+  <span class="current">{{ council.name }}</span>
+{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h2>{{ council.name }}</h2>
-  <div class="d-flex gap-2">
-    <a href="{% url 'ui:council_edit' council.pk %}" class="btn btn-secondary">Edit</a>
-    <a href="{% url 'ui:council_list' %}" class="btn btn-outline-secondary">Back</a>
+
+<div class="pg-head">
+  <div>
+    <h1>{{ council.name }}</h1>
+    <div class="meta">
+      {% if council.region %}<span><b>Region</b> {{ council.region }}</span>{% endif %}
+      {% if council.state_electorate %}<span><b>State</b> {{ council.state_electorate }}</span>{% endif %}
+      {% if council.federal_electorate %}<span><b>Federal</b> {{ council.federal_electorate }}</span>{% endif %}
+      <span><b>RHP</b> {{ council.is_registered_housing_provider|yesno:"Yes,No" }}</span>
+    </div>
+  </div>
+  <div class="actions">
+    <a href="{% url 'ui:council_edit' council.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
+    <a href="{% url 'ui:council_list' %}" class="btn btn-outline-secondary btn-sm">Back</a>
   </div>
 </div>
-<div class="card"><div class="card-body">
-  <dl class="row">
-    <dt class="col-sm-3">Region</dt><dd class="col-sm-9">{{ council.region|default:"-" }}</dd>
-    <dt class="col-sm-3">State Electorate</dt><dd class="col-sm-9">{{ council.state_electorate|default:"-" }}</dd>
-    <dt class="col-sm-3">Federal Electorate</dt><dd class="col-sm-9">{{ council.federal_electorate|default:"-" }}</dd>
-    <dt class="col-sm-3">Contact Email</dt><dd class="col-sm-9">{{ council.contact_email|default:"-" }}</dd>
-    <dt class="col-sm-3">Contact Phone</dt><dd class="col-sm-9">{{ council.contact_phone|default:"-" }}</dd>
-    <dt class="col-sm-3">Housing Provider</dt><dd class="col-sm-9">{{ council.is_registered_housing_provider|yesno:"Yes,No" }}</dd>
-  </dl>
-</div></div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-3"><div class="kpi"><div class="label">Total Projects</div><div class="value">{{ project_count }}</div></div></div>
+  <div class="col-md-3"><div class="kpi"><div class="label">Active</div><div class="value">{{ active_count }}</div></div></div>
+  <div class="col-md-3"><div class="kpi"><div class="label">Contacts</div><div class="value">{{ contacts|length }}</div></div></div>
+  <div class="col-md-3"><div class="kpi">
+    <div class="label">Tracker Submissions</div>
+    <div class="value">
+      {% if tracker_config and tracker_config.council_submission_enabled %}
+        <span style="font-size:14px; color:var(--st-green-fg);">Enabled</span>
+      {% else %}
+        <span style="font-size:14px; color:var(--muted);">Disabled</span>
+      {% endif %}
+    </div>
+  </div></div>
+</div>
+
+<div style="display:grid; grid-template-columns:1fr 360px; gap:24px;">
+
+  <div>
+    <div class="card mb-3"><div class="card-body">
+      <div class="sec-h">
+        <h2>Projects</h2>
+        <span style="font-size:11px; color:var(--muted);">{{ project_count }} total</span>
+      </div>
+      {% if projects %}
+      <table class="table table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr><th>Name</th><th>Program</th><th>State</th><th>FY</th><th>Stage 1</th><th>Stage 2</th></tr>
+        </thead>
+        <tbody>
+          {% for p in projects|slice:":25" %}
+          <tr>
+            <td><a href="{% url 'ui:project_detail' p.pk %}">{{ p.name }}</a></td>
+            <td>{{ p.program.name|default:"&mdash;" }}</td>
+            <td><span class="state-badge state-{{ p.state|lower }}">{{ p.get_state_display }}</span></td>
+            <td>{{ p.financial_year|default:"—" }}</td>
+            <td>{{ p.stage1_target_date|date:"d M Y"|default:"—" }}</td>
+            <td>{{ p.stage2_target_date|date:"d M Y"|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if project_count > 25 %}
+        <div class="text-muted small mt-2">Showing 25 of {{ project_count }}. <a href="{% url 'ui:projects_list' %}?council={{ council.pk }}">View all projects for {{ council.name }} →</a></div>
+      {% endif %}
+      {% else %}
+        <p class="text-muted" style="font-size:13px; margin:0;">No projects yet.</p>
+      {% endif %}
+    </div></div>
+
+    <div class="card mb-3"><div class="card-body">
+      <div class="sec-h"><h2>Recent Reports</h2></div>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <h6 class="text-muted text-uppercase" style="font-size:11px; letter-spacing:.04em;">Monthly</h6>
+          {% if monthly_trackers %}
+            <ul class="list-unstyled" style="font-size:12.5px;">
+              {% for mt in monthly_trackers %}
+                <li class="py-1 border-bottom">
+                  <a href="{% url 'ui:monthly_tracker_detail' mt.pk %}">{{ mt.year }}-{{ mt.month|stringformat:"02d" }}</a>
+                  <span class="pill {% if mt.status == 'DRAFT' %}grey{% elif mt.status == 'SUBMITTED' %}blue{% else %}green{% endif %} ms-1" style="font-size:9px;">{{ mt.get_status_display }}</span>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}<p class="text-muted small">None yet.</p>{% endif %}
+        </div>
+        <div class="col-md-4">
+          <h6 class="text-muted text-uppercase" style="font-size:11px; letter-spacing:.04em;">Quarterly</h6>
+          {% if quarterly_reports %}
+            <ul class="list-unstyled" style="font-size:12.5px;">
+              {% for qr in quarterly_reports %}
+                <li class="py-1 border-bottom">
+                  <a href="{% url 'ui:quarterly_report_detail' qr.pk %}">Q{{ qr.quarter }} {{ qr.year }}</a>
+                  <span class="pill {% if qr.status == 'DRAFT' %}grey{% elif qr.status == 'IN_PROGRESS' %}amber{% elif qr.status == 'SUBMITTED' %}blue{% else %}green{% endif %} ms-1" style="font-size:9px;">{{ qr.get_status_display }}</span>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}<p class="text-muted small">None yet.</p>{% endif %}
+        </div>
+        <div class="col-md-4">
+          <h6 class="text-muted text-uppercase" style="font-size:11px; letter-spacing:.04em;">Stage</h6>
+          {% if stage_reports %}
+            <ul class="list-unstyled" style="font-size:12.5px;">
+              {% for sr in stage_reports %}
+                <li class="py-1 border-bottom">
+                  <a href="{% url 'ui:stage_report_grid' sr.pk %}">{{ sr.project.name|truncatechars:24 }} {{ sr.get_stage_type_display }}</a>
+                  <span class="pill {% if sr.status == 'DRAFT' %}grey{% elif sr.status == 'APPROVED' %}green{% elif sr.status == 'REJECTED' %}red{% else %}amber{% endif %} ms-1" style="font-size:9px;">{{ sr.get_status_display }}</span>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}<p class="text-muted small">None yet.</p>{% endif %}
+        </div>
+      </div>
+    </div></div>
+
+    {% if audit_logs %}
+    <div class="card mb-3"><div class="card-body">
+      <div class="sec-h"><h2>Recent Audit Activity</h2></div>
+      <ul class="list-unstyled mb-0" style="font-size:12px;">
+        {% for log in audit_logs %}
+        <li class="py-1 border-bottom">
+          <span class="text-muted">{{ log.timestamp|date:"d M H:i" }}</span> &middot;
+          <b>{{ log.action }}</b> &middot; project #{{ log.entity_id }} &middot;
+          <span class="text-muted">{{ log.user|default:"system" }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div></div>
+    {% endif %}
+
+    <div class="card"><div class="card-body">
+      <div class="sec-h"><h2>Council Details</h2></div>
+      <dl class="row mb-0">
+        <dt class="col-sm-3">Region</dt><dd class="col-sm-9">{{ council.region|default:"—" }}</dd>
+        <dt class="col-sm-3">State Electorate</dt><dd class="col-sm-9">{{ council.state_electorate|default:"—" }}</dd>
+        <dt class="col-sm-3">Federal Electorate</dt><dd class="col-sm-9">{{ council.federal_electorate|default:"—" }}</dd>
+        <dt class="col-sm-3">Contact Email</dt><dd class="col-sm-9">{{ council.contact_email|default:"—" }}</dd>
+        <dt class="col-sm-3">Contact Phone</dt><dd class="col-sm-9">{{ council.contact_phone|default:"—" }}</dd>
+        <dt class="col-sm-3">Registered Housing Provider</dt><dd class="col-sm-9">{{ council.is_registered_housing_provider|yesno:"Yes,No" }}</dd>
+        <dt class="col-sm-3">Default Principal Officer</dt><dd class="col-sm-9">{{ council.default_principal_officer|default:"—" }}</dd>
+        <dt class="col-sm-3">Default Senior Officer</dt><dd class="col-sm-9">{{ council.default_senior_officer|default:"—" }}</dd>
+        {% if council.rcpa_contact_name %}
+          <dt class="col-sm-3">RCPA contact</dt>
+          <dd class="col-sm-9">{{ council.rcpa_contact_name }} &middot; {{ council.rcpa_contact_phone }} &middot; {{ council.rcpa_contact_email }}</dd>
+        {% endif %}
+      </dl>
+    </div></div>
+  </div>
+
+  <aside>
+    <div class="card"><div class="card-body">
+      <div class="sec-h">
+        <h2>Contacts</h2>
+        <a href="{% url 'ui:council_contact_create' council.pk %}" class="btn btn-outline-secondary btn-sm">+ Add</a>
+      </div>
+      {% if contacts %}
+        <ul class="list-unstyled mb-0" style="font-size:13px;">
+          {% for c in contacts %}
+          <li class="py-2 border-bottom">
+            <div style="display:flex; gap:6px; align-items:flex-start;">
+              <div style="flex:1; min-width:0;">
+                <strong>{{ c.name }}</strong><br>
+                <span class="text-muted" style="font-size:11.5px;">{{ c.role }}</span>
+                {% if c.email %}<br><a href="mailto:{{ c.email }}" style="font-size:12px;">{{ c.email }}</a>{% endif %}
+                {% if c.phone %}<br><span style="font-size:12px;">{{ c.phone }}</span>{% endif %}
+              </div>
+              <div class="text-end">
+                <a href="{% url 'ui:council_contact_edit' c.pk %}" class="btn btn-link btn-sm p-0" style="font-size:11px;">Edit</a>
+                <form method="post" action="{% url 'ui:council_contact_delete' c.pk %}" class="d-inline" onsubmit="return confirm('Remove this contact?');">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-link btn-sm p-0 text-danger" style="font-size:11px;">Remove</button>
+                </form>
+              </div>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-muted" style="font-size:12.5px; margin:0;">No contacts yet. <a href="{% url 'ui:council_contact_create' council.pk %}">Add one →</a></p>
+      {% endif %}
+    </div></div>
+  </aside>
+</div>
+
 {% include 'partials/_notices.html' %}
 {% endblock %}

@@ -29,8 +29,8 @@
       {% elif project.state == 'COMP' %}
         <span class="state-badge state-comp">Completed</span>
       {% endif %}
-      <span><b>Council:</b> {{ project.council }}</span>
-      <span><b>Program:</b> {{ project.program }}</span>
+      <span><b>Council:</b> <a href="{% url 'ui:council_detail' project.council.pk %}">{{ project.council }}</a></span>
+      <span><b>Program:</b> <a href="{% url 'ui:program_detail' project.program.pk %}">{{ project.program }}</a></span>
       {% if project.financial_year %}<span><b>FY:</b> {{ project.financial_year }}</span>{% endif %}
       {% if project.completion_date %}<span><b>Completion:</b> {{ project.completion_date|date:"d M Y" }}</span>{% endif %}
     </div>
