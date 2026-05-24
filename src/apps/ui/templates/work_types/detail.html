@@ -11,16 +11,32 @@
 <div class="card mb-4"><div class="card-body">
   <dl class="row">
     <dt class="col-sm-3">Category</dt><dd class="col-sm-9">{{ work_type.get_category_display }}</dd>
-    <dt class="col-sm-3">Has Bedrooms</dt><dd class="col-sm-9">{{ work_type.has_bedrooms|yesno:"Yes,No" }}</dd>
-    <dt class="col-sm-3">Default Bedrooms</dt><dd class="col-sm-9">{{ work_type.default_bedrooms }}</dd>
+    <dt class="col-sm-3">Short code</dt><dd class="col-sm-9">{{ work_type.short_code|default:"—" }}</dd>
+    <dt class="col-sm-3">Has bedrooms</dt><dd class="col-sm-9">{{ work_type.has_bedrooms|yesno:"Yes,No" }}</dd>
+    {% if work_type.has_bedrooms %}
+      <dt class="col-sm-3">Default bedrooms</dt><dd class="col-sm-9">{{ work_type.default_bedrooms }}</dd>
+      <dt class="col-sm-3">Typical range</dt>
+      <dd class="col-sm-9">
+        {% if work_type.min_bedrooms and work_type.max_bedrooms %}
+          {{ work_type.min_bedrooms }}&ndash;{{ work_type.max_bedrooms }} bedrooms
+          <span class="text-muted small">(bulk-update uses this range; counts outside are still allowed but flagged)</span>
+        {% else %}
+          <span class="text-muted">Not set</span>
+        {% endif %}
+      </dd>
+    {% endif %}
     <dt class="col-sm-3">Active</dt><dd class="col-sm-9">{{ work_type.is_active|yesno:"Yes,No" }}</dd>
-    <dt class="col-sm-3">Description</dt><dd class="col-sm-9">{{ work_type.description|default:"-" }}</dd>
+    <dt class="col-sm-3">Description</dt><dd class="col-sm-9">{{ work_type.description|default:"—" }}</dd>
   </dl>
 </div></div>
 
 <div class="d-flex justify-content-between align-items-center mb-2">
   <h5>Notional Costs</h5>
-  <a href="{% url 'ui:notional_cost_create' wt_pk=work_type.pk %}" class="btn btn-sm btn-outline-primary">Add Cost</a>
+  <div class="d-flex gap-2">
+    <a href="{% url 'ui:notional_cost_list' %}" class="btn btn-sm btn-outline-secondary">All notional costs</a>
+    <a href="{% url 'ui:notional_cost_bulk_update' %}" class="btn btn-sm btn-outline-secondary">Bulk update</a>
+    <a href="{% url 'ui:notional_cost_create' wt_pk=work_type.pk %}" class="btn btn-sm btn-outline-primary">Add cost</a>
+  </div>
 </div>
 <div class="card"><div class="card-body p-0">
 <table class="table table-sm mb-0">

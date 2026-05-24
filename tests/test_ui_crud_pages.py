@@ -233,6 +233,8 @@ class TestWorkTypeCRUD:
             'name': 'New Work Type',
             'category': 'RESIDENTIAL',
             'default_bedrooms': '0',
+            'min_bedrooms': '0',
+            'max_bedrooms': '0',
         })
         assert response.status_code in (200, 302), \
             f"POST /ui/work-types/create/ returned {response.status_code}"
@@ -253,6 +255,8 @@ class TestWorkTypeCRUD:
             'name': 'Updated Work Type',
             'category': 'EXTENSION',
             'default_bedrooms': '0',
+            'min_bedrooms': '0',
+            'max_bedrooms': '0',
         })
         assert response.status_code in (200, 302), \
             f"POST /ui/work-types/{work_type.pk}/edit/ returned {response.status_code}"

@@ -38,6 +38,14 @@ class WorkType(models.Model):
     category = models.CharField(max_length=20, choices=Category.choices)
     has_bedrooms = models.BooleanField(default=False, help_text="Does this work type use bedroom counts?")
     default_bedrooms = models.PositiveIntegerField(default=0, help_text="Default bedrooms for this work type")
+    min_bedrooms = models.PositiveIntegerField(
+        default=0,
+        help_text="Typical lowest bedroom count (e.g. 3). Bulk-update notional costs uses this range."
+    )
+    max_bedrooms = models.PositiveIntegerField(
+        default=0,
+        help_text="Typical highest bedroom count (e.g. 5). Costs outside the range are still allowed but flagged."
+    )
     description = models.TextField(blank=True)
     short_code = models.CharField(max_length=10, blank=True, help_text="Abbreviation for reports, e.g. DH, TRI, EXT")
     is_active = models.BooleanField(default=True)
@@ -64,16 +72,27 @@ class WorkType(models.Model):
         super().save(*args, **kwargs)
 
     @property
+    def typical_bedroom_range(self):
+        """Return the inclusive [min, max] range as a list, or [] when not bedroom-driven."""
+        if not self.has_bedrooms:
+            return []
+        lo = self.min_bedrooms or self.default_bedrooms or 0
+        hi = self.max_bedrooms or self.default_bedrooms or lo
+        if hi < lo:
+            hi = lo
+        return list(range(lo, hi + 1)) if lo > 0 else []
+
+    @property
     def notional_cost(self):
         """Get the default notional cost for this work type for current financial year"""
         from apps.core.models import NotionalCost
-        
+
         cost = NotionalCost.objects.filter(
             work_type=self,
             financial_year=CURRENT_FINANCIAL_YEAR,
             bedrooms=self.default_bedrooms or 1
         ).first()
-        
+
         if cost:
             return cost.cost_per_unit
         return None

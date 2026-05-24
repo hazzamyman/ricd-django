@@ -83,6 +83,9 @@ urlpatterns = [
     path('work-types/<int:pk>/edit/', views.crud_views.WorkTypeUpdateView.as_view(), name='work_type_edit'),
     path('work-types/<int:pk>/delete/', views.crud_views.WorkTypeDeleteView.as_view(), name='work_type_delete'),
 
+    # Notional Costs — global list + bulk update (maintenance)
+    path('notional-costs/', views.crud_views.NotionalCostListView.as_view(), name='notional_cost_list'),
+    path('notional-costs/bulk-update/', views.crud_views.NotionalCostBulkUpdateView.as_view(), name='notional_cost_bulk_update'),
     # Notional Costs (nested under WorkType)
     path('work-types/<int:wt_pk>/costs/create/', views.crud_views.NotionalCostCreateView.as_view(), name='notional_cost_create'),
     path('work-types/<int:wt_pk>/costs/<int:pk>/edit/', views.crud_views.NotionalCostUpdateView.as_view(), name='notional_cost_edit'),

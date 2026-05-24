@@ -10,7 +10,7 @@ from django.views.generic import (
 )
 
 from django.contrib import messages
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 
 from django.utils import timezone
 
@@ -429,10 +429,12 @@ class WorkTypeListView(LoginRequiredMixin, ListView):
     paginate_by = 50
 
 
-class WorkTypeCreateView(LoginRequiredMixin, CreateView):
+class WorkTypeCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = WorkType
     template_name = 'crud/form.html'
-    fields = ['name', 'category', 'has_bedrooms', 'default_bedrooms', 'description', 'is_active']
+    fields = ['name', 'category', 'short_code', 'has_bedrooms',
+              'default_bedrooms', 'min_bedrooms', 'max_bedrooms',
+              'description', 'is_active']
     success_url = reverse_lazy('ui:work_type_list')
 
     def get_context_data(self, **kwargs):
@@ -456,10 +458,12 @@ class WorkTypeDetailView(LoginRequiredMixin, DetailView):
         return ctx
 
 
-class WorkTypeUpdateView(LoginRequiredMixin, UpdateView):
+class WorkTypeUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = WorkType
     template_name = 'crud/form.html'
-    fields = ['name', 'category', 'has_bedrooms', 'default_bedrooms', 'description', 'is_active']
+    fields = ['name', 'category', 'short_code', 'has_bedrooms',
+              'default_bedrooms', 'min_bedrooms', 'max_bedrooms',
+              'description', 'is_active']
     success_url = reverse_lazy('ui:work_type_list')
 
     def get_context_data(self, **kwargs):
@@ -1898,10 +1902,143 @@ class SuburbDeleteView(LoginRequiredMixin, DeleteView):
 
 
 # ---------------------------------------------------------------------------
-# NotionalCost (nested under WorkType)
+# NotionalCost — global list, bulk update, and nested CRUD under WorkType
 # ---------------------------------------------------------------------------
 
-class NotionalCostCreateView(LoginRequiredMixin, CreateView):
+class NotionalCostListView(LoginRequiredMixin, View):
+    """Maintenance page: all notional costs across work types and financial years.
+
+    Renders a row per (work_type, bedrooms) with columns per financial_year so
+    you can see how costs are evolving across FYs at a glance.
+    """
+    def get(self, request):
+        from apps.core.utils import FINANCIAL_YEAR_CHOICES, CURRENT_FINANCIAL_YEAR
+        fy_filter = request.GET.get('fy', '')
+        work_types = WorkType.objects.filter(is_active=True).order_by('category', 'name')
+        qs = NotionalCost.objects.select_related('work_type').order_by(
+            'work_type__category', 'work_type__name', 'bedrooms', 'financial_year'
+        )
+        if fy_filter:
+            qs = qs.filter(financial_year=fy_filter)
+        all_costs = list(qs)
+        fys_present = sorted({c.financial_year for c in all_costs} | {CURRENT_FINANCIAL_YEAR})
+        rows = []
+        for wt in work_types:
+            wt_costs = [c for c in all_costs if c.work_type_id == wt.pk]
+            if not wt_costs:
+                continue
+            br_keys = sorted({c.bedrooms or 0 for c in wt_costs})
+            for br in br_keys:
+                costs_by_fy = {c.financial_year: c for c in wt_costs if (c.bedrooms or 0) == br}
+                in_typical_range = (
+                    not wt.has_bedrooms
+                    or (wt.min_bedrooms and wt.max_bedrooms and wt.min_bedrooms <= br <= wt.max_bedrooms)
+                )
+                # Align cells to fys_present
+                cells = [costs_by_fy.get(fy) for fy in fys_present]
+                rows.append({
+                    'work_type': wt,
+                    'bedrooms': br,
+                    'in_typical_range': in_typical_range,
+                    'cells': cells,
+                })
+        return render(request, 'notional_costs/list.html', {
+            'rows': rows,
+            'fys': fys_present,
+            'fy_choices': FINANCIAL_YEAR_CHOICES,
+            'selected_fy': fy_filter,
+            'current_fy': CURRENT_FINANCIAL_YEAR,
+        })
+
+
+class NotionalCostBulkUpdateView(LoginRequiredMixin, View):
+    """Roll notional costs from a source FY into a target FY, multiplied by inflation %.
+
+    GET shows the form. POST without ``confirm`` shows a preview. POST with
+    ``confirm=true`` applies — creating missing target rows, skipping existing.
+    """
+    def _form_ctx(self):
+        from apps.core.utils import FINANCIAL_YEAR_CHOICES, CURRENT_FINANCIAL_YEAR
+        from apps.core.models import NotionalCostSettings
+        return {
+            'fy_choices': FINANCIAL_YEAR_CHOICES,
+            'current_fy': CURRENT_FINANCIAL_YEAR,
+            'default_rate': NotionalCostSettings.get_settings().default_inflation_rate,
+        }
+
+    def _build_preview(self, source_fy, target_fy, multiplier):
+        from decimal import Decimal
+        rows = []
+        for src in NotionalCost.objects.filter(financial_year=source_fy).select_related('work_type'):
+            new_cost = (src.cost_per_unit * (Decimal('1') + Decimal(str(multiplier)) / Decimal('100'))).quantize(Decimal('0.01'))
+            already = NotionalCost.objects.filter(
+                work_type=src.work_type, financial_year=target_fy, bedrooms=src.bedrooms
+            ).first()
+            rows.append({
+                'work_type': src.work_type,
+                'bedrooms': src.bedrooms,
+                'source_cost': src.cost_per_unit,
+                'new_cost': new_cost,
+                'already_exists': already,
+            })
+        return rows
+
+    def get(self, request):
+        return render(request, 'notional_costs/bulk_update.html', self._form_ctx())
+
+    def post(self, request):
+        from decimal import Decimal, InvalidOperation
+        ctx = self._form_ctx()
+        source_fy = request.POST.get('source_fy', '').strip()
+        target_fy = request.POST.get('target_fy', '').strip()
+        try:
+            multiplier = Decimal(request.POST.get('multiplier_percent') or '0')
+        except InvalidOperation:
+            multiplier = Decimal('0')
+        confirm = request.POST.get('confirm') == 'true'
+        if not source_fy or not target_fy or source_fy == target_fy:
+            messages.error(request, 'Pick distinct source and target financial years.')
+            return render(request, 'notional_costs/bulk_update.html', ctx)
+
+        rows = self._build_preview(source_fy, target_fy, multiplier)
+        if not rows:
+            messages.warning(request, f'No notional costs found for {source_fy}.')
+            return render(request, 'notional_costs/bulk_update.html', ctx)
+
+        if confirm:
+            created = 0
+            skipped = 0
+            for r in rows:
+                if r['already_exists']:
+                    skipped += 1
+                    continue
+                NotionalCost.objects.create(
+                    work_type=r['work_type'],
+                    financial_year=target_fy,
+                    bedrooms=r['bedrooms'],
+                    cost_per_unit=r['new_cost'],
+                )
+                created += 1
+            messages.success(
+                request,
+                f'Applied: created {created} row{"s" if created != 1 else ""}; '
+                f'skipped {skipped} (target row already exists).'
+            )
+            return redirect('ui:notional_cost_list')
+
+        ctx.update({
+            'preview_rows': rows,
+            'source_fy': source_fy,
+            'target_fy': target_fy,
+            'multiplier': multiplier,
+            'total_rows': len(rows),
+            'will_create': sum(1 for r in rows if not r['already_exists']),
+            'will_skip': sum(1 for r in rows if r['already_exists']),
+        })
+        return render(request, 'notional_costs/bulk_update.html', ctx)
+
+
+class NotionalCostCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = NotionalCost
     template_name = 'crud/form.html'
     fields = ['financial_year', 'bedrooms', 'cost_per_unit', 'is_default']

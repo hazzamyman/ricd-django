@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Bulk Update Notional Costs{% endblock %}
+{% block breadcrumbs %}
+  <span class="sep">/</span>
+  <a href="{% url 'ui:maintenance' %}">Maintenance</a>
+  <span class="sep">/</span>
+  <a href="{% url 'ui:notional_cost_list' %}">Notional Costs</a>
+  <span class="sep">/</span>
+  <span class="current">Bulk Update</span>
+{% endblock %}
+{% block content %}
+
+<div class="pg-head">
+  <div>
+    <h1>Bulk Update Notional Costs</h1>
+    <div class="meta">
+      Copy notional costs from one financial year into another, multiplied by an inflation percentage.
+      Existing target rows are skipped (no overwrite).
+    </div>
+  </div>
+  <div class="actions">
+    <a href="{% url 'ui:notional_cost_list' %}" class="btn btn-outline-secondary btn-sm">Back to list</a>
+  </div>
+</div>
+
+<div class="card mb-3"><div class="card-body">
+  <form method="post">
+    {% csrf_token %}
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label">Source financial year</label>
+        <select name="source_fy" class="form-select form-select-sm" required>
+          <option value="">— Pick source —</option>
+          {% for val, label in fy_choices %}
+            <option value="{{ val }}" {% if val == source_fy %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <div class="form-text">Rows in this FY will be the basis for the new rows.</div>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Target financial year</label>
+        <select name="target_fy" class="form-select form-select-sm" required>
+          <option value="">— Pick target —</option>
+          {% for val, label in fy_choices %}
+            <option value="{{ val }}" {% if val == target_fy %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <div class="form-text">New rows will be created in this FY.</div>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Inflation %</label>
+        <div class="input-group input-group-sm">
+          <input type="number" step="0.01" name="multiplier_percent"
+                 value="{{ multiplier|default:default_rate }}" class="form-control" required>
+          <span class="input-group-text">%</span>
+        </div>
+        <div class="form-text">e.g. 8 for an 8% increase. Use a negative number for a decrease.</div>
+      </div>
+    </div>
+    <div class="mt-3 d-flex gap-2">
+      <button type="submit" class="btn btn-outline-secondary btn-sm">Preview changes</button>
+      {% if preview_rows %}
+        <button type="submit" name="confirm" value="true" class="btn btn-primary btn-sm"
+                onclick="return confirm('Create {{ will_create }} row(s) in {{ target_fy }}? Existing rows in {{ target_fy }} will be skipped.');">
+          Apply: create {{ will_create }} row{{ will_create|pluralize }} in {{ target_fy }}
+        </button>
+      {% endif %}
+    </div>
+  </form>
+</div></div>
+
+{% if preview_rows %}
+<div class="card"><div class="card-body">
+  <div class="sec-h">
+    <h2>Preview</h2>
+    <span style="font-size:12px; color:var(--muted);">
+      {{ total_rows }} source row{{ total_rows|pluralize }} &middot;
+      {{ will_create }} will be created &middot;
+      {{ will_skip }} already exist (skipped)
+    </span>
+  </div>
+  <table class="table table-sm align-middle">
+    <thead class="table-light">
+      <tr>
+        <th>Work type</th>
+        <th>Bedrooms</th>
+        <th class="text-end">{{ source_fy }} cost</th>
+        <th class="text-end">{{ target_fy }} cost (proposed)</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in preview_rows %}
+      <tr {% if r.already_exists %}style="background:var(--panel-alt);"{% endif %}>
+        <td>{{ r.work_type.name }}</td>
+        <td>{% if r.work_type.has_bedrooms %}{{ r.bedrooms }} BR{% else %}—{% endif %}</td>
+        <td class="text-end">${{ r.source_cost|floatformat:2 }}</td>
+        <td class="text-end"><strong>${{ r.new_cost|floatformat:2 }}</strong></td>
+        <td>
+          {% if r.already_exists %}
+            <span class="pill grey">Already exists — skip</span>
+          {% else %}
+            <span class="pill green">Will create</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% endif %}
+
+{% endblock %}
