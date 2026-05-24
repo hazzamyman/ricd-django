@@ -114,11 +114,16 @@ class FundingAgreement(models.Model):
         ACTIVE = 'ACTIVE', 'Active'
         CEASED = 'CEASED', 'Ceased'
 
-    council = models.ForeignKey(Council, related_name='funding_agreements', on_delete=models.CASCADE)
+    # 1:1 — each council has exactly one Remote Capital Program Funding Agreement.
+    # That agreement then has many FundingSchedules under it.
+    council = models.OneToOneField(
+        Council, related_name='funding_agreement', on_delete=models.CASCADE,
+        help_text="The single Remote Capital Program Funding Agreement for this council"
+    )
     name = models.CharField(max_length=255, help_text="Agreement name/reference")
     execution_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT)
-    document_uri = models.URLField(blank=True, help_text="Google Drive or OpenDocs link")
+    document_uri = models.URLField(blank=True, help_text="Windows Share Drive, Sharepoint or OpenDocs link")
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

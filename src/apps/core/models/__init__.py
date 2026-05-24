@@ -61,7 +61,9 @@ from .reports_models import (
 
 # Contractor & Address models
 from .contractors_models import Contractor
-from .addresses_models import Suburb, Address
+from .addresses_models import (
+    Suburb, Address, StateElectorate, FederalElectorate, QhigiRegion,
+)
 
 # Account & User models
 from .accounts_models import Profile, GroupPermission
@@ -103,6 +105,7 @@ __all__ = [
     'StageReport', 'StageReportItem', 'StageReportAttachment',
     # Contractor & Address
     'Contractor', 'Suburb', 'Address',
+    'StateElectorate', 'FederalElectorate', 'QhigiRegion',
     # Account
     'Profile', 'GroupPermission',
     # Contract & Document

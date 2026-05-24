@@ -68,6 +68,39 @@
     </div>
   </div>
 
+  {# Notional Costs #}
+  <div class="col-sm-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="ricd-section-title mb-1">
+          <h2><i class="bi bi-cash-stack me-1 text-muted"></i>Notional Costs</h2>
+        </div>
+        <div class="text-muted mb-3" style="font-size:12px">Per-work-type cost per unit by FY &amp; bedrooms</div>
+        <div class="d-flex gap-2">
+          <a href="{% url 'ui:notional_cost_list' %}" class="btn btn-sm btn-outline-secondary">View all</a>
+          <a href="{% url 'ui:notional_cost_bulk_update' %}" class="btn btn-sm btn-primary">Bulk update</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Geographic / Electoral lookups #}
+  <div class="col-sm-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="ricd-section-title mb-1">
+          <h2><i class="bi bi-geo-alt me-1 text-muted"></i>Electorates &amp; Regions</h2>
+        </div>
+        <div class="text-muted mb-3" style="font-size:12px">Lookup tables for filtering / reporting by State + Federal electorate and QHIGI region</div>
+        <div class="d-flex gap-2 flex-wrap">
+          <a href="{% url 'ui:state_electorate_list' %}" class="btn btn-sm btn-outline-secondary">State</a>
+          <a href="{% url 'ui:federal_electorate_list' %}" class="btn btn-sm btn-outline-secondary">Federal</a>
+          <a href="{% url 'ui:qhigi_region_list' %}" class="btn btn-sm btn-outline-secondary">QHIGI Region</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
   {# Payment Rules #}
   <div class="col-sm-6 col-xl-4">
     <div class="card h-100">

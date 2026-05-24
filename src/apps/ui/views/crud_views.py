@@ -18,13 +18,14 @@ from django.contrib.contenttypes.models import ContentType
 
 from apps.core.models import (
     Approval, Address, BriefFinancialApproval, Comment, CommentSettings,
-    Council, DevelopmentApplication, LandTenure,
+    Council, CouncilContact, DevelopmentApplication, LandTenure,
     Notice, NoticeTarget,
-    NotionalCost, PaymentRule, Program, Project, Suburb, Work, WorkType, FundingSchedule,
+    NotionalCost, PaymentRule, Program, ProgramBudget, Project, Suburb, Work, WorkType, FundingSchedule,
     WorkStepDefinition, WorkStepGroup, WorkStepGroupItem, WorkStep, ConstructionMethod,
     ForwardRPFAgreement, InterimFRPAgreement,
     Variation, VariationItem, Payment, StageReport, QuarterlyReport,
     FundingAgreement, FundingNotice, ExpenseClaim, WorkFunding,
+    StateElectorate, FederalElectorate, QhigiRegion,
 )
 
 COUNCIL_ROLES = frozenset({'COUNCIL_USER', 'COUNCIL_MANAGER'})
@@ -193,10 +194,11 @@ class CouncilListView(LoginRequiredMixin, ListView):
     paginate_by = 50
 
 
-class CouncilCreateView(LoginRequiredMixin, CreateView):
+class CouncilCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = Council
     template_name = 'crud/form.html'
-    fields = ['name', 'region', 'state_electorate', 'federal_electorate',
+    fields = ['name', 'region',
+              'state_electorate_link', 'federal_electorate_link',
               'contact_email', 'contact_phone', 'is_registered_housing_provider',
               'rcpa_contact_name', 'rcpa_contact_phone', 'rcpa_contact_email']
     success_url = reverse_lazy('ui:council_list')
@@ -209,15 +211,93 @@ class CouncilCreateView(LoginRequiredMixin, CreateView):
 
 
 class CouncilDetailView(LoginRequiredMixin, NoticesMixin, DetailView):
+    """Council detail with built-in dashboard: projects, reports, contacts, audit."""
     model = Council
     template_name = 'councils/detail.html'
     context_object_name = 'council'
 
+    def get_context_data(self, **kwargs):
+        from apps.core.models import (
+            Project, StageReport, MonthlyTracker, QuarterlyReport,
+            AuditLog, CouncilTrackerConfig,
+        )
+        ctx = super().get_context_data(**kwargs)
+        council = self.object
 
-class CouncilUpdateView(LoginRequiredMixin, UpdateView):
+        projects_qs = council.projects.select_related('program').order_by('-created_at')
+        ctx['projects'] = projects_qs[:200]
+        ctx['project_count'] = projects_qs.count()
+        ctx['active_count'] = projects_qs.filter(
+            state__in=[Project.State.COMMENCED, Project.State.UNDER_CONSTRUCTION]
+        ).count()
+
+        ctx['contacts'] = council.contacts.order_by('role', 'name')
+
+        # Outstanding reports for this council
+        ctx['monthly_trackers'] = MonthlyTracker.objects.filter(council=council).order_by('-year', '-month')[:6]
+        ctx['quarterly_reports'] = QuarterlyReport.objects.filter(council=council).order_by('-year', '-quarter')[:6]
+        ctx['stage_reports'] = StageReport.objects.filter(project__council=council).select_related('project').order_by('-updated_at')[:10]
+
+        # Council-scoped audit log: any financial entity attached to projects in this council
+        project_ids = list(projects_qs.values_list('pk', flat=True))
+        ctx['audit_logs'] = (
+            AuditLog.objects.filter(entity_type='project', entity_id__in=project_ids)
+            .order_by('-timestamp')[:20]
+        )
+
+        ctx['tracker_config'] = CouncilTrackerConfig.objects.filter(council=council).first()
+        return ctx
+
+
+class CouncilContactCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
+    model = CouncilContact
+    template_name = 'crud/form.html'
+    fields = ['role', 'name', 'email', 'phone']
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['instance'] = CouncilContact(council_id=self.kwargs['council_pk'])
+        return kwargs
+
+    def get_success_url(self):
+        return reverse_lazy('ui:council_detail', kwargs={'pk': self.kwargs['council_pk']})
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Add Council Contact'
+        ctx['back_url'] = reverse_lazy('ui:council_detail', kwargs={'pk': self.kwargs['council_pk']})
+        return ctx
+
+
+class CouncilContactUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
+    model = CouncilContact
+    template_name = 'crud/form.html'
+    fields = ['role', 'name', 'email', 'phone']
+
+    def get_success_url(self):
+        return reverse_lazy('ui:council_detail', kwargs={'pk': self.object.council_id})
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit Contact: {self.object.name}'
+        ctx['back_url'] = reverse_lazy('ui:council_detail', kwargs={'pk': self.object.council_id})
+        return ctx
+
+
+class CouncilContactDeleteView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        contact = get_object_or_404(CouncilContact, pk=pk)
+        council_pk = contact.council_id
+        contact.delete()
+        messages.success(request, 'Contact removed.')
+        return redirect('ui:council_detail', pk=council_pk)
+
+
+class CouncilUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = Council
     template_name = 'crud/form.html'
-    fields = ['name', 'region', 'state_electorate', 'federal_electorate',
+    fields = ['name', 'region',
+              'state_electorate_link', 'federal_electorate_link',
               'contact_email', 'contact_phone', 'is_registered_housing_provider',
               'rcpa_contact_name', 'rcpa_contact_phone', 'rcpa_contact_email']
     success_url = reverse_lazy('ui:council_list')
@@ -1875,10 +1955,12 @@ class SuburbListView(LoginRequiredMixin, ListView):
         return ctx
 
 
-class SuburbCreateView(LoginRequiredMixin, CreateView):
+class SuburbCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = Suburb
     template_name = 'crud/form.html'
-    fields = ['name', 'postcode', 'state', 'state_electorate', 'federal_electorate', 'qhigi_region', 'is_active']
+    fields = ['name', 'postcode', 'state',
+              'state_electorate_link', 'federal_electorate_link', 'qhigi_region_link',
+              'is_active']
     success_url = reverse_lazy('ui:suburb_list')
 
     def get_context_data(self, **kwargs):
@@ -1888,10 +1970,12 @@ class SuburbCreateView(LoginRequiredMixin, CreateView):
         return ctx
 
 
-class SuburbUpdateView(LoginRequiredMixin, UpdateView):
+class SuburbUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = Suburb
     template_name = 'crud/form.html'
-    fields = ['name', 'postcode', 'state', 'state_electorate', 'federal_electorate', 'qhigi_region', 'is_active']
+    fields = ['name', 'postcode', 'state',
+              'state_electorate_link', 'federal_electorate_link', 'qhigi_region_link',
+              'is_active']
     success_url = reverse_lazy('ui:suburb_list')
 
     def get_context_data(self, **kwargs):
@@ -2413,3 +2497,156 @@ class MaintenanceView(LoginRequiredMixin, TemplateView):
         ctx['user_count'] = User.objects.count()
         ctx['active_nav'] = 'maintenance'
         return ctx
+
+
+# ============================================================================
+# Geographic / electoral lookup CRUD (Maintenance)
+# ============================================================================
+
+# Generic CRUD: each lookup has the same shape (name, description, is_active).
+
+class _LookupBase:
+    template_name = 'lookups/list.html'  # used by list view
+    list_url_name = None  # subclass sets
+    label = None  # human-readable, e.g. "State Electorate"
+
+
+class StateElectorateListView(LoginRequiredMixin, ListView):
+    model = StateElectorate
+    template_name = 'lookups/list.html'
+    context_object_name = 'items'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['label'] = 'State Electorate'
+        ctx['label_plural'] = 'State Electorates'
+        ctx['create_url'] = reverse_lazy('ui:state_electorate_create')
+        ctx['edit_url_name'] = 'ui:state_electorate_edit'
+        ctx['delete_url_name'] = 'ui:state_electorate_delete'
+        return ctx
+
+
+class StateElectorateCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
+    model = StateElectorate
+    template_name = 'crud/form.html'
+    fields = ['name', 'description', 'is_active']
+    success_url = reverse_lazy('ui:state_electorate_list')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Add State Electorate'
+        ctx['back_url'] = reverse_lazy('ui:state_electorate_list')
+        return ctx
+
+
+class StateElectorateUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
+    model = StateElectorate
+    template_name = 'crud/form.html'
+    fields = ['name', 'description', 'is_active']
+    success_url = reverse_lazy('ui:state_electorate_list')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit: {self.object.name}'
+        ctx['back_url'] = reverse_lazy('ui:state_electorate_list')
+        return ctx
+
+
+class StateElectorateDeleteView(LoginRequiredMixin, DeleteView):
+    model = StateElectorate
+    template_name = 'crud/confirm_delete.html'
+    success_url = reverse_lazy('ui:state_electorate_list')
+
+
+class FederalElectorateListView(LoginRequiredMixin, ListView):
+    model = FederalElectorate
+    template_name = 'lookups/list.html'
+    context_object_name = 'items'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['label'] = 'Federal Electorate'
+        ctx['label_plural'] = 'Federal Electorates'
+        ctx['create_url'] = reverse_lazy('ui:federal_electorate_create')
+        ctx['edit_url_name'] = 'ui:federal_electorate_edit'
+        ctx['delete_url_name'] = 'ui:federal_electorate_delete'
+        return ctx
+
+
+class FederalElectorateCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
+    model = FederalElectorate
+    template_name = 'crud/form.html'
+    fields = ['name', 'description', 'is_active']
+    success_url = reverse_lazy('ui:federal_electorate_list')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Add Federal Electorate'
+        ctx['back_url'] = reverse_lazy('ui:federal_electorate_list')
+        return ctx
+
+
+class FederalElectorateUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
+    model = FederalElectorate
+    template_name = 'crud/form.html'
+    fields = ['name', 'description', 'is_active']
+    success_url = reverse_lazy('ui:federal_electorate_list')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit: {self.object.name}'
+        ctx['back_url'] = reverse_lazy('ui:federal_electorate_list')
+        return ctx
+
+
+class FederalElectorateDeleteView(LoginRequiredMixin, DeleteView):
+    model = FederalElectorate
+    template_name = 'crud/confirm_delete.html'
+    success_url = reverse_lazy('ui:federal_electorate_list')
+
+
+class QhigiRegionListView(LoginRequiredMixin, ListView):
+    model = QhigiRegion
+    template_name = 'lookups/list.html'
+    context_object_name = 'items'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['label'] = 'QHIGI Region'
+        ctx['label_plural'] = 'QHIGI Regions'
+        ctx['create_url'] = reverse_lazy('ui:qhigi_region_create')
+        ctx['edit_url_name'] = 'ui:qhigi_region_edit'
+        ctx['delete_url_name'] = 'ui:qhigi_region_delete'
+        return ctx
+
+
+class QhigiRegionCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
+    model = QhigiRegion
+    template_name = 'crud/form.html'
+    fields = ['name', 'description', 'is_active']
+    success_url = reverse_lazy('ui:qhigi_region_list')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Add QHIGI Region'
+        ctx['back_url'] = reverse_lazy('ui:qhigi_region_list')
+        return ctx
+
+
+class QhigiRegionUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
+    model = QhigiRegion
+    template_name = 'crud/form.html'
+    fields = ['name', 'description', 'is_active']
+    success_url = reverse_lazy('ui:qhigi_region_list')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit: {self.object.name}'
+        ctx['back_url'] = reverse_lazy('ui:qhigi_region_list')
+        return ctx
+
+
+class QhigiRegionDeleteView(LoginRequiredMixin, DeleteView):
+    model = QhigiRegion
+    template_name = 'crud/confirm_delete.html'
+    success_url = reverse_lazy('ui:qhigi_region_list')

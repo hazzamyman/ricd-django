@@ -3,8 +3,20 @@ from django.db import models
 class Council(models.Model):
     name = models.CharField(max_length=255, db_index=True)
     region = models.CharField(max_length=255, blank=True, db_index=True)
-    state_electorate = models.CharField(max_length=100, blank=True, help_text="State Electorate")
-    federal_electorate = models.CharField(max_length=100, blank=True, help_text="Federal Electorate")
+    # Free-text legacy fields (kept for display fallback during transition)
+    state_electorate = models.CharField(max_length=100, blank=True, help_text="State Electorate (legacy free text)")
+    federal_electorate = models.CharField(max_length=100, blank=True, help_text="Federal Electorate (legacy free text)")
+    # FK to lookup tables — preferred for reporting / filtering
+    state_electorate_link = models.ForeignKey(
+        'StateElectorate', related_name='councils',
+        on_delete=models.SET_NULL, null=True, blank=True,
+        help_text="State Electorate (linked)"
+    )
+    federal_electorate_link = models.ForeignKey(
+        'FederalElectorate', related_name='councils',
+        on_delete=models.SET_NULL, null=True, blank=True,
+        help_text="Federal Electorate (linked)"
+    )
     contact_email = models.EmailField(blank=True)
     contact_phone = models.CharField(max_length=50, blank=True)
     is_registered_housing_provider = models.BooleanField(default=False, db_index=True)

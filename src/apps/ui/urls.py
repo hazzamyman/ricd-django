@@ -275,6 +275,22 @@ urlpatterns = [
     path('maintenance/tracker-config/', views.tracker_views.CouncilTrackerConfigListView.as_view(), name='tracker_config_list'),
     path('maintenance/tracker-config/<int:council_pk>/edit/', views.tracker_views.CouncilTrackerConfigUpdateView.as_view(), name='tracker_config_edit'),
 
+    # Electorate / Region lookup tables (Maintenance)
+    path('maintenance/state-electorates/', views.crud_views.StateElectorateListView.as_view(), name='state_electorate_list'),
+    path('maintenance/state-electorates/create/', views.crud_views.StateElectorateCreateView.as_view(), name='state_electorate_create'),
+    path('maintenance/state-electorates/<int:pk>/edit/', views.crud_views.StateElectorateUpdateView.as_view(), name='state_electorate_edit'),
+    path('maintenance/state-electorates/<int:pk>/delete/', views.crud_views.StateElectorateDeleteView.as_view(), name='state_electorate_delete'),
+
+    path('maintenance/federal-electorates/', views.crud_views.FederalElectorateListView.as_view(), name='federal_electorate_list'),
+    path('maintenance/federal-electorates/create/', views.crud_views.FederalElectorateCreateView.as_view(), name='federal_electorate_create'),
+    path('maintenance/federal-electorates/<int:pk>/edit/', views.crud_views.FederalElectorateUpdateView.as_view(), name='federal_electorate_edit'),
+    path('maintenance/federal-electorates/<int:pk>/delete/', views.crud_views.FederalElectorateDeleteView.as_view(), name='federal_electorate_delete'),
+
+    path('maintenance/qhigi-regions/', views.crud_views.QhigiRegionListView.as_view(), name='qhigi_region_list'),
+    path('maintenance/qhigi-regions/create/', views.crud_views.QhigiRegionCreateView.as_view(), name='qhigi_region_create'),
+    path('maintenance/qhigi-regions/<int:pk>/edit/', views.crud_views.QhigiRegionUpdateView.as_view(), name='qhigi_region_edit'),
+    path('maintenance/qhigi-regions/<int:pk>/delete/', views.crud_views.QhigiRegionDeleteView.as_view(), name='qhigi_region_delete'),
+
     # Stage Item Definitions (Maintenance)
     path('maintenance/stage-items/', views.stage_views.StageItemDefinitionListView.as_view(), name='stage_item_definition_list'),
     path('maintenance/stage-items/create/', views.stage_views.StageItemDefinitionCreateView.as_view(), name='stage_item_definition_create'),
