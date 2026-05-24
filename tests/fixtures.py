@@ -179,7 +179,7 @@ def funding_schedule(project):
         contingency_amount=Decimal('50000.00'),
         status=BriefFinancialApproval.Status.APPROVED,
     )
-    fs = FundingSchedule.objects.create(project=project)
+    fs = FundingSchedule.objects.create(project=project, amount=Decimal('500000.00'))
     WorkFunding.objects.create(
         funding_schedule=fs,
         project=project,  # project-level allocation (work is None)
@@ -198,7 +198,7 @@ def funding_schedule_land(project):
         contingency_amount=Decimal('100000.00'),
         status=BriefFinancialApproval.Status.APPROVED,
     )
-    fs = FundingSchedule.objects.create(project=project)
+    fs = FundingSchedule.objects.create(project=project, amount=Decimal('1000000.00'))
     WorkFunding.objects.create(
         funding_schedule=fs,
         project=project,

@@ -155,7 +155,7 @@ class TestFundingCalculations:
         user = User.objects.create_user(username='calc_tester', password='test123')
         Profile.objects.create(
             user=user,
-            officer_role=Profile.OfficerRole.PROGRAM_OFFICER
+            officer_role=Profile.OfficerRole.OFFICER
         )
         client.force_login(user)
         return client

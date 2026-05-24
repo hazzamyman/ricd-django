@@ -75,14 +75,15 @@ def funding_agreement(council):
 
 @pytest.fixture
 def funding_schedule(funding_agreement, payment_rule, project, approved_bfa):
-    """Seeded with a WorkFunding allocation so total_funding == 500000."""
+    """FundingSchedule with amount=500000 so total_funding = amount + contingency = 500000."""
     from apps.core.models import WorkFunding
     fs = FundingSchedule.objects.create(
         funding_agreement=funding_agreement,
         schedule_number=1,
         payment_rule=payment_rule,
         status="DRAFT",
-        project=project
+        project=project,
+        amount=Decimal('500000.00'),
     )
     WorkFunding.objects.create(
         funding_schedule=fs, project=project, amount=Decimal('500000.00')

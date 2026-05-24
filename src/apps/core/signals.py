@@ -235,21 +235,26 @@ def _fire_lifecycle_triggers(sender, instance, model_name):
         trigger_funding_schedule_executed,
         trigger_funding_schedule_active,
     )
-    
+
     if model_name == 'variation':
         if instance.status == 'EXECUTED':
             for fs in instance.funding_schedules.all():
                 trigger_funding_schedule_executed(fs)
-    
+
     if model_name == 'payment':
         if instance.status == 'APPROVED':
-            trigger_funding_schedule_active(instance.funding_schedule)
-    
+            # Fetch fresh from DB — the in-memory FK may carry a stale status
+            from apps.core.models import FundingSchedule
+            try:
+                fs = FundingSchedule.objects.get(pk=instance.funding_schedule_id)
+                trigger_funding_schedule_active(fs)
+            except FundingSchedule.DoesNotExist:
+                pass
+
     if model_name == 'fundingschedule':
         if instance.status == 'READY_FOR_EXECUTION':
             trigger_funding_schedule_executed(instance)
-        if instance.status == 'EXECUTED':
-            trigger_funding_schedule_active(instance)
+        # EXECUTED → ACTIVE is triggered only by Payment APPROVED, not automatically
 
 
 # ============================================================================

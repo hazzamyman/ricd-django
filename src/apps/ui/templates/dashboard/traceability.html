@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Financial Traceability — RICD{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h1 class="mb-0">Financial Traceability</h1>
+      <p class="text-muted mb-0">Follow the money — Council → Agreement → Schedule → Payments</p>
+    </div>
+    <a href="{% url 'ui:dashboard' %}" class="btn btn-outline-secondary btn-sm">← Dashboard</a>
+  </div>
+
+  <!-- Council picker -->
+  <form method="get" class="row g-2 mb-4">
+    <div class="col-auto">
+      <select name="council" class="form-select" onchange="this.form.submit()">
+        <option value="">— Select a Council —</option>
+        {% for c in councils %}
+          <option value="{{ c.pk }}" {% if selected_council and selected_council.pk == c.pk %}selected{% endif %}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-primary">View</button>
+    </div>
+    {% if selected_council %}
+    <div class="col-auto">
+      <a href="{% url 'ui:traceability' %}" class="btn btn-outline-secondary">Clear</a>
+    </div>
+    {% endif %}
+  </form>
+
+  {% if selected_council %}
+
+  <!-- Grand total banner -->
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card bg-light">
+        <div class="card-body py-2">
+          <small class="text-muted d-block">Council</small>
+          <strong>{{ selected_council.name }}</strong>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-light">
+        <div class="card-body py-2">
+          <small class="text-muted d-block">Total Allocated</small>
+          <strong>${{ grand_total|floatformat:0 }}</strong>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-light">
+        <div class="card-body py-2">
+          <small class="text-muted d-block">Total Released</small>
+          <strong>${{ grand_paid|floatformat:0 }}</strong>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-light">
+        <div class="card-body py-2">
+          <small class="text-muted d-block">% Expended</small>
+          <strong>{{ grand_pct }}%</strong>
+          <div class="progress mt-1" style="height:6px;">
+            <div class="progress-bar" style="width:{{ grand_pct }}%;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if chain %}
+  {% for agreement_row in chain %}
+  <!-- Level 1: Funding Agreement -->
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center py-2">
+      <div>
+        <strong>{{ agreement_row.agreement.name }}</strong>
+        <span class="badge bg-secondary ms-2">{{ agreement_row.agreement.get_status_display }}</span>
+        {% if agreement_row.agreement.execution_date %}
+        <small class="text-muted ms-2">Executed {{ agreement_row.agreement.execution_date }}</small>
+        {% endif %}
+      </div>
+      <div class="text-end small">
+        <span class="text-muted">${{ agreement_row.total|floatformat:0 }} total</span>
+        &nbsp;·&nbsp;
+        <span class="text-success">${{ agreement_row.paid|floatformat:0 }} released</span>
+        &nbsp;·&nbsp;
+        <strong>{{ agreement_row.pct_expended }}%</strong>
+        <div class="progress mt-1" style="height:4px;width:120px;display:inline-block;vertical-align:middle;">
+          <div class="progress-bar bg-success" style="width:{{ agreement_row.pct_expended }}%;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      {% for srow in agreement_row.schedules %}
+      <!-- Level 2: Funding Schedule -->
+      <div class="border-bottom px-3 py-2 bg-light">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <a href="{% url 'ui:funding_schedule_detail' pk=srow.schedule.pk %}" class="fw-semibold text-decoration-none">
+              FS#{{ srow.schedule.schedule_number }} — {{ srow.schedule.project.name }}
+            </a>
+            <span class="badge bg-info text-dark ms-2 small">{{ srow.schedule.get_status_display }}</span>
+          </div>
+          <div class="text-end small">
+            <span class="text-muted">${{ srow.schedule.total_funding|floatformat:0 }}</span>
+            &nbsp;·&nbsp;
+            <span class="text-success">${{ srow.paid|floatformat:0 }} released</span>
+            &nbsp;·&nbsp;
+            <span class="text-warning">${{ srow.remaining|floatformat:0 }} remaining</span>
+            &nbsp;·&nbsp;
+            <strong>{{ srow.pct_expended }}%</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Level 3: Allocations -->
+      {% if srow.allocations %}
+      <div class="px-4 py-1">
+        <small class="text-muted fw-semibold">Allocations</small>
+        <table class="table table-sm table-borderless mb-1">
+          <thead>
+            <tr class="text-muted small">
+              <th>Target</th><th>Cost Centre</th><th class="text-end">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for alloc in srow.allocations %}
+            <tr class="small">
+              <td>{% if alloc.project %}{{ alloc.project.name }}{% elif alloc.work %}Work #{{ alloc.work.pk }}{% endif %}</td>
+              <td>{{ alloc.cost_centre|default:"—" }}</td>
+              <td class="text-end">${{ alloc.amount|floatformat:0 }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+
+      <!-- Level 4: Payments -->
+      {% if srow.payments %}
+      <div class="px-4 py-1 border-top">
+        <small class="text-muted fw-semibold">Payments</small>
+        <table class="table table-sm table-borderless mb-1">
+          <thead>
+            <tr class="text-muted small">
+              <th>Type</th><th>Status</th><th>Release Date</th><th class="text-end">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for pmt in srow.payments %}
+            <tr class="small">
+              <td>{{ pmt.get_payment_type_display }}</td>
+              <td>
+                <span class="badge {% if pmt.status == 'RELEASED' or pmt.status == 'RECONCILED' %}bg-success{% elif pmt.status == 'APPROVED' %}bg-primary{% else %}bg-secondary{% endif %} small">
+                  {{ pmt.get_status_display }}
+                </span>
+              </td>
+              <td>{{ pmt.release_date|default:"—" }}</td>
+              <td class="text-end">${{ pmt.amount|floatformat:0 }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+
+  {% else %}
+  <div class="alert alert-info">
+    No funding agreements found for <strong>{{ selected_council.name }}</strong>.
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="alert alert-light border">
+    Select a council above to view its full funding chain.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

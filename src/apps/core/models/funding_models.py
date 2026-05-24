@@ -79,8 +79,8 @@ class PaymentRule(models.Model):
             existing = PaymentRule.objects.filter(pk=self.pk).first()
             if existing and check_payment_rule_immutable(existing):
                 raise ValidationError(
-                    f"PaymentRule '{self.name}' is in use by a FundingSchedule. "
-                    "Create a new version instead of editing this one."
+                    f"PaymentRule '{self.name}' is immutable — it is in use by a "
+                    "FundingSchedule. Create a new version instead of editing this one."
                 )
 
 
@@ -243,6 +243,26 @@ class ExpenseClaim(models.Model):
     def __str__(self):
         return f"ExpenseClaim ${self.amount} for {self.funding_notice.project.name} ({self.status})"
 
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        from apps.core.business_rules import get_approved_claims_total
+
+        # Check cap not exceeded (exclude current row when updating)
+        if self.funding_notice and self.status != self.Status.DRAFT:
+            approved_total = get_approved_claims_total(self.funding_notice)
+            # When updating an existing APPROVED claim, exclude it from the sum
+            if self.pk:
+                existing = ExpenseClaim.objects.filter(pk=self.pk, status=self.Status.APPROVED).first()
+                if existing:
+                    approved_total -= existing.amount
+            new_total = approved_total + self.amount
+            if new_total > self.funding_notice.capped_amount:
+                raise ValidationError(
+                    f"Claim ${self.amount} would exceed notice cap. "
+                    f"Approved: ${approved_total:,.2f}, "
+                    f"Cap: ${self.funding_notice.capped_amount:,.2f}"
+                )
+
 
 class ExpenseClaimAttachment(models.Model):
     """Linked documents for an expense claim (invoices, SAP RCTI, supporting evidence)."""
@@ -263,26 +283,6 @@ class ExpenseClaimAttachment(models.Model):
 
     def __str__(self):
         return f"Attachment for {self.claim}: {self.description or self.document_uri}"
-
-    def clean(self):
-        from django.core.exceptions import ValidationError
-        from apps.core.business_rules import get_approved_claims_total
-        
-        # Check cap not exceeded (exclude current row when updating)
-        if self.funding_notice and self.status != self.Status.DRAFT:
-            approved_total = get_approved_claims_total(self.funding_notice)
-            # When updating an existing APPROVED claim, exclude it from the sum
-            if self.pk:
-                existing = ExpenseClaim.objects.filter(pk=self.pk, status=self.Status.APPROVED).first()
-                if existing:
-                    approved_total -= existing.amount
-            new_total = approved_total + self.amount
-            if new_total > self.funding_notice.capped_amount:
-                raise ValidationError(
-                    f"Claim ${self.amount} would exceed notice cap. "
-                    f"Approved: ${approved_total:,.2f}, "
-                    f"Cap: ${self.funding_notice.capped_amount:,.2f}"
-                )
 
 
 class Delegation(models.Model):
@@ -363,6 +363,23 @@ class FundingSchedule(models.Model):
     replaces_schedule = models.ForeignKey('self', related_name='replacements', on_delete=models.SET_NULL, null=True, blank=True, help_text="Replaced by this schedule")
     project = models.ForeignKey(Project, related_name='funding_schedules', on_delete=models.CASCADE, db_index=True, null=True, blank=True)
     councils = models.ManyToManyField('Council', related_name='funding_schedules', blank=True)
+    works = models.ManyToManyField('Work', related_name='funding_schedules', blank=True, help_text="Works funded by this schedule")
+    amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    contingency = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_funding = models.DecimalField(max_digits=12, decimal_places=2, default=0, editable=False, db_index=True)
+
+    class PaymentSplit(models.TextChoices):
+        STANDARD = '30/60/10', 'Standard (30/60/10)'
+        ALTERNATIVE = '90/10', 'Alternative (90/10)'
+        CUSTOM = 'CUSTOM', 'Custom'
+
+    payment_split = models.CharField(
+        max_length=10,
+        choices=PaymentSplit.choices,
+        default=PaymentSplit.STANDARD,
+    )
+    notional_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    actual_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     status = models.CharField(max_length=15, choices=Status.choices, default=Status.DRAFT, db_index=True)
 
     # Date fields — the source of truth. A post_save signal cascades these
@@ -402,18 +419,22 @@ class FundingSchedule(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     @property
-    def total_funding(self):
-        """Total funding = SUM of WorkFunding allocations (single source of truth)."""
-        from django.db.models import Sum
-        return self.work_fundings.aggregate(total=Sum('amount'))['total'] or 0
-
-    @property
     def effective_total(self):
+        """Returns actual_total if any work has actual costs, else notional_total. Falls back to total_funding."""
+        if self.actual_total and self.actual_total > 0:
+            return self.actual_total
+        if self.notional_total and self.notional_total > 0:
+            return self.notional_total
         return self.total_funding
 
     @property
     def linked_project(self):
         return self.project
+
+    def save(self, *args, **kwargs):
+        # Compute stored total_funding from amount + contingency
+        self.total_funding = (self.amount or 0) + (self.contingency or 0)
+        super().save(*args, **kwargs)
 
     DATE_FIELDS_FOR_SYNC = (
         'start_date', 'stage1_target_date', 'stage1_sunset_date',
