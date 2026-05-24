@@ -495,10 +495,13 @@ class FundingScheduleListView(LoginRequiredMixin, ListView):
     paginate_by = 50
 
 
-class FundingScheduleCreateView(LoginRequiredMixin, CreateView):
+class FundingScheduleCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = FundingSchedule
     template_name = 'crud/form.html'
-    fields = ['project', 'funding_agreement', 'payment_rule', 'schedule_number', 'status']
+    fields = ['project', 'funding_agreement', 'payment_rule', 'schedule_number', 'status',
+              'start_date', 'stage1_target_date', 'stage1_sunset_date',
+              'stage2_target_date', 'stage2_sunset_date',
+              'stage1_item_group', 'stage2_item_group']
     success_url = reverse_lazy('ui:funding_schedule_list')
 
     def get_context_data(self, **kwargs):
@@ -522,10 +525,13 @@ class FundingScheduleDetailView(LoginRequiredMixin, CommentsMixin, NoticesMixin,
         return ctx
 
 
-class FundingScheduleUpdateView(LoginRequiredMixin, UpdateView):
+class FundingScheduleUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = FundingSchedule
     template_name = 'crud/form.html'
-    fields = ['project', 'funding_agreement', 'payment_rule', 'schedule_number', 'status']
+    fields = ['project', 'funding_agreement', 'payment_rule', 'schedule_number', 'status',
+              'start_date', 'stage1_target_date', 'stage1_sunset_date',
+              'stage2_target_date', 'stage2_sunset_date',
+              'stage1_item_group', 'stage2_item_group']
     success_url = reverse_lazy('ui:funding_schedule_list')
 
     def get_context_data(self, **kwargs):
@@ -692,14 +698,14 @@ class StageReportListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['project'] = Project.objects.get(pk=self.kwargs['project_pk'])
+        ctx['project'] = get_object_or_404(Project, pk=self.kwargs['project_pk'])
         return ctx
 
 
 class StageReportCreateView(LoginRequiredMixin, View):
-    """Backwards-compat: now sends users to the open-or-create flow (Stage 1 by default)."""
+    """Backwards-compat: sends users to the new FS-based open-or-create flow (via legacy redirect)."""
     def get(self, request, project_pk):
-        return redirect('ui:stage_report_open', project_pk=project_pk, stage_type='STAGE1')
+        return redirect('ui:stage_report_open_legacy_project', project_pk=project_pk, stage_type='STAGE1')
 
 
 class StageReportDetailView(LoginRequiredMixin, View):

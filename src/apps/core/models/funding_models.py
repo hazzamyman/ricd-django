@@ -360,11 +360,31 @@ class FundingSchedule(models.Model):
     councils = models.ManyToManyField('Council', related_name='funding_schedules', blank=True)
     status = models.CharField(max_length=15, choices=Status.choices, default=Status.DRAFT, db_index=True)
 
-    # Date fields (Variation - Vary Dates option)
+    # Date fields — the source of truth. A post_save signal cascades these
+    # down to all child Projects (Project edits do NOT propagate back).
+    start_date = models.DateField(
+        null=True, blank=True,
+        help_text="Project start (cascaded to child projects on save)"
+    )
     stage1_target_date = models.DateField(null=True, blank=True)
     stage2_target_date = models.DateField(null=True, blank=True)
     stage1_sunset_date = models.DateField(null=True, blank=True)
     stage2_sunset_date = models.DateField(null=True, blank=True)
+
+    # Stage report templates — picked by the FundingSchedule (per the per-FS
+    # report design). When a Stage report is opened, items are populated from
+    # the matching group here. Projects' equivalent fields are kept for
+    # backward compatibility but FS takes precedence.
+    stage1_item_group = models.ForeignKey(
+        'StageItemGroup', related_name='stage1_funding_schedules',
+        on_delete=models.SET_NULL, null=True, blank=True,
+        help_text="Template group of Stage 1 items for the report covering this schedule's projects",
+    )
+    stage2_item_group = models.ForeignKey(
+        'StageItemGroup', related_name='stage2_funding_schedules',
+        on_delete=models.SET_NULL, null=True, blank=True,
+        help_text="Template group of Stage 2 items for the report covering this schedule's projects",
+    )
 
     # State contact details (Variation - State contact option)
     contact_details = models.JSONField(blank=True, default=dict, help_text="attention, phone, email, address")
@@ -389,6 +409,28 @@ class FundingSchedule(models.Model):
     @property
     def linked_project(self):
         return self.project
+
+    DATE_FIELDS_FOR_SYNC = (
+        'start_date', 'stage1_target_date', 'stage1_sunset_date',
+        'stage2_target_date', 'stage2_sunset_date',
+    )
+
+    def child_projects(self):
+        """All projects directly linked to this FundingSchedule (Project.funding_schedule FK)."""
+        from apps.core.models import Project
+        return Project.objects.filter(funding_schedule=self)
+
+    def out_of_sync_projects(self):
+        """Return child projects whose date fields differ from this schedule's."""
+        out = []
+        for p in self.child_projects():
+            if any(getattr(self, f) != getattr(p, f) for f in self.DATE_FIELDS_FOR_SYNC):
+                out.append(p)
+        return out
+
+    @property
+    def has_out_of_sync_projects(self):
+        return bool(self.out_of_sync_projects())
 
     def clean(self):
         from django.core.exceptions import ValidationError

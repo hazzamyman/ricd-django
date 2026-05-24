@@ -1,37 +1,50 @@
 {% extends "base.html" %}
-{% block title %}{{ report.get_stage_type_display }} Report &mdash; {{ report.project.name }}{% endblock %}
+{% block title %}{{ report.get_stage_type_display }} Report{% endblock %}
 {% block breadcrumbs %}
   <span class="sep">/</span>
   <a href="{% url 'ui:reports_dashboard' %}">Reports</a>
-  <span class="sep">/</span>
-  <a href="{% url 'ui:project_detail' report.project.pk %}">{{ report.project.name }}</a>
+  {% if report.funding_schedule %}
+    <span class="sep">/</span>
+    <a href="{% url 'ui:funding_schedule_detail' report.funding_schedule.pk %}">FS #{{ report.funding_schedule.schedule_number }}</a>
+  {% elif report.project %}
+    <span class="sep">/</span>
+    <a href="{% url 'ui:project_detail' report.project.pk %}">{{ report.project.name }}</a>
+  {% endif %}
   <span class="sep">/</span>
   <span class="current">{{ report.get_stage_type_display }} Report</span>
 {% endblock %}
 {% block content %}
 
 {# ===== Page head ===== #}
+{% with fs=report.funding_schedule %}
 <div class="pg-head" style="margin-bottom:12px; padding-bottom:10px;">
   <div>
-    <h1>{{ report.get_stage_type_display }} Report &mdash; {{ report.project.name }}</h1>
+    <h1>
+      {{ report.get_stage_type_display }} Report
+      {% if fs %}<small class="text-muted" style="font-weight:400; font-size:16px;">&mdash; FS #{{ fs.schedule_number }}</small>{% endif %}
+    </h1>
     <div class="meta">
-      <span><b>Project</b> <a href="{% url 'ui:project_detail' report.project.pk %}">{{ report.project.name }}</a></span>
-      {% if report.funding_schedule %}
-        <span><b>Agreement</b> <a href="{% url 'ui:funding_schedule_detail' report.funding_schedule.pk %}">FS #{{ report.funding_schedule.schedule_number }}</a></span>
+      {% if fs %}
+        <span><b>Funding Schedule</b> <a href="{% url 'ui:funding_schedule_detail' fs.pk %}">FS #{{ fs.schedule_number }}</a></span>
+        {% if fs.funding_agreement %}<span><b>Agreement</b> <a href="{% url 'ui:funding_agreement_detail' fs.funding_agreement.pk %}">{{ fs.funding_agreement.name }}</a></span>{% endif %}
       {% elif report.interim_frp %}
-        <span><b>Agreement</b> <a href="{% url 'ui:interim_frp_detail' report.interim_frp.pk %}">Interim FRP{% if report.interim_frp.reference %} &middot; {{ report.interim_frp.reference }}{% endif %}</a></span>
+        <span><b>Interim FRP</b> <a href="{% url 'ui:interim_frp_detail' report.interim_frp.pk %}">{{ report.interim_frp.reference|default:"&mdash;" }}</a></span>
       {% elif report.forward_rpf %}
-        <span><b>Agreement</b> <a href="{% url 'ui:forward_rpf_detail' report.forward_rpf.pk %}">Forward RPF{% if report.forward_rpf.reference %} &middot; {{ report.forward_rpf.reference }}{% endif %}</a></span>
-      {% else %}
-        <span><b>Agreement</b> <span class="text-muted">&mdash;</span></span>
+        <span><b>Forward RPF</b> <a href="{% url 'ui:forward_rpf_detail' report.forward_rpf.pk %}">{{ report.forward_rpf.reference|default:"&mdash;" }}</a></span>
       {% endif %}
-      <span><b>Council</b> {{ report.project.council.name }}</span>
-      {% if report.stage_type == 'STAGE1' and report.project.stage1_target_date %}
-        <span><b>Target</b> {{ report.project.stage1_target_date|date:"d M Y" }}</span>
-        {% if report.project.stage1_sunset_date %}<span style="color:var(--st-amber-fg);"><b>Sunset</b> {{ report.project.stage1_sunset_date|date:"d M Y" }}</span>{% endif %}
-      {% elif report.stage_type == 'STAGE2' and report.project.stage2_target_date %}
-        <span><b>Target</b> {{ report.project.stage2_target_date|date:"d M Y" }}</span>
-        {% if report.project.stage2_sunset_date %}<span style="color:var(--st-amber-fg);"><b>Sunset</b> {{ report.project.stage2_sunset_date|date:"d M Y" }}</span>{% endif %}
+      {% if report.project %}
+        <span><b>Council</b> <a href="{% url 'ui:council_detail' report.project.council.pk %}">{{ report.project.council.name }}</a></span>
+      {% elif fs and fs.project %}
+        <span><b>Council</b> <a href="{% url 'ui:council_detail' fs.project.council.pk %}">{{ fs.project.council.name }}</a></span>
+      {% endif %}
+      {% if fs %}
+        {% if report.stage_type == 'STAGE1' and fs.stage1_target_date %}
+          <span><b>Target</b> {{ fs.stage1_target_date|date:"d M Y" }}</span>
+          {% if fs.stage1_sunset_date %}<span style="color:var(--st-amber-fg);"><b>Sunset</b> {{ fs.stage1_sunset_date|date:"d M Y" }}</span>{% endif %}
+        {% elif report.stage_type == 'STAGE2' and fs.stage2_target_date %}
+          <span><b>Target</b> {{ fs.stage2_target_date|date:"d M Y" }}</span>
+          {% if fs.stage2_sunset_date %}<span style="color:var(--st-amber-fg);"><b>Sunset</b> {{ fs.stage2_sunset_date|date:"d M Y" }}</span>{% endif %}
+        {% endif %}
       {% endif %}
     </div>
   </div>
@@ -46,9 +59,31 @@
         {{ report.get_status_display }}
       </span>
     {% endwith %}
-    <a href="{% url 'ui:project_detail' report.project.pk %}" class="btn btn-outline-secondary btn-sm">Back to project</a>
+    {% if fs %}
+      <a href="{% url 'ui:funding_schedule_detail' fs.pk %}" class="btn btn-outline-secondary btn-sm">Back to FS</a>
+    {% elif report.project %}
+      <a href="{% url 'ui:project_detail' report.project.pk %}" class="btn btn-outline-secondary btn-sm">Back to project</a>
+    {% endif %}
   </div>
 </div>
+
+{# Child-projects covered by this report #}
+{% if fs %}
+  {% with children=fs.child_projects.all %}
+    {% if children %}
+      <div class="card mb-3" style="border-left:3px solid var(--brand);"><div class="card-body py-2 d-flex align-items-center gap-2 flex-wrap" style="font-size:12.5px;">
+        <i class="bi bi-collection" style="color:var(--brand);"></i>
+        <span class="text-muted">Covers</span>
+        <strong>{{ children|length }} project{{ children|length|pluralize }}:</strong>
+        {% for p in children %}
+          <a href="{% url 'ui:project_detail' p.pk %}">{{ p.name }}</a>{% if not forloop.last %},{% endif %}
+          {% if not p.dates_in_sync %}<span class="pill amber" style="font-size:9px;" title="Project dates differ from FS dates"><i class="bi bi-exclamation-triangle"></i> out of sync</span>{% endif %}
+        {% endfor %}
+      </div></div>
+    {% endif %}
+  {% endwith %}
+{% endif %}
+{% endwith %}
 
 {# ===== Workflow chip strip ===== #}
 <div class="card mb-3"><div class="card-body py-3">

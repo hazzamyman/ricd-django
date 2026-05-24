@@ -412,3 +412,31 @@ def recalculate_on_step_completion(sender, instance, **kwargs):
         recalculate_forecast(instance.work)
     except Exception:
         pass
+
+# ---------------------------------------------------------------------------
+# FundingSchedule date cascade -> child Projects
+# ---------------------------------------------------------------------------
+# When a FundingSchedule is saved, copy its date fields down to each linked
+# child project. Project edits NEVER propagate back (that drift is surfaced
+# via Project.dates_in_sync and FundingSchedule.has_out_of_sync_projects).
+
+@receiver(post_save, sender='core.FundingSchedule')
+def cascade_fs_dates_to_projects(sender, instance, created, **kwargs):
+    fields = ('start_date', 'stage1_target_date', 'stage1_sunset_date',
+              'stage2_target_date', 'stage2_sunset_date')
+    try:
+        from apps.core.models import Project
+        children = Project.objects.filter(funding_schedule=instance)
+        for p in children:
+            changed = []
+            for f in fields:
+                fs_val = getattr(instance, f)
+                if fs_val is not None and getattr(p, f) != fs_val:
+                    setattr(p, f, fs_val)
+                    changed.append(f)
+            if changed:
+                # update_fields avoids running clean() and unwanted signal cascades
+                p.save(update_fields=changed + ['updated_at'])
+    except Exception:
+        # Signal-safe: never crash a FundingSchedule save because of a stale state
+        pass

@@ -291,8 +291,9 @@ urlpatterns = [
     path('maintenance/stage-group-items/<int:pk>/edit/', views.stage_views.StageItemGroupItemUpdateView.as_view(), name='stage_item_group_item_edit'),
     path('maintenance/stage-group-items/<int:pk>/delete/', views.stage_views.StageItemGroupItemDeleteView.as_view(), name='stage_item_group_item_delete'),
 
-    # Stage Report flow (per-project + per-stage open-or-create -> single canonical grid view)
-    path('projects/<int:project_pk>/stage-reports/<str:stage_type>/open/', views.stage_views.StageReportOpenOrCreateView.as_view(), name='stage_report_open'),
+    # Stage Report flow (per-FundingSchedule; legacy per-project URL redirects)
+    path('funding-schedules/<int:fs_pk>/stage-reports/<str:stage_type>/open/', views.stage_views.StageReportOpenOrCreateView.as_view(), name='stage_report_open'),
+    path('projects/<int:project_pk>/stage-reports/<str:stage_type>/open/', views.stage_views.LegacyProjectStageOpenRedirectView.as_view(), name='stage_report_open_legacy_project'),
     path('stage-reports/<int:pk>/', views.stage_views.StageReportGridView.as_view(), name='stage_report_grid'),
     path('stage-reports/<int:pk>/submit/', views.stage_views.StageReportSubmitView.as_view(), name='stage_report_submit'),
     path('stage-reports/<int:pk>/endorse/', views.stage_views.StageReportEndorseView.as_view(), name='stage_report_endorse'),

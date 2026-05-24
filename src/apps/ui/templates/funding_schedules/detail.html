@@ -31,14 +31,74 @@
     <a href="{% url 'ui:funding_schedule_list' %}" class="btn btn-outline-secondary">Back</a>
   </div>
 </div>
-<div class="card"><div class="card-body">
-  <dl class="row">
+<div class="card mb-3"><div class="card-body">
+  <dl class="row mb-0">
     <dt class="col-sm-3">Project</dt><dd class="col-sm-9">{% if funding_schedule.project %}<a href="{% url 'ui:project_detail' funding_schedule.project.pk %}?tab=funding">{{ funding_schedule.project.name }} (ID {{ funding_schedule.project.pk }})</a>{% else %}-{% endif %}</dd>
     <dt class="col-sm-3">Funding Agreement</dt><dd class="col-sm-9">{{ funding_schedule.funding_agreement|default:"-" }}</dd>
     <dt class="col-sm-3">Total Funding</dt><dd class="col-sm-9">${{ funding_schedule.total_funding|floatformat:2 }}</dd>
     <dt class="col-sm-3">Status</dt><dd class="col-sm-9"><strong>{{ funding_schedule.get_status_display }}</strong></dd>
     <dt class="col-sm-3">Payment Rule</dt><dd class="col-sm-9">{{ funding_schedule.payment_rule|default:"-" }}</dd>
+
+    <dt class="col-sm-3">Start date</dt><dd class="col-sm-9">{{ funding_schedule.start_date|date:"d M Y"|default:"—" }}</dd>
+    <dt class="col-sm-3">Stage 1 target / sunset</dt><dd class="col-sm-9">
+      {{ funding_schedule.stage1_target_date|date:"d M Y"|default:"—" }}
+      &middot;
+      <span style="color:var(--st-amber-fg);">{{ funding_schedule.stage1_sunset_date|date:"d M Y"|default:"—" }}</span>
+    </dd>
+    <dt class="col-sm-3">Stage 2 target / sunset</dt><dd class="col-sm-9">
+      {{ funding_schedule.stage2_target_date|date:"d M Y"|default:"—" }}
+      &middot;
+      <span style="color:var(--st-amber-fg);">{{ funding_schedule.stage2_sunset_date|date:"d M Y"|default:"—" }}</span>
+    </dd>
+    <dt class="col-sm-3">Stage 1 template</dt><dd class="col-sm-9">{% if funding_schedule.stage1_item_group %}<a href="{% url 'ui:stage_item_group_detail' funding_schedule.stage1_item_group.pk %}">{{ funding_schedule.stage1_item_group.name }}</a>{% else %}<span class="text-muted">Not set</span>{% endif %}</dd>
+    <dt class="col-sm-3">Stage 2 template</dt><dd class="col-sm-9">{% if funding_schedule.stage2_item_group %}<a href="{% url 'ui:stage_item_group_detail' funding_schedule.stage2_item_group.pk %}">{{ funding_schedule.stage2_item_group.name }}</a>{% else %}<span class="text-muted">Not set</span>{% endif %}</dd>
   </dl>
+</div></div>
+
+{% with children=funding_schedule.child_projects.all %}
+{% if children %}
+<div class="card mb-3"><div class="card-body">
+  <div class="d-flex align-items-center justify-content-between mb-2">
+    <h6 class="text-muted mb-0">Child Projects ({{ children|length }})</h6>
+    {% if funding_schedule.has_out_of_sync_projects %}
+      <span class="pill amber" style="font-size:10px;"><i class="bi bi-exclamation-triangle"></i> Some child projects' dates differ from this FS</span>
+    {% endif %}
+  </div>
+  <table class="table table-sm align-middle mb-0">
+    <thead class="table-light">
+      <tr><th>Project</th><th>State</th><th>Start</th><th>Stage 1 target</th><th>Stage 2 target</th><th></th></tr>
+    </thead>
+    <tbody>
+    {% for p in children %}
+      <tr {% if not p.dates_in_sync %}style="background:var(--st-amber-bg);"{% endif %}>
+        <td><a href="{% url 'ui:project_detail' p.pk %}">{{ p.name }}</a></td>
+        <td><span class="state-badge state-{{ p.state|lower }}">{{ p.get_state_display }}</span></td>
+        <td>{{ p.start_date|date:"d M Y"|default:"—" }}</td>
+        <td>{{ p.stage1_target_date|date:"d M Y"|default:"—" }}</td>
+        <td>{{ p.stage2_target_date|date:"d M Y"|default:"—" }}</td>
+        <td>{% if not p.dates_in_sync %}<span class="pill amber" style="font-size:9px;">Out of sync</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% endif %}
+{% endwith %}
+
+<div class="card mb-3"><div class="card-body">
+  <h6 class="text-muted mb-2">Stage Reports</h6>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{% url 'ui:stage_report_open' fs_pk=funding_schedule.pk stage_type='STAGE1' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-clipboard-data"></i> Open Stage 1 Report
+    </a>
+    <a href="{% url 'ui:stage_report_open' fs_pk=funding_schedule.pk stage_type='STAGE2' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-clipboard-data"></i> Open Stage 2 Report
+    </a>
+  </div>
+  <div class="form-text mt-2">
+    A Stage 1/2 report covers ALL child projects of this Funding Schedule.
+    The item template is taken from this schedule's stage1/2_item_group, or the first child project's template if FS's isn't set.
+  </div>
 </div></div>
 
 {% if audit_logs %}

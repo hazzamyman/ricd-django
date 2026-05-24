@@ -47,6 +47,15 @@
   </div>
 </div>
 
+{# Out-of-sync flag with parent FundingSchedule #}
+{% if project.funding_schedule and not project.dates_in_sync %}
+<div class="ricd-warn mb-3">
+  <i class="bi bi-exclamation-triangle"></i>
+  Project dates are out of sync with <a href="{% url 'ui:funding_schedule_detail' project.funding_schedule.pk %}">Funding Schedule #{{ project.funding_schedule.schedule_number }}</a>.
+  Editing the FS will cascade dates here; project-only edits do not propagate back.
+</div>
+{% endif %}
+
 {# ===== Tab strip ===== #}
 <ul class="nav ricd-tabs" id="projectTabs" role="tablist">
   <li class="nav-item" role="presentation">

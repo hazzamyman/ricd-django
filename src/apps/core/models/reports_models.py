@@ -258,7 +258,7 @@ class QuarterlyReportAttachment(models.Model):
     """Up to ~3 documents per Work per report (linked to OpenDocs/Drive)."""
     report = models.ForeignKey(QuarterlyReport, related_name='attachments', on_delete=models.CASCADE)
     work = models.ForeignKey('Work', null=True, blank=True, related_name='quarterly_attachments', on_delete=models.CASCADE)
-    document_uri = models.URLField(blank=True, help_text='Link to attachment in OpenDocs/Google Drive')
+    document_uri = models.URLField(blank=True, help_text='Windows Share Drive, Sharepoint or OpenDocs link')
     description = models.CharField(max_length=255, blank=True)
     uploaded_by = models.ForeignKey('auth.User', null=True, on_delete=models.SET_NULL)
     uploaded_at = models.DateTimeField(auto_now_add=True)
@@ -289,7 +289,14 @@ class StageReport(models.Model):
         APPROVED = 'APPROVED', 'Approved'
         REJECTED = 'REJECTED', 'Rejected'
 
-    project = models.ForeignKey('Project', related_name='stage_reports', on_delete=models.CASCADE, db_index=True)
+    # `project` is now informational only — one Stage report covers all child projects
+    # under its FundingSchedule. Kept as a nullable FK for legacy reports and as a
+    # convenience for views that only have a project context.
+    project = models.ForeignKey(
+        'Project', related_name='stage_reports',
+        on_delete=models.SET_NULL, null=True, blank=True, db_index=True,
+        help_text="Primary project (informational; the report covers all child projects of the linked FS)",
+    )
     stage_type = models.CharField(max_length=10, choices=StageType.choices, db_index=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT, db_index=True)
 
@@ -330,22 +337,40 @@ class StageReport(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ('project', 'stage_type')
         constraints = [
+            # Exactly one of FS / Interim / Forward (or all null while DRAFT)
             models.CheckConstraint(
                 condition=(
-                    # All-nulls allowed (early DRAFT before linkage); otherwise exactly one
                     (models.Q(funding_schedule__isnull=True) & models.Q(interim_frp__isnull=True) & models.Q(forward_rpf__isnull=True)) |
                     (models.Q(funding_schedule__isnull=False) & models.Q(interim_frp__isnull=True) & models.Q(forward_rpf__isnull=True)) |
                     (models.Q(funding_schedule__isnull=True) & models.Q(interim_frp__isnull=False) & models.Q(forward_rpf__isnull=True)) |
                     (models.Q(funding_schedule__isnull=True) & models.Q(interim_frp__isnull=True) & models.Q(forward_rpf__isnull=False))
                 ),
-                name='stage_report_agreement_xor'
+                name='stage_report_agreement_xor',
+            ),
+            # At most one Stage 1/2 report per FundingSchedule
+            models.UniqueConstraint(
+                fields=['funding_schedule', 'stage_type'],
+                condition=models.Q(funding_schedule__isnull=False),
+                name='stage_report_unique_per_fs_stage',
+            ),
+            # ... and per Interim / Forward agreement (legacy paths)
+            models.UniqueConstraint(
+                fields=['interim_frp', 'stage_type'],
+                condition=models.Q(interim_frp__isnull=False),
+                name='stage_report_unique_per_interim_stage',
+            ),
+            models.UniqueConstraint(
+                fields=['forward_rpf', 'stage_type'],
+                condition=models.Q(forward_rpf__isnull=False),
+                name='stage_report_unique_per_forward_stage',
             ),
         ]
 
     def __str__(self):
-        return f"{self.get_stage_type_display()} Report ({self.project.name})"
+        if self.funding_schedule_id:
+            return f"{self.get_stage_type_display()} Report (FS #{self.funding_schedule.schedule_number})"
+        return f"{self.get_stage_type_display()} Report ({self.project.name if self.project_id else '?'})"
 
     @property
     def agreement(self):
@@ -465,7 +490,7 @@ class StageReportItem(models.Model):
 class StageReportAttachment(models.Model):
     """One or more evidence documents per StageReportItem."""
     item = models.ForeignKey(StageReportItem, related_name='attachments', on_delete=models.CASCADE)
-    document_uri = models.URLField(blank=True, help_text='Link to attachment in OpenDocs/Google Drive')
+    document_uri = models.URLField(blank=True, help_text='Windows Share Drive, Sharepoint or OpenDocs link')
     description = models.CharField(max_length=255, blank=True)
     uploaded_by = models.ForeignKey('auth.User', null=True, on_delete=models.SET_NULL)
     uploaded_at = models.DateTimeField(auto_now_add=True)

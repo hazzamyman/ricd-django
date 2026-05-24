@@ -68,6 +68,25 @@ def _user_council(user):
     return getattr(getattr(user, 'profile', None), 'council', None)
 
 
+def _report_council(report):
+    """Resolve the owning council for a StageReport.
+
+    Stage reports may have `project` blank (per-FS reports). Prefer the report's
+    own project; fall back to the funding schedule's primary project or first
+    child project.
+    """
+    if report.project_id:
+        return report.project.council
+    if report.funding_schedule_id:
+        fs = report.funding_schedule
+        if fs.project_id:
+            return fs.project.council
+        first_child = fs.child_projects().first()
+        if first_child:
+            return first_child.council
+    return None
+
+
 def _project_agreement_for_stage_report(project):
     """Derive which agreement a stage report should be linked to for this project.
 
@@ -100,9 +119,10 @@ def _ensure_can_edit(report, user):
             StageReport.Status.ASSESSED,
         )
     if _is_council_user(user):
-        if _user_council(user) != report.project.council:
+        council = _report_council(report)
+        if council is None or _user_council(user) != council:
             return False
-        cfg = CouncilTrackerConfig.objects.filter(council=report.project.council).first()
+        cfg = CouncilTrackerConfig.objects.filter(council=council).first()
         if not cfg or not cfg.council_submission_enabled:
             return False
         return report.status in (StageReport.Status.DRAFT, StageReport.Status.IN_PROGRESS)
@@ -308,47 +328,81 @@ class StageItemGroupItemDeleteView(LoginRequiredMixin, View):
 # ===========================================================================
 
 class StageReportOpenOrCreateView(LoginRequiredMixin, View):
-    """Open (or create) a Stage 1 or Stage 2 report for a project.
+    """Open (or create) a Stage 1 or Stage 2 report for a FundingSchedule.
 
-    Behaviour on first open:
-      * Pick which StageItemGroup applies (from project.stage1_item_group or
-        stage2_item_group). If unset, redirect back with an error.
-      * Snapshot the group on the report.
-      * Derive XOR linkage from the project (FundingSchedule > Interim > Forward).
-      * Pre-create StageReportItem rows for each StageItemGroupItem.
+    A Stage report is per-FundingSchedule and covers ALL child projects of
+    that schedule. The item template is taken from FS.stage1/2_item_group,
+    falling back to the first child project's stage1/2_item_group if FS's
+    isn't set yet.
     """
 
-    def get(self, request, project_pk, stage_type):
-        project = get_object_or_404(Project, pk=project_pk)
-        if _is_council_user(request.user) and _user_council(request.user) != project.council:
-            raise Http404()
+    def get(self, request, fs_pk, stage_type):
+        from apps.core.models import FundingSchedule
+        fs = get_object_or_404(FundingSchedule, pk=fs_pk)
         if stage_type not in ('STAGE1', 'STAGE2'):
             raise Http404()
 
-        report = StageReport.objects.filter(project=project, stage_type=stage_type).first()
+        # Determine the council for permission scoping
+        council = fs.project.council if fs.project_id else (
+            fs.child_projects().first().council if fs.child_projects().exists() else None
+        )
+        if _is_council_user(request.user) and council and _user_council(request.user) != council:
+            raise Http404()
+
+        report = StageReport.objects.filter(funding_schedule=fs, stage_type=stage_type).first()
         if report is None:
-            group_field = 'stage1_item_group' if stage_type == 'STAGE1' else 'stage2_item_group'
-            group = getattr(project, group_field, None)
+            group = self._resolve_item_group(fs, stage_type)
             if group is None:
                 messages.error(
                     request,
-                    f"This project has no {'Stage 1' if stage_type == 'STAGE1' else 'Stage 2'} "
-                    "item template assigned. Edit the project and pick one."
+                    f"This funding schedule has no {'Stage 1' if stage_type == 'STAGE1' else 'Stage 2'} "
+                    "item template assigned (on the FS or any child project). Edit the FS and pick one."
                 )
-                return redirect('ui:project_detail', pk=project.pk)
-            agreement_field, agreement_obj = _project_agreement_for_stage_report(project)
-            kwargs = {'project': project, 'stage_type': stage_type, 'item_group': group}
-            if agreement_field and agreement_obj:
-                kwargs[agreement_field] = agreement_obj
-            report = StageReport.objects.create(**kwargs)
+                return redirect('ui:funding_schedule_detail', pk=fs.pk)
+            primary_project = fs.project or fs.child_projects().first()
+            report = StageReport.objects.create(
+                funding_schedule=fs,
+                stage_type=stage_type,
+                item_group=group,
+                project=primary_project,  # informational only
+            )
             self._populate_items(report, group)
 
         return redirect('ui:stage_report_grid', pk=report.pk)
 
     @staticmethod
+    def _resolve_item_group(fs, stage_type):
+        attr = 'stage1_item_group' if stage_type == 'STAGE1' else 'stage2_item_group'
+        grp = getattr(fs, attr, None)
+        if grp:
+            return grp
+        for p in fs.child_projects():
+            grp = getattr(p, attr, None)
+            if grp:
+                return grp
+        return None
+
+    @staticmethod
     def _populate_items(report, group):
         for gi in group.items.all():
             StageReportItem.objects.get_or_create(report=report, group_item=gi)
+
+
+class LegacyProjectStageOpenRedirectView(LoginRequiredMixin, View):
+    """Backward-compat: redirect /projects/<pk>/stage-reports/<stage>/open/
+    to the new FS-based open URL by looking up the project's funding schedule.
+    """
+    def get(self, request, project_pk, stage_type):
+        project = get_object_or_404(Project, pk=project_pk)
+        fs = project.funding_schedule
+        if fs is None:
+            messages.error(
+                request,
+                "This project is not linked to a Funding Schedule. "
+                "Stage reports are now created from the Funding Schedule, not the project."
+            )
+            return redirect('ui:project_detail', pk=project.pk)
+        return redirect('ui:stage_report_open', fs_pk=fs.pk, stage_type=stage_type)
 
 
 class StageReportGridView(LoginRequiredMixin, View):
@@ -366,8 +420,14 @@ class StageReportGridView(LoginRequiredMixin, View):
             ),
             pk=pk
         )
-        if _is_council_user(user) and _user_council(user) != report.project.council:
-            raise Http404()
+        if _is_council_user(user):
+            # Council users see reports only for their own council.
+            report_council = (report.project.council if report.project_id else None)
+            if report_council is None and report.funding_schedule_id:
+                primary = report.funding_schedule.project
+                report_council = primary.council if primary else None
+            if report_council != _user_council(user):
+                raise Http404()
         return report
 
     def get(self, request, pk):
@@ -518,13 +578,14 @@ class StageReportSubmitView(LoginRequiredMixin, View):
     """Council User / Manager submits -- moves DRAFT/IN_PROGRESS -> SUBMITTED."""
     def post(self, request, pk):
         report = get_object_or_404(StageReport, pk=pk)
-        if _is_council_user(request.user) and _user_council(request.user) != report.project.council:
+        council = _report_council(report)
+        if _is_council_user(request.user) and (council is None or _user_council(request.user) != council):
             raise Http404()
         if report.status not in (StageReport.Status.DRAFT, StageReport.Status.IN_PROGRESS):
             messages.error(request, f'Cannot submit -- already {report.get_status_display()}.')
             return redirect('ui:stage_report_grid', pk=pk)
         if _is_council_user(request.user):
-            cfg = CouncilTrackerConfig.objects.filter(council=report.project.council).first()
+            cfg = CouncilTrackerConfig.objects.filter(council=council).first()
             if not cfg or not cfg.council_submission_enabled:
                 messages.error(request, 'Submission is not enabled for your council.')
                 return redirect('ui:stage_report_grid', pk=pk)

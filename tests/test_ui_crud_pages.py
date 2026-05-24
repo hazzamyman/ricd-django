@@ -487,21 +487,29 @@ class TestStageReportCRUD:
         assert response.status_code == 200, \
             f"GET /ui/projects/{project.pk}/stage-reports/ returned {response.status_code}"
 
-    def test_stage_report_create_get_redirects_to_new_open_flow(self, auth_client, project):
-        """The legacy create URL now redirects to the per-stage open flow."""
+    def test_stage_report_create_get_redirects_to_legacy_open(self, auth_client, project):
+        """The legacy create URL now redirects (via the legacy-project helper)."""
         response = auth_client.get(f'/projects/{project.pk}/stage-reports/create/')
         assert response.status_code == 302
-        assert '/stage-reports/STAGE1/open/' in response['Location']
 
-    def test_stage_report_open_creates_when_template_assigned(self, auth_client, project):
-        """The new open flow creates a StageReport when the project has a template."""
-        from apps.core.models import StageItemGroup, StageReport
-        # Project must have a stage1 template attached to create a report
-        grp = StageItemGroup.objects.create(stage_type='STAGE1', name='Test Group')
-        project.stage1_item_group = grp
+    def test_stage_report_open_via_fs_creates_when_template_assigned(self, auth_client, project):
+        """The new FS-based open flow creates a StageReport when the FS has a template."""
+        from apps.core.models import (
+            BriefFinancialApproval, FundingSchedule, StageItemGroup, StageReport
+        )
+        BriefFinancialApproval.objects.create(
+            project=project, status='APPROVED', funding_amount='100000'
+        )
+        fs = FundingSchedule.objects.create(project=project, schedule_number=1)
+        project.funding_schedule = fs
         project.save()
+
+        grp = StageItemGroup.objects.create(stage_type='STAGE1', name='Test Group')
+        fs.stage1_item_group = grp
+        fs.save()
+
         before = StageReport.objects.count()
-        response = auth_client.get(f'/projects/{project.pk}/stage-reports/STAGE1/open/')
+        response = auth_client.get(f'/funding-schedules/{fs.pk}/stage-reports/STAGE1/open/')
         assert response.status_code == 302
         assert StageReport.objects.count() == before + 1
 

@@ -198,6 +198,22 @@ class Project(models.Model):
         if self.funding_approval_date:
             return self.funding_approval_date
         return self.start_date
+
+    @property
+    def dates_in_sync(self):
+        """True when no FundingSchedule is linked, or all date fields match the FS.
+
+        Project edits never propagate back to the FS, so editing Project dates
+        after the FS was saved will turn this False (and surface a warning).
+        """
+        fs = self.funding_schedule
+        if fs is None:
+            return True
+        for f in ('start_date', 'stage1_target_date', 'stage1_sunset_date',
+                  'stage2_target_date', 'stage2_sunset_date'):
+            if getattr(self, f) != getattr(fs, f):
+                return False
+        return True
     
     def active_funding_schedule(self):
         """Returns the ACTIVE funding schedule for this project (from reverse relation)"""
