@@ -361,7 +361,7 @@ def unlock_next_payment_on_report_approval(sender, instance, created, **kwargs):
     unlock the next payment in the FundingSchedule by setting its status to READY.
     """
     model_name = sender._meta.model_name.lower()
-    if model_name not in ['stage', 'report']:
+    if model_name not in ['stage', 'stagereport', 'report']:
         return
     if not hasattr(instance, 'status') or instance.status != 'APPROVED':
         return
@@ -388,4 +388,60 @@ def unlock_next_payment_on_report_approval(sender, instance, created, **kwargs):
             next_payment.status = Payment.Status.RECOMMENDED
             next_payment.save(update_fields=['status', 'updated_at'])
     except Exception:
+        pass
+
+
+# ---------------------------------------------------------------------------
+# WorkStep forecast recalculation — fires when a Work's start date changes
+# ---------------------------------------------------------------------------
+
+@receiver(post_save, sender='core.Work')
+def recalculate_work_forecast(sender, instance, **kwargs):
+    """Re-run rolling forecast whenever actual_start_date is updated."""
+    if instance.cashflow_method != 'WORKSTEP':
+        return
+    if not instance.steps.exists():
+        return
+    try:
+        from apps.core.services.workstep_forecast import recalculate_forecast
+        recalculate_forecast(instance)
+    except Exception:
+        pass
+
+
+@receiver(post_save, sender='core.WorkStep')
+def recalculate_on_step_completion(sender, instance, **kwargs):
+    """Re-run rolling forecast when a step's actual_completion_date is set."""
+    try:
+        from apps.core.services.workstep_forecast import recalculate_forecast
+        recalculate_forecast(instance.work)
+    except Exception:
+        pass
+
+# ---------------------------------------------------------------------------
+# FundingSchedule date cascade -> child Projects
+# ---------------------------------------------------------------------------
+# When a FundingSchedule is saved, copy its date fields down to each linked
+# child project. Project edits NEVER propagate back (that drift is surfaced
+# via Project.dates_in_sync and FundingSchedule.has_out_of_sync_projects).
+
+@receiver(post_save, sender='core.FundingSchedule')
+def cascade_fs_dates_to_projects(sender, instance, created, **kwargs):
+    fields = ('start_date', 'stage1_target_date', 'stage1_sunset_date',
+              'stage2_target_date', 'stage2_sunset_date')
+    try:
+        from apps.core.models import Project
+        children = Project.objects.filter(funding_schedule=instance)
+        for p in children:
+            changed = []
+            for f in fields:
+                fs_val = getattr(instance, f)
+                if fs_val is not None and getattr(p, f) != fs_val:
+                    setattr(p, f, fs_val)
+                    changed.append(f)
+            if changed:
+                # update_fields avoids running clean() and unwanted signal cascades
+                p.save(update_fields=changed + ['updated_at'])
+    except Exception:
+        # Signal-safe: never crash a FundingSchedule save because of a stale state
         pass

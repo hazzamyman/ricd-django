@@ -62,8 +62,7 @@ def funding_schedule(council):
         funding_agreement=agreement,
         schedule_number=1,
         payment_rule=rule,
-        status="EXECUTED",
-        amount=Decimal("1000000.00")
+        status="EXECUTED"
     )
 
 

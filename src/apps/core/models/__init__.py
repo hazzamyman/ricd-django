@@ -8,7 +8,10 @@ from .councils_models import Council, CouncilContact
 from .programs_models import Program, ProgramBudget
 
 # Project models
-from .projects_models import Project, Comment
+from .projects_models import Project
+
+# Comment system
+from .comments_models import Comment, CommentSettings, Notice, NoticeTarget
 
 # Land Infrastructure models
 from .land_infra_models import LandTenure, DevelopmentApplication
@@ -16,18 +19,21 @@ from .land_infra_models import LandTenure, DevelopmentApplication
 # Funding & Payment models
 from .funding_models import (
     PaymentRule,
+    PaymentRuleMilestone,
     FundingAgreement,
     BriefFinancialApproval,
     FundingNotice,
     ExpenseClaim,
+    ExpenseClaimAttachment,
     Delegation,
-    FundingApproval,
     FundingSchedule,
     ProjectStateLog,
     WorkFunding,
     Approval,
     WorkflowAction,
     AuditLog,
+    ForwardRPFAgreement,
+    InterimFRPAgreement,
 )
 from .payments_models import Payment
 
@@ -40,10 +46,9 @@ from .stages_models import Stage, WorkStep
 
 # Report models
 from .reports_models import (
-    MonthlyTrackerItemGroup,
-    MonthlyTrackerItem,
+    CouncilTrackerConfig,
     MonthlyTracker,
-    MonthlyTrackerEntry,
+    MonthlyTrackerWorkEntry,
     QuarterlyReportItemGroup,
     QuarterlyReportItem,
     QuarterlyReport,
@@ -56,7 +61,9 @@ from .reports_models import (
 
 # Contractor & Address models
 from .contractors_models import Contractor
-from .addresses_models import Suburb, Address
+from .addresses_models import (
+    Suburb, Address, StateElectorate, FederalElectorate, QhigiRegion,
+)
 
 # Account & User models
 from .accounts_models import Profile, GroupPermission
@@ -67,35 +74,44 @@ from .documents_models import DocumentType, ProjectDocument
 
 # Defect & Work models
 from .defects_models import Defect
-from .works_models import WorkType, NotionalCost, NotionalCostSettings, Work, WorkStepTemplate
+from .works_models import (
+    WorkType, NotionalCost, NotionalCostSettings, Work,
+    WorkStepDefinition, WorkStepGroup, WorkStepGroupItem, ConstructionMethod,
+    StageItemDefinition, StageItemGroup, StageItemGroupItem,
+)
 
 __all__ = [
     # Council & Program
     'Council', 'CouncilContact', 'Program', 'ProgramBudget',
     # Project
-    'Project', 'Comment',
+    'Project',
+    # Comment system
+    'Comment', 'CommentSettings', 'Notice', 'NoticeTarget',
     # Land Infrastructure
     'LandTenure', 'DevelopmentApplication',
     # Funding & Payment
-    'PaymentRule', 'FundingAgreement', 'BriefFinancialApproval',
-    'FundingNotice', 'ExpenseClaim', 'Delegation', 'FundingApproval',
+    'PaymentRule', 'PaymentRuleMilestone', 'FundingAgreement', 'BriefFinancialApproval',
+    'FundingNotice', 'ExpenseClaim', 'ExpenseClaimAttachment', 'Delegation',
     'FundingSchedule', 'ProjectStateLog', 'WorkFunding',
     'Approval', 'WorkflowAction', 'AuditLog', 'Payment',
+    'ForwardRPFAgreement', 'InterimFRPAgreement',
     # Variation & Stage
     'VariationType', 'Variation', 'VariationItem', 'VariationFundingSchedule',
     'VariationContactDetails', 'VariationDateChange',
     'Stage', 'WorkStep',
     # Report
-    'MonthlyTrackerItemGroup', 'MonthlyTrackerItem', 'MonthlyTracker',
-    'MonthlyTrackerEntry', 'QuarterlyReportItemGroup', 'QuarterlyReportItem',
+    'CouncilTrackerConfig', 'MonthlyTracker', 'MonthlyTrackerWorkEntry', 'QuarterlyReportItemGroup', 'QuarterlyReportItem',
     'QuarterlyReport', 'QuarterlyReportEntry', 'QuarterlyReportAttachment',
     'StageReport', 'StageReportItem', 'StageReportAttachment',
     # Contractor & Address
     'Contractor', 'Suburb', 'Address',
+    'StateElectorate', 'FederalElectorate', 'QhigiRegion',
     # Account
     'Profile', 'GroupPermission',
     # Contract & Document
     'Contract', 'ContractMeeting', 'DocumentType', 'ProjectDocument',
     # Defect & Work
-    'Defect', 'WorkType', 'NotionalCost', 'NotionalCostSettings', 'Work', 'WorkStepTemplate',
+    'Defect', 'WorkType', 'NotionalCost', 'NotionalCostSettings', 'Work',
+    'WorkStepDefinition', 'WorkStepGroup', 'WorkStepGroupItem', 'ConstructionMethod',
+    'StageItemDefinition', 'StageItemGroup', 'StageItemGroupItem',
 ]

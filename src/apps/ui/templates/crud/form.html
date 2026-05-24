@@ -1,23 +1,55 @@
 {% extends "base.html" %}
-{% block title %}{{ title|default:"Form" }} - RICD{% endblock %}
+{% block title %}{{ title|default:"Form" }} — RICD{% endblock %}
+
 {% block content %}
-<div class="row mb-3">
-  <div class="col">
-    <h2>{{ title|default:"Form" }}</h2>
+<div class="ricd-pagehead">
+  <div>
+    <h1>{{ title|default:"Form" }}</h1>
+    {% if object %}<div class="meta">Editing #{{ object.pk }}</div>{% endif %}
   </div>
 </div>
-<div class="card">
-  <div class="card-body">
-    <form method="post">
-      {% csrf_token %}
-      {{ form.as_p }}
-      <div class="d-flex gap-2 mt-3">
-        <button type="submit" class="btn btn-primary">Save</button>
-        {% if back_url %}
-        <a href="{{ back_url }}" class="btn btn-secondary">Back</a>
-        {% endif %}
+
+<div class="row">
+  <div class="col-lg-8 col-xl-6">
+    <div class="card">
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+
+          {% if form.non_field_errors %}
+          <div class="alert alert-danger py-2 px-3">
+            {% for err in form.non_field_errors %}{{ err }}{% endfor %}
+          </div>
+          {% endif %}
+
+          {% for field in form %}
+          <div class="mb-3">
+            <label for="{{ field.id_for_label }}" class="form-label">
+              {{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}
+            </label>
+            {{ field }}
+            {% if field.help_text %}
+            <div class="form-text text-muted">{{ field.help_text }}</div>
+            {% endif %}
+            {% if field.errors %}
+            <div class="text-danger" style="font-size:12px">
+              {% for err in field.errors %}{{ err }}{% endfor %}
+            </div>
+            {% endif %}
+          </div>
+          {% endfor %}
+
+          <div class="d-flex gap-2 mt-4 pt-3 border-top">
+            <button type="submit" class="btn btn-primary">
+              {% if object %}Save changes{% else %}Create{% endif %}
+            </button>
+            {% if back_url %}
+            <a href="{{ back_url }}" class="btn btn-outline-secondary">Cancel</a>
+            {% endif %}
+          </div>
+        </form>
       </div>
-    </form>
+    </div>
   </div>
 </div>
 {% endblock %}

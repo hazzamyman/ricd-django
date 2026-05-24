@@ -1,21 +1,174 @@
 {% extends "base.html" %}
-{% block title %}{{ program.name }} - RICD{% endblock %}
+{% block title %}{{ program.name }} — RICD{% endblock %}
+{% block breadcrumbs %}
+  <span class="sep">/</span>
+  <a href="{% url 'ui:program_list' %}">Programs</a>
+  <span class="sep">/</span>
+  <span class="current">{{ program.name }}</span>
+{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h2>{{ program.name }}</h2>
-  <div class="d-flex gap-2">
-    <a href="{% url 'ui:program_edit' program.pk %}" class="btn btn-secondary">Edit</a>
-    <a href="{% url 'ui:program_list' %}" class="btn btn-outline-secondary">Back</a>
+
+<div class="pg-head">
+  <div>
+    <h1>{{ program.name }}</h1>
+    <div class="meta">
+      <span><b>Funding source</b> {{ program.get_funding_source_display|default:"—" }}</span>
+      {% if program.gl_code %}<span><b>GL</b> {{ program.gl_code }}</span>{% endif %}
+      <span><b>Active</b> {{ program.is_active|yesno:"Yes,No" }}</span>
+    </div>
+  </div>
+  <div class="actions">
+    <a href="{% url 'ui:program_edit' program.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
+    <a href="{% url 'ui:program_list' %}" class="btn btn-outline-secondary btn-sm">Back</a>
   </div>
 </div>
-<div class="card"><div class="card-body">
-  <dl class="row">
-    <dt class="col-sm-3">Funding Source</dt><dd class="col-sm-9">{{ program.get_funding_source_display|default:"-" }}</dd>
-    <dt class="col-sm-3">Budget</dt><dd class="col-sm-9">${{ program.budget|floatformat:2 }}</dd>
-    <dt class="col-sm-3">GL Code</dt><dd class="col-sm-9">{{ program.gl_code|default:"-" }}</dd>
-    <dt class="col-sm-3">Business Case Ref</dt><dd class="col-sm-9">{{ program.business_case_reference|default:"-" }}</dd>
-    <dt class="col-sm-3">Active</dt><dd class="col-sm-9">{{ program.is_active|yesno:"Yes,No" }}</dd>
-    <dt class="col-sm-3">Description</dt><dd class="col-sm-9">{{ program.description|default:"-" }}</dd>
-  </dl>
-</div></div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-3"><div class="kpi"><div class="label">Total Budget</div><div class="value">${{ program.budget|floatformat:0 }}</div></div></div>
+  <div class="col-md-3"><div class="kpi"><div class="label">Total Allocated (per FY)</div><div class="value">${{ program.total_allocated|floatformat:0 }}</div></div></div>
+  <div class="col-md-3"><div class="kpi"><div class="label">Total Spent (released)</div><div class="value">${{ released_total|floatformat:0 }}</div></div></div>
+  <div class="col-md-3"><div class="kpi"><div class="label">Projects</div><div class="value">{{ project_count }}</div><div class="delta">{{ active_count }} active</div></div></div>
+</div>
+
+<div style="display:grid; grid-template-columns:1fr 360px; gap:24px;">
+
+  <div>
+    <div class="card mb-3"><div class="card-body">
+      <div class="sec-h">
+        <h2>Projects</h2>
+        <span style="font-size:11px; color:var(--muted);">{{ project_count }} total</span>
+      </div>
+      {% if projects %}
+      <table class="table table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr><th>Name</th><th>Council</th><th>State</th><th>FY</th></tr>
+        </thead>
+        <tbody>
+          {% for p in projects|slice:":30" %}
+          <tr>
+            <td><a href="{% url 'ui:project_detail' p.pk %}">{{ p.name }}</a></td>
+            <td><a href="{% url 'ui:council_detail' p.council.pk %}">{{ p.council.name }}</a></td>
+            <td><span class="state-badge state-{{ p.state|lower }}">{{ p.get_state_display }}</span></td>
+            <td>{{ p.financial_year|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if project_count > 30 %}
+        <div class="text-muted small mt-2">Showing 30 of {{ project_count }}. <a href="{% url 'ui:projects_list' %}?program={{ program.pk }}">View all projects in {{ program.name }} →</a></div>
+      {% endif %}
+      {% else %}
+        <p class="text-muted" style="font-size:13px; margin:0;">No projects in this program yet.</p>
+      {% endif %}
+    </div></div>
+
+    <div class="card mb-3"><div class="card-body">
+      <div class="sec-h">
+        <h2>Cashflow Extract</h2>
+        <a href="{% url 'ui:cashflow' %}?program={{ program.pk }}" class="btn btn-outline-secondary btn-sm">Full cashflow →</a>
+      </div>
+      {% if cashflow_row %}
+        <div style="overflow-x:auto;">
+          <table class="table table-sm align-middle mb-0" style="min-width:520px;">
+            <thead class="table-light">
+              <tr>
+                <th style="min-width:120px;">FY</th>
+                <th class="text-end">Budget</th>
+                <th class="text-end">Forecast</th>
+                <th class="text-end">Released</th>
+                <th class="text-end">Variance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in cashflow_row.cells %}
+                <tr>
+                  <td>{{ c.fy_label }}</td>
+                  <td class="text-end">{% if c.budgeted %}${{ c.budgeted|floatformat:0 }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                  <td class="text-end" style="{% if c.over %}background:var(--st-amber-bg);{% endif %}">
+                    {% if c.forecast %}${{ c.forecast|floatformat:0 }}{% else %}<span class="text-muted">—</span>{% endif %}
+                    {% if c.over %}<span class="pill amber" style="font-size:9px; margin-left:4px;" title="Forecast exceeds budget">over</span>{% endif %}
+                  </td>
+                  <td class="text-end">{% if c.released %}${{ c.released|floatformat:0 }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                  <td class="text-end {% if c.variance < 0 %}text-danger{% endif %}">${{ c.variance|floatformat:0 }}</td>
+                </tr>
+              {% endfor %}
+              <tr class="table-light">
+                <td class="fw-bold">Total</td>
+                <td class="text-end fw-bold">${{ cashflow_row.totals.budgeted|floatformat:0 }}</td>
+                <td class="text-end fw-bold {% if cashflow_row.totals.budgeted and cashflow_row.totals.forecast > cashflow_row.totals.budgeted %}text-danger{% endif %}">${{ cashflow_row.totals.forecast|floatformat:0 }}</td>
+                <td class="text-end fw-bold">${{ cashflow_row.totals.released|floatformat:0 }}</td>
+                <td class="text-end fw-bold {% if cashflow_row.totals.variance < 0 %}text-danger{% endif %}">${{ cashflow_row.totals.variance|floatformat:0 }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        {% if cashflow_row.undated %}
+          <div class="form-text mt-2">
+            <i class="bi bi-exclamation-triangle text-warning"></i>
+            ${{ cashflow_row.undated|floatformat:0 }} committed to projects with no forecast release date — assign dates to schedule them into an FY.
+          </div>
+        {% endif %}
+      {% else %}
+        <p class="text-muted" style="font-size:12.5px; margin:0;">
+          No cashflow data — add FY budgets above and forecast release dates on payments to populate.
+        </p>
+      {% endif %}
+    </div></div>
+
+    <div class="card"><div class="card-body">
+      <div class="sec-h"><h2>Program Details</h2></div>
+      <dl class="row mb-0">
+        <dt class="col-sm-3">Funding Source</dt><dd class="col-sm-9">{{ program.get_funding_source_display|default:"—" }}{% if program.funding_source_other %} ({{ program.funding_source_other }}){% endif %}</dd>
+        <dt class="col-sm-3">Total Budget</dt><dd class="col-sm-9">${{ program.budget|floatformat:2 }}</dd>
+        <dt class="col-sm-3">GL Code</dt><dd class="col-sm-9">{{ program.gl_code|default:"—" }}</dd>
+        <dt class="col-sm-3">Business Case</dt><dd class="col-sm-9">{{ program.business_case_reference|default:"—" }}</dd>
+        <dt class="col-sm-3">Description</dt><dd class="col-sm-9" style="white-space:pre-wrap;">{{ program.description|default:"—" }}</dd>
+      </dl>
+    </div></div>
+  </div>
+
+  <aside>
+    <div class="card"><div class="card-body">
+      <div class="sec-h">
+        <h2>Budget by FY</h2>
+        <a href="{% url 'ui:program_budget_create' program.pk %}" class="btn btn-outline-secondary btn-sm">+ Add FY</a>
+      </div>
+      {% if budgets %}
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr><th>FY</th><th class="text-end">Allocated</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for b in budgets %}
+            <tr>
+              <td>{{ b.financial_year }}</td>
+              <td class="text-end">${{ b.allocated|floatformat:0 }}</td>
+              <td class="text-end">
+                <a href="{% url 'ui:program_budget_edit' b.pk %}" class="btn btn-link btn-sm p-0" style="font-size:11px;">Edit</a>
+                <form method="post" action="{% url 'ui:program_budget_delete' b.pk %}" class="d-inline" onsubmit="return confirm('Remove this FY budget?');">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-link btn-sm p-0 text-danger" style="font-size:11px;">×</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+            <tr class="table-light">
+              <td class="fw-bold">Total</td>
+              <td class="text-end fw-bold">${{ program.total_allocated|floatformat:0 }}</td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="form-text mt-2">
+          Useful for cashflow planning: shows how much of the total program budget is committed to each FY.
+        </div>
+      {% else %}
+        <p class="text-muted" style="font-size:12.5px; margin:0;">
+          No per-FY breakdown yet. <a href="{% url 'ui:program_budget_create' program.pk %}">Add one →</a>
+        </p>
+      {% endif %}
+    </div></div>
+  </aside>
+</div>
+
 {% endblock %}

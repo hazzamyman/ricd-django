@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Planning{% endblock %}
+{% block content %}
+<div class="pg-head">
+  <div>
+    <h1>Planning</h1>
+    <div class="meta">All projects across the portfolio, regardless of state.</div>
+  </div>
+  <div class="actions">
+    <a href="{% url 'ui:projects_list' %}" class="btn btn-outline-secondary btn-sm">Projects</a>
+  </div>
+</div>
+
+<div class="card"><div class="card-body p-0">
+<table class="table table-hover mb-0">
+  <thead class="table-light">
+    <tr><th>Project</th><th>Council</th><th>Program</th><th>State</th><th>FY</th></tr>
+  </thead>
+  <tbody>
+  {% for p in projects %}
+    <tr>
+      <td><a href="{% url 'ui:project_detail' p.pk %}">{{ p.name }}</a></td>
+      <td>{% if p.council %}<a href="{% url 'ui:council_detail' p.council.pk %}">{{ p.council.name }}</a>{% else %}&mdash;{% endif %}</td>
+      <td>{% if p.program %}<a href="{% url 'ui:program_detail' p.program.pk %}">{{ p.program.name }}</a>{% else %}&mdash;{% endif %}</td>
+      <td><span class="state-badge state-{{ p.state|lower }}">{{ p.get_state_display }}</span></td>
+      <td>{{ p.financial_year|default:"&mdash;" }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="5" class="text-center text-muted py-4">No projects yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div></div>
+{% endblock %}

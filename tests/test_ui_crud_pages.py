@@ -233,6 +233,8 @@ class TestWorkTypeCRUD:
             'name': 'New Work Type',
             'category': 'RESIDENTIAL',
             'default_bedrooms': '0',
+            'min_bedrooms': '0',
+            'max_bedrooms': '0',
         })
         assert response.status_code in (200, 302), \
             f"POST /ui/work-types/create/ returned {response.status_code}"
@@ -253,6 +255,8 @@ class TestWorkTypeCRUD:
             'name': 'Updated Work Type',
             'category': 'EXTENSION',
             'default_bedrooms': '0',
+            'min_bedrooms': '0',
+            'max_bedrooms': '0',
         })
         assert response.status_code in (200, 302), \
             f"POST /ui/work-types/{work_type.pk}/edit/ returned {response.status_code}"
@@ -296,9 +300,7 @@ class TestFundingScheduleCRUD:
         before = FundingSchedule.objects.count()
         response = auth_client.post('/funding-schedules/create/', {
             'project': project.pk,
-            'amount': '250000.00',
-            'contingency': '0',
-            'payment_split': '30/60/10',
+            'schedule_number': 1,
             'status': 'DRAFT',
         })
         assert response.status_code in (200, 302), \
@@ -318,15 +320,13 @@ class TestFundingScheduleCRUD:
     def test_funding_schedule_edit_post_updates_object(self, auth_client, funding_schedule, project):
         response = auth_client.post(f'/funding-schedules/{funding_schedule.pk}/edit/', {
             'project': project.pk,
-            'amount': '300000.00',
-            'contingency': '0',
-            'payment_split': '90/10',
+            'schedule_number': 2,
             'status': 'DRAFT',
         })
         assert response.status_code in (200, 302), \
             f"POST /ui/funding-schedules/{funding_schedule.pk}/edit/ returned {response.status_code}"
         funding_schedule.refresh_from_db()
-        assert funding_schedule.amount == Decimal('300000.00')
+        assert funding_schedule.schedule_number == 2
 
     def test_funding_schedule_delete_get(self, auth_client, funding_schedule):
         response = auth_client.get(f'/funding-schedules/{funding_schedule.pk}/delete/')
@@ -487,36 +487,45 @@ class TestStageReportCRUD:
         assert response.status_code == 200, \
             f"GET /ui/projects/{project.pk}/stage-reports/ returned {response.status_code}"
 
-    def test_stage_report_create_get(self, auth_client, project):
+    def test_stage_report_create_get_redirects_to_legacy_open(self, auth_client, project):
+        """The legacy create URL now redirects (via the legacy-project helper)."""
         response = auth_client.get(f'/projects/{project.pk}/stage-reports/create/')
-        assert response.status_code == 200, \
-            f"GET /ui/projects/{project.pk}/stage-reports/create/ returned {response.status_code}"
+        assert response.status_code == 302
 
-    def test_stage_report_create_post_creates_object(self, auth_client, project):
-        from apps.core.models import StageReport
+    def test_stage_report_open_via_fs_creates_when_template_assigned(self, auth_client, project):
+        """The new FS-based open flow creates a StageReport when the FS has a template."""
+        from apps.core.models import (
+            BriefFinancialApproval, FundingSchedule, StageItemGroup, StageReport
+        )
+        BriefFinancialApproval.objects.create(
+            project=project, status='APPROVED', funding_amount='100000'
+        )
+        fs = FundingSchedule.objects.create(project=project, schedule_number=1)
+        project.funding_schedule = fs
+        project.save()
+
+        grp = StageItemGroup.objects.create(stage_type='STAGE1', name='Test Group')
+        fs.stage1_item_group = grp
+        fs.save()
+
         before = StageReport.objects.count()
-        response = auth_client.post(f'/projects/{project.pk}/stage-reports/create/', {
-            'project': project.pk,
-            'stage_type': 'STAGE1',
-            'status': 'DRAFT',
-        })
-        assert response.status_code in (200, 302), \
-            f"POST /ui/projects/{project.pk}/stage-reports/create/ returned {response.status_code}"
+        response = auth_client.get(f'/funding-schedules/{fs.pk}/stage-reports/STAGE1/open/')
+        assert response.status_code == 302
         assert StageReport.objects.count() == before + 1
 
-    def test_stage_report_detail_get(self, auth_client, project):
+    def test_stage_report_detail_redirects_to_grid(self, auth_client, project):
         from apps.core.models import StageReport
         sr = StageReport.objects.create(project=project, stage_type='STAGE1')
         response = auth_client.get(f'/projects/{project.pk}/stage-reports/{sr.pk}/')
-        assert response.status_code == 200, \
-            f"GET /ui/projects/{project.pk}/stage-reports/{sr.pk}/ returned {response.status_code}"
+        assert response.status_code == 302
+        assert f'/stage-reports/{sr.pk}/' in response['Location']
 
-    def test_stage_report_edit_get(self, auth_client, project):
+    def test_stage_report_edit_redirects_to_grid(self, auth_client, project):
         from apps.core.models import StageReport
         sr = StageReport.objects.create(project=project, stage_type='STAGE1')
         response = auth_client.get(f'/projects/{project.pk}/stage-reports/{sr.pk}/edit/')
-        assert response.status_code == 200, \
-            f"GET /ui/projects/{project.pk}/stage-reports/{sr.pk}/edit/ returned {response.status_code}"
+        assert response.status_code == 302
+        assert f'/stage-reports/{sr.pk}/' in response['Location']
 
     def test_stage_report_delete_get(self, auth_client, project):
         from apps.core.models import StageReport
@@ -541,59 +550,31 @@ class TestStageReportCRUD:
 
 @pytest.mark.django_db
 class TestQuarterlyReportCRUD:
+    """
+    QuarterlyReport is now per-council (not per-project).
+    The old project-nested URLs are kept as redirect-only stubs for backward compat.
+    """
 
-    def test_quarterly_report_list_get(self, auth_client, project):
+    def test_old_project_nested_list_redirects(self, auth_client, project):
         response = auth_client.get(f'/projects/{project.pk}/quarterly-reports/')
-        assert response.status_code == 200, \
-            f"GET /ui/projects/{project.pk}/quarterly-reports/ returned {response.status_code}"
+        assert response.status_code == 302
 
-    def test_quarterly_report_create_get(self, auth_client, project):
-        response = auth_client.get(f'/projects/{project.pk}/quarterly-reports/create/')
-        assert response.status_code == 200, \
-            f"GET /ui/projects/{project.pk}/quarterly-reports/create/ returned {response.status_code}"
+    def test_new_global_list_returns_200(self, auth_client):
+        response = auth_client.get('/quarterly-reports/')
+        assert response.status_code == 200
 
-    def test_quarterly_report_create_post_creates_object(self, auth_client, project):
+    def test_open_for_council_creates_report_and_redirects(self, auth_client, project):
         from apps.core.models import QuarterlyReport
         before = QuarterlyReport.objects.count()
-        response = auth_client.post(f'/projects/{project.pk}/quarterly-reports/create/', {
-            'project': project.pk,
-            'year': 2025,
-            'quarter': 1,
-            'status': 'DRAFT',
-        })
-        assert response.status_code in (200, 302), \
-            f"POST /ui/projects/{project.pk}/quarterly-reports/create/ returned {response.status_code}"
+        response = auth_client.get(f'/quarterly-reports/council/{project.council.pk}/open/')
+        assert response.status_code == 302
         assert QuarterlyReport.objects.count() == before + 1
 
-    def test_quarterly_report_detail_get(self, auth_client, project):
+    def test_detail_get_returns_200(self, auth_client, project):
         from apps.core.models import QuarterlyReport
-        qr = QuarterlyReport.objects.create(project=project, year=2025, quarter=2)
-        response = auth_client.get(f'/projects/{project.pk}/quarterly-reports/{qr.pk}/')
-        assert response.status_code == 200, \
-            f"GET /ui/projects/{project.pk}/quarterly-reports/{qr.pk}/ returned {response.status_code}"
-
-    def test_quarterly_report_edit_get(self, auth_client, project):
-        from apps.core.models import QuarterlyReport
-        qr = QuarterlyReport.objects.create(project=project, year=2025, quarter=3)
-        response = auth_client.get(f'/projects/{project.pk}/quarterly-reports/{qr.pk}/edit/')
-        assert response.status_code == 200, \
-            f"GET /ui/projects/{project.pk}/quarterly-reports/{qr.pk}/edit/ returned {response.status_code}"
-
-    def test_quarterly_report_delete_get(self, auth_client, project):
-        from apps.core.models import QuarterlyReport
-        qr = QuarterlyReport.objects.create(project=project, year=2025, quarter=4)
-        response = auth_client.get(f'/projects/{project.pk}/quarterly-reports/{qr.pk}/delete/')
-        assert response.status_code == 200, \
-            f"GET /ui/projects/{project.pk}/quarterly-reports/{qr.pk}/delete/ returned {response.status_code}"
-
-    def test_quarterly_report_delete_post_removes_object(self, auth_client, project):
-        from apps.core.models import QuarterlyReport
-        qr = QuarterlyReport.objects.create(project=project, year=2026, quarter=1)
-        pk = qr.pk
-        response = auth_client.post(f'/projects/{project.pk}/quarterly-reports/{pk}/delete/')
-        assert response.status_code in (200, 302), \
-            f"POST /ui/projects/{project.pk}/quarterly-reports/{pk}/delete/ returned {response.status_code}"
-        assert not QuarterlyReport.objects.filter(pk=pk).exists()
+        qr = QuarterlyReport.objects.create(council=project.council, year=2025, quarter=2)
+        response = auth_client.get(f'/quarterly-reports/{qr.pk}/')
+        assert response.status_code == 200
 
 
 # ---------------------------------------------------------------------------

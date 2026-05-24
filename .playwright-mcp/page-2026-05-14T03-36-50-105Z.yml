@@ -1,0 +1,12 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - heading "FNC Login" [level=4] [ref=e5]
+    - text: Remote Indigenous Capital Delivery
+  - generic [ref=e7]:
+    - generic [ref=e8]:
+      - generic [ref=e9]: Username
+      - textbox "Username" [ref=e10]
+    - generic [ref=e11]:
+      - generic [ref=e12]: Password
+      - textbox "Password" [ref=e13]
+    - button "Sign In" [ref=e14] [cursor=pointer]

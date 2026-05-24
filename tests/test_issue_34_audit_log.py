@@ -61,10 +61,7 @@ def project(db, council, program):
 def funding_schedule(db, project):
     from apps.core.models import FundingSchedule
     return FundingSchedule.objects.create(
-        project=project,
-        amount=Decimal('200000'),
-        contingency=Decimal('20000'),
-        payment_split='STANDARD',
+        project=project
     )
 
 
@@ -78,10 +75,7 @@ class TestAuditLogCreate:
         from apps.core.models import FundingSchedule, AuditLog
         before_count = AuditLog.objects.count()
         FundingSchedule.objects.create(
-            project=project,
-            amount=Decimal('100000'),
-            contingency=Decimal('10000'),
-            payment_split='STANDARD',
+            project=project
         )
         assert AuditLog.objects.count() == before_count + 1
         log = AuditLog.objects.filter(entity_type='fundingschedule').latest('timestamp')
@@ -91,13 +85,11 @@ class TestAuditLogCreate:
     def test_create_log_captures_after_values(self, project):
         from apps.core.models import FundingSchedule, AuditLog
         fs = FundingSchedule.objects.create(
-            project=project,
-            amount=Decimal('150000'),
-            contingency=Decimal('15000'),
-            payment_split='STANDARD',
+            project=project
         )
         log = AuditLog.objects.filter(entity_type='fundingschedule', entity_id=fs.pk).latest('timestamp')
-        assert 'amount' in log.after_json
+        # schedule_number is a real stored field on FS
+        assert 'schedule_number' in log.after_json
         assert log.action == 'CREATE'
 
     def test_non_financial_model_does_not_emit_audit_log(self, council):
@@ -113,8 +105,8 @@ class TestAuditLogCreate:
 class TestAuditLogUpdate:
     def test_update_emits_audit_log_with_before_after(self, funding_schedule):
         from apps.core.models import FundingSchedule, AuditLog
-        old_amount = funding_schedule.amount
-        funding_schedule.amount = Decimal('300000')
+        old_number = funding_schedule.schedule_number
+        funding_schedule.schedule_number = old_number + 1
         funding_schedule.save()
 
         log = AuditLog.objects.filter(
@@ -122,9 +114,8 @@ class TestAuditLogUpdate:
             entity_id=funding_schedule.pk,
             action='UPDATE',
         ).latest('timestamp')
-        # DecimalField stores with full precision (e.g. '200000.00'), compare as Decimal
-        assert Decimal(log.before_json.get('amount')) == old_amount
-        assert Decimal(log.after_json.get('amount')) == Decimal('300000')
+        assert log.before_json.get('schedule_number') == old_number
+        assert log.after_json.get('schedule_number') == old_number + 1
 
     def test_update_log_action_is_update(self, funding_schedule):
         from apps.core.models import AuditLog
@@ -151,15 +142,15 @@ class TestAuditLogDelete:
         ).first()
         assert log is not None
         assert log.action == 'DELETE'
-        assert 'amount' in log.before_json
+        assert 'schedule_number' in log.before_json
 
     def test_delete_log_has_before_state(self, funding_schedule):
         from apps.core.models import AuditLog
         pk = funding_schedule.pk
-        expected_amount = str(funding_schedule.amount)
+        expected_status = funding_schedule.status
         funding_schedule.delete()
         log = AuditLog.objects.filter(entity_type='fundingschedule', entity_id=pk).first()
-        assert log.before_json.get('amount') == expected_amount
+        assert log.before_json.get('status') == expected_status
 
 
 # ===========================================================================
@@ -205,10 +196,7 @@ class TestCurrentUserMiddleware:
         _thread_locals.user = actor
         try:
             fs = FundingSchedule.objects.create(
-                project=project,
-                amount=Decimal('50000'),
-                contingency=Decimal('5000'),
-                payment_split='STANDARD',
+                project=project
             )
         finally:
             _thread_locals.user = None
@@ -219,10 +207,7 @@ class TestCurrentUserMiddleware:
     def test_audit_log_user_is_none_without_middleware(self, project):
         from apps.core.models import FundingSchedule, AuditLog
         fs = FundingSchedule.objects.create(
-            project=project,
-            amount=Decimal('75000'),
-            contingency=Decimal('7500'),
-            payment_split='STANDARD',
+            project=project
         )
         log = AuditLog.objects.filter(entity_type='fundingschedule', entity_id=fs.pk).latest('timestamp')
         assert log.user is None
@@ -286,10 +271,7 @@ class TestDetailViewAuditLogContext:
         from django.test import RequestFactory
 
         fs = FundingSchedule.objects.create(
-            project=project,
-            amount=Decimal('100000'),
-            contingency=Decimal('10000'),
-            payment_split='STANDARD',
+            project=project
         )
         # Create 15 extra audit entries
         for _ in range(15):

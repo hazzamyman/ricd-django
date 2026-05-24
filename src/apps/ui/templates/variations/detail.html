@@ -15,6 +15,7 @@
 </div>
 <div class="card mb-3"><div class="card-body">
   <dl class="row">
+    <dt class="col-sm-3">Project</dt><dd class="col-sm-9">{% with p=variation.funding_schedule.project %}{% if p %}<a href="{% url 'ui:project_detail' p.pk %}?tab=funding">{{ p.name }} (ID {{ p.pk }})</a>{% else %}-{% endif %}{% endwith %}</dd>
     <dt class="col-sm-3">Funding Schedule</dt><dd class="col-sm-9">{{ variation.funding_schedule|default:"-" }}</dd>
     <dt class="col-sm-3">Option</dt><dd class="col-sm-9">{{ variation.get_variation_option_display|default:"-" }}</dd>
     <dt class="col-sm-3">Status</dt><dd class="col-sm-9">{{ variation.get_status_display }}</dd>
@@ -59,4 +60,6 @@
     </tbody>
   </table>
 </div>
+{% include 'partials/_comments.html' %}
+{% include 'partials/_notices.html' %}
 {% endblock %}

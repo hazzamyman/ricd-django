@@ -737,5 +737,79 @@ Based on the session, the domain model is **complete**. The following Django imp
 
 ---
 
+## 13. Work Step Infrastructure & Cashflow Forecasting
+
+*Added: 2026-05-21*
+
+### Overview
+
+Capital Works projects require a rolling S-curve cashflow forecast based on construction work steps. This is distinct from Capital Grants projects which use payment milestone dates.
+
+### New Entities
+
+#### WorkStepDefinition
+Global catalogue of named work steps. Not tied to any WorkType — reused across groups.
+
+| Field | Type / Notes |
+|-------|-------------|
+| `name` | varchar(200), required |
+| `description` | text, optional |
+| `is_active` | boolean, default True |
+
+#### WorkStepGroup
+A named package of ordered steps, linked to a WorkType.
+
+| Field | Type / Notes |
+|-------|-------------|
+| `work_type` | FK → WorkType |
+| `name` | varchar(200) |
+| `is_active` | boolean |
+| `total_cost_percentage()` | property — sum of item cost percentages (must equal 100) |
+
+#### WorkStepGroupItem
+Through table: group → step with ordering and financial metadata.
+
+| Field | Type / Notes |
+|-------|-------------|
+| `group` | FK → WorkStepGroup |
+| `step` | FK → WorkStepDefinition |
+| `order` | PositiveInteger, unique per group |
+| `cost_percentage` | Decimal(5,2) |
+| `expected_duration_days` | PositiveInteger |
+| `stage_gate` | enum: `''` (none) / `STAGE1` / `STAGE2` — at most one of each per group |
+
+### New Fields on Existing Models
+
+**WorkType:** `short_code` varchar(10) — abbreviation for report labels (e.g. `DH`, `TRI`, `EXT`)
+
+**Work:**
+- `cashflow_method` — `MILESTONE` (Capital Grants) / `WORKSTEP` (Capital Works)
+- `step_group` — FK → WorkStepGroup (null/blank)
+- `actual_start_date` — DateField (null/blank) — anchors rolling forecast
+
+**WorkStep (expanded):**
+- `group_item` FK → WorkStepGroupItem, `step_name`, `order`, `expected_duration_days`, `expected_cost_percentage`, `is_active`, `forecast_start_date`, `forecast_completion_date`, `actual_completion_date`
+
+**Payment:** `forecast_release_date` DateField — Capital Grants cashflow planning
+
+### Services (`apps.core.services.workstep_forecast`)
+
+- **`apply_group_to_work(work)`** — idempotently creates WorkStep rows from the group; calls `recalculate_forecast`
+- **`recalculate_forecast(work)`** — cascades forecast dates through active steps; `actual_completion_date` anchors subsequent steps; uses `bulk_update`
+
+Signals auto-trigger `recalculate_forecast` on Work save (when `cashflow_method=WORKSTEP`) and on WorkStep save.
+
+### Monthly Progress Report
+
+URL: `/reports/monthly/<council_pk>/` — per-council, cumulative, living document.
+
+**Scope:** projects with ≥1 RELEASED payment and state ≠ COMPLETED.
+
+**Row format:** `234 Smith St (Lot 23 SP32435) (2B DH)` — street + lot/plan + bedrooms + WorkType.short_code. Links open work detail in a new tab.
+
+**Columns:** Address/Work, Cashflow method, Work status, Stage 1 gate (✓ + date), Stage 2 gate (✓ + date), Notes.
+
+---
+
 *End of RICD Project Reference Document*
-*Generated: 2026-04-26*
+*Generated: 2026-04-26 | Updated: 2026-05-21*

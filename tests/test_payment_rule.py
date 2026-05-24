@@ -117,8 +117,7 @@ class TestPaymentRuleImmutability:
             funding_agreement=agreement,
             schedule_number=1,
             payment_rule=split_payment_rule,
-            status="DRAFT",
-            amount=Decimal("1000000.00")
+            status="DRAFT"
         )
         assert split_payment_rule.id in FundingSchedule.objects.values_list('payment_rule', flat=True)
 
@@ -156,34 +155,30 @@ class TestPaymentRuleSPLITValidation:
         assert rule.id is not None
 
     def test_split_rule_invalid_less_than_100(self):
-        """Test SPLIT rule with milestones < 100% raises error"""
-        rule = PaymentRule(
+        """A SPLIT rule with milestone rows summing to < 100% must fail validation."""
+        from apps.core.models import PaymentRuleMilestone
+        from decimal import Decimal
+        rule = PaymentRule.objects.create(
             name="Invalid Split (90%)",
             rule_type="SPLIT",
-            config_json={
-                "milestones": [
-                    {"name": "Phase 1", "percentage": 50},
-                    {"name": "Phase 2", "percentage": 40}
-                ]
-            },
-            version=1
+            version=1,
         )
+        PaymentRuleMilestone.objects.create(rule=rule, order=1, name='Phase 1', percentage=Decimal('50'))
+        PaymentRuleMilestone.objects.create(rule=rule, order=2, name='Phase 2', percentage=Decimal('40'))
         with pytest.raises(ValidationError):
             rule.full_clean()
 
     def test_split_rule_invalid_more_than_100(self):
-        """Test SPLIT rule with milestones > 100% raises error"""
-        rule = PaymentRule(
+        """A SPLIT rule with milestone rows summing to > 100% must fail validation."""
+        from apps.core.models import PaymentRuleMilestone
+        from decimal import Decimal
+        rule = PaymentRule.objects.create(
             name="Invalid Split (110%)",
             rule_type="SPLIT",
-            config_json={
-                "milestones": [
-                    {"name": "Phase 1", "percentage": 60},
-                    {"name": "Phase 2", "percentage": 50}
-                ]
-            },
-            version=1
+            version=1,
         )
+        PaymentRuleMilestone.objects.create(rule=rule, order=1, name='Phase 1', percentage=Decimal('60'))
+        PaymentRuleMilestone.objects.create(rule=rule, order=2, name='Phase 2', percentage=Decimal('50'))
         with pytest.raises(ValidationError):
             rule.full_clean()
 

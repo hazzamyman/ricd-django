@@ -104,6 +104,10 @@ def auth_client(council):
 
 # ===========================================================================
 # Issue #27 — Cashflow forecast
+#
+# Original Chart.js per-month cashflow_view was replaced by PR 5's per-Program
+# x per-FY budget matrix. The matrix-specific tests live in PR 5 work; only
+# baseline view-loads + auth checks are retained here.
 # ===========================================================================
 
 @pytest.mark.django_db
@@ -117,66 +121,6 @@ class TestCashflowView:
         response = Client().get('/cashflow/')
         assert response.status_code == 302
         assert '/accounts/login/' in response['Location']
-
-    def test_shows_released_payment_amount(self, auth_client, released_payment):
-        client, _ = auth_client
-        response = client.get('/cashflow/')
-        assert response.status_code == 200
-        assert b'180' in response.content
-
-    def test_chart_data_in_context(self, auth_client, released_payment, approved_payment):
-        client, _ = auth_client
-        response = client.get('/cashflow/')
-        ctx = response.context
-        labels = json.loads(ctx['chart_labels'])
-        planned = json.loads(ctx['chart_planned'])
-        actual = json.loads(ctx['chart_actual'])
-        assert isinstance(labels, list)
-        assert isinstance(planned, list)
-        assert isinstance(actual, list)
-        assert len(labels) == len(planned) == len(actual)
-
-    def test_filter_by_program(self, auth_client, released_payment, program):
-        client, _ = auth_client
-        response = client.get(f'/cashflow/?program={program.pk}')
-        assert response.status_code == 200
-        assert b'180' in response.content
-
-    def test_filter_by_council(self, auth_client, released_payment, council):
-        client, _ = auth_client
-        response = client.get(f'/cashflow/?council={council.pk}')
-        assert response.status_code == 200
-
-    def test_filter_excludes_other_council(self, auth_client, released_payment):
-        client, _ = auth_client
-        other = Council.objects.create(name='Other Council CF', region='NSW')
-        response = client.get(f'/cashflow/?council={other.pk}')
-        assert response.status_code == 200
-        # released_payment is $180k for Dash Council — should not appear
-        ctx = response.context
-        assert ctx['total_forecast'] == 0 or ctx['total_released'] == 0
-
-    def test_total_released_excludes_approved(self, auth_client, released_payment, approved_payment):
-        client, _ = auth_client
-        response = client.get('/cashflow/')
-        ctx = response.context
-        assert ctx['total_released'] == Decimal('180000')
-        assert ctx['total_forecast'] == Decimal('300000')
-
-    def test_approved_payment_in_planned_bucket(self, auth_client, approved_payment):
-        client, _ = auth_client
-        response = client.get('/cashflow/')
-        ctx = response.context
-        planned = json.loads(ctx['chart_planned'])
-        assert sum(planned) == 120000  # only the APPROVED payment
-
-    def test_by_program_includes_drawdown(self, auth_client, released_payment, program):
-        client, _ = auth_client
-        response = client.get('/cashflow/')
-        ctx = response.context
-        prog_row = next((r for r in ctx['by_program'] if r['program'] == program), None)
-        assert prog_row is not None
-        assert prog_row['drawdown_percent'] > 0
 
 
 # ===========================================================================

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Notional Costs{% endblock %}
+{% block breadcrumbs %}
+  <span class="sep">/</span>
+  <a href="{% url 'ui:maintenance' %}">Maintenance</a>
+  <span class="sep">/</span>
+  <span class="current">Notional Costs</span>
+{% endblock %}
+{% block content %}
+
+<div class="pg-head">
+  <div>
+    <h1>Notional Costs</h1>
+    <div class="meta">
+      Per-work-type cost per unit, scoped to financial year and bedroom count.
+      Rows outside the typical bedroom range for a work type are flagged.
+    </div>
+  </div>
+  <div class="actions">
+    <a href="{% url 'ui:notional_cost_bulk_update' %}" class="btn btn-primary btn-sm">
+      <i class="bi bi-arrow-up-right-square"></i> Bulk update by inflation %
+    </a>
+    <a href="{% url 'ui:work_type_list' %}" class="btn btn-outline-secondary btn-sm">Work Types</a>
+    <a href="{% url 'ui:maintenance' %}" class="btn btn-outline-secondary btn-sm">Maintenance</a>
+  </div>
+</div>
+
+<form method="get" class="mb-3">
+  <label class="form-label small text-muted me-2">Filter:</label>
+  <select name="fy" onchange="this.form.submit()" class="form-select form-select-sm d-inline-block" style="width:200px;">
+    <option value="">All financial years</option>
+    {% for val, label in fy_choices %}
+      <option value="{{ val }}" {% if val == selected_fy %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+</form>
+
+{% if not rows %}
+  <div class="empty">
+    <div class="ic"><i class="bi bi-cash-stack"></i></div>
+    <h3>No notional costs yet</h3>
+    <p>Add costs from the Work Type detail page, or use Bulk Update to roll forward an FY.</p>
+  </div>
+{% else %}
+<div class="grid-wrap">
+  <div class="grid-scroll">
+    <table class="gtab">
+      <thead>
+        <tr>
+          <th class="sticky-l" style="min-width:260px;">Work type / Bedrooms</th>
+          {% for fy in fys %}
+            <th style="min-width:120px;">{{ fy }}{% if fy == current_fy %} <span class="pill blue" style="font-size:9px;">Current</span>{% endif %}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+      {% for r in rows %}
+        <tr {% if not r.in_typical_range %}style="background:var(--st-amber-bg);"{% endif %}>
+          <td class="sticky-l">
+            <a href="{% url 'ui:work_type_detail' r.work_type.pk %}">{{ r.work_type.name }}</a>
+            {% if r.work_type.has_bedrooms %}
+              <span class="text-muted">&middot; {{ r.bedrooms }} BR</span>
+              {% if not r.in_typical_range %}<span class="pill amber" style="font-size:9px; margin-left:4px;"><i class="bi bi-exclamation-triangle"></i> Outside range</span>{% endif %}
+            {% endif %}
+          </td>
+          {% for cell in r.cells %}
+            <td class="text-end">
+              {% if cell %}
+                <a href="{% url 'ui:notional_cost_edit' wt_pk=r.work_type.pk pk=cell.pk %}" title="Edit">
+                  ${{ cell.cost_per_unit|floatformat:0 }}
+                </a>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,4 +1,4 @@
-﻿"""
+"""
 Tests for issues #15 (Approval CRUD), #18 (Work & Address CRUD), #19 (PaymentRule read-only).
 """
 import pytest
@@ -12,7 +12,7 @@ from apps.core.models import Approval, Address, PaymentRule, Work, Profile
 def auth_client(council):
     client = Client()
     user = User.objects.create_user(username='crud_user', password='pass')
-    Profile.objects.create(user=user, council=council, officer_role=Profile.OfficerRole.OFFICER)
+    Profile.objects.create(user=user, council=council, officer_role=Profile.OfficerRole.MANAGER)
     client.force_login(user)
     return client, user
 
@@ -241,6 +241,7 @@ class TestWorkEdit:
             'status': 'IN_PROGRESS',
             'bedrooms': 0,
             'is_notional_cost': True,
+            'cashflow_method': 'MILESTONE',
         })
         work.refresh_from_db()
         assert work.quantity == 2

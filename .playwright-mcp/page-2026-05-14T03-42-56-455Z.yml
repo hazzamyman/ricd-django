@@ -1,0 +1,59 @@
+- generic [active] [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#content-start"
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - link "Django administration" [ref=e7] [cursor=pointer]:
+        - /url: /admin/
+      - generic [ref=e8]:
+        - text: Welcome,
+        - strong [ref=e9]: admin
+        - text: .
+        - link "View site" [ref=e10] [cursor=pointer]:
+          - /url: /
+        - text: /
+        - link "Change password" [ref=e11] [cursor=pointer]:
+          - /url: /admin/password_change/
+        - text: /
+        - button "Log out" [ref=e13] [cursor=pointer]
+        - 'button "Toggle theme (current theme: auto)" [ref=e14] [cursor=pointer]':
+          - generic [ref=e15]: "Toggle theme (current theme: auto)"
+          - img [ref=e16]
+    - main [ref=e19]:
+      - generic [ref=e20]:
+        - heading "Site administration" [level=1] [ref=e21]
+        - table "Authentication and Authorization" [ref=e24]:
+          - caption [ref=e25]:
+            - link "Authentication and Authorization" [ref=e26] [cursor=pointer]:
+              - /url: /admin/auth/
+          - rowgroup [ref=e27]:
+            - row "Model name Add link Change or view list link" [ref=e28]:
+              - columnheader "Model name" [ref=e29]
+              - columnheader "Add link" [ref=e30]
+              - columnheader "Change or view list link" [ref=e31]
+          - rowgroup [ref=e32]:
+            - row "Groups Add Change" [ref=e33]:
+              - rowheader "Groups" [ref=e34]:
+                - link "Groups" [ref=e35] [cursor=pointer]:
+                  - /url: /admin/auth/group/
+              - cell "Add" [ref=e36]:
+                - link "Add" [ref=e37] [cursor=pointer]:
+                  - /url: /admin/auth/group/add/
+              - cell "Change" [ref=e38]:
+                - link "Change" [ref=e39] [cursor=pointer]:
+                  - /url: /admin/auth/group/
+            - row "Users Add Change" [ref=e40]:
+              - rowheader "Users" [ref=e41]:
+                - link "Users" [ref=e42] [cursor=pointer]:
+                  - /url: /admin/auth/user/
+              - cell "Add" [ref=e43]:
+                - link "Add" [ref=e44] [cursor=pointer]:
+                  - /url: /admin/auth/user/add/
+              - cell "Change" [ref=e45]:
+                - link "Change" [ref=e46] [cursor=pointer]:
+                  - /url: /admin/auth/user/
+        - generic [ref=e48]:
+          - heading "Recent actions" [level=2] [ref=e49]
+          - heading "My actions" [level=3] [ref=e50]
+          - paragraph [ref=e51]: None available
+    - contentinfo

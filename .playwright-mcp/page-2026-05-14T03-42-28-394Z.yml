@@ -1,0 +1,56 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - link " FNC" [ref=e4] [cursor=pointer]:
+        - /url: /dashboard/
+        - generic [ref=e5]: 
+        - text: FNC
+      - button [ref=e6] [cursor=pointer]
+      - text:     
+  - generic [ref=e9]:
+    - generic [ref=e11]:
+      - heading "Dashboard" [level=1] [ref=e12]
+      - paragraph [ref=e13]: Project portfolio overview and metrics
+    - generic [ref=e14]:
+      - generic [ref=e17]:
+        - heading "Total Projects" [level=5] [ref=e18]
+        - paragraph
+      - generic [ref=e21]:
+        - heading "Active Projects" [level=5] [ref=e22]
+        - paragraph
+      - generic [ref=e25]:
+        - heading "Total Budget" [level=5] [ref=e26]
+        - paragraph [ref=e27]: $
+      - generic [ref=e30]:
+        - heading "On Track" [level=5] [ref=e31]
+        - paragraph
+    - generic [ref=e34]:
+      - heading "Filter Projects" [level=5] [ref=e36]
+      - generic [ref=e38]:
+        - generic [ref=e39]:
+          - generic [ref=e40]: "Council:"
+          - combobox "Council:" [ref=e41]:
+            - option "All Councils" [selected]
+            - option "Test Council 1"
+            - option "Test Council 2"
+            - option "Test Council 3"
+        - generic [ref=e42]:
+          - generic [ref=e43]: "Program:"
+          - combobox "Program:" [ref=e44]:
+            - option "All Programs" [selected]
+            - option "Program 1 - Test Council 1"
+            - option "Program 2 - Test Council 1"
+            - option "Program 1 - Test Council 2"
+            - option "Program 2 - Test Council 2"
+            - option "Program 1 - Test Council 3"
+            - option "Program 2 - Test Council 3"
+        - button "Filter" [ref=e45] [cursor=pointer]
+    - generic [ref=e48]:
+      - heading "Projects" [level=5] [ref=e50]
+      - paragraph [ref=e52]: No projects found matching your criteria.
+    - generic [ref=e54]:
+      - heading "Quick Links" [level=5] [ref=e55]
+      - link "Cashflow Forecast" [ref=e56] [cursor=pointer]:
+        - /url: /cashflow/
+      - link "Aggregate Outputs" [ref=e57] [cursor=pointer]:
+        - /url: /aggregate/

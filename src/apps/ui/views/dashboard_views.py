@@ -1,7 +1,4 @@
-﻿import json
-from collections import defaultdict
 from datetime import date
-
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Sum
 from django.shortcuts import render
@@ -21,7 +18,7 @@ def _user_council(request):
 
 
 # ---------------------------------------------------------------------------
-# Existing: main dashboard
+# Main dashboard
 # ---------------------------------------------------------------------------
 
 @login_required
@@ -72,7 +69,50 @@ def dashboard_view(request):
 
 
 # ---------------------------------------------------------------------------
-# Existing: aggregate outputs
+# Cashflow forecast — per-Program x per-FY matrix (PR 5)
+# ---------------------------------------------------------------------------
+
+@login_required
+def cashflow_view(request):
+    """Cashflow forecast — per-Program x per-FY matrix.
+
+    Compares ProgramBudget (allocated $ per FY) against forecast committed
+    (Payment.forecast_release_date bucketed into FYs) and released (actual)
+    payments. Surfaces over/under-commitment and "undated" projects that are
+    committed but don't yet have a forecast release date.
+    """
+    from apps.core.services.cashflow import build_program_cashflow
+
+    program_id = request.GET.get('program', '').strip()
+    council_id = request.GET.get('council', '').strip()
+
+    program = None
+    if program_id:
+        try:
+            program = Program.objects.get(pk=int(program_id))
+        except (Program.DoesNotExist, ValueError):
+            program = None
+
+    councils = None
+    if council_id:
+        try:
+            councils = [int(council_id)]
+        except ValueError:
+            councils = None
+
+    data = build_program_cashflow(program=program, councils=councils)
+
+    return render(request, 'dashboard/cashflow.html', {
+        'data': data,
+        'programs': Program.objects.filter(is_active=True).order_by('name'),
+        'councils': Council.objects.order_by('name'),
+        'selected_program_id': program_id,
+        'selected_council_id': council_id,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Aggregate outputs
 # ---------------------------------------------------------------------------
 
 @login_required
@@ -99,85 +139,6 @@ def aggregate_outputs_view(request):
         'by_council': by_council,
         'by_program': by_program,
         'by_work_type': by_work_type,
-    })
-
-
-# ---------------------------------------------------------------------------
-# Issue #27 — Cashflow forecast (/dashboard/cashflow/)
-# ---------------------------------------------------------------------------
-
-@login_required
-def cashflow_view(request):
-    """Planned vs actual payment releases by month, with per-payment breakdown table."""
-    program_id = request.GET.get('program')
-    council_id = request.GET.get('council')
-
-    payments_qs = (
-        Payment.objects
-        .filter(status__in=[Payment.Status.APPROVED, Payment.Status.RELEASED])
-        .select_related('project', 'project__council', 'project__program', 'funding_schedule')
-        .order_by('release_date', 'project__name')
-    )
-    if program_id:
-        payments_qs = payments_qs.filter(project__program_id=program_id)
-    if council_id:
-        payments_qs = payments_qs.filter(project__council_id=council_id)
-
-    # Monthly buckets: planned = APPROVED, actual = RELEASED/RECONCILED
-    planned_by_month: dict = defaultdict(int)
-    actual_by_month: dict = defaultdict(int)
-
-    for p in payments_qs:
-        if not p.release_date:
-            continue
-        key = p.release_date.strftime('%Y-%m')
-        if p.status == Payment.Status.APPROVED:
-            planned_by_month[key] += int(p.amount or 0)
-        else:
-            actual_by_month[key] += int(p.amount or 0)
-
-    all_months = sorted(set(list(planned_by_month.keys()) + list(actual_by_month.keys())))
-
-    # Summary totals
-    total_forecast = (
-        payments_qs.aggregate(total=Sum('amount'))['total'] or 0
-    )
-    total_released = (
-        payments_qs.filter(status__in=[Payment.Status.RELEASED])
-        .aggregate(total=Sum('amount'))['total'] or 0
-    )
-    remaining = total_forecast - total_released
-
-    # By program summary
-    by_program = []
-    for prog in Program.objects.order_by('name'):
-        qs = payments_qs.filter(project__program=prog)
-        forecast = qs.aggregate(t=Sum('amount'))['t'] or 0
-        actual = qs.filter(
-            status__in=[Payment.Status.RELEASED]
-        ).aggregate(t=Sum('amount'))['t'] or 0
-        drawdown_pct = round(actual / forecast * 100, 1) if forecast else 0
-        by_program.append({
-            'program': prog,
-            'forecast': forecast,
-            'actual': actual,
-            'remaining': forecast - actual,
-            'drawdown_percent': drawdown_pct,
-        })
-
-    return render(request, 'dashboard/cashflow.html', {
-        'payments': payments_qs,
-        'chart_labels': json.dumps(all_months),
-        'chart_planned': json.dumps([planned_by_month.get(m, 0) for m in all_months]),
-        'chart_actual': json.dumps([actual_by_month.get(m, 0) for m in all_months]),
-        'total_forecast': total_forecast,
-        'total_released': total_released,
-        'remaining': remaining,
-        'by_program': by_program,
-        'councils': Council.objects.all().order_by('name'),
-        'programs': Program.objects.all().order_by('name'),
-        'selected_program': program_id,
-        'selected_council': council_id,
     })
 
 
@@ -265,7 +226,7 @@ def projects_board_view(request):
 
 @login_required
 def traceability_view(request):
-    """'Follow the money' drill-down: Council → Agreement → Schedule → Allocations → Payments."""
+    """'Follow the money' drill-down: Council -> Agreement -> Schedule -> Allocations -> Payments."""
     council_id = request.GET.get('council')
     selected_council = None
     chain = []

@@ -204,7 +204,9 @@ class TestExpenseClaimCreate:
         response = auth_client.post(f'/funding-notices/{notice.pk}/claims/create/', {
             'amount': '15000',
             'date_submitted': '2025-03-01',
+            'status': 'DRAFT',
             'notes': '',
+            'sap_document_reference': '',
         })
         assert response.status_code in (200, 302)
         assert ExpenseClaim.objects.count() == before + 1
@@ -227,7 +229,9 @@ class TestExpenseClaimEditDelete:
         response = auth_client.post(f'/expense-claims/{draft_claim.pk}/edit/', {
             'amount': '25000',
             'date_submitted': '2025-02-01',
+            'status': 'DRAFT',
             'notes': '',
+            'sap_document_reference': '',
         })
         assert response.status_code in (200, 302)
         draft_claim.refresh_from_db()

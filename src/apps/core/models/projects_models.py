@@ -100,14 +100,50 @@ class Project(models.Model):
     )
     infra_comments = models.TextField(blank=True)
     
+    # Stage item group assignments (pre-pick which template applies)
+    stage1_item_group = models.ForeignKey(
+        'StageItemGroup',
+        related_name='stage1_projects',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Template group of Stage 1 items for this project's stage report",
+    )
+    stage2_item_group = models.ForeignKey(
+        'StageItemGroup',
+        related_name='stage2_projects',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Template group of Stage 2 items for this project's stage report",
+    )
+
     # Lease fields
     lease_signed_date = models.DateField(null=True, blank=True, help_text="Date lease was signed (only for non-registered housing providers)")
     
+    # Staff assignment
+    principal_officer = models.ForeignKey(
+        'auth.User',
+        related_name='principal_projects',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="RICD Principal Officer responsible for this project"
+    )
+    senior_officer = models.ForeignKey(
+        'auth.User',
+        related_name='senior_projects',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="RICD Senior Officer with carriage of this project"
+    )
+
     # Post-completion fields
     completion_date = models.DateField(null=True, blank=True)
     handover_checklist_link = models.URLField(blank=True)
     warranty_end_date = models.DateField(null=True, blank=True)
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -162,6 +198,22 @@ class Project(models.Model):
         if self.funding_approval_date:
             return self.funding_approval_date
         return self.start_date
+
+    @property
+    def dates_in_sync(self):
+        """True when no FundingSchedule is linked, or all date fields match the FS.
+
+        Project edits never propagate back to the FS, so editing Project dates
+        after the FS was saved will turn this False (and surface a warning).
+        """
+        fs = self.funding_schedule
+        if fs is None:
+            return True
+        for f in ('start_date', 'stage1_target_date', 'stage1_sunset_date',
+                  'stage2_target_date', 'stage2_sunset_date'):
+            if getattr(self, f) != getattr(fs, f):
+                return False
+        return True
     
     def active_funding_schedule(self):
         """Returns the ACTIVE funding schedule for this project (from reverse relation)"""
@@ -169,13 +221,13 @@ class Project(models.Model):
         return fs_list.first() if fs_list else None
     
     @property
-    def funding_schedule(self):
-        """Returns the funding schedule this project is linked to (from reverse relation)"""
-        return self.active_funding_schedule
+    def active_funding_schedule_obj(self):
+        """Returns the active FundingSchedule for this project (from reverse relation)."""
+        return self.active_funding_schedule()
     
     def get_inherited_dates(self):
         """Returns dates from FundingSchedule if project has no dates set"""
-        fs = self.funding_schedule
+        fs = self.active_funding_schedule()
         if fs:
             return {
                 'stage1_target': fs.stage1_target_date,
@@ -209,44 +261,3 @@ class Project(models.Model):
             new_state=self.State.FUNDED,
             reason__icontains='funding approval'
         ).exists()
-
-
-class Comment(models.Model):
-    """Project comments with visibility control"""
-    
-    class Visibility(models.TextChoices):
-        ALL = 'ALL', 'All Users'
-        FNC_ONLY = 'FNC_ONLY', 'FNC Users Only'
-        COUNCIL_ONLY = 'COUNCIL_ONLY', 'Council Users Only'
-        PROJECT_TEAM = 'PROJECT_TEAM', 'Project Team Only'
-    
-    project = models.ForeignKey(Project, related_name='comments', on_delete=models.CASCADE)
-    author = models.ForeignKey('auth.User', on_delete=models.CASCADE)
-    content = models.TextField()
-    visibility = models.CharField(max_length=20, choices=Visibility.choices, default=Visibility.ALL)
-    is_internal = models.BooleanField(default=False, help_text="Internal notes not visible to council")
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        ordering = ['-created_at']
-    
-    def __str__(self):
-        return f"Comment by {self.author.username} on {self.project.name}"
-    
-    def can_view(self, user):
-        """Check if user can view this comment"""
-        if self.visibility == self.Visibility.ALL:
-            return True
-        if user.is_superuser:
-            return True
-        # Check user's groups
-        user_groups = set(user.groups.values_list('name', flat=True))
-        if self.visibility == self.Visibility.FNC_ONLY:
-            return any('FNC' in g for g in user_groups)
-        if self.visibility == self.Visibility.COUNCIL_ONLY:
-            return any('Council' in g for g in user_groups)
-        if self.visibility == self.Visibility.PROJECT_TEAM:
-            # Project team = same council
-            return user.profile.council == self.project.council if hasattr(user, 'profile') else False
-        return False

@@ -30,10 +30,7 @@ class TestDwellingTrackWorkflow:
             financial_year="2025-26"
         )
         funding = FundingSchedule.objects.create(
-            project=project,
-            amount=Decimal('500000'),
-            contingency=Decimal('50000'),
-            payment_split=FundingSchedule.PaymentSplit.STANDARD
+            project=project
         )
         return project, funding
     
@@ -45,9 +42,9 @@ class TestDwellingTrackWorkflow:
         assert project.project_type == 'DWELLING'
     
     def test_dwelling_funding_creation(self, dwelling_setup):
-        """Test funding for dwelling project"""
+        """Test funding for dwelling project — total_funding is 0 without WorkFunding allocations."""
         project, funding = dwelling_setup
-        assert funding.total_funding == Decimal('550000')
+        assert funding.total_funding == 0
         assert funding.project == project
     
     def test_dwelling_payment_workflow(self, dwelling_setup):
@@ -92,10 +89,7 @@ class TestLandTrackWorkflow:
             financial_year="2025-26"
         )
         funding = FundingSchedule.objects.create(
-            project=project,
-            amount=Decimal('1000000'),
-            contingency=Decimal('100000'),
-            payment_split=FundingSchedule.PaymentSplit.STANDARD
+            project=project
         )
         return project, funding
     
@@ -106,9 +100,9 @@ class TestLandTrackWorkflow:
         assert project.project_type == 'LAND'
     
     def test_land_funding_creation(self, land_setup):
-        """Test funding for land project"""
+        """Test funding for land project — total_funding is 0 without WorkFunding allocations."""
         project, funding = land_setup
-        assert funding.total_funding == Decimal('1100000')
+        assert funding.total_funding == 0
         assert funding.project == project
     
     def test_land_payment_workflow(self, land_setup):
@@ -211,10 +205,7 @@ class TestFullRICDWorkflow:
         )
         
         funding = FundingSchedule.objects.create(
-            project=dwelling,
-            amount=Decimal('350000'),
-            contingency=Decimal('35000'),
-            payment_split=FundingSchedule.PaymentSplit.STANDARD
+            project=dwelling
         )
         
         return land, dwelling, work, funding
@@ -232,4 +223,5 @@ class TestFullRICDWorkflow:
         assert land.project_type == 'LAND'
         assert dwelling.project_type == 'DWELLING'
         assert dwelling.parent_land_project == land
-        assert funding.total_funding == Decimal('385000')
+        # total_funding is derived from WorkFunding allocations — none seeded here
+        assert funding.total_funding == 0

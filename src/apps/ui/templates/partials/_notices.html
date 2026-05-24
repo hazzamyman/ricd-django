@@ -1,0 +1,63 @@
+<div class="mt-4">
+  <div class="d-flex align-items-center justify-content-between mb-2">
+    <span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#777">
+      <i class="bi bi-megaphone me-1"></i>Notices
+    </span>
+    {% if user.is_authenticated and not is_council %}
+    <a href="{% url 'ui:notice_create' %}?entity_type={{ notice_entity_key }}&preselect={{ notice_object_id }}"
+       class="btn btn-sm btn-outline-secondary" style="font-size:11px">
+      + New notice
+    </a>
+    {% endif %}
+  </div>
+
+  {% if notices %}
+  <div class="d-flex flex-column gap-2">
+    {% for notice in notices %}
+    <div class="card border-0"
+         style="border-left:3px solid {% if notice.visibility == 'INTERNAL' %}#e6c229{% else %}#3a7d5a{% endif %} !important;background:#fafaf8">
+      <div class="card-body py-2 px-3">
+        <div class="d-flex align-items-start justify-content-between gap-2">
+          <div style="flex:1;min-width:0">
+            {% if notice.title %}
+            <div class="fw-semibold mb-1" style="font-size:13px">{{ notice.title }}</div>
+            {% endif %}
+            <div style="font-size:13px;white-space:pre-wrap">{{ notice.body }}</div>
+            <div class="d-flex align-items-center gap-2 mt-1 flex-wrap" style="font-size:11px;color:#888">
+              <span>{{ notice.author.get_full_name|default:notice.author.username }}</span>
+              <span>&middot;</span>
+              <span>{{ notice.created_at|date:"j M Y" }}</span>
+              <span>&middot;</span>
+              {% if notice.visibility == 'INTERNAL' %}
+              <span class="badge bg-warning text-dark" style="font-size:10px">Internal</span>
+              {% else %}
+              <span class="badge bg-success" style="font-size:10px">Council visible</span>
+              {% endif %}
+              {% with extra=notice.target_count|add:"-1" %}
+              {% if notice.target_count > 1 %}
+              <span>&middot;</span>
+              <a href="{% url 'ui:notice_list' %}" class="text-muted text-decoration-none" style="font-size:11px">
+                also affects {{ extra }} other{{ extra|pluralize }}
+              </a>
+              {% endif %}
+              {% endwith %}
+            </div>
+          </div>
+          {% if notice.author == user or user.is_superuser %}
+          <form method="post" action="{% url 'ui:notice_delete' notice.pk %}" class="d-inline flex-shrink-0">
+            {% csrf_token %}
+            <button class="btn btn-link text-danger p-0" style="font-size:11px" title="Delete notice"
+                    onclick="return confirm('Delete this notice from all its targets?')">
+              <i class="bi bi-trash"></i>
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="text-muted" style="font-size:12.5px;margin:0">No notices affecting this record.</p>
+  {% endif %}
+</div>

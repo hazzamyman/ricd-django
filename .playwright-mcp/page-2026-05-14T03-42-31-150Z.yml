@@ -1,0 +1,47 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - heading "Page not found (404)" [level=1] [ref=e3]
+    - table [ref=e4]:
+      - rowgroup [ref=e5]:
+        - 'row "Request Method: GET" [ref=e6]':
+          - rowheader "Request Method:" [ref=e7]
+          - cell "GET" [ref=e8]
+        - 'row "Request URL: http://127.0.0.1:8000/projects/" [ref=e9]':
+          - rowheader "Request URL:" [ref=e10]
+          - cell "http://127.0.0.1:8000/projects/" [ref=e11]
+  - main [ref=e12]:
+    - paragraph [ref=e13]:
+      - text: Using the URLconf defined in
+      - code [ref=e14]: ricdapp.urls
+      - text: ", Django tried these URL patterns, in this order:"
+    - list [ref=e15]:
+      - listitem [ref=e16]:
+        - code
+      - listitem [ref=e17]:
+        - code [ref=e18]: admin/
+      - listitem [ref=e19]:
+        - code [ref=e20]: accounts/login/ [name='login']
+      - listitem [ref=e21]:
+        - code [ref=e22]: accounts/logout/ [name='logout']
+      - listitem [ref=e23]:
+        - code [ref=e24]: api/
+      - listitem [ref=e25]:
+        - code
+        - code [ref=e26]: dashboard/ [name='dashboard']
+      - listitem [ref=e27]:
+        - code
+        - code [ref=e28]: cashflow/ [name='cashflow']
+      - listitem [ref=e29]:
+        - code
+        - code [ref=e30]: aggregate/ [name='aggregate_outputs']
+    - paragraph [ref=e31]:
+      - text: The current path,
+      - code [ref=e32]: projects/
+      - text: ", didn’t match any of these."
+  - contentinfo [ref=e33]:
+    - paragraph [ref=e34]:
+      - text: You’re seeing this error because you have
+      - code [ref=e35]: DEBUG = True
+      - text: in your Django settings file. Change that to
+      - code [ref=e36]: "False"
+      - text: ", and Django will display a standard 404 page."

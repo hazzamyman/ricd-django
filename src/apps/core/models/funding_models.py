@@ -4,7 +4,6 @@ from django.utils import timezone
 
 from .councils_models import Council
 from .projects_models import Project
-from .works_models import Work
 
 
 # ============================================================================
@@ -12,15 +11,25 @@ from .works_models import Work
 # ============================================================================
 
 class PaymentRule(models.Model):
-    """Payment calculation rules - versioned and immutable once used"""
+    """Payment calculation rules - versioned, with milestone child rows.
+
+    Two rule types:
+      * SPLIT  -- per-milestone percentage (e.g. 30/60/10). Milestones are stored
+                  as PaymentRuleMilestone rows; config_json is no longer the
+                  source of truth but is auto-synced for backward compatibility.
+      * INVOICE -- expense-claim style, paid against actuals up to a cap.
+    """
     class RuleType(models.TextChoices):
         SPLIT = 'SPLIT', 'Milestone Percentage'
         INVOICE_BASED = 'INVOICE', 'Invoice/Expense Claim'
 
     name = models.CharField(max_length=255, unique=True)
     rule_type = models.CharField(max_length=10, choices=RuleType.choices)
-    config_json = models.JSONField(default=dict, help_text="Milestones for SPLIT, requires_approval for INVOICE")
-    version = models.PositiveIntegerField(default=1, help_text="Version number - increment for new versions")
+    config_json = models.JSONField(
+        default=dict, blank=True,
+        help_text="Auto-synced from milestone rows; do not edit directly."
+    )
+    version = models.PositiveIntegerField(default=1, help_text="Increment for new versions")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -31,24 +40,68 @@ class PaymentRule(models.Model):
     def __str__(self):
         return f"{self.name} (v{self.version}, {self.rule_type})"
 
+    @property
+    def is_locked(self):
+        """True if any FundingSchedule references this rule (per business_rules.check_payment_rule_immutable).
+
+        While locked, the rule cannot be edited or deleted; users should create a new version instead.
+        """
+        try:
+            return self.schedules.exclude(status__in=['CANCELLED', 'COMPLETED']).exists()
+        except Exception:
+            return False
+
+    def sync_config_json(self):
+        """Rebuild config_json from milestone rows (call after milestone changes)."""
+        if self.rule_type == self.RuleType.SPLIT:
+            self.config_json = {
+                'milestones': [
+                    {'name': m.name, 'percentage': float(m.percentage), 'order': m.order}
+                    for m in self.milestones.all().order_by('order')
+                ]
+            }
+        # INVOICE rules keep whatever metadata is already in config_json
+        self.save(update_fields=['config_json', 'updated_at'])
+
     def clean(self):
         from django.core.exceptions import ValidationError
-        if self.rule_type == self.RuleType.SPLIT:
-            milestones = self.config_json.get('milestones', [])
-            if not milestones:
-                raise ValidationError("SPLIT requires 'milestones' in config_json")
-            total_pct = sum(m.get('percentage', 0) for m in milestones)
-            if total_pct != 100:
-                raise ValidationError(f"SPLIT milestones must total 100%, got {total_pct}%")
-        # Immutability: once linked to any FundingSchedule, cannot be modified
+        # Allow saving a SPLIT rule with no milestones yet (caller will add rows next),
+        # but if milestones exist, they must sum to 100%.
+        if self.pk and self.rule_type == self.RuleType.SPLIT:
+            rows = list(self.milestones.all())
+            if rows:
+                total = sum(float(m.percentage) for m in rows)
+                if abs(total - 100.0) > 0.001:
+                    raise ValidationError(f"SPLIT milestones must total 100%, got {total}%")
+        # Immutability while in use
         if self.pk:
             from apps.core.business_rules import check_payment_rule_immutable
             existing = PaymentRule.objects.filter(pk=self.pk).first()
             if existing and check_payment_rule_immutable(existing):
                 raise ValidationError(
-                    f"PaymentRule '{self.name}' is immutable — it is already linked to "
-                    "one or more FundingSchedules. Create a new version instead."
+                    f"PaymentRule '{self.name}' is immutable — it is in use by a "
+                    "FundingSchedule. Create a new version instead of editing this one."
                 )
+
+
+class PaymentRuleMilestone(models.Model):
+    """One row in a SPLIT rule (e.g. 'First payment 30%')."""
+    rule = models.ForeignKey(PaymentRule, related_name='milestones', on_delete=models.CASCADE)
+    order = models.PositiveSmallIntegerField(default=0)
+    name = models.CharField(max_length=100, help_text="e.g. 'First', 'Stage 1 completion'")
+    percentage = models.DecimalField(
+        max_digits=5, decimal_places=2,
+        help_text="0.00 - 100.00"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order']
+        unique_together = ('rule', 'order')
+
+    def __str__(self):
+        return f"{self.rule.name} [{self.order}] {self.name} ({self.percentage}%)"
 
 
 # ============================================================================
@@ -61,11 +114,16 @@ class FundingAgreement(models.Model):
         ACTIVE = 'ACTIVE', 'Active'
         CEASED = 'CEASED', 'Ceased'
 
-    council = models.ForeignKey(Council, related_name='funding_agreements', on_delete=models.CASCADE)
+    # 1:1 — each council has exactly one Remote Capital Program Funding Agreement.
+    # That agreement then has many FundingSchedules under it.
+    council = models.OneToOneField(
+        Council, related_name='funding_agreement', on_delete=models.CASCADE,
+        help_text="The single Remote Capital Program Funding Agreement for this council"
+    )
     name = models.CharField(max_length=255, help_text="Agreement name/reference")
     execution_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT)
-    document_uri = models.URLField(blank=True, help_text="Google Drive or OpenDocs link")
+    document_uri = models.URLField(blank=True, help_text="Windows Share Drive, Sharepoint or OpenDocs link")
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -171,6 +229,10 @@ class ExpenseClaim(models.Model):
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT)
     approved_by = models.ForeignKey(User, related_name='expense_approvals', null=True, blank=True, on_delete=models.SET_NULL)
     approved_date = models.DateField(null=True, blank=True)
+    sap_document_reference = models.CharField(
+        max_length=100, blank=True,
+        help_text="SAP Recipient Created Tax Invoice (RCTI) or SAP payment document number"
+    )
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -184,7 +246,7 @@ class ExpenseClaim(models.Model):
     def clean(self):
         from django.core.exceptions import ValidationError
         from apps.core.business_rules import get_approved_claims_total
-        
+
         # Check cap not exceeded (exclude current row when updating)
         if self.funding_notice and self.status != self.Status.DRAFT:
             approved_total = get_approved_claims_total(self.funding_notice)
@@ -200,6 +262,27 @@ class ExpenseClaim(models.Model):
                     f"Approved: ${approved_total:,.2f}, "
                     f"Cap: ${self.funding_notice.capped_amount:,.2f}"
                 )
+
+
+class ExpenseClaimAttachment(models.Model):
+    """Linked documents for an expense claim (invoices, SAP RCTI, supporting evidence)."""
+    claim = models.ForeignKey(ExpenseClaim, related_name='attachments', on_delete=models.CASCADE)
+    document_uri = models.URLField(
+        blank=True,
+        help_text="Windows Share Drive, Sharepoint or OpenDocs link"
+    )
+    description = models.CharField(max_length=255, blank=True, help_text="e.g. 'Invoice 1234', 'SAP RCTI'")
+    uploaded_by = models.ForeignKey(
+        'auth.User', null=True, blank=True,
+        related_name='expense_claim_attachments', on_delete=models.SET_NULL
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['uploaded_at']
+
+    def __str__(self):
+        return f"Attachment for {self.claim}: {self.description or self.document_uri}"
 
 
 class Delegation(models.Model):
@@ -264,134 +347,7 @@ class Delegation(models.Model):
         return Approval.RequiredRole.DELEGATE
 
 
-class FundingApproval(models.Model):
-    """Funding approval workflow - completed before Funding Schedule"""
-    class Status(models.TextChoices):
-        DRAFT = 'DRAFT', 'Draft'
-        PENDING_PEER_REVIEW = 'PENDING_PEER', 'Pending Peer Review'
-        PENDING_MANAGER = 'PENDING_MGR', 'Pending Manager Approval'
-        PENDING_DIRECTOR = 'PENDING_DIR', 'Pending Director Approval'
-        PENDING_ED = 'PENDING_ED', 'Pending Executive Director Approval'
-        PENDING_GM = 'PENDING_GM', 'Pending General Manager Approval'
-        PENDING_DDG = 'PENDING_DDG', 'Pending Deputy Director-General Approval'
-        PENDING_DG = 'PENDING_DG', 'Pending Director-General Approval'
-        APPROVED = 'APPROVED', 'Approved'
-        REJECTED = 'REJECTED', 'Rejected'
-
-    projects = models.ManyToManyField('Project', related_name='funding_approvals', blank=True)
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
-    
-    # Amount
-    total_amount = models.DecimalField(max_digits=14, decimal_places=2)
-    contingency_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
-    
-    # MINCOR reference
-    mincor_reference = models.CharField(max_length=50, blank=True, help_text="e.g., MN12345-YYYY")
-    mincor_link = models.URLField(blank=True, help_text="Link to MINCOR system")
-    
-    # Peer review
-    peer_review_required = models.BooleanField(default=False)
-    peer_reviewer = models.ForeignKey(User, related_name='peer_reviews', null=True, blank=True, on_delete=models.SET_NULL)
-    peer_review_completed = models.DateField(null=True, blank=True)
-    
-    # Approval chain dates and approvers
-    sent_to_manager = models.DateField(null=True, blank=True)
-    manager_approver = models.ForeignKey(User, related_name='mgr_approvals', null=True, blank=True, on_delete=models.SET_NULL)
-    manager_approved = models.DateField(null=True, blank=True)
-    
-    sent_to_director = models.DateField(null=True, blank=True)
-    director_approver = models.ForeignKey(User, related_name='dir_approvals', null=True, blank=True, on_delete=models.SET_NULL)
-    director_approved = models.DateField(null=True, blank=True)
-    
-    sent_to_ed = models.DateField(null=True, blank=True)
-    ed_approver = models.ForeignKey(User, related_name='ed_approvals', null=True, blank=True, on_delete=models.SET_NULL)
-    ed_approved = models.DateField(null=True, blank=True)
-    
-    sent_to_gm = models.DateField(null=True, blank=True)
-    gm_approver = models.ForeignKey(User, related_name='gm_approvals', null=True, blank=True, on_delete=models.SET_NULL)
-    gm_approved = models.DateField(null=True, blank=True)
-    
-    sent_to_ddg = models.DateField(null=True, blank=True)
-    ddg_approver = models.ForeignKey(User, related_name='ddg_approvals', null=True, blank=True, on_delete=models.SET_NULL)
-    ddg_approved = models.DateField(null=True, blank=True)
-    
-    sent_to_dg = models.DateField(null=True, blank=True)
-    dg_approver = models.ForeignKey(User, related_name='dg_approvals', null=True, blank=True, on_delete=models.SET_NULL)
-    dg_approved = models.DateField(null=True, blank=True)
-    
-    notes = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-
-    def __str__(self):
-        return f"Funding Approval {self.id} - ${self.total_amount:,.2f}"
-
-    @property
-    def total_with_contingency(self):
-        return self.total_amount + self.contingency_amount
-
-    def get_required_approvers(self):
-        """Calculate required approvers based on amount"""
-        total = self.total_with_contingency
-        return Delegation.get_approval_chain(total)
-
-    def approve(self, position, approved_by):
-        """Process approval at a specific level"""
-        if position == Delegation.Position.MANAGER:
-            self.manager_approver = approved_by
-            self.manager_approved = timezone.now().date()
-        elif position == Delegation.Position.DIRECTOR:
-            self.director_approver = approved_by
-            self.director_approved = timezone.now().date()
-        elif position == Delegation.Position.EXECUTIVE_DIRECTOR:
-            self.ed_approver = approved_by
-            self.ed_approved = timezone.now().date()
-        elif position == Delegation.Position.GENERAL_MANAGER:
-            self.gm_approver = approved_by
-            self.gm_approved = timezone.now().date()
-        elif position == Delegation.Position.DEPUTY_DIRECTOR_GENERAL:
-            self.ddg_approver = approved_by
-            self.ddg_approved = timezone.now().date()
-        elif position == Delegation.Position.DIRECTOR_GENERAL:
-            self.dg_approver = approved_by
-            self.dg_approved = timezone.now().date()
-        
-        self.save()
-        self.check_and_update_project_statuses()
-
-    def check_and_update_project_statuses(self):
-        """If fully approved, update all linked projects to FUNDED"""
-        if self.status == self.Status.APPROVED:
-            for project in self.projects.all():
-                project.state = Project.State.FUNDED
-                project.save()
-
-    def send_to_next_approver(self):
-        """Send to next approver in chain"""
-        chain = self.get_required_approvers()
-        
-        if self.status == self.Status.DRAFT:
-            if self.peer_review_required:
-                self.status = self.Status.PENDING_PEER_REVIEW
-            elif Delegation.Position.MANAGER in chain:
-                self.status = self.Status.PENDING_MANAGER
-                self.sent_to_manager = timezone.now().date()
-        elif self.status == self.Status.PENDING_PEER_REVIEW and self.peer_review_completed:
-            if Delegation.Position.MANAGER in chain:
-                self.status = self.Status.PENDING_MANAGER
-                self.sent_to_manager = timezone.now().date()
-        
-        self.save()
-
-
-# Keep old FundingSchedule model
 class FundingSchedule(models.Model):
-    class PaymentSplit(models.TextChoices):
-        STANDARD = '30/60/10', 'Standard (30/60/10)'
-        ALTERNATIVE = '90/10', 'Alternative (90/10)'
-        CUSTOM = 'CUSTOM', 'Custom'
-
     class Status(models.TextChoices):
         DRAFT = 'DRAFT', 'Draft'
         READY_FOR_EXECUTION = 'READY', 'Ready for Execution'
@@ -401,88 +357,114 @@ class FundingSchedule(models.Model):
         SUPERSEDED = 'SUPERSEDED', 'Superseded'
         CANCELLED = 'CANCELLED', 'Cancelled'
 
-    # New fields per domain model
     funding_agreement = models.ForeignKey(FundingAgreement, related_name='schedules', on_delete=models.CASCADE, null=True, blank=True)
     payment_rule = models.ForeignKey(PaymentRule, related_name='schedules', on_delete=models.PROTECT, null=True, blank=True, help_text="Payment calculation rule")
     schedule_number = models.PositiveIntegerField(default=1)
     replaces_schedule = models.ForeignKey('self', related_name='replacements', on_delete=models.SET_NULL, null=True, blank=True, help_text="Replaced by this schedule")
-
-    # Existing fields (kept for compatibility)
     project = models.ForeignKey(Project, related_name='funding_schedules', on_delete=models.CASCADE, db_index=True, null=True, blank=True)
-    councils = models.ManyToManyField('Council', related_name='funding_schedules', blank=True, help_text="Council participants in this funding agreement")
-    works = models.ManyToManyField(Work, related_name='funding_schedules', blank=True, help_text="Works funded by this schedule (for per-work funding)")
-    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    councils = models.ManyToManyField('Council', related_name='funding_schedules', blank=True)
+    works = models.ManyToManyField('Work', related_name='funding_schedules', blank=True, help_text="Works funded by this schedule")
+    amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     contingency = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    total_funding = models.DecimalField(max_digits=12, decimal_places=2, editable=False, db_index=True)
-    payment_split = models.CharField(max_length=10, choices=PaymentSplit.choices, default=PaymentSplit.STANDARD)
-    
-    # Status for variation management
+    total_funding = models.DecimalField(max_digits=12, decimal_places=2, default=0, editable=False, db_index=True)
+
+    class PaymentSplit(models.TextChoices):
+        STANDARD = '30/60/10', 'Standard (30/60/10)'
+        ALTERNATIVE = '90/10', 'Alternative (90/10)'
+        CUSTOM = 'CUSTOM', 'Custom'
+
+    payment_split = models.CharField(
+        max_length=10,
+        choices=PaymentSplit.choices,
+        default=PaymentSplit.STANDARD,
+    )
+    notional_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    actual_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     status = models.CharField(max_length=15, choices=Status.choices, default=Status.DRAFT, db_index=True)
-    
-    # Date fields (Option 5 - Vary Dates)
-    stage1_target_date = models.DateField(null=True, blank=True, help_text="Stage 1 Target Date")
-    stage2_target_date = models.DateField(null=True, blank=True, help_text="Stage 2 Target Date")
-    stage1_sunset_date = models.DateField(null=True, blank=True, help_text="Stage 1 Sunset Date")
-    stage2_sunset_date = models.DateField(null=True, blank=True, help_text="Stage 2 Sunset Date")
-    
-    # Contact details (Option 3 - State contact for RCPA)
-    contact_details = models.JSONField(blank=True, default=dict, help_text="State contact details: attention, phone, email, address")
-    
-    # Scope of works (Option 6 - Vary Scope)
-    scope_of_works = models.TextField(blank=True, help_text="Concatenated scope of works description")
-    
-    # Land details (Option 7 - Vary Land)
-    land_details = models.JSONField(blank=True, default=dict, help_text="Land details: lot, plan, title_reference, street_address")
-    
-    # Notional vs Actual cost tracking
-    notional_total = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Total calculated from notional costs")
-    actual_total = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Total from actual costs entered")
-    
+
+    # Date fields — the source of truth. A post_save signal cascades these
+    # down to all child Projects (Project edits do NOT propagate back).
+    start_date = models.DateField(
+        null=True, blank=True,
+        help_text="Project start (cascaded to child projects on save)"
+    )
+    stage1_target_date = models.DateField(null=True, blank=True)
+    stage2_target_date = models.DateField(null=True, blank=True)
+    stage1_sunset_date = models.DateField(null=True, blank=True)
+    stage2_sunset_date = models.DateField(null=True, blank=True)
+
+    # Stage report templates — picked by the FundingSchedule (per the per-FS
+    # report design). When a Stage report is opened, items are populated from
+    # the matching group here. Projects' equivalent fields are kept for
+    # backward compatibility but FS takes precedence.
+    stage1_item_group = models.ForeignKey(
+        'StageItemGroup', related_name='stage1_funding_schedules',
+        on_delete=models.SET_NULL, null=True, blank=True,
+        help_text="Template group of Stage 1 items for the report covering this schedule's projects",
+    )
+    stage2_item_group = models.ForeignKey(
+        'StageItemGroup', related_name='stage2_funding_schedules',
+        on_delete=models.SET_NULL, null=True, blank=True,
+        help_text="Template group of Stage 2 items for the report covering this schedule's projects",
+    )
+
+    # State contact details (Variation - State contact option)
+    contact_details = models.JSONField(blank=True, default=dict, help_text="attention, phone, email, address")
+
+    # Variation content fields
+    scope_of_works = models.TextField(blank=True)
+    land_details = models.JSONField(blank=True, default=dict)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def save(self, *args, **kwargs):
-        self.total_funding = self.amount + self.contingency
-        super().save(*args, **kwargs)
-        self._calculate_totals()
-
-    def _calculate_totals(self):
-        """Calculate notional and actual totals from works"""
-        works = self.works.all()
-        
-        notional_sum = 0
-        actual_sum = 0
-        
-        for work in works:
-            if work.is_notional_cost:
-                notional_sum += work.total_estimated_cost
-            else:
-                actual_sum += work.total_effective_cost
-        
-        self.notional_total = notional_sum
-        self.actual_total = actual_sum
-
     @property
     def effective_total(self):
-        """Returns the effective total (actual if available, otherwise notional)"""
-        if self.actual_total > 0:
+        """Returns actual_total if any work has actual costs, else notional_total. Falls back to total_funding."""
+        if self.actual_total and self.actual_total > 0:
             return self.actual_total
-        return self.notional_total
+        if self.notional_total and self.notional_total > 0:
+            return self.notional_total
+        return self.total_funding
 
     @property
     def linked_project(self):
-        """Returns the linked project"""
         return self.project
+
+    def save(self, *args, **kwargs):
+        # Compute stored total_funding from amount + contingency
+        self.total_funding = (self.amount or 0) + (self.contingency or 0)
+        super().save(*args, **kwargs)
+
+    DATE_FIELDS_FOR_SYNC = (
+        'start_date', 'stage1_target_date', 'stage1_sunset_date',
+        'stage2_target_date', 'stage2_sunset_date',
+    )
+
+    def child_projects(self):
+        """All projects directly linked to this FundingSchedule (Project.funding_schedule FK)."""
+        from apps.core.models import Project
+        return Project.objects.filter(funding_schedule=self)
+
+    def out_of_sync_projects(self):
+        """Return child projects whose date fields differ from this schedule's."""
+        out = []
+        for p in self.child_projects():
+            if any(getattr(self, f) != getattr(p, f) for f in self.DATE_FIELDS_FOR_SYNC):
+                out.append(p)
+        return out
+
+    @property
+    def has_out_of_sync_projects(self):
+        return bool(self.out_of_sync_projects())
 
     def clean(self):
         from django.core.exceptions import ValidationError
         from apps.core.business_rules import check_brief_financial_approval
-        
-        # payment_rule required when moving beyond DRAFT
+
         if self.status != self.Status.DRAFT and not self.payment_rule:
             raise ValidationError("payment_rule is required when schedule is not DRAFT")
-        
-        # BriefFinancialApproval must be APPROVED before FS creation
+
         if self.project and self._state.adding:
             if not check_brief_financial_approval(self.project):
                 raise ValidationError(
@@ -645,3 +627,78 @@ class AuditLog(models.Model):
 
     def __str__(self):
         return f"{self.action} on {self.entity_type}:{self.entity_id} by {self.user}"
+
+
+# ============================================================================
+# Legacy Agreement Types (pre-Funding Schedule era)
+# ============================================================================
+
+class _LegacyAgreementBase(models.Model):
+    """Abstract base for Forward RPF and Interim FRP agreements."""
+    class Status(models.TextChoices):
+        DRAFT = 'DRAFT', 'Draft'
+        EXECUTED = 'EXECUTED', 'Executed'
+        COMPLETED = 'COMPLETED', 'Completed'
+        TERMINATED = 'TERMINATED', 'Terminated'
+
+    council = models.OneToOneField(
+        Council,
+        on_delete=models.CASCADE,
+        help_text="Council this agreement is with (one agreement per council)"
+    )
+    reference = models.CharField(max_length=100, blank=True, help_text="Internal reference / agreement number")
+    status = models.CharField(max_length=15, choices=Status.choices, default=Status.DRAFT)
+    date_sent_to_council = models.DateField(null=True, blank=True)
+    date_council_signed = models.DateField(null=True, blank=True)
+    date_delegate_signed = models.DateField(null=True, blank=True)
+    document_uri = models.URLField(blank=True, help_text="Windows Share Drive, Sharepoint or OpenDocs link")
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def executed_date(self):
+        """Date agreement came into force — later of council and delegate signatures."""
+        dates = [d for d in [self.date_council_signed, self.date_delegate_signed] if d]
+        return max(dates) if len(dates) == 2 else None
+
+    class Meta:
+        abstract = True
+
+
+class ForwardRPFAgreement(_LegacyAgreementBase):
+    """Forward Remote Program Funding Agreement — 1:1 with Council, 1:many with Projects."""
+    projects = models.ManyToManyField(
+        'Project',
+        related_name='forward_rpf_agreements',
+        blank=True,
+        help_text="Projects funded under this Forward RPF agreement"
+    )
+
+    class Meta:
+        verbose_name = "Forward RPF Agreement"
+        verbose_name_plural = "Forward RPF Agreements"
+        ordering = ['council__name']
+
+    def __str__(self):
+        ref = f" ({self.reference})" if self.reference else ''
+        return f"Forward RPF — {self.council.name}{ref}"
+
+
+class InterimFRPAgreement(_LegacyAgreementBase):
+    """Interim Forward Remote Program Funding Agreement — 1:1 with Council, 1:many with Projects."""
+    projects = models.ManyToManyField(
+        'Project',
+        related_name='interim_frp_agreements',
+        blank=True,
+        help_text="Projects funded under this Interim FRP agreement"
+    )
+
+    class Meta:
+        verbose_name = "Interim FRP Agreement"
+        verbose_name_plural = "Interim FRP Agreements"
+        ordering = ['council__name']
+
+    def __str__(self):
+        ref = f" ({self.reference})" if self.reference else ''
+        return f"Interim FRP — {self.council.name}{ref}"

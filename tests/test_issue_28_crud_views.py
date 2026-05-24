@@ -91,8 +91,9 @@ def stage_report(project, funding_schedule):
 
 @pytest.fixture
 def quarterly_report(project):
+    # QuarterlyReport was refactored to be per-council (not per-project) — see migration 0010
     return QuarterlyReport.objects.create(
-        project=project,
+        council=project.council,
         year=2025,
         quarter=1,
     )
@@ -355,21 +356,9 @@ class TestBusinessRulePaymentRuleImmutability:
         with pytest.raises(ValidationError, match='immutable'):
             rule.full_clean()
 
-    def test_payment_rule_has_no_edit_url(self):
-        """PaymentRule is read-only — there is no edit endpoint."""
-        rule = PaymentRule.objects.create(
-            name='RO Rule',
-            rule_type=PaymentRule.RuleType.SPLIT,
-            config_json={'milestones': [
-                {'name': 'S1', 'trigger': 'report', 'percentage': 100},
-            ]},
-            version=1,
-        )
-        user = User.objects.create_superuser('pr_test_user_28', password='pass')
-        client = Client()
-        client.force_login(user)
-        response = client.get(f'/payment-rules/{rule.pk}/edit/')
-        assert response.status_code == 404
+    # NOTE: test_payment_rule_has_no_edit_url removed — PR 1 added CRUD endpoints
+    # for PaymentRule with is_locked guard. The edit URL exists; immutability is
+    # enforced in PaymentRule.clean() while the rule is referenced by a schedule.
 
 
 @pytest.mark.django_db

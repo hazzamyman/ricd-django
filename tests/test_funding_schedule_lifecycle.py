@@ -74,15 +74,21 @@ def funding_agreement(council):
 
 
 @pytest.fixture
-def funding_schedule(funding_agreement, payment_rule, project):
-    return FundingSchedule.objects.create(
+def funding_schedule(funding_agreement, payment_rule, project, approved_bfa):
+    """FundingSchedule with amount=500000 so total_funding = amount + contingency = 500000."""
+    from apps.core.models import WorkFunding
+    fs = FundingSchedule.objects.create(
         funding_agreement=funding_agreement,
         schedule_number=1,
         payment_rule=payment_rule,
         status="DRAFT",
-        amount=Decimal("1000000.00"),
-        project=project
+        project=project,
+        amount=Decimal('500000.00'),
     )
+    WorkFunding.objects.create(
+        funding_schedule=fs, project=project, amount=Decimal('500000.00')
+    )
+    return fs
 
 
 @pytest.mark.django_db
@@ -95,27 +101,20 @@ class TestFundingScheduleInitialState:
         assert funding_schedule.status == "DRAFT"
         assert funding_schedule.payment_rule is not None
 
-    def test_fs_requires_payment_rule(self, funding_agreement):
-        """Test that FundingSchedule requires a payment rule"""
-        with pytest.raises(Exception):
-            FundingSchedule.objects.create(
-                funding_agreement=funding_agreement,
-                schedule_number=2,
-                status="DRAFT"
-            )
-
-    def test_fs_total_funding_calculation(self, funding_schedule, project):
-        """Test total_funding calculation"""
-        fs = FundingSchedule.objects.create(
-            funding_agreement=funding_schedule.funding_agreement,
+    def test_fs_requires_payment_rule(self, funding_agreement, project, approved_bfa):
+        """payment_rule is required to leave DRAFT, not at creation."""
+        fs = FundingSchedule(
+            funding_agreement=funding_agreement,
+            project=project,
             schedule_number=2,
-            payment_rule=funding_schedule.payment_rule,
-            status="DRAFT",
-            amount=Decimal("500000.00"),
-            contingency=Decimal("50000.00"),
-            project=project
+            status="READY",  # not DRAFT -> must have payment_rule
         )
-        assert fs.total_funding == Decimal("550000.00")
+        with pytest.raises(Exception):
+            fs.full_clean()
+
+    def test_fs_total_funding_calculation(self, funding_schedule):
+        """total_funding = SUM of WorkFunding allocations (fixture seeds 500k)."""
+        assert funding_schedule.total_funding == Decimal("500000.00")
 
 
 @pytest.mark.django_db
@@ -198,7 +197,6 @@ class TestFundingScheduleReplacement:
             schedule_number=1,
             payment_rule=payment_rule,
             status="DRAFT",
-            amount=Decimal("1000000.00"),
             project=project
         )
 
@@ -207,7 +205,6 @@ class TestFundingScheduleReplacement:
             schedule_number=2,
             payment_rule=payment_rule,
             status="DRAFT",
-            amount=Decimal("1100000.00"),
             replaces_schedule=original,
             project=project
         )
@@ -224,7 +221,6 @@ class TestFundingScheduleReplacement:
             schedule_number=1,
             payment_rule=payment_rule,
             status="ACTIVE",
-            amount=Decimal("1000000.00"),
             project=project
         )
 
@@ -233,7 +229,6 @@ class TestFundingScheduleReplacement:
             schedule_number=2,
             payment_rule=payment_rule,
             status="EXECUTED",
-            amount=Decimal("1100000.00"),
             replaces_schedule=original,
             project=project
         )
@@ -259,7 +254,6 @@ class TestFundingScheduleUniqueConstraint:
             schedule_number=1,
             payment_rule=payment_rule,
             status="DRAFT",
-            amount=Decimal("1000000.00"),
             project=project
         )
 
@@ -270,7 +264,6 @@ class TestFundingScheduleUniqueConstraint:
             schedule_number=1,
             payment_rule=payment_rule,
             status="DRAFT",
-            amount=Decimal("900000.00"),
             project=project
         )
         assert fs1.schedule_number == fs2.schedule_number == 1
@@ -285,7 +278,6 @@ class TestFundingScheduleUniqueConstraint:
             schedule_number=1,
             payment_rule=payment_rule,
             status="DRAFT",
-            amount=Decimal("1000000.00"),
             project=project
         )
 
@@ -294,7 +286,6 @@ class TestFundingScheduleUniqueConstraint:
             schedule_number=2,
             payment_rule=payment_rule,
             status="DRAFT",
-            amount=Decimal("900000.00"),
             project=project
         )
 

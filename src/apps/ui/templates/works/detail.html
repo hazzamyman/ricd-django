@@ -4,45 +4,139 @@
 <div class="container mt-4">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h2>{{ work }}</h2>
-    <div>
+    <div class="d-flex gap-2">
       <a href="{% url 'ui:work_edit' project_pk=work.project_id pk=work.pk %}" class="btn btn-outline-primary">Edit</a>
       <a href="{% url 'ui:work_delete' project_pk=work.project_id pk=work.pk %}" class="btn btn-outline-danger">Delete</a>
       <a href="{% url 'ui:work_list' project_pk=work.project_id %}" class="btn btn-outline-secondary">Back</a>
     </div>
   </div>
 
-  <dl class="row">
-    <dt class="col-sm-3">Project</dt>
-    <dd class="col-sm-9">{{ work.project.name }}</dd>
+  <div class="card mb-4"><div class="card-body">
+    <dl class="row mb-0">
+      <dt class="col-sm-3">Project</dt>
+      <dd class="col-sm-9">{{ work.project.name }}</dd>
 
-    <dt class="col-sm-3">Work Type</dt>
-    <dd class="col-sm-9">{{ work.work_type|default:work.work_type_other|default:"—" }}</dd>
+      <dt class="col-sm-3">Work Type</dt>
+      <dd class="col-sm-9">{{ work.work_type|default:work.work_type_other|default:"—" }}</dd>
 
-    <dt class="col-sm-3">Bedrooms</dt>
-    <dd class="col-sm-9">{% if work.bedrooms %}{{ work.bedrooms }}BR{% else %}—{% endif %}</dd>
+      <dt class="col-sm-3">Bedrooms</dt>
+      <dd class="col-sm-9">{% if work.bedrooms %}{{ work.bedrooms }}BR{% else %}—{% endif %}</dd>
 
-    <dt class="col-sm-3">Quantity</dt>
-    <dd class="col-sm-9">{{ work.quantity }}</dd>
+      <dt class="col-sm-3">Quantity</dt>
+      <dd class="col-sm-9">{{ work.quantity }}</dd>
 
-    <dt class="col-sm-3">Estimated Cost (unit)</dt>
-    <dd class="col-sm-9">${{ work.estimated_cost|floatformat:2 }}</dd>
+      <dt class="col-sm-3">Estimated Cost (unit)</dt>
+      <dd class="col-sm-9">${{ work.estimated_cost|floatformat:2 }}</dd>
 
-    <dt class="col-sm-3">Total Estimated Cost</dt>
-    <dd class="col-sm-9">${{ work.total_estimated_cost|floatformat:2 }}</dd>
+      <dt class="col-sm-3">Total Estimated Cost</dt>
+      <dd class="col-sm-9">${{ work.total_estimated_cost|floatformat:2 }}</dd>
 
-    <dt class="col-sm-3">Cost Source</dt>
-    <dd class="col-sm-9">{{ work.cost_source }}</dd>
+      <dt class="col-sm-3">Cost Source</dt>
+      <dd class="col-sm-9">{{ work.cost_source }}</dd>
 
-    {% if work.actual_cost %}
-    <dt class="col-sm-3">Actual Cost</dt>
-    <dd class="col-sm-9">${{ work.actual_cost|floatformat:2 }}</dd>
+      {% if work.actual_cost %}
+      <dt class="col-sm-3">Actual Cost</dt>
+      <dd class="col-sm-9">${{ work.actual_cost|floatformat:2 }}</dd>
+      {% endif %}
+
+      <dt class="col-sm-3">Status</dt>
+      <dd class="col-sm-9">{{ work.get_status_display }}</dd>
+
+      <dt class="col-sm-3">Address</dt>
+      <dd class="col-sm-9">{{ work.address|default:"—" }}</dd>
+
+      <dt class="col-sm-3">Cashflow Method</dt>
+      <dd class="col-sm-9">{{ work.get_cashflow_method_display }}</dd>
+
+      <dt class="col-sm-3">Step Group</dt>
+      <dd class="col-sm-9">
+        {% if work.step_group %}
+          {{ work.step_group.name }}
+          <span class="text-muted ms-2" style="font-size:12px">({{ work.step_group.work_type }})</span>
+        {% else %}—{% endif %}
+      </dd>
+
+      {% if work.actual_start_date %}
+      <dt class="col-sm-3">Actual Start</dt>
+      <dd class="col-sm-9">{{ work.actual_start_date }}</dd>
+      {% endif %}
+    </dl>
+  </div></div>
+
+  {# WorkStep S-curve section — only shown for Capital Works #}
+  {% if work.cashflow_method == 'WORKSTEP' %}
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h5>Work Steps</h5>
+    {% if work.step_group %}
+    <form method="post" action="{% url 'ui:work_step_apply_group' project_pk=work.project_id pk=work.pk %}" class="d-inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-sm btn-outline-primary">Apply Group (sync steps)</button>
+    </form>
     {% endif %}
+  </div>
 
-    <dt class="col-sm-3">Status</dt>
-    <dd class="col-sm-9">{{ work.get_status_display }}</dd>
+  {% with steps=work.steps.all %}
+  {% if steps %}
+  <div class="card mb-3"><div class="card-body p-0">
+    <table class="table table-sm mb-0">
+      <thead class="table-light">
+        <tr>
+          <th style="width:3rem">#</th>
+          <th>Step</th>
+          <th>Duration (days)</th>
+          <th>Cost %</th>
+          <th>Stage Gate</th>
+          <th>Forecast Start</th>
+          <th>Forecast Complete</th>
+          <th>Actual Complete</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for step in steps %}
+        <tr {% if not step.is_active %}class="text-muted"{% endif %}>
+          <td>{{ step.order }}</td>
+          <td>
+            {{ step.step_name }}
+            {% if not step.is_active %}<span class="badge bg-secondary ms-1">Inactive</span>{% endif %}
+            {% if step.actual_completion_date %}<span class="badge bg-success ms-1">Done</span>{% endif %}
+          </td>
+          <td>{{ step.expected_duration_days }}</td>
+          <td>{{ step.expected_cost_percentage }}%</td>
+          <td>
+            {% if step.group_item %}
+              {% if step.group_item.stage_gate == 'STAGE1' %}<span class="badge bg-info text-dark">Stage 1</span>
+              {% elif step.group_item.stage_gate == 'STAGE2' %}<span class="badge bg-primary">Stage 2</span>
+              {% else %}—{% endif %}
+            {% else %}—{% endif %}
+          </td>
+          <td>{{ step.forecast_start_date|default:"—" }}</td>
+          <td>{{ step.forecast_completion_date|default:"—" }}</td>
+          <td>
+            {% if step.actual_completion_date %}
+              <span class="text-success fw-semibold">{{ step.actual_completion_date }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            <a href="{% url 'ui:work_step_edit' project_pk=work.project_id work_pk=work.pk pk=step.pk %}" class="btn btn-sm btn-outline-secondary">Update</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+  {% else %}
+  <div class="text-muted mb-3" style="font-size:13px">
+    No steps yet.
+    {% if work.step_group %}
+    Use <em>Apply Group</em> above to create steps from the assigned group.
+    {% else %}
+    Assign a step group via <a href="{% url 'ui:work_edit' project_pk=work.project_id pk=work.pk %}">Edit</a> first.
+    {% endif %}
+  </div>
+  {% endif %}
+  {% endwith %}
+  {% endif %}
 
-    <dt class="col-sm-3">Address</dt>
-    <dd class="col-sm-9">{{ work.address|default:"—" }}</dd>
-  </dl>
 </div>
 {% endblock %}

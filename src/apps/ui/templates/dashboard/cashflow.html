@@ -1,199 +1,163 @@
 {% extends "base.html" %}
-{% load static %}
-
-{% block title %}Cashflow Forecast — RICD{% endblock %}
-
+{% block title %}Cashflow Forecast{% endblock %}
+{% block breadcrumbs %}
+  <span class="sep">/</span>
+  <span class="current">Cashflow</span>
+{% endblock %}
 {% block content %}
-<div class="container-fluid mt-4">
-  <div class="d-flex align-items-center justify-content-between mb-3">
-    <div>
-      <h1 class="mb-0">Cashflow Forecast</h1>
-      <p class="text-muted mb-0">Planned vs actual payment releases by month</p>
-    </div>
-    <a href="{% url 'ui:dashboard' %}" class="btn btn-outline-secondary btn-sm">← Dashboard</a>
-  </div>
 
-  <!-- Filters -->
-  <form method="get" class="row g-2 mb-4">
-    <div class="col-auto">
-      <select name="program" class="form-select form-select-sm" onchange="this.form.submit()">
-        <option value="">All Programs</option>
-        {% for prog in programs %}
-          <option value="{{ prog.pk }}" {% if selected_program == prog.pk|stringformat:"s" %}selected{% endif %}>{{ prog.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="col-auto">
-      <select name="council" class="form-select form-select-sm" onchange="this.form.submit()">
-        <option value="">All Councils</option>
-        {% for c in councils %}
-          <option value="{{ c.pk }}" {% if selected_council == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    {% if selected_program or selected_council %}
-    <div class="col-auto">
-      <a href="{% url 'ui:cashflow' %}" class="btn btn-outline-secondary btn-sm">Clear</a>
-    </div>
-    {% endif %}
-  </form>
-
-  <!-- Summary Cards -->
-  <div class="row mb-4">
-    <div class="col-md-4">
-      <div class="card bg-light">
-        <div class="card-body">
-          <h6 class="card-title text-muted">Total in Pipeline</h6>
-          <p class="card-text fs-4 fw-semibold">${{ total_forecast|floatformat:0 }}</p>
-          <small class="text-muted">Approved + Released + Reconciled</small>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-4">
-      <div class="card bg-light">
-        <div class="card-body">
-          <h6 class="card-title text-muted">Released (Actual)</h6>
-          <p class="card-text fs-4 fw-semibold text-success">${{ total_released|floatformat:0 }}</p>
-          <small class="text-muted">Released + Reconciled</small>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-4">
-      <div class="card bg-light">
-        <div class="card-body">
-          <h6 class="card-title text-muted">Remaining</h6>
-          <p class="card-text fs-4 fw-semibold text-warning">${{ remaining|floatformat:0 }}</p>
-          <small class="text-muted">Yet to be released</small>
-        </div>
-      </div>
+<div class="pg-head">
+  <div>
+    <h1>Cashflow Forecast</h1>
+    <div class="meta">
+      Program budget per FY vs forecast committed (payments with a forecast release date) vs released (actual).
+      Over-committed cells turn amber; undated projects appear in the panel below.
     </div>
   </div>
-
-  <!-- Bar chart (planned vs actual by month) -->
-  {% if chart_labels != "[]" %}
-  <div class="card mb-4">
-    <div class="card-header">
-      <h6 class="mb-0">Monthly Payment Profile</h6>
-    </div>
-    <div class="card-body">
-      <canvas id="cashflowChart" height="80"></canvas>
-    </div>
+  <div class="actions">
+    <a href="{% url 'ui:program_list' %}" class="btn btn-outline-secondary btn-sm">Programs</a>
+    <a href="{% url 'ui:dashboard' %}" class="btn btn-outline-secondary btn-sm">Dashboard</a>
   </div>
-  {% endif %}
-
-  <!-- By Program table -->
-  {% if by_program %}
-  <div class="card mb-4">
-    <div class="card-header"><h6 class="mb-0">Summary by Program</h6></div>
-    <div class="table-responsive">
-      <table class="table table-hover mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>Program</th>
-            <th class="text-end">Pipeline</th>
-            <th class="text-end">Released</th>
-            <th class="text-end">Remaining</th>
-            <th class="text-end">Drawdown %</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for item in by_program %}
-          {% if item.forecast %}
-          <tr>
-            <td>{{ item.program.name }}</td>
-            <td class="text-end">${{ item.forecast|floatformat:0 }}</td>
-            <td class="text-end text-success">${{ item.actual|floatformat:0 }}</td>
-            <td class="text-end text-warning">${{ item.remaining|floatformat:0 }}</td>
-            <td class="text-end">
-              <div class="d-flex align-items-center justify-content-end gap-2">
-                <div class="progress flex-grow-1" style="height:6px;max-width:80px;">
-                  <div class="progress-bar bg-success" style="width:{{ item.drawdown_percent }}%;"></div>
-                </div>
-                {{ item.drawdown_percent }}%
-              </div>
-            </td>
-          </tr>
-          {% endif %}
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-  {% endif %}
-
-  <!-- Payment breakdown table -->
-  {% if payments %}
-  <div class="card mb-4">
-    <div class="card-header"><h6 class="mb-0">Payment Breakdown</h6></div>
-    <div class="table-responsive">
-      <table class="table table-sm table-hover mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>Project</th>
-            <th>Schedule</th>
-            <th>Type</th>
-            <th>Status</th>
-            <th>Release Date</th>
-            <th class="text-end">Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for pmt in payments %}
-          <tr>
-            <td>
-              <a href="{% url 'ui:project_detail' pk=pmt.project.pk %}">{{ pmt.project.name }}</a>
-              <small class="text-muted d-block">{{ pmt.project.council.name }}</small>
-            </td>
-            <td>
-              {% if pmt.funding_schedule %}
-              <a href="{% url 'ui:funding_schedule_detail' pk=pmt.funding_schedule.pk %}">FS#{{ pmt.funding_schedule.schedule_number }}</a>
-              {% else %}—{% endif %}
-            </td>
-            <td>{{ pmt.get_payment_type_display }}</td>
-            <td>
-              <span class="badge {% if pmt.status == 'RELEASED' or pmt.status == 'RECONCILED' %}bg-success{% elif pmt.status == 'APPROVED' %}bg-primary{% else %}bg-secondary{% endif %}">
-                {{ pmt.get_status_display }}
-              </span>
-            </td>
-            <td>{{ pmt.release_date|default:"—" }}</td>
-            <td class="text-end">${{ pmt.amount|floatformat:0 }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-  {% else %}
-  <div class="alert alert-light border">No approved/released payments match the current filter.</div>
-  {% endif %}
-
 </div>
 
-{% if chart_labels != "[]" %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
-<script>
-(function() {
-  const labels = {{ chart_labels|safe }};
-  const planned = {{ chart_planned|safe }};
-  const actual  = {{ chart_actual|safe }};
-  new Chart(document.getElementById('cashflowChart'), {
-    type: 'bar',
-    data: {
-      labels: labels,
-      datasets: [
-        {label: 'Planned (Approved)', data: planned, backgroundColor: 'rgba(13,110,253,0.5)', borderColor: 'rgba(13,110,253,1)', borderWidth: 1},
-        {label: 'Actual (Released/Reconciled)', data: actual, backgroundColor: 'rgba(25,135,84,0.5)', borderColor: 'rgba(25,135,84,1)', borderWidth: 1},
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: {legend: {position: 'top'}},
-      scales: {
-        y: {beginAtZero: true, ticks: {callback: v => '$' + v.toLocaleString()}}
-      }
-    }
-  });
-})();
-</script>
+<form method="get" class="mb-3 d-flex gap-2 align-items-end flex-wrap">
+  <div>
+    <label class="form-label small text-muted">Program</label>
+    <select name="program" onchange="this.form.submit()" class="form-select form-select-sm" style="min-width:240px;">
+      <option value="">All programs</option>
+      {% for p in programs %}
+        <option value="{{ p.pk }}" {% if selected_program_id == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="form-label small text-muted">Council</label>
+    <select name="council" onchange="this.form.submit()" class="form-select form-select-sm" style="min-width:240px;">
+      <option value="">All councils</option>
+      {% for c in councils %}
+        <option value="{{ c.pk }}" {% if selected_council_id == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% if selected_program_id or selected_council_id %}
+    <a href="{% url 'ui:cashflow' %}" class="btn btn-outline-secondary btn-sm">Clear filters</a>
+  {% endif %}
+</form>
+
+{% with t=data.grand_totals %}
+<div class="row g-3 mb-3">
+  <div class="col-md-3"><div class="kpi"><div class="label">Budgeted (all FY)</div><div class="value">${{ t.budgeted|floatformat:0 }}</div></div></div>
+  <div class="col-md-3"><div class="kpi">
+    <div class="label">Forecast committed</div>
+    <div class="value">${{ t.forecast|floatformat:0 }}</div>
+    {% if t.budgeted %}
+      {% if t.forecast > t.budgeted %}
+        <div class="delta dn">Over by ${{ t.forecast|floatformat:0 }}</div>
+      {% else %}
+        <div class="delta up">${{ t.variance|floatformat:0 }} headroom</div>
+      {% endif %}
+    {% endif %}
+  </div></div>
+  <div class="col-md-3"><div class="kpi"><div class="label">Released</div><div class="value">${{ t.released|floatformat:0 }}</div></div></div>
+  <div class="col-md-3"><div class="kpi">
+    <div class="label">Undated (committed-but-no-date)</div>
+    <div class="value">${{ t.undated|floatformat:0 }}</div>
+    <div class="delta">{{ data.undated_projects|length }} project{{ data.undated_projects|length|pluralize }}</div>
+  </div></div>
+</div>
+{% endwith %}
+
+{% if not data.rows %}
+  <div class="empty">
+    <div class="ic"><i class="bi bi-bar-chart-line"></i></div>
+    <h3>No cashflow data yet</h3>
+    <p>Add ProgramBudget rows (per-FY budgets) and forecast release dates on payments to populate the matrix.</p>
+    <a href="{% url 'ui:program_list' %}" class="btn btn-outline-secondary btn-sm">Open Programs</a>
+  </div>
+{% else %}
+
+<div class="grid-wrap mb-3">
+  <div class="grid-scroll">
+    <table class="gtab">
+      <thead>
+        <tr>
+          <th class="sticky-l" rowspan="2" style="min-width:240px;">Program</th>
+          {% for fy in data.fys %}
+            <th colspan="3" style="text-align:center; min-width:300px; border-left:2px solid var(--line-2);">
+              {{ data.fy_labels|default_if_none:'' }}{# unused; use the cell loop below instead #}
+              {{ fy }}
+            </th>
+          {% endfor %}
+          <th style="min-width:120px;">Total budget</th>
+          <th style="min-width:120px;">Total forecast</th>
+          <th style="min-width:120px;">Undated</th>
+        </tr>
+        <tr>
+          {% for fy in data.fys %}
+            <th style="text-align:right; border-left:2px solid var(--line-2);">Budget</th>
+            <th style="text-align:right;">Forecast</th>
+            <th style="text-align:right;">Released</th>
+          {% endfor %}
+          <th></th><th></th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for r in data.rows %}
+        <tr>
+          <td class="sticky-l"><a href="{% url 'ui:program_detail' r.program.pk %}">{{ r.program.name }}</a></td>
+          {% for c in r.cells %}
+            <td class="text-end" style="border-left:2px solid var(--line-2);">{% if c.budgeted %}${{ c.budgeted|floatformat:0 }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+            <td class="text-end" style="{% if c.over %}background:var(--st-amber-bg);{% endif %}">
+              {% if c.forecast %}${{ c.forecast|floatformat:0 }}{% else %}<span class="text-muted">—</span>{% endif %}
+              {% if c.over %}<span class="pill amber" style="font-size:9px; margin-left:4px;" title="Forecast exceeds budget">over</span>{% endif %}
+            </td>
+            <td class="text-end">{% if c.released %}${{ c.released|floatformat:0 }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+          {% endfor %}
+          <td class="text-end fw-bold">${{ r.totals.budgeted|floatformat:0 }}</td>
+          <td class="text-end fw-bold {% if r.totals.budgeted and r.totals.forecast > r.totals.budgeted %}text-danger{% endif %}">${{ r.totals.forecast|floatformat:0 }}</td>
+          <td class="text-end fw-bold">{% if r.undated %}${{ r.undated|floatformat:0 }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+        <tr class="table-light">
+          <td class="sticky-l fw-bold" style="background:var(--panel-alt);">Total</td>
+          {% for t in data.column_totals_list %}
+            <td class="text-end fw-bold" style="border-left:2px solid var(--line-2);">${{ t.budgeted|floatformat:0 }}</td>
+            <td class="text-end fw-bold {% if t.budgeted and t.forecast > t.budgeted %}text-danger{% endif %}">${{ t.forecast|floatformat:0 }}</td>
+            <td class="text-end fw-bold">${{ t.released|floatformat:0 }}</td>
+          {% endfor %}
+          <td class="text-end fw-bold">${{ data.grand_totals.budgeted|floatformat:0 }}</td>
+          <td class="text-end fw-bold">${{ data.grand_totals.forecast|floatformat:0 }}</td>
+          <td class="text-end fw-bold">${{ data.grand_totals.undated|floatformat:0 }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if data.undated_projects %}
+<div class="card mb-3"><div class="card-body">
+  <div class="sec-h">
+    <h2>Undated Projects ({{ data.undated_projects|length }})</h2>
+    <span style="font-size:12px; color:var(--muted);">Allocated commitments without a forecast release date — assign one to schedule them into an FY</span>
+  </div>
+  <table class="table table-sm align-middle">
+    <thead class="table-light">
+      <tr><th>Project</th><th>Council</th><th>Program</th><th>State</th><th class="text-end">Estimated</th></tr>
+    </thead>
+    <tbody>
+    {% for u in data.undated_projects %}
+      <tr>
+        <td><a href="{% url 'ui:project_detail' u.project.pk %}">{{ u.project.name }}</a></td>
+        <td>{% if u.project.council %}<a href="{% url 'ui:council_detail' u.project.council.pk %}">{{ u.project.council.name }}</a>{% else %}&mdash;{% endif %}</td>
+        <td>{% if u.project.program %}<a href="{% url 'ui:program_detail' u.project.program.pk %}">{{ u.project.program.name }}</a>{% else %}&mdash;{% endif %}</td>
+        <td><span class="state-badge state-{{ u.project.state|lower }}">{{ u.project.get_state_display }}</span></td>
+        <td class="text-end">{% if u.estimated %}${{ u.estimated|floatformat:0 }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% endif %}
+
 {% endif %}
 {% endblock %}

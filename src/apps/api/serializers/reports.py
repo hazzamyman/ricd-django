@@ -21,11 +21,9 @@ class QuarterlyReportSerializer(serializers.ModelSerializer):
     class Meta:
         model = QuarterlyReport
         fields = [
-            'id', 'project', 'year', 'quarter', 'status',
+            'id', 'council', 'year', 'quarter', 'status',
             'submitted_by', 'submitted_at',
-            'endorsed_by', 'endorsed_at',
-            'assessed_by', 'assessed_at',
             'approved_by', 'approved_at',
-            'notes', 'created_at', 'updated_at',
+            'notes', 'created_at',
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at']
