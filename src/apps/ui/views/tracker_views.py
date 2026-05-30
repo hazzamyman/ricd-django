@@ -22,7 +22,8 @@ from django.utils import timezone
 from django.views.generic import View
 
 from apps.core.models import (
-    Council, CouncilTrackerConfig, MonthlyTracker, MonthlyTrackerWorkEntry,
+    Council, CouncilTrackerConfig, FundingSchedule,
+    MonthlyTracker, MonthlyTrackerWorkEntry,
     Project, QuarterlyReport, QuarterlyReportEntry, QuarterlyReportItem,
     Work, WorkStep,
 )
@@ -381,17 +382,32 @@ class QuarterlyReportOpenOrCreateView(LoginRequiredMixin, View):
         return redirect('ui:quarterly_report_detail', pk=report.pk)
 
     def _sync_entries(self, report):
-        """Pre-create blank entries for each active Work x every active QR item."""
-        works = Work.objects.filter(
-            project__council=report.council,
-            project__state__in=[Project.State.COMMENCED, Project.State.UNDER_CONSTRUCTION],
+        """Pre-create blank entries for Works on Active FSes, using each project's assigned item group."""
+        active_fs = FundingSchedule.objects.filter(
+            council=report.council,
+            status=FundingSchedule.Status.ACTIVE,
         )
-        items = QuarterlyReportItem.objects.filter(is_active=True).order_by('group__order', 'order')
-        for work in works:
-            for item in items:
-                QuarterlyReportEntry.objects.get_or_create(
-                    report=report, work=work, item=item,
-                )
+        projects = Project.objects.filter(
+            funding_schedule__in=active_fs,
+            state__in=[Project.State.COMMENCED, Project.State.UNDER_CONSTRUCTION],
+        ).select_related('quarterly_report_item_group')
+
+        for project in projects:
+            if project.quarterly_report_item_group_id:
+                items = list(QuarterlyReportItem.objects.filter(
+                    group=project.quarterly_report_item_group,
+                    is_active=True,
+                ).order_by('order'))
+            else:
+                items = list(QuarterlyReportItem.objects.filter(
+                    is_active=True,
+                ).order_by('group__order', 'order'))
+            works = Work.objects.filter(project=project)
+            for work in works:
+                for item in items:
+                    QuarterlyReportEntry.objects.get_or_create(
+                        report=report, work=work, item=item,
+                    )
 
 
 class QuarterlyReportDetailView(LoginRequiredMixin, View):
@@ -415,52 +431,70 @@ class QuarterlyReportDetailView(LoginRequiredMixin, View):
         return False
 
     def _build_grid(self, report):
-        items = list(
-            QuarterlyReportItem.objects.filter(is_active=True)
-            .select_related('group')
-            .order_by('group__order', 'order')
-        )
-        entries = report.entries.select_related('work__project', 'work__address', 'item').all()
+        """Return FS→Project→Works hierarchy; each project uses its own QR item group columns."""
+        # Pre-load all entries for this report into a lookup dict
+        entries = report.entries.select_related(
+            'work__project__funding_schedule',
+            'work__address',
+            'item__group',
+        ).all()
         cell = {}
-        works_seen = {}
         for e in entries:
             cell[(e.work_id, e.item_id)] = e
-            if e.work_id not in works_seen:
-                works_seen[e.work_id] = e.work
 
-        # For each work, build a list of (item, entry|None) tuples aligned to columns
-        works_with_cells = {}
-        for work in works_seen.values():
-            cells = []
-            for item in items:
-                e = cell.get((work.id, item.id))
-                cells.append({'item': item, 'entry': e})
-            addr = getattr(work, 'address', None)
-            if addr:
-                addr_str = f"{addr.street}" + (f" (Lot {addr.lot} {addr.plan})" if getattr(addr, 'lot', None) else "")
-            else:
-                addr_str = f"Work #{work.id}"
-            works_with_cells[work.id] = {
-                'work': work,
-                'address': addr_str,
-                'cells': cells,
-            }
+        active_fs = FundingSchedule.objects.filter(
+            council=report.council,
+            status=FundingSchedule.Status.ACTIVE,
+        ).order_by('schedule_number')
 
-        rows_by_project = {}
-        for work in works_seen.values():
-            rows_by_project.setdefault(work.project_id, {'project': work.project, 'works': []})
-            rows_by_project[work.project_id]['works'].append(works_with_cells[work.id])
-        for v in rows_by_project.values():
-            v['works'].sort(key=lambda r: r['work'].id)
-        project_rows = sorted(
-            rows_by_project.values(),
-            key=lambda r: r['project'].name if r['project'] else ''
-        )
+        fs_sections = []
+        for fs in active_fs:
+            projects = Project.objects.filter(
+                funding_schedule=fs,
+                state__in=[Project.State.COMMENCED, Project.State.UNDER_CONSTRUCTION],
+            ).select_related('quarterly_report_item_group').order_by('name')
 
-        return {
-            'items': items,
-            'project_rows': project_rows,
-        }
+            project_sections = []
+            for project in projects:
+                if project.quarterly_report_item_group_id:
+                    items = list(QuarterlyReportItem.objects.filter(
+                        group=project.quarterly_report_item_group,
+                        is_active=True,
+                    ).select_related('group').order_by('order'))
+                else:
+                    items = list(QuarterlyReportItem.objects.filter(
+                        is_active=True,
+                    ).select_related('group').order_by('group__order', 'order'))
+
+                works = Work.objects.filter(project=project).order_by('id')
+                work_rows = []
+                for work in works:
+                    addr = getattr(work, 'address', None)
+                    if addr:
+                        addr_str = f"{addr.street}" + (
+                            f" (Lot {addr.lot} {addr.plan})" if getattr(addr, 'lot', None) else ""
+                        )
+                    else:
+                        addr_str = f"Work #{work.id}"
+                    work_rows.append({
+                        'work': work,
+                        'address': addr_str,
+                        'cells': [{'item': item, 'entry': cell.get((work.id, item.id))} for item in items],
+                    })
+
+                project_sections.append({
+                    'project': project,
+                    'items': items,
+                    'works': work_rows,
+                })
+
+            if project_sections:
+                fs_sections.append({
+                    'fs': fs,
+                    'projects': project_sections,
+                })
+
+        return {'fs_sections': fs_sections}
 
     def get(self, request, pk):
         report = self._get(pk, request.user)

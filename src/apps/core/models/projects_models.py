@@ -123,6 +123,14 @@ class Project(models.Model):
         blank=True,
         help_text="Template group of Stage 2 items for this project's stage report",
     )
+    quarterly_report_item_group = models.ForeignKey(
+        'QuarterlyReportItemGroup',
+        related_name='projects',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Template group of Quarterly Report items for this project's quarterly reports",
+    )
 
     # Lease fields
     lease_signed_date = models.DateField(null=True, blank=True, help_text="Date lease was signed (only for non-registered housing providers)")

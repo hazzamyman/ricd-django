@@ -1,52 +1,93 @@
 {% extends "base.html" %}
 {% block title %}Quarterly Report &mdash; {{ report.council.name }} Q{{ report.quarter }} {{ report.year }}{% endblock %}
+{% block breadcrumbs %}
+  <span class="sep">/</span>
+  <a href="{% url 'ui:quarterly_report_global_list' %}">Quarterly Reports</a>
+  <span class="sep">/</span>
+  <span class="current">{{ report.council.name }} Q{{ report.quarter }} {{ report.year }}</span>
+{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
+
+<div class="pg-head">
   <div>
-    <h2 class="mb-0">{{ report.council.name }} &mdash; Q{{ report.quarter }} {{ report.year }}</h2>
-    <small class="text-muted">{{ report.quarter_label }} | Status: <strong>{{ report.get_status_display }}</strong> | Due: {{ report.due_date }} {% if report.is_overdue %}<span class="badge bg-danger">Overdue</span>{% endif %}</small>
+    <h1>{{ report.council.name }} &mdash; Q{{ report.quarter }} {{ report.year }}</h1>
+    <div class="meta">
+      <span>{{ report.quarter_label }}</span>
+      <span><b>Status</b>
+        <span class="pill {% if report.status == 'APPROVED' %}green{% elif report.status == 'SUBMITTED' %}blue{% else %}grey{% endif %}">
+          {{ report.get_status_display }}
+        </span>
+      </span>
+      {% if report.due_date %}<span><b>Due</b> {{ report.due_date }}</span>{% endif %}
+      {% if report.is_overdue %}<span class="pill red">Overdue</span>{% endif %}
+    </div>
   </div>
-  <div>
-    {% if report.status == 'DRAFT' or report.status == 'IN_PROGRESS' %}
-      {% if can_edit %}
-      <form method="post" action="{% url 'ui:quarterly_report_submit' report.pk %}" class="d-inline">{% csrf_token %}
-        <button class="btn btn-primary btn-sm">Submit</button>
+  <div class="actions">
+    {% if can_edit %}
+      {% if report.status == 'DRAFT' or report.status == 'IN_PROGRESS' %}
+      <form method="post" action="{% url 'ui:quarterly_report_submit' report.pk %}" class="d-inline">
+        {% csrf_token %}<button class="btn btn-primary btn-sm">Submit</button>
       </form>
       {% endif %}
     {% endif %}
-    {% if report.status == 'SUBMITTED' and is_ricd %}
-      <form method="post" action="{% url 'ui:quarterly_report_approve' report.pk %}" class="d-inline">{% csrf_token %}
-        <button class="btn btn-success btn-sm">Approve</button>
+    {% if is_ricd and report.status == 'SUBMITTED' %}
+      <form method="post" action="{% url 'ui:quarterly_report_approve' report.pk %}" class="d-inline">
+        {% csrf_token %}<button class="btn btn-success btn-sm">Approve</button>
       </form>
     {% endif %}
     <a href="{% url 'ui:quarterly_report_global_list' %}" class="btn btn-outline-secondary btn-sm">Back</a>
   </div>
 </div>
 
-{% if not grid.items %}
-  <div class="alert alert-warning">No quarterly report items configured. Add Quarterly Report Item Groups in /admin first.</div>
-{% elif not grid.project_rows %}
-  <div class="alert alert-info">No active projects with works for this council in this quarter.</div>
+{% if not grid.fs_sections %}
+  <div class="alert alert-info">No active funding schedules with projects for this council this quarter.</div>
 {% else %}
 <form method="post">
 {% csrf_token %}
-<div class="table-responsive">
-  <table class="table table-bordered table-sm align-middle">
-    <thead class="table-light">
-      <tr>
-        <th>Address / Work</th>
-        {% for item in grid.items %}<th title="{{ item.help_text }}">{{ item.group.name }} &mdash; {{ item.name }}</th>{% endfor %}
-      </tr>
-    </thead>
-    <tbody>
-    {% for prow in grid.project_rows %}
-      <tr class="table-light"><td colspan="{{ grid.items|length|add:1 }}"><strong>{{ prow.project.name }}</strong></td></tr>
-      {% for wrow in prow.works %}
-        <tr>
-          <td>{{ wrow.address }}</td>
-          {% for cell in wrow.cells %}
-            <td style="min-width:160px;">
-              {% with entry=cell.entry item=cell.item %}
+
+{% for fs_section in grid.fs_sections %}
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <div>
+      <h5 class="mb-0">FS #{{ fs_section.fs.schedule_number }}</h5>
+      {% if fs_section.fs.funding_agreement %}
+        <small class="text-muted">FA {{ fs_section.fs.funding_agreement.agreement_reference|default:fs_section.fs.funding_agreement.pk }}</small>
+      {% endif %}
+    </div>
+    <span class="pill green" style="font-size:10px;">{{ fs_section.fs.get_status_display }}</span>
+  </div>
+  <div class="card-body p-0">
+
+    {% for proj_section in fs_section.projects %}
+    <div class="border-bottom">
+      <div class="px-3 pt-3 pb-2 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">
+          <a href="{% url 'ui:project_detail' proj_section.project.pk %}">{{ proj_section.project.name }}</a>
+        </h6>
+        <span class="state-badge state-{{ proj_section.project.state|lower }}">{{ proj_section.project.get_state_display }}</span>
+      </div>
+
+      {% if proj_section.items and proj_section.works %}
+      <div class="table-responsive">
+        <table class="table table-bordered table-sm align-middle mb-0" style="font-size:13px;">
+          <thead class="table-light">
+            <tr>
+              <th style="min-width:180px;">Address / Work</th>
+              {% for item in proj_section.items %}
+              <th style="min-width:120px;" title="{{ item.help_text|default:'' }}">
+                <div style="font-size:10px; color:var(--muted); font-weight:400;">{{ item.group.name }}</div>
+                {{ item.name }}
+              </th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for wrow in proj_section.works %}
+            <tr>
+              <td>{{ wrow.address }}</td>
+              {% for cell in wrow.cells %}
+              <td>
+                {% with entry=cell.entry item=cell.item %}
                 {% if entry %}
                   {% if item.field_type == 'CHECKBOX' %}
                     <input type="checkbox" name="cell_{{ entry.pk }}_bool" {% if entry.boolean_value %}checked{% endif %} {% if not can_edit %}disabled{% endif %}>
@@ -58,12 +99,12 @@
                       {% if item.field_type == 'YES_NO_NA' %}<option value="na" {% if entry.is_na %}selected{% endif %}>N/A</option>{% endif %}
                     </select>
                   {% elif item.field_type == 'DATE' or item.field_type == 'DATE_NA' %}
-                    <input type="date" class="form-control form-control-sm" name="cell_{{ entry.pk }}_date" value="{{ entry.date_value|date:'Y-m-d' }}" {% if entry.is_na %}disabled{% endif %} {% if not can_edit %}disabled{% endif %}>
+                    <input type="date" class="form-control form-control-sm" name="cell_{{ entry.pk }}_date" value="{{ entry.date_value|date:'Y-m-d' }}" {% if not can_edit %}disabled{% endif %}>
                     {% if item.field_type == 'DATE_NA' %}
-                      <div class="form-check form-check-inline mt-1">
-                        <input type="checkbox" class="form-check-input" name="cell_{{ entry.pk }}_na" {% if entry.is_na %}checked{% endif %} {% if not can_edit %}disabled{% endif %}>
-                        <label class="form-check-label small">N/A</label>
-                      </div>
+                    <div class="form-check mt-1">
+                      <input type="checkbox" class="form-check-input" name="cell_{{ entry.pk }}_na" id="na_{{ entry.pk }}" {% if entry.is_na %}checked{% endif %} {% if not can_edit %}disabled{% endif %}>
+                      <label class="form-check-label small" for="na_{{ entry.pk }}">N/A</label>
+                    </div>
                     {% endif %}
                   {% elif item.field_type == 'NUMBER' or item.field_type == 'CURRENCY' %}
                     <input type="number" step="0.01" class="form-control form-control-sm" name="cell_{{ entry.pk }}_num" value="{{ entry.number_value|default_if_none:'' }}" {% if not can_edit %}disabled{% endif %}>
@@ -71,20 +112,35 @@
                     <input type="text" class="form-control form-control-sm" name="cell_{{ entry.pk }}_text" value="{{ entry.text_value }}" {% if not can_edit %}disabled{% endif %}>
                   {% endif %}
                 {% else %}
-                  <span class="text-muted">&mdash;</span>
+                  <span class="text-muted small">—</span>
                 {% endif %}
-              {% endwith %}
-            </td>
-          {% endfor %}
-        </tr>
-      {% endfor %}
-    {% endfor %}
-    </tbody>
-  </table>
-</div>
+                {% endwith %}
+              </td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% elif not proj_section.items %}
+        <p class="text-muted small px-3 py-2 mb-0">No report items configured — assign a Quarterly Report Item Group to this project in Maintenance.</p>
+      {% else %}
+        <p class="text-muted small px-3 py-2 mb-0">No works recorded on this project.</p>
+      {% endif %}
+
+    </div>{# border-bottom #}
+    {% endfor %}{# proj_section #}
+
+  </div>{# card-body #}
+</div>{# card #}
+{% endfor %}{# fs_section #}
+
 {% if can_edit %}
-<button type="submit" class="btn btn-primary">Save Changes</button>
+<div class="mb-4">
+  <button type="submit" class="btn btn-primary">Save Changes</button>
+</div>
 {% endif %}
 </form>
 {% endif %}
+
 {% endblock %}
