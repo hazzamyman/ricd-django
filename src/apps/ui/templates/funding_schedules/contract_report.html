@@ -102,7 +102,7 @@
     <tbody>
       {% for p in payments %}
       <tr>
-        <td><a href="{% url 'ui:payment_detail' p.pk %}">{{ p.get_payment_type_display }}</a></td>
+        <td><a href="{% url 'ui:payment_detail' p.project.pk p.pk %}">{{ p.get_payment_type_display }}</a></td>
         <td>{{ p.project.name|truncatechars:30 }}</td>
         <td class="text-end">{{ p.calculated_amount_display }}</td>
         <td>{{ p.forecast_release_date|date:"d M Y"|default:"—" }}</td>
@@ -210,7 +210,7 @@
       <ul class="list-unstyled mb-0" style="font-size:12.5px;">
         {% for w in lifecycle.sunset_breach %}
           <li class="py-1 border-bottom">
-            <a href="{% url 'ui:work_detail' w.pk %}">{{ w.work_type.name }}</a>
+            <a href="{% url 'ui:work_detail' w.project.pk w.pk %}">{{ w.work_type.name|default:w.work_type_other|default:"Unnamed work" }}</a>
             <span class="text-muted small">— {{ w.project.name }} — forecast PC {{ w.forecast_practical_completion_date|date:"d M Y" }} (sunset {{ w.project.stage2_sunset_date|date:"d M Y" }})</span>
           </li>
         {% endfor %}
