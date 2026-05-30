@@ -397,7 +397,14 @@ def unlock_next_payment_on_report_approval(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender='core.Work')
 def recalculate_work_forecast(sender, instance, **kwargs):
-    """Re-run rolling forecast whenever actual_start_date is updated."""
+    """Re-run rolling forecast whenever the Work changes, except when the save
+    was itself triggered by the forecast engine writing the computed PC date
+    back onto the Work (those saves carry update_fields={pc, handover})."""
+    update_fields = kwargs.get('update_fields')
+    if update_fields:
+        from apps.core.services.workstep_forecast import RECALC_UPDATE_FIELDS
+        if set(update_fields).issubset(RECALC_UPDATE_FIELDS):
+            return  # this save IS the forecast engine writing back — don't recurse
     if instance.cashflow_method != 'WORKSTEP':
         return
     if not instance.steps.exists():
@@ -444,4 +451,34 @@ def cascade_fs_dates_to_projects(sender, instance, created, **kwargs):
                 p.save(update_fields=changed + ['updated_at'])
     except Exception:
         # Signal-safe: never crash a FundingSchedule save because of a stale state
+        pass
+
+
+# ---------------------------------------------------------------------------
+# Payment -> PaymentAllocation snapshot (Option 2: lock at RELEASED, forever)
+# ---------------------------------------------------------------------------
+# When a Payment transitions to RELEASED, snapshot the program split using the
+# project's current BFAItem ratios. Allocations are immutable thereafter —
+# later BFA variations do NOT retro-adjust existing rows. Idempotent: re-saving
+# a RELEASED payment does not create duplicate allocations.
+
+@receiver(post_save, sender='core.Payment')
+def snapshot_payment_allocations_on_release(sender, instance, **kwargs):
+    try:
+        from apps.core.models import PaymentAllocation
+        if instance.status != instance.Status.RELEASED:
+            return
+        if instance.allocations.exists():
+            return  # locked forever — never overwrite
+        split = instance.compute_program_split()
+        if not split:
+            return
+        for prog_id, (amount, ratio) in split.items():
+            PaymentAllocation.objects.create(
+                payment=instance,
+                program_id=prog_id,
+                amount=amount,
+                ratio=ratio,
+            )
+    except Exception:
         pass

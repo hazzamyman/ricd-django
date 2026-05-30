@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}{{ title }} — RICD{% endblock %}
+{% block breadcrumbs %}
+  <span class="sep">/</span>
+  <a href="{% url 'ui:bfa_global_list' %}">Brief Financial Approvals</a>
+  <span class="sep">/</span>
+  <span class="current">{{ title }}</span>
+{% endblock %}
+{% block content %}
+<div class="pg-head">
+  <div>
+    <h1>{{ title }}</h1>
+    <div class="meta">Header attributes (MINCOR reference, council, delegate level) plus per-project funding rows.</div>
+  </div>
+</div>
+
+<form method="post">
+  {% csrf_token %}
+
+  <div class="card mb-3"><div class="card-body">
+    <h2 class="h6 text-muted mb-3">Approval header</h2>
+    {% if form.non_field_errors %}
+      <div class="alert alert-danger py-2 px-3">{{ form.non_field_errors }}</div>
+    {% endif %}
+    <div class="row g-3">
+      {% for field in form %}
+      <div class="col-md-6">
+        <label for="{{ field.id_for_label }}" class="form-label">
+          {{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}
+        </label>
+        {{ field }}
+        {% if field.help_text %}<div class="form-text text-muted">{{ field.help_text }}</div>{% endif %}
+        {% if field.errors %}<div class="text-danger" style="font-size:12px">{{ field.errors }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div></div>
+
+  <div class="card mb-3"><div class="card-body">
+    <h2 class="h6 text-muted mb-2">Project rows</h2>
+    <p class="text-muted" style="font-size:12px;">
+      Pick the project — its council, cost centre, and GL code are inherited automatically.
+      <strong>Program defaults to the project's program;</strong> change it only to capture
+      co-funding from a different program (e.g. Commonwealth + Department). You can
+      add multiple rows for the same project with different programs to split funding.
+      Contingency defaults to 10% if blank. Total = funding + contingency.
+    </p>
+
+    {{ items_formset.management_form }}
+    {% if items_formset.non_form_errors %}
+      <div class="alert alert-danger py-2 px-3">{{ items_formset.non_form_errors }}</div>
+    {% endif %}
+
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead class="table-light">
+          <tr>
+            <th style="min-width:240px;">Project</th>
+            <th style="min-width:200px;">Funding program <span class="text-muted" style="font-weight:normal; font-size:11px;">(blank = project's program)</span></th>
+            <th class="text-end" style="min-width:140px;">Funding amount</th>
+            <th class="text-end" style="min-width:140px;">Contingency (10% default)</th>
+            <th class="text-end" style="min-width:140px;">Total</th>
+            <th style="min-width:50px;">Delete?</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for f in items_formset %}
+          <tr>
+            {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+            <td>{{ f.project }}{% if f.project.errors %}<div class="text-danger" style="font-size:11px">{{ f.project.errors }}</div>{% endif %}
+              {% if f.instance.pk %}
+                <div class="text-muted" style="font-size:11px;">
+                  {% if f.instance.project.council %}{{ f.instance.project.council.name }} &middot; {% endif %}
+                  CC {{ f.instance.cost_centre|default:"—" }} &middot; GL {{ f.instance.gl_code|default:"—" }}
+                </div>
+              {% endif %}
+            </td>
+            <td>{{ f.program }}{% if f.program.errors %}<div class="text-danger" style="font-size:11px">{{ f.program.errors }}</div>{% endif %}</td>
+            <td>{{ f.funding_amount }}</td>
+            <td>{{ f.contingency_amount }}</td>
+            <td class="text-end">
+              {% if f.instance.pk %}{{ f.instance.total|money }}{% else %}<span class="text-muted">(on save)</span>{% endif %}
+            </td>
+            <td class="text-center">{% if f.instance.pk %}{{ f.DELETE }}{% else %}—{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="text-muted" style="font-size:11px;">Save once to populate the inherited fields, then re-open to add more rows.</p>
+  </div></div>
+
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary">{% if object %}Save changes{% else %}Create{% endif %}</button>
+    <a href="{{ back_url }}" class="btn btn-outline-secondary">Cancel</a>
+  </div>
+</form>
+{% endblock %}

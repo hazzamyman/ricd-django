@@ -281,11 +281,8 @@ class TestBusinessRuleBFAMissing:
             fs.full_clean()
 
     def test_approved_bfa_allows_full_clean(self, project):
-        BriefFinancialApproval.objects.create(
-            project=project,
-            status=BriefFinancialApproval.Status.APPROVED,
-            funding_amount=Decimal('500000'),
-        )
+        from tests.fixtures import make_bfa
+        make_bfa(project, Decimal('500000'), status=BriefFinancialApproval.Status.APPROVED)
         fs = FundingSchedule(
             project=project,
             amount=Decimal('100000'),
@@ -298,11 +295,8 @@ class TestBusinessRuleBFAMissing:
     def test_pending_bfa_is_not_sufficient(self, project):
         """A BFA in PENDING (not APPROVED) does not satisfy the pre-condition."""
         from django.core.exceptions import ValidationError
-        BriefFinancialApproval.objects.create(
-            project=project,
-            status=BriefFinancialApproval.Status.PENDING,
-            funding_amount=Decimal('500000'),
-        )
+        from tests.fixtures import make_bfa
+        make_bfa(project, Decimal('500000'), status=BriefFinancialApproval.Status.PENDING)
         fs = FundingSchedule(
             project=project,
             amount=Decimal('100000'),

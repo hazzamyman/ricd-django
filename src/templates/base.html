@@ -10,7 +10,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
   <style>
     /* ============================================================
@@ -31,10 +31,11 @@
       --muted:   #64748b;
       --muted-2: #94a3b8;
 
-      --brand:     #0f5d6b;
-      --brand-700: #0a4955;
-      --brand-50:  #e6f1f3;
-      --brand-100: #cce3e7;
+      /* QGDS primary blue — https://www.designsystem.qld.gov.au/styles/colour */
+      --brand:     #09549f;
+      --brand-700: #07417a;
+      --brand-50:  #e8f0fb;
+      --brand-100: #c4d6ef;
 
       --st-grey-bg:#f1f5f9;  --st-grey-fg:#475569;  --st-grey-bd:#cbd5e1;
       --st-amber-bg:#fef3c7; --st-amber-fg:#854d0e; --st-amber-bd:#facc15;
@@ -45,7 +46,7 @@
 
     html, body { height: 100%; }
     body {
-      font-family: 'Inter', system-ui, sans-serif;
+      font-family: 'Noto Sans', system-ui, sans-serif;
       background: var(--bg); color: var(--ink);
       padding-top: 92px;
     }
@@ -202,6 +203,10 @@
     .kpi .delta.up { color: var(--st-green-fg); }
     .kpi .delta.dn { color: var(--st-red-fg); }
 
+    /* Negative money figures — red, slightly stronger weight. Applied by the
+       money template filter ({% load money %}{{ value|money }}). */
+    .money-neg { color: var(--st-red-fg); font-weight: 600; }
+
     .flow { display: flex; align-items: center; gap: 0; padding: 4px 0; flex-wrap: wrap; }
     .flow .step {
       display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px;
@@ -262,6 +267,49 @@
     .rail .cmt .who { font-weight: 600; }
     .rail .cmt .when { font-size: 11px; color: var(--muted); }
     .rail .cmt .body { color: #334155; margin-top: 4px; line-height: 1.45; }
+
+    /* ---- Soft pill (electorates, suburb, usage meta labels) ---- */
+    .pill.soft {
+      background: var(--panel-alt); color: #475569;
+      border-color: var(--line); font-weight: 500;
+      text-transform: none; letter-spacing: 0; font-size: 11px; padding: 2px 7px;
+    }
+    .pill.soft .bi { color: var(--muted-2); }
+
+    /* ---- Livable Housing Design level badges ---- */
+    .lhd {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 7px 2px 6px; border-radius: 999px;
+      font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+      border: 1px solid transparent;
+    }
+    .lhd::before {
+      content: ''; width: 7px; height: 7px; border-radius: 50%;
+      background: currentColor; opacity: .85;
+    }
+    .lhd.silver   { background: var(--st-grey-bg);  color: #475569;           border-color: var(--st-grey-bd); }
+    .lhd.gold     { background: var(--st-amber-bg); color: #854d0e;           border-color: var(--st-amber-bd); }
+    .lhd.platinum { background: var(--st-blue-bg);  color: var(--st-blue-fg); border-color: var(--st-blue-bd); }
+
+    /* ---- Lease-status lock icon ---- */
+    .lease { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+    .lease .bi { font-size: 14px; }
+    .lease.executed { color: var(--st-green-fg); font-weight: 600; }
+    .lease.executed .bi { color: #10b981; }
+    .lease.pending  { color: var(--muted); }
+    .lease.pending .bi { color: var(--muted-2); }
+
+    /* ---- Work count badge on address rows ---- */
+    .wcount {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: var(--brand-50); color: var(--brand-700);
+      border: 1px solid var(--brand-100); border-radius: 999px;
+      padding: 2px 8px; font-size: 11.5px; font-weight: 600;
+    }
+    .wcount.zero { background: var(--st-grey-bg); color: var(--muted); border-color: var(--st-grey-bd); }
+
+    /* ---- mono helper ---- */
+    .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 
     @media (max-width: 991.98px) {
       .ricd-sidebar { transform: translateX(-100%); transition: transform .2s ease; }
@@ -397,6 +445,51 @@
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ─── Popup "+ Add" lookup pattern ─────────────────────────────────────────
+// Buttons with class .popup-add-btn (rendered by apps.ui.widgets.PopupAddSelect)
+// open a popup window pointing at a create view with ?_popup=1&field=<id>.
+// The popup view (PopupAwareCreateMixin) postMessages back on save and closes
+// itself; we receive the message here and append the new <option> to the
+// parent <select>.
+(function(){
+  document.addEventListener('click', function(ev){
+    var btn = ev.target.closest('.popup-add-btn');
+    if (!btn) return;
+    ev.preventDefault();
+    var url = btn.dataset.popupAddUrl;
+    var fieldId = btn.dataset.popupAddField || '';
+    var w = parseInt(btn.dataset.popupWidth || '720', 10);
+    var h = parseInt(btn.dataset.popupHeight || '640', 10);
+    if (!url) return;
+    var sep = url.indexOf('?') >= 0 ? '&' : '?';
+    var fullUrl = url + sep + '_popup=1&field=' + encodeURIComponent(fieldId);
+    var left = (window.screenX || 0) + Math.max(0, (window.outerWidth - w) / 2);
+    var top  = (window.screenY || 0) + Math.max(0, (window.outerHeight - h) / 2);
+    window.open(fullUrl, 'popup_add_' + fieldId,
+      'width=' + w + ',height=' + h + ',left=' + left + ',top=' + top +
+      ',scrollbars=yes,resizable=yes,toolbar=no,menubar=no,status=no');
+  });
+
+  window.addEventListener('message', function(ev){
+    var d = ev.data;
+    if (!d || d.type !== 'popup_added' || !d.field) return;
+    var sel = document.getElementById(d.field);
+    if (!sel) return;
+    var existing = sel.querySelector('option[value="' + String(d.pk) + '"]');
+    if (existing) {
+      existing.selected = true;
+    } else {
+      var opt = document.createElement('option');
+      opt.value = d.pk;
+      opt.textContent = d.name;
+      opt.selected = true;
+      sel.appendChild(opt);
+    }
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+})();
+</script>
 {% block extra_js %}{% endblock %}
 </body>
 </html>

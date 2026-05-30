@@ -1,40 +1,59 @@
 {% extends "base.html" %}
-{% block title %}Brief Financial Approvals{% if project %} — {{ project.name }}{% endif %}{% endblock %}
-{% block content %}
-<div class="container mt-4">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2>Brief Financial Approvals</h2>
-    {% if project %}
-      <a href="{% url 'ui:bfa_create' project_pk=project.pk %}" class="btn btn-primary">+ New BFA</a>
-    {% endif %}
-  </div>
+{% load money %}
+{% block title %}Brief Financial Approvals{% if project %} — {{ project.name }}{% endif %} — RICD{% endblock %}
+{% block breadcrumbs %}
+  <span class="sep">/</span>
   {% if project %}
-    <p class="text-muted">Project: <strong><a href="{% url 'ui:project_detail' project.pk %}?tab=funding">{{ project.name }} (ID {{ project.pk }})</a></strong></p>
+    <a href="{% url 'ui:project_detail' project.pk %}">{{ project.name }}</a>
+    <span class="sep">/</span>
+    <span class="current">BFAs</span>
+  {% else %}
+    <span class="current">Brief Financial Approvals</span>
   {% endif %}
+{% endblock %}
+{% block content %}
+<div class="pg-head">
+  <div>
+    <h1>Brief Financial Approvals{% if project %} — {{ project.name }}{% endif %}</h1>
+    <div class="meta">
+      {% if project %}
+        BFAs that include this project (BFAs are grouped under a MINCOR ref and may cover multiple projects).
+      {% else %}
+        One BFA per MINCOR reference. Each BFA may cover multiple projects across rows.
+      {% endif %}
+    </div>
+  </div>
+  <div class="actions">
+    <a href="{% url 'ui:bfa_create_global' %}" class="btn btn-primary btn-sm">+ New BFA</a>
+  </div>
+</div>
 
-  {% if approvals %}
-  <table class="table table-hover">
-    <thead>
+{% if approvals %}
+<div class="card"><div class="card-body p-0">
+  <table class="table table-hover mb-0">
+    <thead class="table-light">
       <tr>
-        {% if not project %}<th>Project</th>{% endif %}
-        <th>Funding Amount</th>
-        <th>Contingency</th>
-        <th>Total</th>
-        <th>Delegate Level</th>
+        <th>MINCOR ref</th>
+        <th>Council(s)</th>
+        <th class="text-end">Projects</th>
+        <th class="text-end">Funding</th>
+        <th class="text-end">Contingency</th>
+        <th class="text-end">Total</th>
+        <th>Delegate</th>
         <th>Status</th>
-        <th>Approved By</th>
-        <th>Actions</th>
+        <th>Doc</th>
+        <th></th>
       </tr>
     </thead>
     <tbody>
       {% for bfa in approvals %}
       <tr>
-        {% if not project %}
-          <td><a href="{% url 'ui:project_detail' bfa.project.pk %}?tab=funding">{{ bfa.project.name }} (ID {{ bfa.project.pk }})</a></td>
-        {% endif %}
-        <td>${{ bfa.funding_amount|floatformat:0 }}</td>
-        <td>${{ bfa.contingency_amount|floatformat:0 }}</td>
-        <td>${{ bfa.total_amount|floatformat:0 }}</td>
+        <td>{{ bfa.mincor_reference|default:"—" }}</td>
+        <td>{% for c in bfa.councils %}<a href="{% url 'ui:council_detail' c.pk %}">{{ c.name }}</a>{% if not forloop.last %}, {% endif %}{% empty %}<span class="text-muted">—</span>{% endfor %}</td>
+        <td class="text-end">{{ bfa.project_count }}</td>
+        <td class="text-end">{{ bfa.funding_amount|money }}</td>
+        <td class="text-end">{{ bfa.contingency_amount|money }}</td>
+        <td class="text-end fw-bold">{{ bfa.total_amount|money }}</td>
         <td>{{ bfa.get_delegate_level_display }}</td>
         <td>
           {% if bfa.status == 'APPROVED' %}
@@ -45,19 +64,19 @@
             <span class="badge bg-warning text-dark">Pending</span>
           {% endif %}
         </td>
+        <td>{% if bfa.document_uri %}<a href="{{ bfa.document_uri }}" target="_blank" rel="noopener" title="{{ bfa.document_uri }}"><i class="bi bi-link-45deg"></i></a>{% else %}<span class="text-muted">—</span>{% endif %}</td>
         <td>
-          {% if bfa.approved_by %}{{ bfa.approved_by.get_full_name|default:bfa.approved_by.username }}{% else %}—{% endif %}
-        </td>
-        <td>
-          <a href="{% url 'ui:bfa_detail' project_pk=bfa.project.pk pk=bfa.pk %}" class="btn btn-sm btn-outline-secondary">View</a>
-          <a href="{% url 'ui:bfa_edit' project_pk=bfa.project.pk pk=bfa.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
+          <a href="{% url 'ui:bfa_detail' pk=bfa.pk %}" class="btn btn-sm btn-outline-secondary">View</a>
         </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
-  {% else %}
-  <p class="text-muted">No brief financial approvals yet.</p>
-  {% endif %}
+</div></div>
+{% else %}
+<div class="empty">
+  <p class="text-muted mb-2">No brief financial approvals yet.</p>
+  <a href="{% url 'ui:bfa_create_global' %}" class="btn btn-primary btn-sm">+ Create the first one</a>
 </div>
+{% endif %}
 {% endblock %}

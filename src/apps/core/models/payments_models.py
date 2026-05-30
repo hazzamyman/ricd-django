@@ -140,3 +140,83 @@ class Payment(models.Model):
             'third': remaining * Decimal('0.10'),
             'surplus': surplus_amount,
         }
+
+    # ------------------------------------------------------------------
+    # Co-funding: per-program split helpers
+    # ------------------------------------------------------------------
+
+    def compute_program_split(self):
+        """Return a dict {program_id: (Decimal_amount, Decimal_ratio)} for this
+        payment based on the project's current BFAItem ratios.
+
+        Falls back to `{project.program_id: (amount, 1.0)}` when the project has
+        no APPROVED BFA items.
+        """
+        amount = self.calculated_amount or self.amount or Decimal('0')
+        if amount <= 0 or not self.project_id:
+            return {}
+        ratios = self.project.bfa_program_ratios(approved_only=True)
+        if not ratios:
+            if self.project.program_id:
+                return {self.project.program_id: (amount, Decimal('1.000000'))}
+            return {}
+        out = {}
+        running = Decimal('0')
+        ordered = sorted(ratios.items(), key=lambda kv: -kv[1])
+        for i, (pid, ratio) in enumerate(ordered):
+            if i == len(ordered) - 1:
+                share = (amount - running).quantize(Decimal('0.01'))
+            else:
+                share = (amount * ratio).quantize(Decimal('0.01'))
+                running += share
+            out[pid] = (share, ratio)
+        return out
+
+    def released_to_program(self, program_id):
+        """Total $ already locked against (this project, program_id) across all
+        previously-released payments (sums PaymentAllocation rows), excluding self.
+        """
+        from apps.core.models import PaymentAllocation
+        return PaymentAllocation.objects.filter(
+            payment__project=self.project, program_id=program_id,
+        ).exclude(payment_id=self.pk).aggregate(
+            t=models.Sum('amount')
+        )['t'] or Decimal('0')
+
+    def clean(self):
+        """Enforce per-program caps: for each program this payment would charge,
+        approved capacity >= already released + this payment's share.
+        """
+        from django.core.exceptions import ValidationError
+        if not self.project_id or not (self.amount or self.calculated_amount):
+            return
+        if self.status == self.Status.REJECTED:
+            return
+        split = self.compute_program_split()
+        if not split:
+            return
+        from apps.core.models import BriefFinancialApprovalItem
+        capacity = {}
+        for item in BriefFinancialApprovalItem.objects.filter(
+            project=self.project, bfa__status='APPROVED',
+        ):
+            pid = item.program_id or self.project.program_id
+            if pid is None:
+                continue
+            capacity[pid] = capacity.get(pid, Decimal('0')) + (
+                (item.funding_amount or 0) + (item.contingency_amount or 0)
+            )
+        errors = []
+        for pid, (share, _ratio) in split.items():
+            cap = capacity.get(pid, Decimal('0'))
+            committed = self.released_to_program(pid)
+            if committed + share > cap:
+                from apps.core.models import Program
+                name = Program.objects.filter(pk=pid).values_list('name', flat=True).first() or f"#{pid}"
+                errors.append(
+                    f"Program '{name}': allocating ${share:,.2f} would push committed "
+                    f"(${committed:,.2f} + ${share:,.2f}) over the approved cap "
+                    f"of ${cap:,.2f}."
+                )
+        if errors:
+            raise ValidationError("Payment over-commits per-program BFA caps:\n - " + "\n - ".join(errors))

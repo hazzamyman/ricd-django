@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load money %}
 {% load static %}
 
 {% block title %}Project Status Board — RICD{% endblock %}
@@ -64,7 +65,7 @@
                 <p class="text-muted small mb-1">{{ card.project.council.name }}</p>
                 <p class="text-muted small mb-1">{{ card.project.program.name }}</p>
                 {% if card.total_funding %}
-                <p class="small mb-1 text-success fw-semibold">${{ card.total_funding|floatformat:0 }}</p>
+                <p class="small mb-1 text-success fw-semibold">{{ card.total_funding|money }}</p>
                 {% endif %}
                 {% if card.days_left is not None %}
                   {% if card.overdue %}

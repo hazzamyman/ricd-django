@@ -1,0 +1,784 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}{{ project.name }} — RICD{% endblock %}
+{% block active_nav %}{% with active_nav='projects' %}{% endwith %}{% endblock %}
+
+{% block breadcrumbs %}
+<span class="sep">/</span>
+<a href="{% url 'ui:projects_list' %}">Projects</a>
+<span class="sep">/</span>
+<span class="current">{{ project.name }}</span>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+:root {
+  --brand:#09549f; --brand-700:#07417a; --brand-50:#e8f0fb; --brand-100:#c4d6ef;
+  --line:#e5e7eb; --line-2:#d1d5db; --line-soft:#eef1f4; --panel-alt:#f8fafc;
+  --muted:#64748b; --muted-2:#94a3b8; --ink:#0f172a;
+  --st-grey-bg:#f1f5f9; --st-grey-fg:#475569; --st-grey-bd:#cbd5e1;
+  --st-amber-bg:#fef3c7; --st-amber-fg:#854d0e; --st-amber-bd:#facc15;
+  --st-blue-bg:#dbeafe; --st-blue-fg:#1e3a8a; --st-blue-bd:#93c5fd;
+  --st-green-bg:#d1fae5; --st-green-fg:#065f46; --st-green-bd:#6ee7b7;
+  --st-red-bg:#fee2e2; --st-red-fg:#991b1b; --st-red-bd:#fca5a5;
+  --tl-red-fill:#dc2626; --tl-red-ring:#fecaca;
+  --tl-amber-fill:#f59e0b; --tl-amber-ring:#fde68a;
+  --tl-green-fill:#10b981; --tl-green-ring:#a7f3d0;
+}
+/* page head */
+.pg-head{display:flex;align-items:flex-start;gap:16px;padding:4px 0 18px}
+.pg-head h1{font-size:24px;font-weight:700;margin:0;line-height:1.2;letter-spacing:-.01em}
+.pg-head .pg-id{font-family:ui-monospace,monospace;font-size:12px;color:var(--muted);margin-right:8px}
+.pg-head .meta{font-size:12.5px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;align-items:center}
+.pg-head .meta b{color:#334155;font-weight:600}
+.pg-head .meta .sep-dot{color:var(--line-2)}
+.pg-head .actions{margin-left:auto;display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap;justify-content:flex-end}
+/* land-type chip */
+.land-tag{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:4px;
+  font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  background:linear-gradient(135deg,#fef3c7 0%,#fde68a 100%);color:#78350f;border:1px solid #fcd34d}
+/* tabs */
+.pd-tabs{display:flex;gap:0;border-bottom:1px solid var(--line);margin:4px 0 22px;overflow-x:auto}
+.pd-tabs .t{padding:10px 16px 12px;font-size:13.5px;color:#475569;border-bottom:2px solid transparent;
+  cursor:pointer;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;user-select:none;
+  background:none;border-top:0;border-left:0;border-right:0;text-decoration:none;transition:color .12s,border-color .12s}
+.pd-tabs .t:hover{color:var(--ink);text-decoration:none}
+.pd-tabs .t .num{font-size:11px;background:var(--st-grey-bg);padding:1px 7px;border-radius:999px;color:var(--muted);font-weight:600}
+.pd-tabs .t.active{color:var(--brand);border-bottom-color:var(--brand);font-weight:600}
+.pd-tabs .t.active .num{background:var(--brand-50);color:var(--brand-700)}
+/* shared card / sec header */
+.lcard{background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:18px}
+.sec-h{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line);gap:12px;flex-wrap:wrap}
+.sec-h h2{font-size:14px;font-weight:700;margin:0;color:var(--ink);letter-spacing:-.005em;display:flex;align-items:center;gap:10px}
+.sec-h .count{font-size:11px;font-weight:600;color:var(--muted);background:var(--st-grey-bg);padding:2px 8px;border-radius:999px;letter-spacing:.04em}
+.sec-h .right{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+/* pills */
+.pill{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:999px;
+  font-size:11px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;border:1px solid transparent;white-space:nowrap}
+.pill.grey{background:var(--st-grey-bg);color:var(--st-grey-fg);border-color:var(--st-grey-bd)}
+.pill.amber{background:var(--st-amber-bg);color:var(--st-amber-fg);border-color:var(--st-amber-bd)}
+.pill.blue{background:var(--st-blue-bg);color:var(--st-blue-fg);border-color:var(--st-blue-bd)}
+.pill.green{background:var(--st-green-bg);color:var(--st-green-fg);border-color:var(--st-green-bd)}
+.pill.red{background:var(--st-red-bg);color:var(--st-red-fg);border-color:var(--st-red-bd)}
+
+/* ===== PRE-CONDITIONS HERO ===== */
+.precond{background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:18px}
+.precond.all-clear .precond-head{background:linear-gradient(180deg,#ecfdf5 0%,#d1fae5 100%);border-bottom:1px solid var(--st-green-bd)}
+.precond.all-clear .precond-head .pc-icon{background:var(--st-green-fg);color:#fff}
+.precond.all-clear .precond-head h2{color:var(--st-green-fg)}
+.precond.all-clear .precond-head .pc-sub{color:var(--st-green-fg)}
+.precond-head{display:flex;align-items:center;gap:14px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.precond-head .pc-icon{width:38px;height:38px;border-radius:8px;background:var(--st-amber-bg);color:var(--st-amber-fg);
+  display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.precond-head h2{font-size:15px;font-weight:700;margin:0;color:var(--ink);letter-spacing:-0.005em}
+.precond-head .pc-sub{font-size:12.5px;color:var(--muted);margin-top:2px}
+.precond-head .pc-sub b{color:#334155;font-weight:600}
+.precond-head .pc-right{margin-left:auto;display:flex;gap:6px;align-items:center}
+.tally{font-size:11px;color:var(--muted);background:var(--panel-alt);border:1px solid var(--line);
+  padding:4px 10px;border-radius:999px;display:inline-flex;align-items:center;gap:6px}
+.tally .dot{width:8px;height:8px;border-radius:50%;background:var(--tl-green-fill)}
+.tally .dot.a{background:var(--tl-amber-fill)}
+.tally .dot.r{background:var(--tl-red-fill)}
+.precond-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line)}
+@media(max-width:900px){.precond-grid{grid-template-columns:repeat(2,1fr)}}
+.pc-tile{background:#fff;padding:18px 18px 16px;position:relative;transition:background .12s;min-width:0}
+.pc-tile:hover{background:var(--panel-alt)}
+.pc-tile .top-row{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px}
+.pc-tile .nm{font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.pc-tile .edit-btn{background:transparent;border:0;color:var(--muted-2);padding:2px 6px;border-radius:3px;cursor:pointer;
+  font-size:12px;opacity:0;transition:opacity .12s,background .12s}
+.pc-tile:hover .edit-btn{opacity:1}
+.pc-tile .edit-btn:hover{background:var(--st-grey-bg);color:var(--ink)}
+.tl-circle{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:26px;margin-bottom:12px;flex-shrink:0}
+.pc-tile.tl-red .tl-circle{background:var(--tl-red-fill);box-shadow:0 0 0 4px var(--tl-red-ring),0 4px 12px rgba(220,38,38,.2)}
+.pc-tile.tl-amber .tl-circle{background:var(--tl-amber-fill);box-shadow:0 0 0 4px var(--tl-amber-ring),0 4px 12px rgba(245,158,11,.2)}
+.pc-tile.tl-green .tl-circle{background:var(--tl-green-fill);box-shadow:0 0 0 4px var(--tl-green-ring),0 4px 12px rgba(16,185,129,.2)}
+.pc-tile.tl-empty .tl-circle{background:#fff;color:var(--muted-2);box-shadow:0 0 0 4px var(--st-grey-bg),inset 0 0 0 2px var(--st-grey-bd)}
+.pc-pathway{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--brand-700);background:var(--brand-50);padding:2px 8px;border-radius:3px;border:1px solid var(--brand-100);
+  display:inline-block;margin-bottom:8px}
+.pc-pathway.empty{visibility:hidden}
+.pc-status{font-size:13px;font-weight:600;color:var(--ink);line-height:1.3;margin-bottom:6px}
+.pc-tile.tl-red .pc-status{color:#991b1b}
+.pc-tile.tl-amber .pc-status{color:#854d0e}
+.pc-tile.tl-green .pc-status{color:var(--st-green-fg)}
+.pc-complete{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--muted);margin-bottom:8px;font-variant-numeric:tabular-nums}
+.pc-complete .bi{color:var(--tl-green-fill);font-size:12px}
+.pc-tile.tl-green .pc-complete{color:var(--st-green-fg)}
+.pc-notes{font-size:11.5px;color:var(--muted);line-height:1.45;border-top:1px dashed var(--line);padding-top:8px;
+  overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+
+/* ===== TWO-COL parcels / DA ===== */
+.row-2{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;margin-bottom:18px;align-items:start}
+@media(max-width:900px){.row-2{grid-template-columns:1fr}}
+/* parcels table */
+.t-wrap{overflow-x:auto}
+table.t-parcels{width:100%;min-width:640px;border-collapse:separate;border-spacing:0;font-size:13px}
+table.t-parcels thead th{background:#fff;text-align:left;font-size:10.5px;font-weight:600;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.05em;padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.t-parcels tbody td{padding:12px 14px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+table.t-parcels tbody tr:last-child td{border-bottom:0}
+table.t-parcels tbody tr{cursor:pointer}
+table.t-parcels tbody tr:hover{background:var(--panel-alt)}
+.parcel-lot{font-family:ui-monospace,monospace;font-size:12.5px;font-weight:600;color:var(--ink)}
+.chev{color:var(--muted-2);font-size:14px;transition:color .12s,transform .12s}
+tr:hover .chev{color:var(--brand);transform:translateX(2px)}
+/* DA card */
+.da-card{padding:16px 18px}
+.da-type{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.da-ref{font-family:ui-monospace,monospace;font-size:15px;font-weight:700;color:var(--brand);margin-top:2px}
+.da-timeline{position:relative;padding-left:14px;margin:14px 0}
+.da-timeline::before{content:'';position:absolute;left:5px;top:6px;bottom:6px;width:2px;background:var(--line)}
+.da-tl-row{position:relative;padding:6px 0 6px 20px;font-size:12.5px;color:var(--ink)}
+.da-tl-row::before{content:'';position:absolute;left:-3px;top:11px;width:12px;height:12px;border-radius:50%;
+  background:#fff;border:2px solid var(--line)}
+.da-tl-row.done::before{background:var(--tl-green-fill);border-color:#065f46}
+.da-tl-row.cur::before{background:var(--brand);border-color:var(--brand-700)}
+.da-tl-row.pending::before{border-style:dashed}
+.da-tl-row .lbl{font-size:11px;color:var(--muted);font-weight:500}
+.da-tl-row .v{font-size:12.5px;color:var(--ink);font-weight:600}
+.da-tl-row .v.muted{color:var(--muted);font-weight:500;font-style:italic}
+/* infra grid */
+.infra-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line)}
+@media(max-width:800px){.infra-grid{grid-template-columns:1fr}}
+.infra-cell{background:#fff;padding:14px 16px}
+.infra-cell .ihead{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.infra-cell .ihead .ic{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px}
+.infra-cell.water .ihead .ic{background:var(--st-blue-bg);color:var(--st-blue-fg)}
+.infra-cell.elec .ihead .ic{background:var(--st-amber-bg);color:var(--st-amber-fg)}
+.infra-cell.sewer .ihead .ic{background:#f3e8ff;color:#6b21a8}
+.infra-cell .ihead .nm{font-size:12.5px;font-weight:700;color:var(--ink)}
+.infra-cell .ihead .pill{margin-left:auto}
+.infra-body{font-size:12.5px;color:#334155;line-height:1.5}
+.infra-body.empty{color:var(--muted-2);font-style:italic}
+/* children table */
+table.t-children{width:100%;min-width:680px;border-collapse:separate;border-spacing:0;font-size:13px}
+table.t-children thead th{background:#fff;text-align:left;font-size:10.5px;font-weight:600;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.05em;padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.t-children thead th.num-cell{text-align:right}
+table.t-children tbody td{padding:12px 14px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+table.t-children tbody tr:last-child td{border-bottom:0}
+table.t-children tbody tr{cursor:pointer}
+table.t-children tbody tr:hover{background:var(--panel-alt)}
+table.t-children .num-cell{text-align:right;font-variant-numeric:tabular-nums}
+.child-nm{font-size:13.5px;font-weight:600;color:var(--ink)}
+.child-id{font-family:ui-monospace,monospace;font-size:11px;color:var(--muted);margin-top:2px}
+/* works table */
+table.t-works{width:100%;min-width:800px;border-collapse:separate;border-spacing:0;font-size:13px}
+table.t-works thead th{background:#fff;text-align:left;font-size:10.5px;font-weight:600;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.05em;padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.t-works thead th.num-cell{text-align:right}
+table.t-works tbody td{padding:12px 14px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+table.t-works tbody tr:last-child td{border-bottom:0}
+table.t-works tbody tr{cursor:pointer}
+table.t-works tbody tr:hover{background:var(--panel-alt)}
+table.t-works .num-cell{text-align:right;font-variant-numeric:tabular-nums}
+.work-nm{font-size:13px;font-weight:600;color:var(--ink)}
+.work-desc{font-size:11px;color:var(--muted);margin-top:2px}
+.pc-cell .lbl{font-size:10px;color:var(--muted-2);text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+.pc-cell .dt.actual{color:var(--st-green-fg);font-weight:600}
+.pc-cell .dt.forecast{color:var(--muted)}
+.pc-cell .dt.empty{color:var(--muted-2);font-style:italic}
+/* card-foot */
+.card-foot{display:flex;align-items:center;justify-content:space-between;
+  padding:10px 18px;background:var(--panel-alt);border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+/* state badges */
+.state-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:4px;
+  font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border:1px solid transparent}
+.state-prospective{background:var(--st-grey-bg);color:var(--st-grey-fg);border-color:var(--st-grey-bd)}
+.state-programmed{background:var(--st-blue-bg);color:var(--st-blue-fg);border-color:var(--st-blue-bd)}
+.state-funded{background:var(--st-blue-bg);color:var(--st-blue-fg);border-color:var(--st-blue-bd)}
+.state-commenced,.state-uc{background:#f0fdf4;color:#166534;border-color:#86efac}
+.state-comp{background:var(--st-green-bg);color:var(--st-green-fg);border-color:var(--st-green-bd)}
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# ===== Page header ===== #}
+<div class="pg-head">
+  <div style="flex:1;min-width:0;max-width:75%;">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span class="pg-id">PRJ-{{ project.pk }}</span>
+      {% if project.state == 'PROS' %}<span class="state-badge state-prospective">Prospective</span>
+      {% elif project.state == 'PROG' %}<span class="state-badge state-programmed">Programmed</span>
+      {% elif project.state == 'FUND' %}<span class="state-badge state-funded"><i class="bi bi-cash"></i> Funded</span>
+      {% elif project.state == 'COMM' %}<span class="state-badge state-commenced"><i class="bi bi-hammer"></i> Commenced</span>
+      {% elif project.state == 'UC' %}<span class="state-badge state-uc"><i class="bi bi-hammer"></i> Under Construction</span>
+      {% elif project.state == 'COMP' %}<span class="state-badge state-comp">Completed</span>
+      {% endif %}
+      <span class="land-tag"><i class="bi bi-geo-alt-fill"></i> Land project</span>
+    </div>
+    <h1 style="margin-top:8px;">{{ project.name }}</h1>
+    <div class="meta">
+      <span><b>Council:</b> <a href="{% url 'ui:council_detail' project.council.pk %}">{{ project.council }}</a></span>
+      <span class="sep-dot">·</span>
+      <span><b>Program:</b> <a href="{% url 'ui:program_detail' project.program.pk %}">{{ project.program }}</a></span>
+      {% if project.financial_year %}<span class="sep-dot">·</span><span><b>FY:</b> {{ project.financial_year }}</span>{% endif %}
+      {% if project.effective_lead_officer %}
+        <span class="sep-dot">·</span>
+        <span><b>Lead:</b> {{ project.effective_lead_officer.get_full_name|default:project.effective_lead_officer.username }}</span>
+      {% endif %}
+      {% if total_approved %}
+        <span class="sep-dot">·</span>
+        <span><b>Approved:</b> <b style="color:var(--ink);">{{ total_approved|money }}</b></span>
+      {% endif %}
+    </div>
+  </div>
+  <div class="actions">
+    {% if is_fnc %}
+    <a href="{% url 'ui:project_edit' project.pk %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-pencil"></i> Edit</a>
+    {% endif %}
+    <a href="{% url 'ui:projects_list' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back</a>
+  </div>
+</div>
+
+{# ===== Tab strip ===== #}
+<div class="pd-tabs" id="projectTabs">
+  <button class="t {% if active_tab == 'overview' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-overview" type="button">Overview</button>
+  <a class="t{% if active_tab == 'works' %} active{% endif %}" href="{% url 'ui:project_addresses_works' project.pk %}">
+    Civil Works{% with cnt=project.works.count %}{% if cnt %} <span class="num">{{ cnt }}</span>{% endif %}{% endwith %}
+  </a>
+  <button class="t {% if active_tab == 'funding' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-funding" type="button">
+    Funding{% with cnt=project.funding_schedules.count %}{% if cnt %} <span class="num">{{ cnt }}</span>{% endif %}{% endwith %}
+  </button>
+  <button class="t {% if active_tab == 'payments' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-payments" type="button">
+    Payments{% with cnt=project.payments.count %}{% if cnt %} <span class="num">{{ cnt }}</span>{% endif %}{% endwith %}
+  </button>
+  <button class="t {% if active_tab == 'comments' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-comments" type="button">Comments</button>
+</div>
+
+<div class="tab-content" id="projectTabContent">
+
+{# ===== Overview tab ===== #}
+<div class="tab-pane fade {% if active_tab == 'overview' %}show active{% endif %}" id="tab-overview" role="tabpanel">
+
+  {# ===== Pre-conditions hero ===== #}
+  <div class="precond{% if lpc_all_clear %} all-clear{% endif %}">
+    <div class="precond-head">
+      {% if lpc_all_clear %}
+        <div class="pc-icon"><i class="bi bi-shield-check"></i></div>
+        <div>
+          <h2>Land Pre-Conditions — All Cleared</h2>
+          <div class="pc-sub">All 4 pre-conditions are green — land development can proceed</div>
+        </div>
+      {% else %}
+        <div class="pc-icon"><i class="bi bi-shield-exclamation"></i></div>
+        <div>
+          <h2>Land Pre-Conditions</h2>
+          <div class="pc-sub">
+            {% if lpc_green == 0 %}
+              No pre-conditions cleared yet — construction cannot commence until all 4 are green
+            {% else %}
+              {{ lpc_green }} of 4 cleared
+              {% if lpc_red > 0 %} · <b>{{ lpc_red }} not started</b>{% endif %}
+              {% if lpc_amber > 0 %} · <b>{{ lpc_amber }} outstanding</b>{% endif %}
+              — construction cannot commence until all 4 are green
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
+      <div class="pc-right">
+        {% if lpc_green > 0 %}<span class="tally"><span class="dot"></span> {{ lpc_green }} green</span>{% endif %}
+        {% if lpc_amber > 0 %}<span class="tally"><span class="dot a"></span> {{ lpc_amber }} amber</span>{% endif %}
+        {% if lpc_red > 0 %}<span class="tally"><span class="dot r"></span> {{ lpc_red }} red</span>{% endif %}
+        {% if is_fnc %}
+          <a href="{% url 'ui:land_pre_conditions' project.pk %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-pencil"></i> Edit pre-conditions</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="precond-grid">
+      {% for lpc in land_pre_conditions %}
+        {% if lpc.status == 'GRN' %}{% with tile_cls='tl-green' %}
+        {% elif lpc.status == 'AMB' %}{% with tile_cls='tl-amber' %}
+        {% else %}{% with tile_cls='tl-red' %}
+        {% endif %}
+        <div class="pc-tile {{ tile_cls }}">
+          <div class="top-row">
+            <span class="nm">{{ lpc.get_category_display }}</span>
+            {% if is_fnc %}<button class="edit-btn" title="Edit"><i class="bi bi-pencil"></i></button>{% endif %}
+          </div>
+          {% if lpc.status == 'GRN' %}
+            <div class="tl-circle"><i class="bi bi-check-lg"></i></div>
+          {% elif lpc.status == 'AMB' %}
+            <div class="tl-circle"><i class="bi bi-hourglass-split"></i></div>
+          {% else %}
+            <div class="tl-circle"><i class="bi bi-dash"></i></div>
+          {% endif %}
+          {% if lpc.native_title_type %}
+            <div class="pc-pathway">{{ lpc.get_native_title_type_display }}</div>
+          {% else %}
+            <div class="pc-pathway empty">—</div>
+          {% endif %}
+          <div class="pc-status">{{ lpc.get_status_display }}</div>
+          {% if lpc.completed_date %}
+            <div class="pc-complete"><i class="bi bi-check-circle-fill"></i><span>{{ lpc.completed_date|date:"d M Y" }}</span></div>
+          {% elif lpc.pk %}
+            <div class="pc-complete" style="{% if lpc.status == 'AMB' %}color:var(--st-amber-fg);{% endif %}">
+              <i class="bi bi-clock{% if lpc.status == 'AMB' %}" style="color:var(--st-amber-fg);{% endif %}"></i>
+              <span>In progress</span>
+            </div>
+          {% else %}
+            <div class="pc-complete"><i class="bi bi-circle" style="color:var(--muted-2);"></i><span style="color:var(--muted-2);">Not started</span></div>
+          {% endif %}
+          {% if lpc.notes %}
+            <div class="pc-notes">{{ lpc.notes }}</div>
+          {% endif %}
+        </div>
+        {% endwith %}
+      {% empty %}
+        <div style="grid-column:1/-1;padding:24px 20px;text-align:center;color:var(--muted);font-size:13px;">
+          No pre-condition records yet.
+          {% if is_fnc %}<a href="{% url 'ui:land_pre_conditions' project.pk %}" style="margin-left:8px;">Set up pre-conditions →</a>{% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# ===== Parcels + DA two-col ===== #}
+  <div class="row-2">
+
+    {# Land parcels #}
+    <div class="lcard">
+      <div class="sec-h">
+        <h2>
+          <i class="bi bi-grid-3x3" style="color:var(--brand);"></i>
+          Land Parcels
+          <span class="count">{{ land_parcels|length }} parcel{{ land_parcels|length|pluralize }}</span>
+        </h2>
+        <div class="right">
+          {% if is_fnc %}<button class="btn btn-outline-secondary btn-sm"><i class="bi bi-plus-lg"></i> Link parcel</button>{% endif %}
+        </div>
+      </div>
+      {% if land_parcels %}
+      <div class="t-wrap">
+        <table class="t-parcels">
+          <thead>
+            <tr>
+              <th>Lot / Plan</th>
+              <th>Tenure</th>
+              <th>Native Title</th>
+              <th>Cultural Heritage</th>
+              <th style="width:1px;"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for parcel in land_parcels %}
+            <tr>
+              <td><span class="parcel-lot">Lot {{ parcel.lot_number }} / {{ parcel.plan_number }}</span></td>
+              <td>
+                {% if parcel.tenure_type == 'CROWN' %}<span class="pill blue">Crown</span>
+                {% elif parcel.tenure_type == 'FREEHOLD' %}<span class="pill green">Freehold</span>
+                {% else %}<span class="pill amber">Leasehold</span>{% endif %}
+              </td>
+              <td>
+                {% if parcel.native_title_status == 'CLEARED' %}<span class="pill green">Cleared</span>
+                {% elif parcel.native_title_status == 'IULA' %}<span class="pill green">ILUA · cleared</span>
+                {% elif parcel.native_title_status == '24JAA' %}<span class="pill green">Statutory 24JAA</span>
+                {% elif parcel.native_title_status == '24KAA' %}<span class="pill green">Statutory 24KAA</span>
+                {% else %}<span class="pill amber">Pending</span>{% endif %}
+              </td>
+              <td>
+                {% if parcel.cultural_heritage_status == 'CLEARED' %}<span class="pill green">Cleared</span>
+                {% else %}<span class="pill amber">Pending</span>{% endif %}
+              </td>
+              <td><i class="bi bi-chevron-right chev"></i></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div style="padding:20px 18px;font-size:13px;color:var(--muted-2);font-style:italic;">No land parcels linked.</div>
+      {% endif %}
+    </div>
+
+    {# Development Application #}
+    <div class="lcard">
+      <div class="sec-h">
+        <h2><i class="bi bi-file-earmark-text" style="color:var(--brand);"></i>Development Application</h2>
+        {% if da %}
+          {% if da.status == 'APPR' %}<span class="pill green"><i class="bi bi-check-circle"></i>Approved</span>
+          {% elif da.status == 'SUB' or da.status == 'ASSESS' %}<span class="pill amber"><i class="bi bi-hourglass-split"></i>Under assessment</span>
+          {% elif da.status == 'PREP' %}<span class="pill grey">Preparing</span>
+          {% elif da.status == 'REF' %}<span class="pill red">Refused</span>
+          {% elif da.status == 'WD' %}<span class="pill grey">Withdrawn</span>
+          {% endif %}
+        {% else %}
+          <span class="pill grey">Not linked</span>
+        {% endif %}
+      </div>
+      {% if da %}
+      <div class="da-card">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;">
+          <div>
+            <div class="da-type">{{ da.get_application_type_display }}</div>
+            <div class="da-ref">{{ da.application_reference }}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Council</div>
+            <div style="font-size:12.5px;font-weight:600;color:var(--ink);margin-top:2px;">{{ project.council }}</div>
+          </div>
+        </div>
+
+        <div class="da-timeline">
+          <div class="da-tl-row {% if da.lodged_date %}done{% else %}pending{% endif %}">
+            <div class="lbl">Lodged</div>
+            <div class="v">{% if da.lodged_date %}{{ da.lodged_date|date:"d M Y" }}{% else %}<span class="muted">Not yet lodged</span>{% endif %}</div>
+          </div>
+          <div class="da-tl-row {% if da.status == 'ASSESS' or da.status == 'APPR' or da.status == 'REF' %}{% if da.status == 'ASSESS' %}cur{% else %}done{% endif %}{% else %}pending{% endif %}">
+            <div class="lbl">Assessment</div>
+            <div class="v">
+              {% if da.status == 'APPR' or da.status == 'REF' %}Complete
+              {% elif da.status == 'ASSESS' %}Under assessment
+              {% else %}<span class="muted">Pending</span>{% endif %}
+            </div>
+          </div>
+          <div class="da-tl-row {% if da.decision_date %}done{% elif da.status == 'APPR' or da.status == 'REF' %}done{% else %}pending{% endif %}">
+            <div class="lbl">Decision notice</div>
+            <div class="v">
+              {% if da.decision_date %}{{ da.decision_date|date:"d M Y" }}
+              {% else %}<span class="muted">Pending{% if da.lapsing_date %} — lapses {{ da.lapsing_date|date:"d M Y" }}{% endif %}</span>{% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div style="padding-top:12px;border-top:1px dashed var(--line);display:flex;gap:8px;justify-content:space-between;align-items:center;">
+          <div style="font-size:11.5px;color:var(--muted);">
+            {% if da.decision_notice_link %}<a href="{{ da.decision_notice_link }}" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i> Decision notice</a>{% else %}<span>No decision notice yet</span>{% endif %}
+          </div>
+          {% if da.conditions %}
+          <span style="font-size:11.5px;color:var(--muted);"><i class="bi bi-list-check"></i> Conditions attached</span>
+          {% endif %}
+        </div>
+      </div>
+      {% else %}
+      <div style="padding:20px 18px;font-size:13px;color:var(--muted-2);font-style:italic;">
+        No development application linked.
+        {% if is_fnc %}<a href="#" style="margin-left:8px;font-style:normal;">Link DA →</a>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+  </div>{# /row-2 #}
+
+  {# ===== Infrastructure readiness ===== #}
+  <div class="lcard">
+    <div class="sec-h">
+      <h2><i class="bi bi-diagram-3" style="color:var(--brand);"></i>Infrastructure Readiness</h2>
+    </div>
+    <div class="infra-grid">
+      <div class="infra-cell water">
+        <div class="ihead">
+          <div class="ic"><i class="bi bi-droplet-half"></i></div>
+          <div class="nm">Water</div>
+        </div>
+        <div class="infra-body{% if not project.infra_water_assessment %} empty{% endif %}">
+          {% if project.infra_water_assessment %}{{ project.infra_water_assessment }}{% else %}No assessment recorded.{% endif %}
+        </div>
+      </div>
+      <div class="infra-cell elec">
+        <div class="ihead">
+          <div class="ic"><i class="bi bi-lightning-charge-fill"></i></div>
+          <div class="nm">Electricity</div>
+        </div>
+        <div class="infra-body{% if not project.infra_electricity_assessment %} empty{% endif %}">
+          {% if project.infra_electricity_assessment %}{{ project.infra_electricity_assessment }}{% else %}No assessment recorded.{% endif %}
+        </div>
+      </div>
+      <div class="infra-cell sewer">
+        <div class="ihead">
+          <div class="ic"><i class="bi bi-water"></i></div>
+          <div class="nm">Sewerage</div>
+        </div>
+        <div class="infra-body{% if not project.infra_sewerage_assessment %} empty{% endif %}">
+          {% if project.infra_sewerage_assessment %}{{ project.infra_sewerage_assessment }}{% else %}No assessment recorded.{% endif %}
+        </div>
+      </div>
+    </div>
+    {% if project.infra_comments %}
+    <div style="padding:12px 18px;border-top:1px dashed var(--line);font-size:12.5px;color:#334155;">
+      <b style="color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;">Notes · </b>{{ project.infra_comments }}
+    </div>
+    {% endif %}
+  </div>
+
+  {# ===== Child dwellings ===== #}
+  <div class="lcard">
+    <div class="sec-h">
+      <h2>
+        <i class="bi bi-houses" style="color:var(--brand);"></i>
+        Child Dwellings
+        <span class="count">{{ child_dwellings|length }} linked</span>
+      </h2>
+      <div class="right">
+        {% if is_fnc %}<button class="btn btn-outline-secondary btn-sm"><i class="bi bi-link-45deg"></i> Link dwelling project</button>{% endif %}
+      </div>
+    </div>
+    {% if child_dwellings %}
+    <div class="t-wrap">
+      <table class="t-children">
+        <thead>
+          <tr>
+            <th style="width:35%;">Project</th>
+            <th>State</th>
+            <th>Funding Schedule</th>
+            <th class="num-cell">Approved</th>
+            <th style="width:1px;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for child in child_dwellings %}
+          <tr onclick="window.location='{% url 'ui:project_detail' child.pk %}'">
+            <td>
+              <div class="child-nm">{{ child.name }}</div>
+              <div class="child-id">PRJ-{{ child.pk }}</div>
+            </td>
+            <td>
+              {% if child.state == 'PROS' %}<span class="state-badge state-prospective">Prospective</span>
+              {% elif child.state == 'PROG' %}<span class="state-badge state-programmed">Programmed</span>
+              {% elif child.state == 'FUND' %}<span class="state-badge state-funded"><i class="bi bi-cash"></i> Funded</span>
+              {% elif child.state == 'COMM' %}<span class="state-badge state-commenced"><i class="bi bi-hammer"></i> Commenced</span>
+              {% elif child.state == 'UC' %}<span class="state-badge state-uc"><i class="bi bi-hammer"></i> UC</span>
+              {% elif child.state == 'COMP' %}<span class="state-badge state-comp">Completed</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if child.funding_schedule %}
+                <a href="{% url 'ui:funding_schedule_detail' child.funding_schedule.pk %}" onclick="event.stopPropagation();">
+                  FS-{{ child.funding_schedule.pk }}
+                </a>
+              {% else %}
+                <span style="color:var(--muted-2);font-style:italic;font-size:12px;">None</span>
+              {% endif %}
+            </td>
+            <td class="num-cell">
+              {% if child.funding_schedule %}{{ child.funding_schedule.total_funding|money }}{% else %}—{% endif %}
+            </td>
+            <td><i class="bi bi-chevron-right chev"></i></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if not lpc_all_clear %}
+    <div class="card-foot">
+      <div><b style="color:#991b1b;">⚠ Pre-conditions incomplete</b> — child dwellings can only commence once all 4 land pre-conditions are green</div>
+    </div>
+    {% endif %}
+    {% else %}
+    <div style="padding:20px 18px;font-size:13px;color:var(--muted-2);font-style:italic;">No child dwelling projects linked yet.</div>
+    {% endif %}
+  </div>
+
+  {# ===== Civil works summary ===== #}
+  {% with works=project.works.all %}
+  {% if works %}
+  <div class="lcard">
+    <div class="sec-h">
+      <h2>
+        <i class="bi bi-bricks" style="color:var(--brand);"></i>
+        Civil &amp; Infrastructure Works
+        <span class="count">{{ works|length }} work{{ works|length|pluralize }}</span>
+      </h2>
+      <div class="right">
+        <a href="{% url 'ui:project_addresses_works' project.pk %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-right"></i> Full view</a>
+      </div>
+    </div>
+    <div class="t-wrap">
+      <table class="t-works">
+        <thead>
+          <tr>
+            <th style="width:32%;">Work</th>
+            <th>Contractor</th>
+            <th>Status</th>
+            <th>Forecast PC</th>
+            <th style="width:1px;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for work in works|slice:":10" %}
+          <tr onclick="window.location='{% url 'ui:project_addresses_works' project.pk %}'">
+            <td>
+              <div class="work-nm">{{ work.work_type.name|default:work.work_type_other|default:"Unnamed work" }}</div>
+              {% if work.work_type and work.work_type_other %}<div class="work-desc">{{ work.work_type_other|truncatechars:60 }}</div>{% endif %}
+            </td>
+            <td>
+              {% if work.contractor %}
+                <span style="font-size:12px;color:#334155;">{{ work.contractor }}</span>
+              {% else %}
+                <span style="font-size:12px;color:var(--muted-2);font-style:italic;">Unassigned</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if work.status == 'COMPLETED' or work.practical_completion_date %}<span class="pill green"><i class="bi bi-check-circle"></i>Completed</span>
+              {% elif work.status == 'IN_PROGRESS' %}<span class="pill amber"><i class="bi bi-play-circle"></i>In Progress</span>
+              {% else %}<span class="pill grey"><i class="bi bi-dash-circle"></i>Pending</span>{% endif %}
+            </td>
+            <td>
+              <div class="pc-cell">
+                {% if work.practical_completion_date %}
+                  <div class="lbl">Actual PC</div>
+                  <div class="dt actual">{{ work.practical_completion_date|date:"d M Y" }}</div>
+                {% elif work.forecast_practical_completion_date %}
+                  <div class="lbl">Forecast PC</div>
+                  <div class="dt forecast">{{ work.forecast_practical_completion_date|date:"d M Y" }}</div>
+                {% else %}
+                  <div class="dt empty">— TBC</div>
+                {% endif %}
+              </div>
+            </td>
+            <td><i class="bi bi-chevron-right chev"></i></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if works|length > 10 %}
+    <div class="card-foot">
+      <span>Showing 10 of {{ works|length }} works</span>
+      <a href="{% url 'ui:project_addresses_works' project.pk %}">View all civil works →</a>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+  {% endwith %}
+
+</div>{# /tab-overview #}
+
+{# ===== Funding tab ===== #}
+<div class="tab-pane fade {% if active_tab == 'funding' %}show active{% endif %}" id="tab-funding" role="tabpanel">
+  <div class="row g-3">
+    <div class="col-12">
+      <div class="ricd-section-title">
+        <h2>Funding Schedules</h2>
+        {% if is_fnc %}<a href="{% url 'ui:funding_schedule_create' %}" class="btn btn-primary btn-sm"><i class="bi bi-plus"></i> New Schedule</a>{% endif %}
+      </div>
+      {% with schedules=project.funding_schedules.all %}
+      {% if schedules %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light">
+            <tr><th>#</th><th>Total Funding</th><th>Payment Rule</th><th>Status</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for fs in schedules %}
+            <tr>
+              <td>{{ fs.pk }}</td>
+              <td>{{ fs.total_funding|money }}</td>
+              <td>{{ fs.payment_rule|default:"—" }}</td>
+              <td><span class="state-badge state-{{ fs.status|lower }}">{{ fs.get_status_display }}</span></td>
+              <td><a href="{% url 'ui:funding_schedule_detail' fs.pk %}" class="btn btn-outline-secondary btn-sm">View</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted" style="font-size:13px;">No funding schedules linked to this project.</p>
+      {% endif %}
+      {% endwith %}
+    </div>
+
+    <div class="col-12 mt-2">
+      <div class="ricd-section-title">
+        <h2>Brief Financial Approvals</h2>
+        {% if is_fnc %}<a href="{% url 'ui:bfa_create_global' %}" class="btn btn-primary btn-sm"><i class="bi bi-plus"></i> New BFA</a>{% endif %}
+      </div>
+      {% with bfas=project.financial_approvals.all %}
+      {% if bfas %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light">
+            <tr><th>MINCOR ref</th><th class="text-end">Funding</th><th class="text-end">Contingency</th><th>Delegate</th><th>Status</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for bfa in bfas %}
+              {% for item in bfa.items.all %}
+                {% if item.project_id == project.pk %}
+                <tr>
+                  <td>{{ bfa.mincor_reference|default:"—" }} <span class="text-muted">(#{{ bfa.pk }})</span></td>
+                  <td class="text-end">{{ item.funding_amount|money }}</td>
+                  <td class="text-end">{% if item.contingency_amount %}{{ item.contingency_amount|money }}{% else %}—{% endif %}</td>
+                  <td>{{ bfa.get_delegate_level_display|default:"—" }}</td>
+                  <td><span class="state-badge state-{{ bfa.status|lower }}">{{ bfa.get_status_display }}</span></td>
+                  <td><a href="{% url 'ui:bfa_detail' bfa.pk %}" class="btn btn-outline-secondary btn-sm">View</a></td>
+                </tr>
+                {% endif %}
+              {% endfor %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted" style="font-size:13px;">No brief financial approvals recorded.</p>
+      {% endif %}
+      {% endwith %}
+    </div>
+  </div>
+</div>
+
+{# ===== Payments tab ===== #}
+<div class="tab-pane fade {% if active_tab == 'payments' %}show active{% endif %}" id="tab-payments" role="tabpanel">
+  <div class="ricd-section-title">
+    <h2>Payments</h2>
+    {% if is_fnc %}<a href="{% url 'ui:payment_create' project.pk %}" class="btn btn-primary btn-sm"><i class="bi bi-plus"></i> New Payment</a>{% endif %}
+  </div>
+  {% with payments=project.payments.all %}
+  {% if payments %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead class="table-light">
+        <tr><th>#</th><th>Type</th><th>Amount</th><th>Split</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for payment in payments %}
+        <tr>
+          <td>{{ payment.pk }}</td>
+          <td>{{ payment.get_payment_type_display }}</td>
+          <td>{{ payment.amount|money }}</td>
+          <td>{{ payment.get_payment_split_display|default:"—" }}</td>
+          <td><span class="state-badge state-{{ payment.status|lower }}">{{ payment.get_status_display }}</span></td>
+          <td><a href="{% url 'ui:payment_detail' project.pk payment.pk %}" class="btn btn-outline-secondary btn-sm">View</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-muted" style="font-size:13px;">No payments recorded for this project.</p>
+  {% endif %}
+  {% endwith %}
+</div>
+
+{# ===== Comments tab ===== #}
+<div class="tab-pane fade {% if active_tab == 'comments' %}show active{% endif %}" id="tab-comments" role="tabpanel">
+  {% include "partials/comments.html" with object=project %}
+</div>
+
+</div>{# /tab-content #}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const tab = params.get('tab');
+  if (tab) {
+    const btn = document.querySelector('[data-bs-target="#tab-' + tab + '"]');
+    if (btn) { new bootstrap.Tab(btn).show(); }
+  }
+  document.querySelectorAll('[data-bs-toggle="tab"]').forEach(function(btn) {
+    btn.addEventListener('shown.bs.tab', function(e) {
+      const target = e.target.getAttribute('data-bs-target').replace('#tab-', '');
+      const url = new URL(window.location);
+      url.searchParams.set('tab', target);
+      window.history.replaceState({}, '', url);
+    });
+  });
+})();
+</script>
+{% endblock %}

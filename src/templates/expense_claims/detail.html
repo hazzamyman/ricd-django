@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load money %}
 {% block title %}Expense Claim #{{ claim.pk }}{% endblock %}
 {% block breadcrumbs %}
   <span class="sep">/</span>
@@ -16,7 +17,7 @@
     <div class="meta">
       <span><b>Notice</b> <a href="{% url 'ui:funding_notice_detail' claim.funding_notice.pk %}">{{ claim.funding_notice.project.name }}</a></span>
       <span><b>Council</b> {{ claim.funding_notice.project.council.name }}</span>
-      <span><b>Amount</b> ${{ claim.amount|floatformat:2 }}</span>
+      <span><b>Amount</b> {{ claim.amount|money }}</span>
     </div>
   </div>
   <div class="actions">
@@ -51,7 +52,7 @@
     <div class="card-body">
       <div class="sec-h"><h2>Claim Details</h2></div>
       <dl class="row mb-0">
-        <dt class="col-sm-4">Amount</dt><dd class="col-sm-8">${{ claim.amount|floatformat:2 }}</dd>
+        <dt class="col-sm-4">Amount</dt><dd class="col-sm-8">{{ claim.amount|money }}</dd>
         <dt class="col-sm-4">Date submitted</dt><dd class="col-sm-8">{{ claim.date_submitted|date:"d M Y"|default:"—" }}</dd>
         <dt class="col-sm-4">Status</dt><dd class="col-sm-8">{{ claim.get_status_display }}</dd>
         <dt class="col-sm-4">Date approved</dt><dd class="col-sm-8">{{ claim.approved_date|date:"d M Y"|default:"—" }}</dd>

@@ -38,19 +38,15 @@ class TestFundingScheduleCreateView:
         FundingSchedule.clean() requires an APPROVED BriefFinancialApproval on
         the project before the schedule can be created.
         """
-        from apps.core.models import BriefFinancialApproval
-        BriefFinancialApproval.objects.create(
-            project=project,
-            funding_amount=Decimal('500000'),
-            status='APPROVED',
-        )
+        from tests.fixtures import make_bfa
+        make_bfa(project, Decimal('500000'), status='APPROVED')
         response = funding_create_client.post('/funding-schedules/create/', {
-            'project': project.id,
+            'projects': [project.id],  # multi-select field (PR: multi-project per FS)
             'schedule_number': 1,
             'status': 'DRAFT',
         }, follow=True)
         assert response.status_code in [200, 302]
-        assert FundingSchedule.objects.filter(project=project).exists()
+        assert FundingSchedule.objects.filter(projects=project).exists()
     
     def test_funding_create_land_get(self, funding_create_client, land_project):
         """Test funding schedule create for land project"""

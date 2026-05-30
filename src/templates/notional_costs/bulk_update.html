@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load money %}
 {% block title %}Bulk Update Notional Costs{% endblock %}
 {% block breadcrumbs %}
   <span class="sep">/</span>
@@ -94,8 +95,8 @@
       <tr {% if r.already_exists %}style="background:var(--panel-alt);"{% endif %}>
         <td>{{ r.work_type.name }}</td>
         <td>{% if r.work_type.has_bedrooms %}{{ r.bedrooms }} BR{% else %}—{% endif %}</td>
-        <td class="text-end">${{ r.source_cost|floatformat:2 }}</td>
-        <td class="text-end"><strong>${{ r.new_cost|floatformat:2 }}</strong></td>
+        <td class="text-end">{{ r.source_cost|money }}</td>
+        <td class="text-end"><strong>{{ r.new_cost|money }}</strong></td>
         <td>
           {% if r.already_exists %}
             <span class="pill grey">Already exists — skip</span>

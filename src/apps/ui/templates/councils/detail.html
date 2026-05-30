@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load money %}
 {% block title %}{{ council.name }} — RICD{% endblock %}
 {% block breadcrumbs %}
   <span class="sep">/</span>
@@ -13,8 +14,9 @@
     <h1>{{ council.name }}</h1>
     <div class="meta">
       {% if council.region %}<span><b>Region</b> {{ council.region }}</span>{% endif %}
-      {% if council.state_electorate %}<span><b>State</b> {{ council.state_electorate }}</span>{% endif %}
-      {% if council.federal_electorate %}<span><b>Federal</b> {{ council.federal_electorate }}</span>{% endif %}
+      {% if council.state_electorate_link %}<span><b>State</b> {{ council.state_electorate_link.name }}</span>{% elif council.state_electorate %}<span><b>State</b> {{ council.state_electorate }}</span>{% endif %}
+      {% if council.federal_electorate_link %}<span><b>Federal</b> {{ council.federal_electorate_link.name }}</span>{% elif council.federal_electorate %}<span><b>Federal</b> {{ council.federal_electorate }}</span>{% endif %}
+      {% if council.lead_officer %}<span><b>Lead Officer</b> {{ council.lead_officer.get_full_name|default:council.lead_officer.username }}</span>{% endif %}
       <span><b>RHP</b> {{ council.is_registered_housing_provider|yesno:"Yes,No" }}</span>
     </div>
   </div>
@@ -39,6 +41,130 @@
     </div>
   </div></div>
 </div>
+
+{# ── Financial Summary ─────────────────────────────────────────── #}
+{% if fin_summary %}
+<div class="card mb-3"><div class="card-body">
+  <div class="sec-h"><h2>Financial Summary</h2></div>
+  <div class="row g-3">
+    <div class="col-md-3"><div class="kpi">
+      <div class="label">Approved (BFA)</div>
+      <div class="value">{{ fin_summary.approved_funding|money }}</div>
+      {% if fin_summary.approved_contingency %}
+        <div class="text-muted small">+{{ fin_summary.approved_contingency|money }} contingency</div>
+      {% endif %}
+    </div></div>
+    <div class="col-md-3"><div class="kpi">
+      <div class="label">Committed via FS</div>
+      <div class="value">{{ fin_summary.committed_via_fs|money }}</div>
+    </div></div>
+    <div class="col-md-3"><div class="kpi">
+      <div class="label">Released</div>
+      <div class="value">{{ fin_summary.released_total|money }}</div>
+      <div class="text-muted small">{{ fin_summary.drawdown_pct|floatformat:1 }}% drawdown</div>
+    </div></div>
+    <div class="col-md-3"><div class="kpi">
+      <div class="label">Remaining</div>
+      <div class="value">{{ fin_summary.remaining|money }}</div>
+      {% if fin_summary.council_reported_unspent is not None %}
+        <div class="text-muted small">Council-reported unspent {{ fin_summary.council_reported_unspent|money }} ({{ fin_summary.unspent_reported_at }})</div>
+      {% endif %}
+    </div></div>
+  </div>
+</div></div>
+{% endif %}
+
+{# ── Reporting Health + Project Pipeline ──────────────────────── #}
+<div class="row g-3 mb-3">
+  <div class="col-md-6">
+    <div class="card h-100"><div class="card-body">
+      <div class="sec-h">
+        <h2>Reporting Health</h2>
+        {% if reporting_health.qr_overdue_count %}
+          <span class="pill red">{{ reporting_health.qr_overdue_count }} overdue</span>
+        {% else %}
+          <span class="pill green">On track</span>
+        {% endif %}
+      </div>
+      {% if reporting_health.qr_overdue %}
+        <h6 class="text-uppercase text-muted mt-2" style="font-size:11px; letter-spacing:.04em;">Overdue</h6>
+        <ul class="list-unstyled mb-2" style="font-size:12.5px;">
+          {% for q in reporting_health.qr_overdue %}
+            <li class="py-1 border-bottom">
+              <a href="{% url 'ui:quarterly_report_detail' q.pk %}">{{ q.quarter_label }}</a>
+              <span class="text-muted small">— due {{ q.due_date|date:"d M Y" }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      {% if reporting_health.qr_upcoming %}
+        <h6 class="text-uppercase text-muted mt-2" style="font-size:11px; letter-spacing:.04em;">Upcoming</h6>
+        <ul class="list-unstyled mb-2" style="font-size:12.5px;">
+          {% for q in reporting_health.qr_upcoming %}
+            <li class="py-1 border-bottom">
+              <a href="{% url 'ui:quarterly_report_detail' q.pk %}">{{ q.quarter_label }}</a>
+              <span class="text-muted small">— due {{ q.due_date|date:"d M Y" }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      {% if reporting_health.latest_qr %}
+        <div class="text-muted small mt-2">
+          Latest: <a href="{% url 'ui:quarterly_report_detail' reporting_health.latest_qr.pk %}">{{ reporting_health.latest_qr.quarter_label }}</a>
+          — <span class="pill {% if reporting_health.latest_qr.status == 'APPROVED' %}green{% elif reporting_health.latest_qr.status == 'SUBMITTED' %}blue{% else %}grey{% endif %}" style="font-size:9px;">{{ reporting_health.latest_qr.get_status_display }}</span>
+        </div>
+      {% else %}
+        <p class="text-muted small mb-0 mt-2">No quarterly reports yet.</p>
+      {% endif %}
+    </div></div>
+  </div>
+  <div class="col-md-6">
+    <div class="card h-100"><div class="card-body">
+      <div class="sec-h"><h2>Project Pipeline</h2></div>
+      <div class="d-flex flex-wrap gap-2">
+        {% for s in pipeline_counts %}
+          <div class="state-badge state-{{ s.state|lower }}" style="padding:8px 14px; display:flex; flex-direction:column; align-items:center; min-width:96px;">
+            <div style="font-size:10px; opacity:.85; text-transform:uppercase; letter-spacing:.04em;">{{ s.label }}</div>
+            <div style="font-size:20px; font-weight:600;">{{ s.count }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    </div></div>
+  </div>
+</div>
+
+{# ── Active Funding Schedules ──────────────────────────────────── #}
+{% if active_fs_summary %}
+<div class="card mb-3"><div class="card-body">
+  <div class="sec-h">
+    <h2>Active Funding Schedules</h2>
+    <span style="font-size:11px; color:var(--muted);">{{ active_fs_summary|length }} active</span>
+  </div>
+  <table class="table table-sm align-middle mb-0">
+    <thead class="table-light">
+      <tr>
+        <th>FS #</th><th>Project</th>
+        <th class="text-end">Amount</th>
+        <th class="text-end">Released</th>
+        <th class="text-end">Drawdown</th>
+        <th>Forecast PC</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in active_fs_summary %}
+      <tr>
+        <td><a href="{% url 'ui:funding_schedule_detail' r.fs.pk %}">#{{ r.fs.schedule_number }}</a></td>
+        <td>{{ r.fs.project.name|default:"—" }}</td>
+        <td class="text-end">{{ r.fs.amount|money }}</td>
+        <td class="text-end">{{ r.released|money }}</td>
+        <td class="text-end">{{ r.drawdown_pct|floatformat:1 }}%</td>
+        <td>{{ r.forecast_pc|date:"d M Y"|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% endif %}
 
 <div style="display:grid; grid-template-columns:1fr 360px; gap:24px;">
 
@@ -138,8 +264,22 @@
       <div class="sec-h"><h2>Council Details</h2></div>
       <dl class="row mb-0">
         <dt class="col-sm-3">Region</dt><dd class="col-sm-9">{{ council.region|default:"—" }}</dd>
-        <dt class="col-sm-3">State Electorate</dt><dd class="col-sm-9">{{ council.state_electorate|default:"—" }}</dd>
-        <dt class="col-sm-3">Federal Electorate</dt><dd class="col-sm-9">{{ council.federal_electorate|default:"—" }}</dd>
+        <dt class="col-sm-3">State Electorate</dt>
+        <dd class="col-sm-9">
+          {% if council.state_electorate_link %}{{ council.state_electorate_link.name }}
+          {% elif council.state_electorate %}<span class="text-muted">{{ council.state_electorate }} (legacy)</span>
+          {% else %}—{% endif %}
+        </dd>
+        <dt class="col-sm-3">Federal Electorate</dt>
+        <dd class="col-sm-9">
+          {% if council.federal_electorate_link %}{{ council.federal_electorate_link.name }}
+          {% elif council.federal_electorate %}<span class="text-muted">{{ council.federal_electorate }} (legacy)</span>
+          {% else %}—{% endif %}
+        </dd>
+        <dt class="col-sm-3">Lead Officer</dt>
+        <dd class="col-sm-9">
+          {% if council.lead_officer %}{{ council.lead_officer.get_full_name|default:council.lead_officer.username }}{% else %}—{% endif %}
+        </dd>
         <dt class="col-sm-3">Contact Email</dt><dd class="col-sm-9">{{ council.contact_email|default:"—" }}</dd>
         <dt class="col-sm-3">Contact Phone</dt><dd class="col-sm-9">{{ council.contact_phone|default:"—" }}</dd>
         <dt class="col-sm-3">Registered Housing Provider</dt><dd class="col-sm-9">{{ council.is_registered_housing_provider|yesno:"Yes,No" }}</dd>

@@ -112,16 +112,17 @@ class TestFundingNoticeDetail:
 
     def test_detail_shows_cap(self, auth_client, notice):
         response = auth_client.get(f'/funding-notices/{notice.pk}/')
-        assert b'100000' in response.content
+        # Money filter renders as $100,000.00 — assert against the formatted string
+        assert b'100,000' in response.content
 
     def test_detail_shows_claims(self, auth_client, notice, draft_claim):
         response = auth_client.get(f'/funding-notices/{notice.pk}/')
         assert response.status_code == 200
-        assert b'20000' in response.content
+        assert b'20,000' in response.content
 
     def test_detail_shows_remaining(self, auth_client, notice):
         response = auth_client.get(f'/funding-notices/{notice.pk}/')
-        assert b'100000' in response.content  # full cap remaining
+        assert b'100,000' in response.content  # full cap remaining
 
     def test_detail_404_on_missing(self, auth_client):
         response = auth_client.get('/funding-notices/99999/')

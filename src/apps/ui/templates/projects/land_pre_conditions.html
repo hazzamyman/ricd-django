@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — RICD{% endblock %}
+{% block content %}
+<div class="ricd-pagehead">
+  <div>
+    <h1>{{ title }}</h1>
+    <div class="meta">Set the traffic-light status for each land development pre-condition.</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-10">
+    <form method="post">
+      {% csrf_token %}
+      {% for flag in flags %}
+      <div class="card mb-3">
+        <div class="card-body">
+          <div class="row g-3 align-items-start">
+
+            <div class="col-12">
+              <h5 class="mb-0">{{ flag.get_category_display }}</h5>
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Status</label>
+              <select name="status_{{ flag.category }}" class="form-select form-select-sm">
+                <option value="RED" {% if flag.status == 'RED' %}selected{% endif %}>🔴 Not started</option>
+                <option value="AMB" {% if flag.status == 'AMB' %}selected{% endif %}>🟡 Outstanding issues</option>
+                <option value="GRN" {% if flag.status == 'GRN' %}selected{% endif %}>🟢 Addressed / No issues</option>
+              </select>
+            </div>
+
+            {% if flag.category == 'NT' %}
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">NT Pathway</label>
+              <select name="nt_type_{{ flag.category }}" class="form-select form-select-sm">
+                <option value="">— Not set —</option>
+                <option value="ILUA" {% if flag.native_title_type == 'ILUA' %}selected{% endif %}>ILUA</option>
+                <option value="24JAA" {% if flag.native_title_type == '24JAA' %}selected{% endif %}>Statutory 24JAA</option>
+                <option value="24KAA" {% if flag.native_title_type == '24KAA' %}selected{% endif %}>Statutory 24KAA</option>
+                <option value="EXT" {% if flag.native_title_type == 'EXT' %}selected{% endif %}>Extinguished (N/A)</option>
+              </select>
+            </div>
+            {% else %}
+            <div class="col-md-3"></div>
+            {% endif %}
+
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Completed date</label>
+              <input type="date" name="completed_date_{{ flag.category }}" class="form-control form-control-sm"
+                     value="{% if flag.completed_date %}{{ flag.completed_date|date:'Y-m-d' }}{% endif %}">
+            </div>
+
+            <div class="col-md-9">
+              <label class="form-label fw-semibold">Notes</label>
+              <textarea name="notes_{{ flag.category }}" class="form-control form-control-sm" rows="2">{{ flag.notes }}</textarea>
+            </div>
+
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+
+      <div class="d-flex gap-2 mt-2">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <a href="{% url 'ui:project_detail' pk=project.pk %}" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

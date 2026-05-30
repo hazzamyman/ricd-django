@@ -59,9 +59,9 @@ def _make_project(council, program, name='Proj A'):
 
 def _make_bfa(project, status='PENDING'):
     from apps.core.models import BriefFinancialApproval
-    return BriefFinancialApproval.objects.create(
-        project=project,
-        funding_amount=Decimal('500000'),
+    from tests.fixtures import make_bfa
+    return make_bfa(
+        project, Decimal('500000'),
         delegate_level=BriefFinancialApproval.DelegateLevel.MANAGER,
         status=status,
     )

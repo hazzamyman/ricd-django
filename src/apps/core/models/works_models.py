@@ -198,11 +198,81 @@ class Work(models.Model):
         help_text="Date construction actually started — anchors the rolling step forecast"
     )
 
+    # Practical Completion + Handover — operational truth, separate from contract
+    # (Stage 1/2 Target/Sunset). PC = when the work can be counted as complete;
+    # Handover = when the asset is delivered to the council/department. Both
+    # have a forecast (rolling estimate, adjusted by Monthly Tracker) and an
+    # actual (set on Stage 2 PC/Handover item approval, or manually).
+    forecast_practical_completion_date = models.DateField(
+        null=True, blank=True, db_index=True,
+        help_text="Rolling estimate of Practical Completion. Driven by Monthly "
+                  "Tracker progress; can be manually overridden.",
+    )
+    practical_completion_date = models.DateField(
+        null=True, blank=True, db_index=True,
+        help_text="Actual Practical Completion date. Set when the Stage 2 PC item "
+                  "is approved (or entered manually).",
+    )
+    forecast_handover_date = models.DateField(
+        null=True, blank=True, db_index=True,
+        help_text="Rolling estimate of when the asset will be handed to the "
+                  "council/department.",
+    )
+    handover_date = models.DateField(
+        null=True, blank=True, db_index=True,
+        help_text="Actual Handover date — when the asset has been delivered.",
+    )
+
     is_notional_cost = models.BooleanField(default=True, help_text="If True, cost is calculated from notional rates. If False, use actual_cost.")
     actual_cost = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True, help_text="Actual cost (manual override)")
-    
+    forecast_final_cost = models.DecimalField(
+        max_digits=14, decimal_places=2, null=True, blank=True,
+        help_text="Latest forecast of the final cost for this work item",
+    )
+    costs_finalised = models.BooleanField(default=False, help_text="All costs for this work item have been finalised")
+
+    # Contractor
+    contractor = models.ForeignKey(
+        'Contractor', related_name='works', on_delete=models.SET_NULL,
+        null=True, blank=True,
+    )
+
+    # Physical characteristics
+    floor_area = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        help_text="Floor area in m²",
+    )
+    drawing_no = models.CharField(max_length=100, blank=True, help_text="Construction drawing reference")
+    notes = models.TextField(blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        # Handover usually happens the same day as PC (occasionally up to ~15
+        # days later, in which case the user enters it explicitly). Default
+        # blank handover dates to the matching PC date so the typical case is
+        # zero-input.
+        if self.forecast_practical_completion_date and not self.forecast_handover_date:
+            self.forecast_handover_date = self.forecast_practical_completion_date
+        if self.practical_completion_date and not self.handover_date:
+            self.handover_date = self.practical_completion_date
+        super().save(*args, **kwargs)
+
+    @property
+    def pc_breaches_sunset(self):
+        """True when forecast PC is >30 days past the project's Stage 2 sunset.
+
+        Triggers an amber warning badge on the work + project detail pages —
+        no hard validation, just a heads-up that this work is expected to
+        breach the contract sunset.
+        """
+        from datetime import timedelta
+        sunset = getattr(self.project, 'stage2_sunset_date', None)
+        forecast = self.forecast_practical_completion_date
+        if sunset is None or forecast is None:
+            return False
+        return forecast > sunset + timedelta(days=30)
 
     def __str__(self):
         work_type_display = self.work_type.name if self.work_type else self.work_type_other
@@ -295,24 +365,59 @@ class WorkStepDefinition(models.Model):
 
 
 class WorkStepGroup(models.Model):
-    """Named package of ordered work steps for a specific work type."""
-    work_type = models.ForeignKey(WorkType, related_name='step_groups', on_delete=models.PROTECT)
-    name = models.CharField(max_length=200, help_text="e.g. Standard 3BR New House, Minor Extension")
+    """Named package of ordered work steps reusable across many work types.
+
+    A single group (e.g. "Standard New Residential Construction") can be
+    linked to House, Duplex, Townhouse, Unit and Attached at once via the
+    work_types M2M. Use Clone to make a near-identical variant and tweak.
+    """
+    work_types = models.ManyToManyField(
+        WorkType, related_name='step_groups', blank=True,
+        help_text="Work types this group applies to — many-to-many so one group "
+                  "can serve all residential types that share a workflow.",
+    )
+    name = models.CharField(
+        max_length=200,
+        help_text="e.g. 'Standard New Residential Construction', 'Land Subdivision'",
+    )
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['work_type', 'name']
+        ordering = ['name']
         verbose_name = 'Work Step Group'
         verbose_name_plural = 'Work Step Groups'
 
     def __str__(self):
-        return f"{self.work_type.name} — {self.name}"
+        return self.name
 
     def total_cost_percentage(self):
         return sum(item.cost_percentage for item in self.items.all())
+
+    def clone(self, new_name=None):
+        """Create a deep copy of this group + its items. Returns the new group.
+
+        work_types links are NOT copied (the clone is intended for "similar but
+        different" — caller assigns its own work types).
+        """
+        from django.db import transaction
+        with transaction.atomic():
+            new = WorkStepGroup.objects.create(
+                name=new_name or f"{self.name} (copy)",
+                description=self.description,
+                is_active=self.is_active,
+            )
+            for it in self.items.all():
+                WorkStepGroupItem.objects.create(
+                    group=new, step=it.step, order=it.order,
+                    cost_percentage=it.cost_percentage,
+                    expected_duration_days=it.expected_duration_days,
+                    stage_gate=it.stage_gate,
+                    is_monthly_tracker_column=it.is_monthly_tracker_column,
+                )
+            return new
 
 
 class WorkStepGroupItem(models.Model):
@@ -417,6 +522,11 @@ class StageItemGroup(models.Model):
     stage_type = models.CharField(max_length=10, choices=StageType.choices, db_index=True)
     name = models.CharField(max_length=255, help_text="e.g. 'Construction', 'Extension', 'Demolition', 'Land'")
     description = models.TextField(blank=True)
+    work_types = models.ManyToManyField(
+        WorkType, related_name='stage_item_groups', blank=True,
+        help_text="Optional — work types this group typically applies to. "
+                  "Drives the picker filter on the Funding Schedule form.",
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -429,6 +539,25 @@ class StageItemGroup(models.Model):
 
     def __str__(self):
         return f"{self.get_stage_type_display()} -- {self.name}"
+
+    def clone(self, new_name=None):
+        """Deep copy this group + its items. work_types links NOT copied."""
+        from django.db import transaction
+        with transaction.atomic():
+            new = StageItemGroup.objects.create(
+                stage_type=self.stage_type,
+                name=new_name or f"{self.name} (copy)",
+                description=self.description,
+                is_active=self.is_active,
+            )
+            for it in self.items.all():
+                StageItemGroupItem.objects.create(
+                    group=new, item=it.item, order=it.order,
+                    field_type=it.field_type, is_required=it.is_required,
+                    requires_attachment=it.requires_attachment,
+                    help_text=it.help_text,
+                )
+            return new
 
 
 class StageItemGroupItem(models.Model):

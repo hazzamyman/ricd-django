@@ -23,6 +23,7 @@ urlpatterns = [
     path('projects/<int:pk>/', views.crud_views.ProjectDetailView.as_view(), name='project_detail'),
     path('projects/<int:pk>/edit/', views.crud_views.ProjectUpdateView.as_view(), name='project_edit'),
     path('projects/<int:pk>/delete/', views.crud_views.ProjectDeleteView.as_view(), name='project_delete'),
+    path('projects/<int:pk>/set-completion-dates/', views.crud_views.ProjectSetCompletionDatesView.as_view(), name='project_set_completion_dates'),
 
     # Payments (nested under project)
     path('projects/<int:project_pk>/payments/', views.crud_views.PaymentListView.as_view(), name='payment_list'),
@@ -105,10 +106,16 @@ urlpatterns = [
     path('work-step-definitions/<int:pk>/edit/', views.crud_views.WorkStepDefinitionUpdateView.as_view(), name='work_step_definition_edit'),
     path('work-step-definitions/<int:pk>/delete/', views.crud_views.WorkStepDefinitionDeleteView.as_view(), name='work_step_definition_delete'),
 
-    # WorkStepGroup CRUD (nested under WorkType)
-    path('work-types/<int:wt_pk>/step-groups/create/', views.crud_views.WorkStepGroupCreateView.as_view(), name='work_step_group_create'),
-    path('work-types/<int:wt_pk>/step-groups/<int:pk>/edit/', views.crud_views.WorkStepGroupUpdateView.as_view(), name='work_step_group_edit'),
-    path('work-types/<int:wt_pk>/step-groups/<int:pk>/delete/', views.crud_views.WorkStepGroupDeleteView.as_view(), name='work_step_group_delete'),
+    # WorkStepGroup CRUD (central — under Maintenance)
+    path('maintenance/work-step-groups/', views.crud_views.WorkStepGroupListView.as_view(), name='work_step_group_list'),
+    path('maintenance/work-step-groups/create/', views.crud_views.WorkStepGroupCreateView.as_view(), name='work_step_group_create'),
+    path('maintenance/work-step-groups/<int:pk>/', views.crud_views.WorkStepGroupDetailView.as_view(), name='work_step_group_detail'),
+    path('maintenance/work-step-groups/<int:pk>/edit/', views.crud_views.WorkStepGroupUpdateView.as_view(), name='work_step_group_edit'),
+    path('maintenance/work-step-groups/<int:pk>/delete/', views.crud_views.WorkStepGroupDeleteView.as_view(), name='work_step_group_delete'),
+    path('maintenance/work-step-groups/<int:pk>/clone/', views.crud_views.WorkStepGroupCloneView.as_view(), name='work_step_group_clone'),
+    # Legacy nested route — preserved so the WorkType detail "+ Add group" link still works.
+    # It pre-selects the work type on the central form.
+    path('work-types/<int:wt_pk>/step-groups/create/', views.crud_views.WorkStepGroupCreateView.as_view(), name='work_step_group_create_for_work_type'),
 
     # WorkStepGroupItem CRUD (nested under WorkStepGroup)
     path('step-groups/<int:group_pk>/items/create/', views.crud_views.WorkStepGroupItemCreateView.as_view(), name='work_step_group_item_create'),
@@ -119,6 +126,7 @@ urlpatterns = [
     path('funding-schedules/', views.crud_views.FundingScheduleListView.as_view(), name='funding_schedule_list'),
     path('funding-schedules/create/', views.crud_views.FundingScheduleCreateView.as_view(), name='funding_schedule_create'),
     path('funding-schedules/<int:pk>/', views.crud_views.FundingScheduleDetailView.as_view(), name='funding_schedule_detail'),
+    path('funding-schedules/<int:pk>/contract-report/', views.crud_views.FundingScheduleContractReportView.as_view(), name='funding_schedule_contract_report'),
     path('funding-schedules/<int:pk>/edit/', views.crud_views.FundingScheduleUpdateView.as_view(), name='funding_schedule_edit'),
     path('funding-schedules/<int:pk>/delete/', views.crud_views.FundingScheduleDeleteView.as_view(), name='funding_schedule_delete'),
     path('funding-schedules/<int:pk>/mark-ready/', views.crud_views.FundingScheduleMarkReadyView.as_view(), name='funding_schedule_mark_ready'),
@@ -172,15 +180,21 @@ urlpatterns = [
     path('allocations/<int:pk>/edit/', views.crud_views.WorkFundingUpdateView.as_view(), name='allocation_edit'),
     path('allocations/<int:pk>/delete/', views.crud_views.WorkFundingDeleteView.as_view(), name='allocation_delete'),
 
-    # Brief Financial Approvals
+    # Brief Financial Approvals (un-nested — header may cover multiple projects)
     path('bfa/', views.crud_views.BriefFinancialApprovalGlobalListView.as_view(), name='bfa_global_list'),
+    path('bfa/create/', views.crud_views.BriefFinancialApprovalCreateView.as_view(), name='bfa_create_global'),
+    path('bfa/<int:pk>/', views.crud_views.BriefFinancialApprovalDetailView.as_view(), name='bfa_detail'),
+    path('bfa/<int:pk>/edit/', views.crud_views.BriefFinancialApprovalUpdateView.as_view(), name='bfa_edit'),
+    path('bfa/<int:pk>/delete/', views.crud_views.BriefFinancialApprovalDeleteView.as_view(), name='bfa_delete'),
+    path('bfa/<int:pk>/approve/', views.crud_views.BriefFinancialApprovalApproveView.as_view(), name='bfa_approve'),
+    path('bfa/<int:pk>/reject/', views.crud_views.BriefFinancialApprovalRejectView.as_view(), name='bfa_reject'),
+    # Legacy per-project BFA list (project-detail page links here to see BFAs containing this project)
     path('projects/<int:project_pk>/bfa/', views.crud_views.BriefFinancialApprovalListView.as_view(), name='bfa_list'),
+    # Compat alias: old per-project create URL -> global create form
     path('projects/<int:project_pk>/bfa/create/', views.crud_views.BriefFinancialApprovalCreateView.as_view(), name='bfa_create'),
-    path('projects/<int:project_pk>/bfa/<int:pk>/', views.crud_views.BriefFinancialApprovalDetailView.as_view(), name='bfa_detail'),
-    path('projects/<int:project_pk>/bfa/<int:pk>/edit/', views.crud_views.BriefFinancialApprovalUpdateView.as_view(), name='bfa_edit'),
-    path('projects/<int:project_pk>/bfa/<int:pk>/delete/', views.crud_views.BriefFinancialApprovalDeleteView.as_view(), name='bfa_delete'),
-    path('projects/<int:project_pk>/bfa/<int:pk>/approve/', views.crud_views.BriefFinancialApprovalApproveView.as_view(), name='bfa_approve'),
-    path('projects/<int:project_pk>/bfa/<int:pk>/reject/', views.crud_views.BriefFinancialApprovalRejectView.as_view(), name='bfa_reject'),
+
+    # Land Pre-Conditions (traffic-light flags for land development projects)
+    path('projects/<int:project_pk>/pre-conditions/', views.crud_views.LandPreConditionEditView.as_view(), name='land_pre_condition_edit'),
 
     # Land Tenures CRUD
     path('land-tenures/', views.land_crud_views.LandTenureListView.as_view(), name='land_tenure_list'),
@@ -220,6 +234,9 @@ urlpatterns = [
     path('projects/<int:project_pk>/works/<int:pk>/delete/', views.crud_views.WorkDeleteView.as_view(), name='work_delete'),
     path('projects/<int:project_pk>/works/<int:pk>/apply-group/', views.crud_views.WorkStepApplyGroupView.as_view(), name='work_step_apply_group'),
     path('projects/<int:project_pk>/works/<int:work_pk>/steps/<int:pk>/edit/', views.crud_views.WorkStepUpdateView.as_view(), name='work_step_edit'),
+
+    # Addresses & Works combined page
+    path('projects/<int:pk>/addresses-works/', views.crud_views.ProjectAddressesWorksView.as_view(), name='project_addresses_works'),
 
     # Addresses (nested under project — issue #18)
     path('projects/<int:project_pk>/addresses/', views.crud_views.AddressListView.as_view(), name='address_list'),
@@ -304,6 +321,7 @@ urlpatterns = [
     path('maintenance/stage-groups/create/', views.stage_views.StageItemGroupCreateView.as_view(), name='stage_item_group_create'),
     path('maintenance/stage-groups/<int:pk>/', views.stage_views.StageItemGroupDetailView.as_view(), name='stage_item_group_detail'),
     path('maintenance/stage-groups/<int:pk>/edit/', views.stage_views.StageItemGroupUpdateView.as_view(), name='stage_item_group_edit'),
+    path('maintenance/stage-groups/<int:pk>/clone/', views.stage_views.StageItemGroupCloneView.as_view(), name='stage_item_group_clone'),
     path('maintenance/stage-groups/<int:pk>/delete/', views.stage_views.StageItemGroupDeleteView.as_view(), name='stage_item_group_delete'),
     path('maintenance/stage-groups/<int:group_pk>/items/add/', views.stage_views.StageItemGroupItemCreateView.as_view(), name='stage_item_group_item_create'),
     path('maintenance/stage-group-items/<int:pk>/edit/', views.stage_views.StageItemGroupItemUpdateView.as_view(), name='stage_item_group_item_edit'),
@@ -325,6 +343,10 @@ urlpatterns = [
     path('reports/', views.reports_views.reports_dashboard_view, name='reports_dashboard'),
     path('reports/monthly/', views.reports_views.monthly_report_council_select, name='monthly_report_select'),
     path('reports/monthly/<int:council_pk>/', views.reports_views.monthly_report_view, name='monthly_report'),
+    path('reports/eom-reconciliation/', views.reports_views.eom_reconciliation_view, name='eom_reconciliation'),
+    path('reports/eom-reconciliation/export.csv', views.reports_views.eom_reconciliation_export, name='eom_reconciliation_export'),
+    path('reports/construction-creation-list/', views.reports_views.construction_creation_list_view, name='construction_creation_list'),
+    path('reports/construction-creation-list/export.csv', views.reports_views.construction_creation_list_export, name='construction_creation_list_export'),
     path('land-infra/', views.land_infra_views.land_projects_list_view, name='land_projects_list'),
     path('documents/', views.documents_views.documents_list_view, name='documents_list'),
 ]

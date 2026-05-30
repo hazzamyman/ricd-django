@@ -102,3 +102,66 @@ class DevelopmentApplication(models.Model):
 
     def get_absolute_url(self):
         return reverse('land_infra:development_application_detail', args=[self.id])
+
+
+class LandPreCondition(models.Model):
+    """Project-level traffic-light gate for land development pre-conditions.
+
+    Tracks whether key land development processes (Native Title, Environmental
+    assessment, DA, Survey) have been addressed for a given project. Each
+    category has at most one record per project (unique_together constraint).
+
+    This is a project-level summary flag — not a substitute for the detailed
+    parcel-level LandTenure.native_title_status. It answers "is the project
+    ready to proceed?" rather than tracking per-lot legal state.
+    """
+
+    class Category(models.TextChoices):
+        NATIVE_TITLE = 'NT', 'Native Title'
+        ENVIRONMENTAL = 'ENV', 'Environmental Assessment'
+        DA = 'DA', 'Development Application'
+        SURVEY = 'SUR', 'Survey'
+
+    class NativeTitleType(models.TextChoices):
+        ILUA = 'ILUA', 'ILUA'
+        STATUTORY_24JAA = '24JAA', 'Statutory 24JAA'
+        STATUTORY_24KAA = '24KAA', 'Statutory 24KAA'
+        EXTINGUISHED = 'EXT', 'Extinguished (Not Applicable)'
+
+    class TrafficLight(models.TextChoices):
+        RED = 'RED', 'Not started'
+        AMBER = 'AMB', 'Outstanding issues'
+        GREEN = 'GRN', 'Addressed / No issues'
+
+    project = models.ForeignKey(
+        'Project', related_name='land_pre_conditions', on_delete=models.CASCADE,
+    )
+    category = models.CharField(max_length=5, choices=Category.choices)
+    status = models.CharField(
+        max_length=3, choices=TrafficLight.choices, default=TrafficLight.RED,
+    )
+    native_title_type = models.CharField(
+        max_length=5, choices=NativeTitleType.choices, blank=True, default='',
+        help_text="Only applicable when category = Native Title",
+    )
+    completed_date = models.DateField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['category']
+        unique_together = ['project', 'category']
+        verbose_name = 'Land Pre-Condition'
+        verbose_name_plural = 'Land Pre-Conditions'
+
+    def __str__(self):
+        return f"{self.project.name} — {self.get_category_display()}: {self.get_status_display()}"
+
+    @property
+    def badge_class(self):
+        return {'RED': 'danger', 'AMB': 'warning', 'GRN': 'success'}.get(self.status, 'secondary')
+
+    @property
+    def icon(self):
+        return {'RED': '🔴', 'AMB': '🟡', 'GRN': '🟢'}.get(self.status, '⚪')

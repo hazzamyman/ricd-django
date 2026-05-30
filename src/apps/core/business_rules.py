@@ -78,11 +78,11 @@ def log_audit(user, action, instance, old_values=None):
 
 
 def check_brief_financial_approval(project):
-    """Return True if project has an APPROVED BriefFinancialApproval."""
+    """Return True if project appears in any APPROVED BriefFinancialApproval (via items)."""
     from apps.core.models import BriefFinancialApproval
     return BriefFinancialApproval.objects.filter(
-        project=project,
-        status=BriefFinancialApproval.Status.APPROVED
+        items__project=project,
+        status=BriefFinancialApproval.Status.APPROVED,
     ).exists()
 
 

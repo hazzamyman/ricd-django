@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load money %}
 {% block title %}Funding Schedules - RICD{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -12,7 +13,7 @@
     {% for fs in funding_schedules %}
     <tr>
       <td><a href="{% url 'ui:funding_schedule_detail' fs.pk %}">{{ fs.project|default:"-" }}</a></td>
-      <td>${{ fs.amount|floatformat:2 }}</td>
+      <td>{{ fs.amount|money }}</td>
       <td>{{ fs.get_status_display }}</td>
       <td>{{ fs.get_payment_split_display }}</td>
       <td>

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load money %}
 {% block title %}Payment #{{ payment.pk }} - RICD{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -36,7 +37,7 @@
     <dt class="col-sm-3">Funding Schedule</dt><dd class="col-sm-9">{{ payment.funding_schedule }}</dd>
     <dt class="col-sm-3">Payment Type</dt><dd class="col-sm-9">{{ payment.get_payment_type_display }}</dd>
     <dt class="col-sm-3">Calculation</dt><dd class="col-sm-9">{{ payment.get_calculation_type_display }}</dd>
-    <dt class="col-sm-3">Amount</dt><dd class="col-sm-9">{% if payment.amount %}${{ payment.amount|floatformat:2 }}{% elif payment.percentage %}{{ payment.percentage }}%{% else %}-{% endif %}</dd>
+    <dt class="col-sm-3">Amount</dt><dd class="col-sm-9">{% if payment.amount %}{{ payment.amount|money }}{% elif payment.percentage %}{{ payment.percentage }}%{% else %}-{% endif %}</dd>
     <dt class="col-sm-3">Status</dt><dd class="col-sm-9"><strong>{{ payment.get_status_display }}</strong></dd>
     <dt class="col-sm-3">Release Date</dt><dd class="col-sm-9">{{ payment.release_date|default:"-" }}</dd>
     <dt class="col-sm-3">Reference</dt><dd class="col-sm-9">{{ payment.reference|default:"-" }}</dd>
@@ -66,4 +67,58 @@
   </div>
 </div>
 {% endif %}
+
+{# ── Per-program allocations (Charged to) ── #}
+<div class="card mb-3"><div class="card-body">
+  <h6 class="text-muted mb-2">Charged to <span class="text-muted" style="font-size:11px; font-weight:normal;">(per funding program)</span></h6>
+  {% if payment.status == 'RELEASED' %}
+    {% with allocs=payment.allocations.all %}
+      {% if allocs %}
+        <p class="text-muted" style="font-size:11px; margin-bottom:6px;">
+          Locked at release time — these splits don't change even if BFA ratios shift later.
+        </p>
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr><th>Program</th><th class="text-end">Ratio</th><th class="text-end">Amount</th><th>Locked at</th></tr>
+          </thead>
+          <tbody>
+          {% for a in allocs %}
+            <tr>
+              <td>{{ a.program.name }}</td>
+              <td class="text-end">{{ a.ratio|floatformat:4 }}</td>
+              <td class="text-end fw-bold">{{ a.amount|money }}</td>
+              <td class="text-muted" style="font-size:11px;">{{ a.computed_at|date:"d M Y H:i" }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="text-muted small mb-0">No allocation snapshot — this payment was released before the lock-on-release rule existed.</p>
+      {% endif %}
+    {% endwith %}
+  {% else %}
+    <p class="text-muted" style="font-size:11px; margin-bottom:6px;">
+      Forecast split — based on current APPROVED BFA ratios. Will be locked when this payment is released.
+    </p>
+    {% if forecast_split %}
+      <table class="table table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr><th>Program</th><th class="text-end">Ratio</th><th class="text-end">Forecast amount</th></tr>
+        </thead>
+        <tbody>
+        {% for row in forecast_split %}
+          <tr>
+            <td>{{ row.program.name }}</td>
+            <td class="text-end">{{ row.ratio|floatformat:4 }}</td>
+            <td class="text-end fw-bold">{{ row.amount|money }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="text-muted small mb-0">No APPROVED BFA exists for this project yet — payment can't be split.</p>
+    {% endif %}
+  {% endif %}
+</div></div>
+
 {% endblock %}

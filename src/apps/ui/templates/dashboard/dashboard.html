@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load money %}
 {% block title %}Dashboard — RICD{% endblock %}
 {% block breadcrumbs %}
   <span class="sep">/</span><span class="current">Dashboard</span>
@@ -57,7 +58,7 @@
     <div class="card ricd-stat h-100">
       <div class="card-body">
         <div class="stat-label">Total Funding</div>
-        <div class="stat-value" style="font-size:20px">${{ total_budget|floatformat:0 }}</div>
+        <div class="stat-value" style="font-size:20px">{{ total_budget|money }}</div>
         <div class="stat-delta">Across all funding schedules</div>
       </div>
     </div>

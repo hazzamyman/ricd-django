@@ -14,7 +14,7 @@ from .projects_models import Project
 from .comments_models import Comment, CommentSettings, Notice, NoticeTarget
 
 # Land Infrastructure models
-from .land_infra_models import LandTenure, DevelopmentApplication
+from .land_infra_models import LandTenure, DevelopmentApplication, LandPreCondition
 
 # Funding & Payment models
 from .funding_models import (
@@ -22,6 +22,8 @@ from .funding_models import (
     PaymentRuleMilestone,
     FundingAgreement,
     BriefFinancialApproval,
+    BriefFinancialApprovalItem,
+    PaymentAllocation,
     FundingNotice,
     ExpenseClaim,
     ExpenseClaimAttachment,
@@ -53,6 +55,7 @@ from .reports_models import (
     QuarterlyReportItem,
     QuarterlyReport,
     QuarterlyReportEntry,
+    QuarterlyReportExpenditureItem,
     QuarterlyReportAttachment,
     StageReport,
     StageReportItem,
@@ -88,9 +91,9 @@ __all__ = [
     # Comment system
     'Comment', 'CommentSettings', 'Notice', 'NoticeTarget',
     # Land Infrastructure
-    'LandTenure', 'DevelopmentApplication',
+    'LandTenure', 'DevelopmentApplication', 'LandPreCondition',
     # Funding & Payment
-    'PaymentRule', 'PaymentRuleMilestone', 'FundingAgreement', 'BriefFinancialApproval',
+    'PaymentRule', 'PaymentRuleMilestone', 'FundingAgreement', 'BriefFinancialApproval', 'BriefFinancialApprovalItem', 'PaymentAllocation',
     'FundingNotice', 'ExpenseClaim', 'ExpenseClaimAttachment', 'Delegation',
     'FundingSchedule', 'ProjectStateLog', 'WorkFunding',
     'Approval', 'WorkflowAction', 'AuditLog', 'Payment',
@@ -101,7 +104,7 @@ __all__ = [
     'Stage', 'WorkStep',
     # Report
     'CouncilTrackerConfig', 'MonthlyTracker', 'MonthlyTrackerWorkEntry', 'QuarterlyReportItemGroup', 'QuarterlyReportItem',
-    'QuarterlyReport', 'QuarterlyReportEntry', 'QuarterlyReportAttachment',
+    'QuarterlyReport', 'QuarterlyReportEntry', 'QuarterlyReportExpenditureItem', 'QuarterlyReportAttachment',
     'StageReport', 'StageReportItem', 'StageReportAttachment',
     # Contractor & Address
     'Contractor', 'Suburb', 'Address',

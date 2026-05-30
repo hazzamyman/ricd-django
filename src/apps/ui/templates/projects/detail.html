@@ -1,6 +1,6 @@
 {% extends "base.html" %}
+{% load money %}
 {% block title %}{{ project.name }} — RICD{% endblock %}
-
 {% block active_nav %}{% with active_nav='projects' %}{% endwith %}{% endblock %}
 
 {% block breadcrumbs %}
@@ -10,524 +10,854 @@
 <span class="current">{{ project.name }}</span>
 {% endblock %}
 
+{% block extra_css %}
+<style>
+:root {
+  --brand:#09549f; --brand-700:#07417a; --brand-50:#e8f0fb; --brand-100:#c4d6ef;
+  --line:#e5e7eb; --line-2:#d1d5db; --line-soft:#eef1f4; --panel-alt:#f8fafc;
+  --muted:#64748b; --muted-2:#94a3b8; --ink:#0f172a;
+  --st-grey-bg:#f1f5f9; --st-grey-fg:#475569; --st-grey-bd:#cbd5e1;
+  --st-amber-bg:#fef3c7; --st-amber-fg:#854d0e; --st-amber-bd:#facc15;
+  --st-blue-bg:#dbeafe; --st-blue-fg:#1e3a8a; --st-blue-bd:#93c5fd;
+  --st-green-bg:#d1fae5; --st-green-fg:#065f46; --st-green-bd:#6ee7b7;
+  --st-red-bg:#fee2e2; --st-red-fg:#991b1b; --st-red-bd:#fca5a5;
+  --prg-c0:#09549f; --prg-c1:#b8743a; --prg-c2:#5d4f8a; --prg-c3:#065f46; --prg-c4:#7c1d1d;
+}
+/* page head */
+.pg-head{display:flex;align-items:flex-start;gap:16px;padding:4px 0 18px}
+.pg-head h1{font-size:24px;font-weight:700;margin:0;line-height:1.2;letter-spacing:-.01em}
+.pg-head .pg-id{font-family:ui-monospace,monospace;font-size:12px;color:var(--muted);margin-right:8px}
+.pg-head .meta{font-size:12.5px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;align-items:center}
+.pg-head .meta b{color:#334155;font-weight:600}
+.pg-head .meta .sep-dot{color:var(--line-2)}
+.pg-head .meta .inherit{font-size:11px;color:var(--muted-2);font-style:italic}
+.pg-head .actions{margin-left:auto;display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap;justify-content:flex-end}
+/* tabs */
+.pd-tabs{display:flex;gap:0;border-bottom:1px solid var(--line);margin:4px 0 22px;overflow-x:auto}
+.pd-tabs .t{padding:10px 16px 12px;font-size:13.5px;color:#475569;border-bottom:2px solid transparent;
+  cursor:pointer;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;user-select:none;
+  background:none;border-top:0;border-left:0;border-right:0;text-decoration:none;transition:color .12s,border-color .12s}
+.pd-tabs .t:hover{color:var(--ink);text-decoration:none}
+.pd-tabs .t .num{font-size:11px;background:var(--st-grey-bg);padding:1px 7px;border-radius:999px;color:var(--muted);font-weight:600}
+.pd-tabs .t.active{color:var(--brand);border-bottom-color:var(--brand);font-weight:600}
+.pd-tabs .t.active .num{background:var(--brand-50);color:var(--brand-700)}
+/* banner */
+.banner{display:flex;gap:12px;align-items:flex-start;padding:12px 16px;border-radius:8px;margin-bottom:16px;border:1px solid;font-size:13px}
+.banner-amber{background:var(--st-amber-bg);border-color:var(--st-amber-bd)}
+.banner-amber .b-icon{color:#b45309;font-size:18px;line-height:1;padding-top:1px}
+.banner .b-title{font-weight:600;color:var(--ink);font-size:13.5px}
+.banner .b-body{color:#334155;margin-top:2px;line-height:1.45}
+/* KPI */
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px}
+@media(max-width:1100px){.kpi-row{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:700px){.kpi-row{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px 16px 16px;position:relative;overflow:hidden}
+.kpi .label{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:6px}
+.kpi .label .bi{font-size:12px;color:var(--muted-2)}
+.kpi .value{font-size:22px;font-weight:700;color:var(--ink);line-height:1.1;margin-top:8px;letter-spacing:-.01em}
+.kpi .sub{font-size:12px;color:var(--muted);margin-top:4px}
+.kpi-ring{display:flex;align-items:center;gap:14px;margin-top:8px}
+.kpi-ring .ring{--pct:0;width:56px;height:56px;border-radius:50%;
+  background:conic-gradient(var(--brand) calc(var(--pct)*1%),var(--st-grey-bg) 0);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.kpi-ring .ring .inner{width:44px;height:44px;border-radius:50%;background:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--ink)}
+.kpi-ring .right .v{font-size:14px;font-weight:700;line-height:1.2}
+.kpi-ring .right .s{font-size:11px;color:var(--muted);margin-top:1px}
+.kpi.kpi-state .value{font-size:16px;margin-top:10px}
+.risk-chip{display:inline-flex;align-items:center;gap:4px;margin-top:8px;padding:2px 7px;border-radius:999px;font-size:10.5px;font-weight:600;letter-spacing:.03em}
+.risk-chip.amber{background:var(--st-amber-bg);color:var(--st-amber-fg);border:1px solid var(--st-amber-bd)}
+.risk-chip.green{background:var(--st-green-bg);color:var(--st-green-fg);border:1px solid var(--st-green-bd)}
+/* section header */
+.sec-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:16px 18px 0}
+.sec-h h2{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#334155;margin:0}
+.sec-h .side{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:10px}
+.sec-body{padding:14px 18px 18px}
+.card-sec{border:1px solid var(--line);border-radius:8px;background:#fff}
+/* timeline */
+.timeline{position:relative;padding:18px 22px 8px}
+.timeline .axis{position:relative;height:6px;background:var(--st-grey-bg);border-radius:999px;margin:40px 18px 70px}
+.timeline .axis .t-done{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,var(--brand) 0%,#2b7c8c 100%);border-radius:999px}
+.timeline .axis .t-forecast{position:absolute;top:0;bottom:0;right:0;background:repeating-linear-gradient(135deg,var(--brand-100) 0 6px,#d4e7eb 6px 12px)}
+.timeline .axis .t-today{position:absolute;top:-8px;bottom:-8px;width:2px;background:var(--brand-700)}
+.timeline .axis .t-today::before{content:'';position:absolute;left:-3px;top:-6px;width:8px;height:8px;border-radius:50%;background:var(--brand-700)}
+.timeline .axis .t-today::after{content:'TODAY';position:absolute;top:-22px;left:50%;transform:translateX(-50%);font-size:9.5px;font-weight:700;letter-spacing:.1em;color:var(--brand-700);white-space:nowrap}
+.tl-mark{position:absolute;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center}
+.tl-mark .dot{width:14px;height:14px;border-radius:50%;background:#fff;border:3px solid var(--st-grey-bd);margin-top:-4px;position:relative;z-index:2}
+.tl-mark.tl-done .dot{border-color:#065f46;background:#10b981}
+.tl-mark.tl-done .dot::after{content:'';position:absolute;left:3px;top:0;width:4px;height:7px;border:solid #fff;border-width:0 1.6px 1.6px 0;transform:rotate(45deg)}
+.tl-mark.tl-forecast .dot{border-color:var(--brand);background:#fff;border-style:dashed}
+.tl-mark.tl-sunset .dot{border-color:var(--muted-2);background:#fff;width:10px;height:10px;border-width:2px;margin-top:-2px}
+.tl-mark.tl-breach .dot{border-color:#991b1b;background:#fecaca}
+.tl-mark.tl-breach .dot::after{content:'!';position:absolute;left:0;right:0;top:-1px;text-align:center;color:#991b1b;font-weight:800;font-size:9px}
+.tl-mark .lbl-above{position:absolute;bottom:100%;margin-bottom:6px;font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+.tl-mark.tl-done .lbl-above{color:#065f46}
+.tl-mark.tl-forecast .lbl-above{color:var(--brand-700)}
+.tl-mark.tl-sunset .lbl-above{color:var(--muted-2)}
+.tl-mark.tl-breach .lbl-above{color:#991b1b}
+.tl-mark .date-below{position:absolute;top:calc(100% + 8px);font-size:12px;font-weight:600;color:var(--ink);white-space:nowrap}
+.tl-mark.tl-sunset .date-below{color:var(--muted);font-weight:500;font-style:italic}
+.tl-legend{display:flex;gap:18px;justify-content:center;padding:14px 16px;font-size:11px;color:var(--muted);border-top:1px dashed var(--line);margin:0 22px}
+.tl-legend .item{display:flex;align-items:center;gap:6px}
+.tl-legend .sw{width:10px;height:10px;border-radius:50%;background:#10b981;border:2px solid #065f46}
+.tl-legend .sw.fc{background:#fff;border-style:dashed;border-color:var(--brand)}
+.tl-legend .sw.ss{background:#fff;border-color:var(--muted-2)}
+.tl-legend .sw.br{background:#fecaca;border-color:#991b1b}
+/* set dates */
+.setdates{background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:16px}
+.setdates-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line);background:linear-gradient(to bottom,#fff,var(--panel-alt))}
+.setdates-head h2{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#334155;margin:0}
+.setdates-body{padding:16px 18px}
+.sd-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr 1fr;gap:14px;align-items:end}
+@media(max-width:900px){.sd-grid{grid-template-columns:repeat(3,1fr)}}
+.sd-field{display:flex;flex-direction:column;gap:6px}
+.sd-field .lbl{font-size:11px;font-weight:600;color:#334155;text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;gap:6px}
+.sd-field .sub{font-size:10.5px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;line-height:1.35}
+.sd-primary{background:var(--brand-50);border:1.5px solid var(--brand-100);border-radius:8px;padding:12px 14px}
+.sd-primary .lbl{color:var(--brand-700)}
+.sd-primary .lbl::before{content:'★';color:var(--brand);margin-right:2px}
+.sd-primary .anchor-hint{font-size:10.5px;color:var(--brand-700);margin-top:6px;display:flex;align-items:center;gap:5px;line-height:1.3}
+.sd-primary .form-control{background:#fff;border-color:var(--brand-100);font-weight:600;font-size:14px}
+.sd-footer{display:flex;align-items:center;justify-content:space-between;margin-top:16px;padding-top:14px;border-top:1px dashed var(--line);gap:12px;flex-wrap:wrap}
+.sd-footer .cascade{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+/* overview grid */
+.overview-grid{display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start}
+@media(max-width:1024px){.overview-grid{grid-template-columns:1fr}}
+.stack-md>*+*{margin-top:16px}
+/* cofunding */
+.cof-bar{display:flex;height:36px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:var(--panel-alt)}
+.cof-bar .seg{display:flex;align-items:center;justify-content:center;color:#fff;font-size:12.5px;font-weight:600;border-right:2px solid #fff}
+.cof-bar .seg:last-child{border-right:0}
+.prg-c0{background:var(--prg-c0)} .prg-c1{background:var(--prg-c1)} .prg-c2{background:var(--prg-c2)} .prg-c3{background:var(--prg-c3)} .prg-c4{background:var(--prg-c4)}
+.cof-legend{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:14px}
+.cof-prog{display:flex;gap:12px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:#fff}
+.cof-prog .swatch{width:12px;height:12px;border-radius:3px;margin-top:3px;flex-shrink:0}
+.cof-prog .body{flex:1;min-width:0}
+.cof-prog .row1{display:flex;align-items:baseline;gap:8px;justify-content:space-between}
+.cof-prog .name{font-size:13px;font-weight:600;color:var(--ink)}
+.cof-prog .pct{font-size:12px;color:var(--muted);font-weight:600}
+.cof-prog .amt{font-size:13px;font-weight:600;color:var(--ink);margin-top:2px}
+/* details grid */
+.det-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px 22px}
+@media(max-width:900px){.det-grid{grid-template-columns:repeat(2,1fr)}}
+.det-field .lbl{font-size:10.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.det-field .val{font-size:13.5px;color:var(--ink);margin-top:3px}
+.det-field .val .hint{font-size:11px;color:var(--muted-2);font-style:italic;margin-left:4px}
+.det-field .val.empty{color:var(--muted-2)}
+.toggle-advanced{display:inline-flex;align-items:center;gap:6px;margin-top:14px;padding:6px 10px;border-radius:6px;background:transparent;border:1px dashed var(--line-2);color:var(--muted);font-size:11.5px;font-weight:500;cursor:pointer}
+.toggle-advanced:hover{background:var(--panel-alt);color:#334155}
+.det-advanced{display:none}
+.det-advanced.open{display:grid;margin-top:14px;padding-top:14px;border-top:1px dashed var(--line)}
+/* mini cards */
+.mini-card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.mini-card h3{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#334155;margin:0 0 10px;display:flex;align-items:center;justify-content:space-between}
+.mini-card h3 .ic{color:var(--muted-2);font-size:13px}
+.officer-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line-soft)}
+.officer-row:last-child{border-bottom:0}
+.officer-row .av{width:28px;height:28px;border-radius:50%;background:var(--brand-50);color:var(--brand-700);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.officer-row .info{flex:1;min-width:0}
+.officer-row .info .nm{font-size:13px;font-weight:500;color:var(--ink)}
+.officer-row .info .ro{font-size:11px;color:var(--muted)}
+.lpc-list{display:flex;flex-direction:column;gap:6px}
+.lpc-row{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:6px;background:var(--panel-alt);border:1px solid var(--line)}
+.lpc-row .traffic{width:10px;height:10px;border-radius:50%;flex-shrink:0;box-shadow:0 0 0 2px #fff,0 0 0 3px currentColor}
+.lpc-row.lpc-grn .traffic{background:#10b981;color:#6ee7b7}
+.lpc-row.lpc-amb .traffic{background:#f59e0b;color:#facc15}
+.lpc-row.lpc-red .traffic{background:#ef4444;color:#fca5a5}
+.lpc-row .nm{font-size:12.5px;color:var(--ink);flex:1}
+.lpc-row .nm .sub{display:block;font-size:10.5px;color:var(--muted);margin-top:1px}
+.lpc-row .when{font-size:11px;color:var(--muted);font-family:ui-monospace,monospace}
+</style>
+{% endblock %}
+
 {% block content %}
+
 {# ===== Page header ===== #}
-<div class="ricd-pagehead">
-  <div>
-    <h1>{{ project.name }}</h1>
-    <div class="meta">
-      {% if project.state == 'PROS' %}
-        <span class="state-badge state-prospective">Prospective</span>
-      {% elif project.state == 'PROG' %}
-        <span class="state-badge state-programmed">Programmed</span>
-      {% elif project.state == 'FUND' %}
-        <span class="state-badge state-funded">Funded</span>
-      {% elif project.state == 'COMM' %}
-        <span class="state-badge state-commenced">Commenced</span>
-      {% elif project.state == 'UC' %}
-        <span class="state-badge state-uc">Under Construction</span>
-      {% elif project.state == 'COMP' %}
-        <span class="state-badge state-comp">Completed</span>
+<div class="pg-head">
+  <div style="flex:1;min-width:0;max-width:75%;">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span class="pg-id">PRJ-{{ project.pk }}</span>
+      {% if project.state == 'PROS' %}<span class="state-badge state-prospective">Prospective</span>
+      {% elif project.state == 'PROG' %}<span class="state-badge state-programmed">Programmed</span>
+      {% elif project.state == 'FUND' %}<span class="state-badge state-funded">Funded</span>
+      {% elif project.state == 'COMM' %}<span class="state-badge state-commenced"><i class="bi bi-hammer"></i> Commenced</span>
+      {% elif project.state == 'UC' %}<span class="state-badge state-uc"><i class="bi bi-hammer"></i> Under Construction</span>
+      {% elif project.state == 'COMP' %}<span class="state-badge state-comp">Completed</span>
       {% endif %}
+    </div>
+    <h1 style="margin-top:8px;">{{ project.name }}</h1>
+    <div class="meta">
       <span><b>Council:</b> <a href="{% url 'ui:council_detail' project.council.pk %}">{{ project.council }}</a></span>
+      <span class="sep-dot">·</span>
       <span><b>Program:</b> <a href="{% url 'ui:program_detail' project.program.pk %}">{{ project.program }}</a></span>
-      {% if project.financial_year %}<span><b>FY:</b> {{ project.financial_year }}</span>{% endif %}
-      {% if project.completion_date %}<span><b>Completion:</b> {{ project.completion_date|date:"d M Y" }}</span>{% endif %}
+      {% if project.financial_year %}<span class="sep-dot">·</span><span><b>FY:</b> {{ project.financial_year }}</span>{% endif %}
+      {% if project.effective_lead_officer %}
+        <span class="sep-dot">·</span>
+        <span><b>Lead:</b> {{ project.effective_lead_officer.get_full_name|default:project.effective_lead_officer.username }}{% if not project.lead_officer %} <span class="inherit">(council default)</span>{% endif %}</span>
+      {% endif %}
     </div>
   </div>
   <div class="actions">
     {% if is_fnc %}
-    <a href="{% url 'ui:project_edit' project.pk %}" class="btn btn-outline-secondary btn-sm">
-      <i class="bi bi-pencil"></i> Edit
-    </a>
+    <a href="{% url 'ui:project_edit' project.pk %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-pencil"></i> Edit</a>
     {% endif %}
-    <a href="{% url 'ui:projects_list' %}" class="btn btn-outline-secondary btn-sm">
-      <i class="bi bi-arrow-left"></i> Back
-    </a>
+    <a href="{% url 'ui:projects_list' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back</a>
   </div>
 </div>
 
-{# Out-of-sync flag with parent FundingSchedule #}
 {% if project.funding_schedule and not project.dates_in_sync %}
 <div class="ricd-warn mb-3">
   <i class="bi bi-exclamation-triangle"></i>
   Project dates are out of sync with <a href="{% url 'ui:funding_schedule_detail' project.funding_schedule.pk %}">Funding Schedule #{{ project.funding_schedule.schedule_number }}</a>.
-  Editing the FS will cascade dates here; project-only edits do not propagate back.
 </div>
 {% endif %}
 
 {# ===== Tab strip ===== #}
-<ul class="nav ricd-tabs" id="projectTabs" role="tablist">
-  <li class="nav-item" role="presentation">
-    <button class="nav-link {% if active_tab == 'overview' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-overview" type="button">Overview</button>
-  </li>
-  <li class="nav-item" role="presentation">
-    <button class="nav-link {% if active_tab == 'works' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-works" type="button">Addresses &amp; Works</button>
-  </li>
-  <li class="nav-item" role="presentation">
-    <button class="nav-link {% if active_tab == 'funding' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-funding" type="button">Funding</button>
-  </li>
-  <li class="nav-item" role="presentation">
-    <button class="nav-link {% if active_tab == 'payments' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-payments" type="button">Payments</button>
-  </li>
-  <li class="nav-item" role="presentation">
-    <button class="nav-link {% if active_tab == 'reports' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-reports" type="button">Reports</button>
-  </li>
-  <li class="nav-item" role="presentation">
-    <button class="nav-link {% if active_tab == 'documents' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-documents" type="button">Documents</button>
-  </li>
-  <li class="nav-item" role="presentation">
-    <button class="nav-link {% if active_tab == 'comments' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-comments" type="button">Comments</button>
-  </li>
-</ul>
+<div class="pd-tabs" id="projectTabs">
+  <button class="t {% if active_tab == 'overview' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-overview" type="button">Overview</button>
+  <a class="t{% if active_tab == 'works' %} active{% endif %}" href="{% url 'ui:project_addresses_works' project.pk %}">
+    Addresses &amp; Works{% with cnt=project.addresses.count %}{% if cnt %} <span class="num">{{ cnt }}</span>{% endif %}{% endwith %}
+  </a>
+  <button class="t {% if active_tab == 'funding' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-funding" type="button">
+    Funding{% with cnt=project.funding_schedules.count %}{% if cnt %} <span class="num">{{ cnt }}</span>{% endif %}{% endwith %}
+  </button>
+  <button class="t {% if active_tab == 'payments' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-payments" type="button">
+    Payments{% with cnt=project.payments.count %}{% if cnt %} <span class="num">{{ cnt }}</span>{% endif %}{% endwith %}
+  </button>
+  <button class="t {% if active_tab == 'reports' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-reports" type="button">Reports</button>
+  <button class="t {% if active_tab == 'documents' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-documents" type="button">Documents</button>
+  <button class="t {% if active_tab == 'comments' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-comments" type="button">Comments</button>
+</div>
 
 <div class="tab-content" id="projectTabContent">
 
-  {# ===== Overview tab ===== #}
-  <div class="tab-pane fade {% if active_tab == 'overview' %}show active{% endif %}" id="tab-overview" role="tabpanel">
-    <div class="row g-3">
-      <div class="col-md-6">
-        <div class="card h-100">
-          <div class="card-body">
-            <div class="ricd-section-title mb-2"><h2>Project Details</h2></div>
-            <dl class="row mb-0" style="font-size:13px;">
-              <dt class="col-5 text-muted">Type</dt>
-              <dd class="col-7">{{ project.get_project_type_display }}</dd>
-              <dt class="col-5 text-muted">Status flag</dt>
-              <dd class="col-7">{{ project.get_status_flag_display }}</dd>
-              <dt class="col-5 text-muted">Dwelling status</dt>
-              <dd class="col-7">{{ project.get_dwelling_status_display|default:"—" }}</dd>
-              <dt class="col-5 text-muted">Start date</dt>
-              <dd class="col-7">{{ project.start_date|date:"d M Y"|default:"—" }}</dd>
-              <dt class="col-5 text-muted">Funding approval</dt>
-              <dd class="col-7">{{ project.funding_approval_date|date:"d M Y"|default:"—" }}</dd>
-              <dt class="col-5 text-muted">Stage 1 target</dt>
-              <dd class="col-7">{{ project.stage1_target_date|date:"d M Y"|default:"—" }}</dd>
-              <dt class="col-5 text-muted">Stage 2 target</dt>
-              <dd class="col-7">{{ project.stage2_target_date|date:"d M Y"|default:"—" }}</dd>
-              <dt class="col-5 text-muted">Completion</dt>
-              <dd class="col-7">{{ project.completion_date|date:"d M Y"|default:"—" }}</dd>
-              {% if project.warranty_end_date %}
-              <dt class="col-5 text-muted">Warranty end</dt>
-              <dd class="col-7">{{ project.warranty_end_date|date:"d M Y" }}</dd>
-              {% endif %}
-            </dl>
+{# ===== Overview ===== #}
+<div class="tab-pane fade {% if active_tab == 'overview' %}show active{% endif %}" id="tab-overview" role="tabpanel">
+
+  {% if project.pc_breaches_sunset %}
+  <div class="banner banner-amber">
+    <i class="bi bi-exclamation-triangle-fill b-icon"></i>
+    <div style="flex:1;">
+      <div class="b-title">Forecast Practical Completion exceeds Stage 2 Sunset</div>
+      <div class="b-body">
+        Forecast PC <b>{{ project.forecast_practical_completion_date|date:"d M Y" }}</b>
+        is past Stage 2 Sunset <b>{{ project.stage2_sunset_date|date:"d M Y" }}</b>.
+        Tighten the rolling forecast on child Works or submit a Vary-Dates request.
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# KPI row #}
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="label"><i class="bi bi-cash-stack"></i> Approved (BFA)</div>
+      <div class="value">{{ total_approved|money }}</div>
+      <div class="sub">{% if has_co_funding %}co-funded{% else %}single program{% endif %}</div>
+    </div>
+    <div class="kpi">
+      <div class="label"><i class="bi bi-arrow-down-circle"></i> Released to date</div>
+      <div class="value">{{ total_released|money }}</div>
+    </div>
+    <div class="kpi">
+      <div class="label"><i class="bi bi-pie-chart"></i> Drawdown</div>
+      <div class="kpi-ring">
+        <div class="ring" style="--pct:{{ drawdown_pct }};"><div class="inner">{{ drawdown_pct }}%</div></div>
+        <div class="right">
+          <div class="v">{{ total_remaining|money }}</div>
+          <div class="s">remaining</div>
+        </div>
+      </div>
+    </div>
+    <div class="kpi">
+      <div class="label"><i class="bi bi-calendar-event"></i> Forecast PC</div>
+      {% if project.practical_completion_date %}
+        <div class="value">{{ project.practical_completion_date|date:"d M Y" }}</div>
+        <div class="sub">actual PC — complete</div>
+      {% elif project.forecast_practical_completion_date %}
+        <div class="value">{{ project.forecast_practical_completion_date|date:"d M Y" }}</div>
+        {% if project.pc_breaches_sunset %}
+          <div class="risk-chip amber"><i class="bi bi-exclamation-triangle-fill"></i> SUNSET RISK</div>
+        {% else %}
+          <div class="risk-chip green"><i class="bi bi-check2"></i> on track</div>
+        {% endif %}
+      {% else %}
+        <div class="value" style="font-size:16px;color:var(--muted-2);">Not set</div>
+      {% endif %}
+    </div>
+    <div class="kpi kpi-state">
+      <div class="label"><i class="bi bi-flag"></i> Stage</div>
+      {% if project.state == 'PROS' %}<span class="state-badge state-prospective" style="margin-top:10px;display:inline-flex;">Prospective</span>
+      {% elif project.state == 'PROG' %}<span class="state-badge state-programmed" style="margin-top:10px;display:inline-flex;">Programmed</span>
+      {% elif project.state == 'FUND' %}<span class="state-badge state-funded" style="margin-top:10px;display:inline-flex;">Funded</span>
+      {% elif project.state == 'COMM' %}<span class="state-badge state-commenced" style="margin-top:10px;display:inline-flex;"><i class="bi bi-hammer"></i> Commenced</span>
+      {% elif project.state == 'UC' %}<span class="state-badge state-uc" style="margin-top:10px;display:inline-flex;"><i class="bi bi-hammer"></i> Under Construction</span>
+      {% elif project.state == 'COMP' %}<span class="state-badge state-comp" style="margin-top:10px;display:inline-flex;">Completed</span>
+      {% endif %}
+      {% if project.get_dwelling_status_display %}<div class="sub" style="margin-top:8px;">{{ project.get_dwelling_status_display }}</div>{% endif %}
+    </div>
+  </div>
+
+  {# Timeline #}
+  {% if timeline_milestones %}
+  <div class="card-sec" style="margin-bottom:16px;">
+    <div class="sec-h">
+      <h2>Project Timeline</h2>
+    </div>
+    <div class="timeline">
+      <div class="axis">
+        <div class="t-done" style="width:{{ timeline_today_pct }}%;"></div>
+        <div class="t-forecast" style="left:{{ timeline_today_pct }}%;"></div>
+        <div class="t-today" style="left:{{ timeline_today_pct }}%;"></div>
+        {% for m in timeline_milestones %}
+        <div class="tl-mark tl-{{ m.kind }}" style="left:{{ m.pct }}%;">
+          <div class="lbl-above">{{ m.label }}</div>
+          <div class="dot"></div>
+          <div class="date-below">{{ m.date|date:"d M Y" }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="tl-legend">
+        <div class="item"><span class="sw"></span>Actual</div>
+        <div class="item"><span class="sw fc"></span>Forecast</div>
+        <div class="item"><span class="sw ss"></span>Sunset</div>
+        <div class="item"><span class="sw br"></span>Breach risk</div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# Set Dates (FNC only) #}
+  {% if is_fnc %}
+  <div class="setdates">
+    <div class="setdates-head">
+      <div>
+        <h2>Set Dates</h2>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:3px;">
+          Applies to <b style="color:#334155;">all child Works</b> on save. Per-work overrides remain in Addresses &amp; Works.
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;">
+        <i class="bi bi-info-circle" style="color:var(--brand);"></i>
+        Setting <b style="color:var(--brand-700);">Actual Start</b> anchors the rolling forecast.
+      </div>
+    </div>
+    <div class="setdates-body">
+      <form method="post" action="{% url 'ui:project_set_completion_dates' project.pk %}">
+        {% csrf_token %}
+        <div class="sd-grid">
+          <div class="sd-primary sd-field">
+            <label class="lbl">Actual Start <span style="font-size:9px;background:var(--brand);color:#fff;padding:1px 5px;border-radius:3px;margin-left:4px;">PRIMARY · ANCHOR</span></label>
+            <input class="form-control" type="date" name="actual_start_date"
+              {% if project.start_date %}value="{{ project.start_date|date:'Y-m-d' }}"{% endif %}>
+            <div class="anchor-hint"><i class="bi bi-pin-angle-fill"></i> Anchors the rolling forecast for every Work.</div>
+          </div>
+          <div class="sd-field">
+            <label class="lbl">Forecast PC</label>
+            <input class="form-control" type="date" name="forecast_practical_completion_date"
+              {% if project.forecast_practical_completion_date %}value="{{ project.forecast_practical_completion_date|date:'Y-m-d' }}"{% endif %}>
+            <div class="sub">Rolls forward when Works progress slips.</div>
+          </div>
+          <div class="sd-field">
+            <label class="lbl">Actual PC</label>
+            <input class="form-control" type="date" name="practical_completion_date"
+              {% if project.practical_completion_date %}value="{{ project.practical_completion_date|date:'Y-m-d' }}"{% endif %}>
+            <div class="sub">Locks Forecast PC on save.</div>
+          </div>
+          <div class="sd-field">
+            <label class="lbl">Forecast Handover</label>
+            <input class="form-control" type="date" name="forecast_handover_date"
+              {% if project.forecast_handover_date %}value="{{ project.forecast_handover_date|date:'Y-m-d' }}"{% endif %}>
+            <div class="sub">Default: PC + 30 days.</div>
+          </div>
+          <div class="sd-field">
+            <label class="lbl">Actual Handover</label>
+            <input class="form-control" type="date" name="handover_date"
+              {% if project.handover_date %}value="{{ project.handover_date|date:'Y-m-d' }}"{% endif %}>
+            <div class="sub">Sets project state to Completed.</div>
+          </div>
+        </div>
+        <div class="sd-footer">
+          <div class="cascade"><i class="bi bi-diagram-3" style="color:var(--brand);"></i> Cascades to all Works in this project</div>
+          <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-arrow-down-square"></i> Apply to all Works</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {# Overview grid: left (cofunding + details) / right (team + links + LPC) #}
+  <div class="overview-grid">
+
+    {# Left #}
+    <div class="stack-md">
+
+      {% if funding_split %}
+      <div class="card-sec">
+        <div class="sec-h">
+          <h2>Funding Split{% if has_co_funding %} · Co-funded{% endif %}</h2>
+          <div class="side">Total approved <b style="color:var(--ink);">{{ total_approved|money }}</b></div>
+        </div>
+        <div class="sec-body">
+          <div class="cof-bar">
+            {% for row in funding_split %}
+            <div class="seg prg-c{{ forloop.counter0 }}" style="flex:{{ row.share|floatformat:0 }};">
+              {% if row.share > 15 %}{{ row.program.name|truncatechars:12 }} · {{ row.share|floatformat:0 }}%{% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          <div class="cof-legend">
+            {% for row in funding_split %}
+            <div class="cof-prog">
+              <div class="swatch prg-c{{ forloop.counter0 }}"></div>
+              <div class="body">
+                <div class="row1">
+                  <div class="name">{{ row.program.name }}</div>
+                  <div class="pct">{{ row.share|floatformat:1 }}%</div>
+                </div>
+                <div class="amt">{{ row.approved|money }}</div>
+              </div>
+            </div>
+            {% endfor %}
           </div>
         </div>
       </div>
-      <div class="col-md-6">
-        <div class="card h-100">
-          <div class="card-body">
-            <div class="ricd-section-title mb-2"><h2>Infrastructure</h2></div>
+      {% endif %}
+
+      <div class="card-sec">
+        <div class="sec-h">
+          <h2>Project Details</h2>
+          {% if is_fnc %}<div class="side"><a href="{% url 'ui:project_edit' project.pk %}"><i class="bi bi-pencil"></i> Edit</a></div>{% endif %}
+        </div>
+        <div class="sec-body">
+          <div class="det-grid">
+            <div class="det-field">
+              <div class="lbl">Project Type</div>
+              <div class="val">{{ project.get_project_type_display }}</div>
+            </div>
+            <div class="det-field">
+              <div class="lbl">SAP ION</div>
+              <div class="val{% if not project.sap_ion %} empty{% endif %}">{{ project.sap_ion|default:"—" }}</div>
+            </div>
+            <div class="det-field">
+              <div class="lbl">FY Commenced</div>
+              <div class="val{% if not project.financial_year %} empty{% endif %}">{{ project.financial_year|default:"—" }}</div>
+            </div>
+            <div class="det-field">
+              <div class="lbl">FY Completed</div>
+              <div class="val{% if not project.financial_year_completed %} empty{% endif %}">{{ project.financial_year_completed|default:"—" }}</div>
+            </div>
+            <div class="det-field">
+              <div class="lbl">Principal Officer</div>
+              <div class="val{% if not project.principal_officer %} empty{% endif %}">
+                {% if project.principal_officer %}{{ project.principal_officer.get_full_name|default:project.principal_officer.username }}{% else %}—{% endif %}
+              </div>
+            </div>
+            <div class="det-field">
+              <div class="lbl">Senior Officer</div>
+              <div class="val{% if not project.senior_officer %} empty{% endif %}">
+                {% if project.senior_officer %}{{ project.senior_officer.get_full_name|default:project.senior_officer.username }}{% else %}—{% endif %}
+              </div>
+            </div>
+            <div class="det-field">
+              <div class="lbl">Effective Lead</div>
+              <div class="val">
+                {% if project.effective_lead_officer %}
+                  {{ project.effective_lead_officer.get_full_name|default:project.effective_lead_officer.username }}
+                  {% if not project.lead_officer %}<span class="hint">(council default)</span>{% endif %}
+                {% else %}—{% endif %}
+              </div>
+            </div>
+            <div class="det-field">
+              <div class="lbl">Status Flag</div>
+              <div class="val">{{ project.get_status_flag_display|default:"—" }}</div>
+            </div>
+          </div>
+
+          <button class="toggle-advanced" id="advBtn" onclick="toggleAdv()">
+            <i class="bi bi-chevron-down" id="advIcon"></i> Show advanced fields
+          </button>
+          <div class="det-grid det-advanced" id="advBox">
+            <div class="det-field">
+              <div class="lbl">CLI No</div>
+              <div class="val{% if not project.cli_no %} empty{% endif %}">{{ project.cli_no|default:"—" }}</div>
+            </div>
+            <div class="det-field">
+              <div class="lbl">Initial CAA Date</div>
+              <div class="val{% if not project.initial_caa_date %} empty{% endif %}">{{ project.initial_caa_date|date:"d M Y"|default:"—" }}</div>
+            </div>
+            <div class="det-field">
+              <div class="lbl">Stage 1 Target / Sunset</div>
+              <div class="val">
+                {{ project.stage1_target_date|date:"d M Y"|default:"—" }}
+                <span class="hint">/ {{ project.stage1_sunset_date|date:"d M Y"|default:"—" }}</span>
+              </div>
+            </div>
+            <div class="det-field">
+              <div class="lbl">Stage 2 Target / Sunset</div>
+              <div class="val">
+                {{ project.stage2_target_date|date:"d M Y"|default:"—" }}
+                <span class="hint">/ {{ project.stage2_sunset_date|date:"d M Y"|default:"—" }}</span>
+              </div>
+            </div>
+            <div class="det-field">
+              <div class="lbl">Dwelling Status</div>
+              <div class="val">{{ project.get_dwelling_status_display|default:"—" }}</div>
+            </div>
+            {% if project.warranty_end_date %}
+            <div class="det-field">
+              <div class="lbl">Warranty End</div>
+              <div class="val">{{ project.warranty_end_date|date:"d M Y" }}</div>
+            </div>
+            {% endif %}
+            {% if project.parent_land_project %}
+            <div class="det-field">
+              <div class="lbl">Parent Land Project</div>
+              <div class="val"><a href="{{ project.parent_land_project.get_absolute_url }}">{{ project.parent_land_project }}</a></div>
+            </div>
+            {% endif %}
             {% if project.infra_water_assessment or project.infra_electricity_assessment or project.infra_sewerage_assessment %}
-            <dl class="row mb-0" style="font-size:13px;">
-              {% if project.infra_water_assessment %}
-              <dt class="col-4 text-muted">Water</dt>
-              <dd class="col-8">{{ project.infra_water_assessment }}</dd>
-              {% endif %}
-              {% if project.infra_electricity_assessment %}
-              <dt class="col-4 text-muted">Electricity</dt>
-              <dd class="col-8">{{ project.infra_electricity_assessment }}</dd>
-              {% endif %}
-              {% if project.infra_sewerage_assessment %}
-              <dt class="col-4 text-muted">Sewerage</dt>
-              <dd class="col-8">{{ project.infra_sewerage_assessment }}</dd>
-              {% endif %}
-              {% if project.infra_comments %}
-              <dt class="col-4 text-muted">Notes</dt>
-              <dd class="col-8">{{ project.infra_comments }}</dd>
-              {% endif %}
-            </dl>
-            {% else %}
-            <p class="text-muted mb-0" style="font-size:13px;">No infrastructure assessments recorded.</p>
+            <div class="det-field" style="grid-column:span 2;">
+              <div class="lbl">Infrastructure</div>
+              <div class="val" style="font-size:12px;line-height:1.6;">
+                {% if project.infra_water_assessment %}<span>Water: {{ project.infra_water_assessment }}</span> &ensp;{% endif %}
+                {% if project.infra_electricity_assessment %}<span>Power: {{ project.infra_electricity_assessment }}</span> &ensp;{% endif %}
+                {% if project.infra_sewerage_assessment %}<span>Sewerage: {{ project.infra_sewerage_assessment }}</span>{% endif %}
+              </div>
+            </div>
             {% endif %}
           </div>
         </div>
       </div>
-      {% if project.parent_land_project or project.development_application %}
-      <div class="col-12">
-        <div class="card">
-          <div class="card-body">
-            <div class="ricd-section-title mb-2"><h2>Land &amp; Development</h2></div>
-            <dl class="row mb-0" style="font-size:13px;">
-              {% if project.parent_land_project %}
-              <dt class="col-3 text-muted">Parent land project</dt>
-              <dd class="col-9"><a href="{{ project.parent_land_project.get_absolute_url }}">{{ project.parent_land_project }}</a></dd>
-              {% endif %}
-              {% if project.development_application %}
-              <dt class="col-3 text-muted">Development application</dt>
-              <dd class="col-9">{{ project.development_application }}</dd>
-              {% endif %}
-              {% if project.lease_signed_date %}
-              <dt class="col-3 text-muted">Lease signed</dt>
-              <dd class="col-9">{{ project.lease_signed_date|date:"d M Y" }}</dd>
-              {% endif %}
-            </dl>
+
+    </div>{# /left #}
+
+    {# Right #}
+    <div class="stack-md">
+
+      <div class="mini-card">
+        <h3>Project Team <i class="bi bi-people-fill ic"></i></h3>
+        {% if project.principal_officer %}
+        <div class="officer-row">
+          <div class="av">{{ project.principal_officer.first_name|first|default:"?" }}{{ project.principal_officer.last_name|first|default:"" }}</div>
+          <div class="info">
+            <div class="nm">{{ project.principal_officer.get_full_name|default:project.principal_officer.username }}</div>
+            <div class="ro">Principal Officer</div>
           </div>
         </div>
-      </div>
-      {% endif %}
-    </div>
-  </div>
-
-  {# ===== Addresses & Works tab ===== #}
-  <div class="tab-pane fade {% if active_tab == 'works' %}show active{% endif %}" id="tab-works" role="tabpanel">
-    <div class="row g-3">
-      <div class="col-12">
-        <div class="ricd-section-title">
-          <h2>Addresses</h2>
-          {% if is_fnc %}
-          <a href="{% url 'ui:address_create' project.pk %}" class="btn btn-primary btn-sm">
-            <i class="bi bi-plus"></i> Add Address
-          </a>
-          {% endif %}
-        </div>
-        {% with addresses=project.addresses.all %}
-        {% if addresses %}
-        <div class="table-responsive">
-          <table class="table table-hover align-middle">
-            <thead class="table-light">
-              <tr>
-                <th>Street</th>
-                <th>Suburb</th>
-                <th>Lot</th>
-                <th>Plan</th>
-                <th>PLC Ref</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for addr in addresses %}
-              <tr>
-                <td>{{ addr.street }}</td>
-                <td>{{ addr.suburb|default:"—" }}</td>
-                <td>{{ addr.lot|default:"—" }}</td>
-                <td>{{ addr.plan|default:"—" }}</td>
-                <td>{{ addr.residence_plc_ref|default:"—" }}</td>
-                <td>
-                  {% if is_fnc %}
-                  <a href="{% url 'ui:address_edit' project.pk addr.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
-                  {% endif %}
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        {% else %}
-        <p class="text-muted" style="font-size:13px;">No addresses recorded.</p>
         {% endif %}
-        {% endwith %}
-      </div>
-
-      <div class="col-12 mt-2">
-        <div class="ricd-section-title">
-          <h2>Works</h2>
-          {% if is_fnc %}
-          <a href="{% url 'ui:work_create' project.pk %}" class="btn btn-primary btn-sm">
-            <i class="bi bi-plus"></i> Add Work
-          </a>
-          {% endif %}
+        {% if project.senior_officer %}
+        <div class="officer-row">
+          <div class="av">{{ project.senior_officer.first_name|first|default:"?" }}{{ project.senior_officer.last_name|first|default:"" }}</div>
+          <div class="info">
+            <div class="nm">{{ project.senior_officer.get_full_name|default:project.senior_officer.username }}</div>
+            <div class="ro">Senior Officer</div>
+          </div>
         </div>
-        {% with works=project.works.all %}
-        {% if works %}
-        <div class="table-responsive">
-          <table class="table table-hover align-middle">
-            <thead class="table-light">
-              <tr>
-                <th>Type</th>
-                <th>Qty</th>
-                <th>Bedrooms</th>
-                <th>Est. Cost</th>
-                <th>Actual Cost</th>
-                <th>Status</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for work in works %}
-              <tr>
-                <td>{{ work.work_type|default:work.work_type_other|default:"—" }}</td>
-                <td>{{ work.quantity }}</td>
-                <td>{{ work.bedrooms|default:"—" }}</td>
-                <td>${{ work.estimated_cost|floatformat:0 }}</td>
-                <td>{% if work.actual_cost %}${{ work.actual_cost|floatformat:0 }}{% else %}—{% endif %}</td>
-                <td><span class="state-badge state-{{ work.status|lower }}">{{ work.get_status_display }}</span></td>
-                <td>
-                  {% if is_fnc %}
-                  <a href="{% url 'ui:work_edit' project.pk work.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
-                  {% endif %}
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        {% else %}
-        <p class="text-muted" style="font-size:13px;">No work items recorded.</p>
         {% endif %}
-        {% endwith %}
-      </div>
-    </div>
-  </div>
-
-  {# ===== Funding tab ===== #}
-  <div class="tab-pane fade {% if active_tab == 'funding' %}show active{% endif %}" id="tab-funding" role="tabpanel">
-    <div class="row g-3">
-      <div class="col-12">
-        <div class="ricd-section-title">
-          <h2>Funding Schedules</h2>
-          {% if is_fnc %}
-          <a href="{% url 'ui:funding_schedule_create' %}" class="btn btn-primary btn-sm">
-            <i class="bi bi-plus"></i> New Schedule
-          </a>
-          {% endif %}
+        {% if project.lead_officer %}
+        <div class="officer-row">
+          <div class="av">{{ project.lead_officer.first_name|first|default:"?" }}{{ project.lead_officer.last_name|first|default:"" }}</div>
+          <div class="info">
+            <div class="nm">{{ project.lead_officer.get_full_name|default:project.lead_officer.username }}</div>
+            <div class="ro">Lead Officer</div>
+          </div>
         </div>
-        {% with schedules=project.funding_schedules.all %}
-        {% if schedules %}
-        <div class="table-responsive">
-          <table class="table table-hover align-middle">
-            <thead class="table-light">
-              <tr>
-                <th>#</th>
-                <th>Total Funding</th>
-                <th>Payment Rule</th>
-                <th>Status</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for fs in schedules %}
-              <tr>
-                <td>{{ fs.pk }}</td>
-                <td>${{ fs.total_funding|floatformat:0 }}</td>
-                <td>{{ fs.payment_rule|default:"—" }}</td>
-                <td><span class="state-badge state-{{ fs.status|lower }}">{{ fs.get_status_display }}</span></td>
-                <td><a href="{% url 'ui:funding_schedule_detail' fs.pk %}" class="btn btn-outline-secondary btn-sm">View</a></td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        {% else %}
-        <p class="text-muted" style="font-size:13px;">No funding schedules linked to this project.</p>
         {% endif %}
-        {% endwith %}
-      </div>
-
-      <div class="col-12 mt-2">
-        <div class="ricd-section-title">
-          <h2>Brief Financial Approvals</h2>
-          {% if is_fnc %}
-          <a href="{% url 'ui:bfa_create' project.pk %}" class="btn btn-primary btn-sm">
-            <i class="bi bi-plus"></i> New BFA
-          </a>
-          {% endif %}
-        </div>
-        {% with bfas=project.financial_approvals.all %}
-        {% if bfas %}
-        <div class="table-responsive">
-          <table class="table table-hover align-middle">
-            <thead class="table-light">
-              <tr>
-                <th>#</th>
-                <th>Funding Amount</th>
-                <th>Contingency</th>
-                <th>Delegate</th>
-                <th>Status</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for bfa in bfas %}
-              <tr>
-                <td>{{ bfa.pk }}</td>
-                <td>${{ bfa.funding_amount|floatformat:0 }}</td>
-                <td>{% if bfa.contingency_amount %}${{ bfa.contingency_amount|floatformat:0 }}{% else %}—{% endif %}</td>
-                <td>{{ bfa.get_delegate_level_display|default:"—" }}</td>
-                <td><span class="state-badge state-{{ bfa.status|lower }}">{{ bfa.get_status_display }}</span></td>
-                <td><a href="{% url 'ui:bfa_detail' project.pk bfa.pk %}" class="btn btn-outline-secondary btn-sm">View</a></td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        {% else %}
-        <p class="text-muted" style="font-size:13px;">No brief financial approvals recorded.</p>
+        {% if not project.principal_officer and not project.senior_officer and not project.lead_officer %}
+        <p class="text-muted mb-0" style="font-size:12px;">No officers assigned.</p>
         {% endif %}
-        {% endwith %}
       </div>
-    </div>
-  </div>
 
-  {# ===== Payments tab ===== #}
-  <div class="tab-pane fade {% if active_tab == 'payments' %}show active{% endif %}" id="tab-payments" role="tabpanel">
-    <div class="ricd-section-title">
-      <h2>Payments</h2>
-      {% if is_fnc %}
-      <a href="{% url 'ui:payment_create' project.pk %}" class="btn btn-primary btn-sm">
-        <i class="bi bi-plus"></i> New Payment
-      </a>
-      {% endif %}
-    </div>
-    {% with payments=project.payments.all %}
-    {% if payments %}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle">
-        <thead class="table-light">
-          <tr>
-            <th>#</th>
-            <th>Type</th>
-            <th>Amount</th>
-            <th>Split</th>
-            <th>Status</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for payment in payments %}
-          <tr>
-            <td>{{ payment.pk }}</td>
-            <td>{{ payment.get_payment_type_display }}</td>
-            <td>${{ payment.amount|floatformat:0 }}</td>
-            <td>{{ payment.get_payment_split_display|default:"—" }}</td>
-            <td><span class="state-badge state-{{ payment.status|lower }}">{{ payment.get_status_display }}</span></td>
-            <td><a href="{% url 'ui:payment_detail' project.pk payment.pk %}" class="btn btn-outline-secondary btn-sm">View</a></td>
-          </tr>
+      <div class="mini-card">
+        <h3>Quick Links <i class="bi bi-link-45deg ic"></i></h3>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;">
+          {% for sr in project.stage_reports.all %}
+          <a href="{% url 'ui:stage_report_detail' project.pk sr.pk %}">
+            <i class="bi bi-file-earmark-text" style="margin-right:4px;"></i>
+            {{ sr.get_stage_type_display }} Report
+            <span style="color:var(--muted);font-size:11px;">· {{ sr.get_status_display }}</span>
+          </a>
           {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    <p class="text-muted" style="font-size:13px;">No payments recorded for this project.</p>
-    {% endif %}
-    {% endwith %}
-  </div>
-
-  {# ===== Reports tab ===== #}
-  <div class="tab-pane fade {% if active_tab == 'reports' %}show active{% endif %}" id="tab-reports" role="tabpanel">
-    <div class="row g-3">
-      <div class="col-12">
-        <div class="ricd-section-title">
-          <h2>Stage Reports</h2>
-          {% if is_fnc %}
-          <a href="{% url 'ui:stage_report_create' project.pk %}" class="btn btn-primary btn-sm">
-            <i class="bi bi-plus"></i> New Stage Report
+          {% with fs=project.funding_schedules.first %}
+          {% if fs %}
+          <a href="{% url 'ui:funding_schedule_detail' fs.pk %}">
+            <i class="bi bi-cash-stack" style="margin-right:4px;"></i>
+            Funding Schedule #{{ fs.pk }}
+            <span style="color:var(--muted);font-size:11px;">· {{ fs.get_status_display }}</span>
           </a>
           {% endif %}
-        </div>
-        {% with stage_reports=project.stage_reports.all %}
-        {% if stage_reports %}
-        <div class="table-responsive">
-          <table class="table table-hover align-middle">
-            <thead class="table-light">
-              <tr>
-                <th>#</th>
-                <th>Stage</th>
-                <th>Status</th>
-                <th>Notes</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for sr in stage_reports %}
-              <tr>
-                <td>{{ sr.pk }}</td>
-                <td>{{ sr.get_stage_type_display }}</td>
-                <td><span class="state-badge state-{{ sr.status|lower }}">{{ sr.get_status_display }}</span></td>
-                <td>{{ sr.notes|truncatechars:60|default:"—" }}</td>
-                <td><a href="{% url 'ui:stage_report_detail' project.pk sr.pk %}" class="btn btn-outline-secondary btn-sm">View</a></td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        {% else %}
-        <p class="text-muted" style="font-size:13px;">No stage reports recorded.</p>
-        {% endif %}
-        {% endwith %}
-      </div>
-
-      <div class="col-12 mt-2">
-        <div class="ricd-section-title">
-          <h2>Quarterly Reports</h2>
-          {% if is_fnc %}
-          <a href="{% url 'ui:quarterly_report_create' project.pk %}" class="btn btn-primary btn-sm">
-            <i class="bi bi-plus"></i> New Quarterly Report
+          {% endwith %}
+          {% if project.handover_checklist_link %}
+          <a href="{{ project.handover_checklist_link }}" target="_blank" rel="noopener">
+            <i class="bi bi-file-earmark-check" style="margin-right:4px;"></i> Handover Checklist
           </a>
           {% endif %}
+          <a href="{% url 'ui:project_addresses_works' project.pk %}">
+            <i class="bi bi-house-gear" style="margin-right:4px;"></i> Addresses &amp; Works
+          </a>
         </div>
-        {% with quarterly_reports=project.quarterly_reports.all %}
-        {% if quarterly_reports %}
-        <div class="table-responsive">
-          <table class="table table-hover align-middle">
-            <thead class="table-light">
-              <tr>
-                <th>#</th>
-                <th>Year</th>
-                <th>Quarter</th>
-                <th>Status</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for qr in quarterly_reports %}
-              <tr>
-                <td>{{ qr.pk }}</td>
-                <td>{{ qr.year }}</td>
-                <td>Q{{ qr.quarter }}</td>
-                <td><span class="state-badge state-{{ qr.status|lower }}">{{ qr.get_status_display }}</span></td>
-                <td><a href="{% url 'ui:quarterly_report_detail' project.pk qr.pk %}" class="btn btn-outline-secondary btn-sm">View</a></td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        {% else %}
-        <p class="text-muted" style="font-size:13px;">No quarterly reports recorded.</p>
-        {% endif %}
-        {% endwith %}
       </div>
-    </div>
-  </div>
 
-  {# ===== Documents tab ===== #}
-  <div class="tab-pane fade {% if active_tab == 'documents' %}show active{% endif %}" id="tab-documents" role="tabpanel">
-    <div class="ricd-section-title">
-      <h2>Documents</h2>
-    </div>
-    <div class="row g-2" style="font-size:13px;">
-      {% if project.handover_checklist_link %}
-      <div class="col-12">
-        <i class="bi bi-file-earmark-check text-success"></i>
-        <a href="{{ project.handover_checklist_link }}" target="_blank" rel="noopener">Handover Checklist</a>
+      {% if land_pre_conditions %}
+      <div class="mini-card">
+        <h3>
+          Land Pre-Conditions
+          {% if is_fnc %}<a href="{% url 'ui:land_pre_condition_edit' project_pk=project.pk %}" style="font-size:11px;font-weight:400;text-transform:none;letter-spacing:0;">Edit</a>{% endif %}
+        </h3>
+        <div class="lpc-list">
+          {% for flag in land_pre_conditions %}
+          <div class="lpc-row {% if flag.status == 'GRN' %}lpc-grn{% elif flag.status == 'AMB' %}lpc-amb{% else %}lpc-red{% endif %}">
+            <span class="traffic"></span>
+            <div class="nm">
+              {{ flag.get_category_display }}
+              {% if flag.notes %}<span class="sub">{{ flag.notes|truncatechars:40 }}</span>{% endif %}
+            </div>
+            <div class="when">{{ flag.completed_date|date:"d M y"|default:"—" }}</div>
+          </div>
+          {% endfor %}
+        </div>
       </div>
       {% endif %}
-      {% for fs in project.funding_schedules.all %}
-        {% if fs.document_link %}
-        <div class="col-12">
-          <i class="bi bi-file-earmark-text" style="color:var(--ric-navy)"></i>
-          <a href="{{ fs.document_link }}" target="_blank" rel="noopener">Funding Schedule #{{ fs.pk }} Document</a>
-        </div>
-        {% endif %}
-      {% endfor %}
-      {% if not project.handover_checklist_link %}
-      <div class="col-12">
-        <p class="text-muted mb-0">No documents attached.</p>
-      </div>
-      {% endif %}
-    </div>
-  </div>
 
-  {# ===== Comments tab ===== #}
-  <div class="tab-pane fade {% if active_tab == 'comments' %}show active{% endif %}" id="tab-comments" role="tabpanel">
-    {% if comments_disabled %}
-    <p class="text-muted" style="font-size:13px;">Comments are not enabled for projects.</p>
-    {% else %}
-    {% include 'partials/_comments.html' %}
+    </div>{# /right #}
+
+  </div>{# /overview-grid #}
+
+</div>{# /tab-overview #}
+
+{# ===== Funding tab ===== #}
+<div class="tab-pane fade {% if active_tab == 'funding' %}show active{% endif %}" id="tab-funding" role="tabpanel">
+  <div class="row g-3">
+    <div class="col-12">
+      <div class="ricd-section-title">
+        <h2>Funding Schedules</h2>
+        {% if is_fnc %}<a href="{% url 'ui:funding_schedule_create' %}" class="btn btn-primary btn-sm"><i class="bi bi-plus"></i> New Schedule</a>{% endif %}
+      </div>
+      {% with schedules=project.funding_schedules.all %}
+      {% if schedules %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light">
+            <tr><th>#</th><th>Total Funding</th><th>Payment Rule</th><th>Status</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for fs in schedules %}
+            <tr>
+              <td>{{ fs.pk }}</td>
+              <td>{{ fs.total_funding|money }}</td>
+              <td>{{ fs.payment_rule|default:"—" }}</td>
+              <td><span class="state-badge state-{{ fs.status|lower }}">{{ fs.get_status_display }}</span></td>
+              <td><a href="{% url 'ui:funding_schedule_detail' fs.pk %}" class="btn btn-outline-secondary btn-sm">View</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted" style="font-size:13px;">No funding schedules linked to this project.</p>
+      {% endif %}
+      {% endwith %}
+    </div>
+
+    {% if funding_split %}
+    <div class="col-12 mt-2">
+      <div class="card"><div class="card-body">
+        <div class="ricd-section-title mb-2">
+          <h2>Funding split (per program)</h2>
+          <span class="text-muted" style="font-size:11px;">Approved BFA totals vs released to date{% if has_co_funding %} — co-funded{% endif %}</span>
+        </div>
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr><th>Program</th><th class="text-end">Approved</th><th class="text-end">Released</th><th class="text-end">Share</th><th class="text-end">Drawdown</th></tr>
+          </thead>
+          <tbody>
+            {% for row in funding_split %}
+            <tr>
+              <td>{{ row.program.name }}{% if row.is_primary %}<span class="text-muted" style="font-size:11px;"> (primary)</span>{% endif %}</td>
+              <td class="text-end">{{ row.approved|money }}</td>
+              <td class="text-end">{{ row.released|money }}</td>
+              <td class="text-end">{{ row.share|floatformat:1 }}%</td>
+              <td class="text-end {% if row.drawdown_pct > 100 %}text-danger{% endif %}">{{ row.drawdown_pct|floatformat:1 }}%</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div></div>
+    </div>
     {% endif %}
-    {% include 'partials/_notices.html' %}
+
+    <div class="col-12 mt-2">
+      <div class="ricd-section-title">
+        <h2>Brief Financial Approvals</h2>
+        {% if is_fnc %}<a href="{% url 'ui:bfa_create_global' %}" class="btn btn-primary btn-sm"><i class="bi bi-plus"></i> New BFA</a>{% endif %}
+      </div>
+      {% with bfas=project.financial_approvals.all %}
+      {% if bfas %}
+      <p class="text-muted" style="font-size:12px;">BFAs that include this project. Funding/contingency shown is this project's row in the BFA.</p>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light">
+            <tr><th>MINCOR ref</th><th class="text-end">Funding (this project)</th><th class="text-end">Contingency</th><th>Delegate</th><th>Status</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for bfa in bfas %}
+              {% for item in bfa.items.all %}
+                {% if item.project_id == project.pk %}
+                <tr>
+                  <td>{{ bfa.mincor_reference|default:"—" }} <span class="text-muted">(#{{ bfa.pk }})</span></td>
+                  <td class="text-end">{{ item.funding_amount|money }}</td>
+                  <td class="text-end">{% if item.contingency_amount %}{{ item.contingency_amount|money }}{% else %}—{% endif %}</td>
+                  <td>{{ bfa.get_delegate_level_display|default:"—" }}</td>
+                  <td><span class="state-badge state-{{ bfa.status|lower }}">{{ bfa.get_status_display }}</span></td>
+                  <td><a href="{% url 'ui:bfa_detail' bfa.pk %}" class="btn btn-outline-secondary btn-sm">View</a></td>
+                </tr>
+                {% endif %}
+              {% endfor %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted" style="font-size:13px;">No brief financial approvals recorded.</p>
+      {% endif %}
+      {% endwith %}
+    </div>
   </div>
+</div>
+
+{# ===== Payments tab ===== #}
+<div class="tab-pane fade {% if active_tab == 'payments' %}show active{% endif %}" id="tab-payments" role="tabpanel">
+  <div class="ricd-section-title">
+    <h2>Payments</h2>
+    {% if is_fnc %}<a href="{% url 'ui:payment_create' project.pk %}" class="btn btn-primary btn-sm"><i class="bi bi-plus"></i> New Payment</a>{% endif %}
+  </div>
+  {% with payments=project.payments.all %}
+  {% if payments %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead class="table-light">
+        <tr><th>#</th><th>Type</th><th>Amount</th><th>Split</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for payment in payments %}
+        <tr>
+          <td>{{ payment.pk }}</td>
+          <td>{{ payment.get_payment_type_display }}</td>
+          <td>{{ payment.amount|money }}</td>
+          <td>{{ payment.get_payment_split_display|default:"—" }}</td>
+          <td><span class="state-badge state-{{ payment.status|lower }}">{{ payment.get_status_display }}</span></td>
+          <td><a href="{% url 'ui:payment_detail' project.pk payment.pk %}" class="btn btn-outline-secondary btn-sm">View</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-muted" style="font-size:13px;">No payments recorded for this project.</p>
+  {% endif %}
+  {% endwith %}
+</div>
+
+{# ===== Reports tab ===== #}
+<div class="tab-pane fade {% if active_tab == 'reports' %}show active{% endif %}" id="tab-reports" role="tabpanel">
+  <div class="row g-3">
+    <div class="col-12">
+      <div class="ricd-section-title">
+        <h2>Stage Reports</h2>
+        {% if is_fnc %}<a href="{% url 'ui:stage_report_create' project.pk %}" class="btn btn-primary btn-sm"><i class="bi bi-plus"></i> New Stage Report</a>{% endif %}
+      </div>
+      {% with stage_reports=project.stage_reports.all %}
+      {% if stage_reports %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light">
+            <tr><th>#</th><th>Stage</th><th>Status</th><th>Notes</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for sr in stage_reports %}
+            <tr>
+              <td>{{ sr.pk }}</td>
+              <td>{{ sr.get_stage_type_display }}</td>
+              <td><span class="state-badge state-{{ sr.status|lower }}">{{ sr.get_status_display }}</span></td>
+              <td>{{ sr.notes|truncatechars:60|default:"—" }}</td>
+              <td><a href="{% url 'ui:stage_report_detail' project.pk sr.pk %}" class="btn btn-outline-secondary btn-sm">View</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted" style="font-size:13px;">No stage reports recorded.</p>
+      {% endif %}
+      {% endwith %}
+    </div>
+    <div class="col-12 mt-2">
+      <div class="ricd-section-title">
+        <h2>Quarterly Reports</h2>
+        {% if is_fnc %}<a href="{% url 'ui:quarterly_report_create' project.pk %}" class="btn btn-primary btn-sm"><i class="bi bi-plus"></i> New Quarterly Report</a>{% endif %}
+      </div>
+      {% with quarterly_reports=project.quarterly_reports.all %}
+      {% if quarterly_reports %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light">
+            <tr><th>#</th><th>Year</th><th>Quarter</th><th>Status</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for qr in quarterly_reports %}
+            <tr>
+              <td>{{ qr.pk }}</td>
+              <td>{{ qr.year }}</td>
+              <td>Q{{ qr.quarter }}</td>
+              <td><span class="state-badge state-{{ qr.status|lower }}">{{ qr.get_status_display }}</span></td>
+              <td><a href="{% url 'ui:quarterly_report_detail' project.pk qr.pk %}" class="btn btn-outline-secondary btn-sm">View</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted" style="font-size:13px;">No quarterly reports recorded.</p>
+      {% endif %}
+      {% endwith %}
+    </div>
+  </div>
+</div>
+
+{# ===== Documents tab ===== #}
+<div class="tab-pane fade {% if active_tab == 'documents' %}show active{% endif %}" id="tab-documents" role="tabpanel">
+  <div class="ricd-section-title"><h2>Documents</h2></div>
+  <div class="row g-2" style="font-size:13px;">
+    {% if project.handover_checklist_link %}
+    <div class="col-12">
+      <i class="bi bi-file-earmark-check text-success"></i>
+      <a href="{{ project.handover_checklist_link }}" target="_blank" rel="noopener">Handover Checklist</a>
+    </div>
+    {% endif %}
+    {% for fs in project.funding_schedules.all %}
+      {% if fs.document_link %}
+      <div class="col-12">
+        <i class="bi bi-file-earmark-text" style="color:var(--ric-navy)"></i>
+        <a href="{{ fs.document_link }}" target="_blank" rel="noopener">Funding Schedule #{{ fs.pk }} Document</a>
+      </div>
+      {% endif %}
+    {% endfor %}
+    {% if not project.handover_checklist_link %}
+    <div class="col-12"><p class="text-muted mb-0">No documents attached.</p></div>
+    {% endif %}
+  </div>
+</div>
+
+{# ===== Comments tab ===== #}
+<div class="tab-pane fade {% if active_tab == 'comments' %}show active{% endif %}" id="tab-comments" role="tabpanel">
+  {% if comments_disabled %}
+  <p class="text-muted" style="font-size:13px;">Comments are not enabled for projects.</p>
+  {% else %}
+  {% include 'partials/_comments.html' %}
+  {% endif %}
+  {% include 'partials/_notices.html' %}
+</div>
 
 </div>{# /tab-content #}
 
@@ -535,26 +865,32 @@
 
 {% block extra_js %}
 <script>
-  // Restore active tab from URL hash or query param
-  (function() {
-    const params = new URLSearchParams(window.location.search);
-    const tab = params.get('tab');
-    if (tab) {
-      const btn = document.querySelector('[data-bs-target="#tab-' + tab + '"]');
-      if (btn) {
-        const tabInstance = new bootstrap.Tab(btn);
-        tabInstance.show();
-      }
-    }
-    // Update URL when tab changes
-    document.querySelectorAll('[data-bs-toggle="tab"]').forEach(function(btn) {
-      btn.addEventListener('shown.bs.tab', function(e) {
-        const target = e.target.getAttribute('data-bs-target').replace('#tab-', '');
-        const url = new URL(window.location);
-        url.searchParams.set('tab', target);
-        window.history.replaceState({}, '', url);
-      });
+(function() {
+  // Restore active tab from URL query param
+  const params = new URLSearchParams(window.location.search);
+  const tab = params.get('tab');
+  if (tab) {
+    const btn = document.querySelector('[data-bs-target="#tab-' + tab + '"]');
+    if (btn) { new bootstrap.Tab(btn).show(); }
+  }
+  // Update URL on tab change
+  document.querySelectorAll('[data-bs-toggle="tab"]').forEach(function(btn) {
+    btn.addEventListener('shown.bs.tab', function(e) {
+      const target = e.target.getAttribute('data-bs-target').replace('#tab-', '');
+      const url = new URL(window.location);
+      url.searchParams.set('tab', target);
+      window.history.replaceState({}, '', url);
     });
-  })();
+  });
+})();
+
+function toggleAdv() {
+  const box = document.getElementById('advBox');
+  const icon = document.getElementById('advIcon');
+  const btn = document.getElementById('advBtn');
+  const open = box.classList.toggle('open');
+  icon.className = open ? 'bi bi-chevron-up' : 'bi bi-chevron-down';
+  btn.childNodes[btn.childNodes.length - 1].textContent = open ? ' Hide advanced fields' : ' Show advanced fields';
+}
 </script>
 {% endblock %}

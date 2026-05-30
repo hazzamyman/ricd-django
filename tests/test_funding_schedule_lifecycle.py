@@ -43,12 +43,10 @@ def project(council, program):
 @pytest.fixture
 def approved_bfa(project):
     user = User.objects.create_user(username="approver", password="pass")
-    return BriefFinancialApproval.objects.create(
-        project=project,
-        funding_amount=Decimal("1000000.00"),
-        delegate_level="MANAGER",
-        status="APPROVED",
-        approved_by=user
+    from tests.fixtures import make_bfa
+    return make_bfa(
+        project, Decimal("1000000.00"),
+        delegate_level="MGR", status="APPROVED", approved_by=user,
     )
 
 

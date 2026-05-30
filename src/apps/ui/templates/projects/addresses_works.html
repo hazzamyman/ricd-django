@@ -1,0 +1,563 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Addresses & Works — {{ project.name }} — RICD{% endblock %}
+
+{% block active_nav %}{% with active_nav='projects' %}{% endwith %}{% endblock %}
+
+{% block breadcrumbs %}
+<span class="sep">/</span>
+<a href="{% url 'ui:projects_list' %}">Projects</a>
+<span class="sep">/</span>
+<a href="{% url 'ui:project_detail' project.pk %}">{{ project.name }}</a>
+<span class="sep">/</span>
+<span class="current">Addresses &amp; Works</span>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Card section header ───────────────────────────────────────────────── */
+.csh {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--sp-4) var(--sp-6);
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-alt);
+  border-radius: var(--r-card) var(--r-card) 0 0;
+}
+.csh h2 {
+  font-size: var(--t-md); font-weight: 700; color: var(--ink); margin: 0;
+}
+.csh-meta { display: flex; align-items: center; gap: var(--sp-3); }
+
+/* ── Addresses & Works table ───────────────────────────────────────────── */
+.t-wa { font-size: var(--t-sm); width: 100%; border-collapse: collapse; }
+.t-wa th {
+  background: var(--panel-alt); color: var(--muted);
+  font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+  padding: var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.t-wa td {
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--line-soft);
+  vertical-align: middle;
+}
+.t-wa tbody tr:hover { background: var(--brand-50); }
+.t-wa tbody tr:last-child td { border-bottom: none; }
+
+/* Address cell */
+.addr-cell { font-weight: 600; color: var(--ink); }
+.addr-cell a { color: var(--brand); text-decoration: none; }
+.addr-cell a:hover { text-decoration: underline; }
+.lot-plan { font-size: 11px; color: var(--muted); margin-top: 1px; font-family: var(--font-mono); }
+
+/* Suburb + electorate */
+.suburb-cell { color: var(--ink-2); }
+.suburb-name { font-weight: 500; }
+.elect-row { margin-top: 3px; display: flex; flex-wrap: wrap; gap: 3px; }
+
+/* Work type */
+.wtype { font-weight: 600; color: var(--ink); }
+.wtype-sub { font-size: 11px; color: var(--muted); }
+
+/* Contractor */
+.contractor-name { font-weight: 500; color: var(--ink-2); }
+
+/* PC date cell */
+.pc-cell { white-space: nowrap; }
+.pc-cell .actual { color: var(--st-green-fg); font-weight: 600; }
+.pc-cell .forecast { color: var(--muted); font-size: 11.5px; }
+.pc-cell .forecast::before { content: '~'; margin-right: 2px; opacity: .7; }
+
+/* ── Toolbar (chip filters + search) ──────────────────────────────────── */
+.toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-3); flex-wrap: wrap;
+  padding: var(--sp-3) var(--sp-6);
+  border-bottom: 1px solid var(--line);
+}
+.chips { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 12px; border-radius: var(--r-pill);
+  border: 1px solid var(--line-2); background: var(--panel);
+  font-size: var(--t-sm); font-weight: 500; color: var(--muted);
+  cursor: pointer; transition: background .12s, color .12s, border-color .12s;
+}
+.chip:hover { border-color: var(--brand-100); background: var(--brand-50); color: var(--brand); }
+.chip.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+.chip .count {
+  background: rgba(255,255,255,.25); border-radius: 99px;
+  padding: 0 5px; font-size: 10px; font-weight: 700;
+}
+.chip:not(.active) .count { background: var(--panel-alt); color: var(--muted); }
+.searchbox {
+  display: flex; align-items: center; gap: var(--sp-2);
+  border: 1px solid var(--line-2); border-radius: var(--r-input);
+  padding: 4px var(--sp-3); background: var(--panel);
+}
+.searchbox input {
+  border: none; outline: none; background: transparent;
+  font-size: var(--t-sm); color: var(--ink); width: 180px;
+}
+.searchbox .bi { color: var(--muted-2); }
+.filter-summary { font-size: 11.5px; color: var(--muted); padding: 0 var(--sp-6) var(--sp-2); }
+
+/* ── Table foot ───────────────────────────────────────────────────────── */
+.table-foot {
+  display: flex; justify-content: flex-end; align-items: center;
+  gap: var(--sp-4); padding: var(--sp-3) var(--sp-6);
+  border-top: 1px solid var(--line);
+  font-size: var(--t-sm);
+}
+.table-foot .lbl { color: var(--muted); font-weight: 500; }
+.table-foot .val { font-weight: 700; font-size: var(--t-md); color: var(--ink); }
+
+/* ── Bulk add modal grid ──────────────────────────────────────────────── */
+.bulk-grid { display: flex; flex-direction: column; gap: var(--sp-3); }
+.bulk-add-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 60px 1fr 120px 32px;
+  gap: var(--sp-2); align-items: center;
+}
+.bulk-add-row .form-control, .bulk-add-row .form-select {
+  font-size: var(--t-sm); padding: 4px var(--sp-3);
+}
+.bulk-summary {
+  font-size: var(--t-sm); color: var(--muted);
+  padding: var(--sp-3) 0 0; border-top: 1px solid var(--line-soft);
+  display: flex; align-items: center; justify-content: space-between;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+{# ===== Page header ===== #}
+<div class="ricd-pagehead">
+  <div>
+    <h1>{{ project.name }}</h1>
+    <div class="meta">
+      {% if project.state == 'PROS' %}<span class="state-badge state-prospective">Prospective</span>
+      {% elif project.state == 'PROG' %}<span class="state-badge state-programmed">Programmed</span>
+      {% elif project.state == 'FUND' %}<span class="state-badge state-funded">Funded</span>
+      {% elif project.state == 'COMM' %}<span class="state-badge state-commenced">Commenced</span>
+      {% elif project.state == 'UC' %}<span class="state-badge state-uc">Under Construction</span>
+      {% elif project.state == 'COMP' %}<span class="state-badge state-comp">Completed</span>
+      {% endif %}
+      <span><b>Council:</b> <a href="{% url 'ui:council_detail' project.council.pk %}">{{ project.council }}</a></span>
+      <span><b>Program:</b> <a href="{% url 'ui:program_detail' project.program.pk %}">{{ project.program }}</a></span>
+      {% if project.financial_year %}<span><b>FY:</b> {{ project.financial_year }}</span>{% endif %}
+    </div>
+  </div>
+  <div class="actions">
+    {% if is_fnc %}
+    <a href="{% url 'ui:work_create' project.pk %}" class="btn btn-primary btn-sm">
+      <i class="bi bi-plus-lg"></i> Add Work
+    </a>
+    <a href="{% url 'ui:address_create' project.pk %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-house-add"></i> Add Address
+    </a>
+    {% endif %}
+    <a href="{% url 'ui:project_detail' project.pk %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left"></i> Back to Overview
+    </a>
+  </div>
+</div>
+
+{# ===== Tab strip (link-based, no BS JS) ===== #}
+<div class="mb-4">
+  <ul class="nav ricd-tabs">
+    <li class="nav-item">
+      <a class="nav-link" href="{% url 'ui:project_detail' project.pk %}">Overview</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link active" href="{% url 'ui:project_addresses_works' project.pk %}">Addresses &amp; Works</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="{% url 'ui:project_detail' project.pk %}?tab=funding">Funding</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="{% url 'ui:project_detail' project.pk %}?tab=payments">Payments</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="{% url 'ui:project_detail' project.pk %}?tab=reports">Reports</a>
+    </li>
+  </ul>
+</div>
+
+{# ===== Addresses card ===== #}
+<div class="ricd-card mb-4">
+  <div class="csh">
+    <h2><i class="bi bi-house-door me-2 text-muted"></i>Addresses <span class="ms-2 badge bg-light text-dark border">{{ addresses|length }}</span></h2>
+    <div class="csh-meta">
+      {% if is_fnc %}
+      <a href="{% url 'ui:address_create' project.pk %}" class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-plus-lg"></i> Add Address
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if addresses %}
+  <div class="table-responsive">
+    <table class="t-wa">
+      <thead>
+        <tr>
+          <th>Street / Lot &amp; Plan</th>
+          <th>Suburb</th>
+          <th>Usage</th>
+          <th>LHD</th>
+          <th>Lease</th>
+          <th class="text-end">Works</th>
+          <th>Forecast PC</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for addr in addresses %}
+        <tr>
+          <td class="addr-cell">
+            <a href="{% url 'ui:address_detail' project.pk addr.pk %}">{{ addr.street }}</a>
+            {% if addr.lot or addr.plan %}
+            <div class="lot-plan">
+              {% if addr.lot %}Lot {{ addr.lot }}{% endif %}{% if addr.lot and addr.plan %} / {% endif %}{% if addr.plan %}Plan {{ addr.plan }}{% endif %}
+            </div>
+            {% endif %}
+          </td>
+          <td class="suburb-cell">
+            {% if addr.suburb %}
+            <div class="suburb-name">{{ addr.suburb.name }} {{ addr.suburb.postcode }}</div>
+            <div class="elect-row">
+              {% if addr.suburb.state_electorate %}
+              <span class="pill soft"><i class="bi bi-building-fill"></i> {{ addr.suburb.state_electorate }}</span>
+              {% endif %}
+              {% if addr.suburb.federal_electorate %}
+              <span class="pill soft"><i class="bi bi-flag-fill"></i> {{ addr.suburb.federal_electorate }}</span>
+              {% endif %}
+            </div>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if addr.usage_type %}
+            <span class="pill soft">{{ addr.get_usage_type_display }}</span>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if addr.livable_housing_level == 'SILVER' %}
+            <span class="lhd silver">Silver</span>
+            {% elif addr.livable_housing_level == 'GOLD' %}
+            <span class="lhd gold">Gold</span>
+            {% elif addr.livable_housing_level == 'PLATINUM' %}
+            <span class="lhd platinum">Platinum</span>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if addr.lease_status == 'EXEC' %}
+            <span class="lease executed"><i class="bi bi-lock-fill"></i> Executed{% if addr.lease_executed_date %} {{ addr.lease_executed_date|date:"d M Y" }}{% endif %}</span>
+            {% elif addr.lease_status == 'PEND' %}
+            <span class="lease pending"><i class="bi bi-lock"></i> Pending</span>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            {% if addr.work_count > 0 %}
+            <span class="wcount"><i class="bi bi-tools"></i> {{ addr.work_count }}</span>
+            {% else %}
+            <span class="wcount zero"><i class="bi bi-tools"></i> 0</span>
+            {% endif %}
+          </td>
+          <td class="pc-cell">
+            {% if addr.practical_completion_date %}
+            <span class="actual"><i class="bi bi-check-circle-fill me-1"></i>{{ addr.practical_completion_date|date:"d M Y" }}</span>
+            {% elif addr.forecast_practical_completion_date %}
+            <span class="forecast">{{ addr.forecast_practical_completion_date|date:"d M Y" }}</span>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="p-5 text-center text-muted">
+    <i class="bi bi-house-door" style="font-size:2rem; opacity:.35; display:block; margin-bottom:.5rem;"></i>
+    No addresses added yet.
+    {% if is_fnc %}
+    <a href="{% url 'ui:address_create' project.pk %}" class="d-block mt-2">Add the first address</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{# ===== Works card ===== #}
+<div class="ricd-card mb-4">
+  <div class="csh">
+    <h2><i class="bi bi-tools me-2 text-muted"></i>Works <span class="ms-2 badge bg-light text-dark border">{{ works|length }}</span></h2>
+    <div class="csh-meta">
+      {% if is_fnc %}
+      <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#bulkAddModal">
+        <i class="bi bi-plus-square-dotted"></i> Bulk Add
+      </button>
+      <a href="{% url 'ui:work_create' project.pk %}" class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-plus-lg"></i> Add Work
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  {# Chip filters + search #}
+  <div class="toolbar" id="worksToolbar">
+    <div class="chips">
+      <button class="chip active" data-status="ALL" onclick="applyFilter(this)">
+        All <span class="count" id="cnt-ALL">{{ works|length }}</span>
+      </button>
+      <button class="chip" data-status="PENDING" onclick="applyFilter(this)">
+        Pending <span class="count" id="cnt-PENDING">0</span>
+      </button>
+      <button class="chip" data-status="IN_PROGRESS" onclick="applyFilter(this)">
+        In Progress <span class="count" id="cnt-IN_PROGRESS">0</span>
+      </button>
+      <button class="chip" data-status="COMPLETED" onclick="applyFilter(this)">
+        Completed <span class="count" id="cnt-COMPLETED">0</span>
+      </button>
+    </div>
+    <div class="searchbox">
+      <i class="bi bi-search"></i>
+      <input type="text" id="worksSearch" placeholder="Search works…" oninput="applyFilter()">
+    </div>
+  </div>
+  <div class="filter-summary" id="filterSummary" style="display:none;"></div>
+
+  {% if works %}
+  <div class="table-responsive">
+    <table class="t-wa" id="worksTable">
+      <thead>
+        <tr>
+          <th>Address</th>
+          <th>Work Type</th>
+          <th class="text-center">Qty</th>
+          <th>Contractor</th>
+          <th>Status</th>
+          <th class="text-end">Est. Cost</th>
+          <th>Forecast PC</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for work in works %}
+        <tr data-status="{{ work.status }}" data-search="{{ work.work_type.name|lower|default:'' }} {{ work.contractor.company_name|lower|default:'' }} {{ work.address.street|lower|default:'' }}">
+          <td>
+            {% if work.address %}
+            <a href="{% url 'ui:address_detail' project.pk work.address.pk %}" class="text-decoration-none">
+              {{ work.address.street }}
+            </a>
+            {% else %}
+            <span class="text-muted">No address</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="wtype">
+              {% if work.work_type %}{{ work.work_type.name }}{% else %}{{ work.work_type_other|default:"—" }}{% endif %}
+            </div>
+            {% if work.bedrooms %}
+            <div class="wtype-sub">{{ work.bedrooms }} BR</div>
+            {% endif %}
+          </td>
+          <td class="text-center mono">{{ work.quantity }}</td>
+          <td>
+            {% if work.contractor %}
+            <div class="contractor-name">{{ work.contractor.company_name }}</div>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if work.status == 'PENDING' %}
+            <span class="pill grey">Pending</span>
+            {% elif work.status == 'IN_PROGRESS' %}
+            <span class="pill blue">In Progress</span>
+            {% elif work.status == 'COMPLETED' %}
+            <span class="pill green">Completed</span>
+            {% endif %}
+            {% if work.pc_breaches_sunset %}
+            <span class="pill amber ms-1" title="Forecast PC exceeds Stage 2 sunset by >30 days">
+              <i class="bi bi-exclamation-triangle-fill"></i> Sunset risk
+            </span>
+            {% endif %}
+          </td>
+          <td class="text-end mono">{{ work.estimated_cost|money }}</td>
+          <td class="pc-cell">
+            {% if work.practical_completion_date %}
+            <span class="actual"><i class="bi bi-check-circle-fill me-1"></i>{{ work.practical_completion_date|date:"d M Y" }}</span>
+            {% elif work.forecast_practical_completion_date %}
+            <span class="forecast">{{ work.forecast_practical_completion_date|date:"d M Y" }}</span>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="table-foot">
+    <span class="lbl">Total estimated cost</span>
+    <span class="val">{{ total_cost|money }}</span>
+  </div>
+  {% else %}
+  <div class="p-5 text-center text-muted">
+    <i class="bi bi-tools" style="font-size:2rem; opacity:.35; display:block; margin-bottom:.5rem;"></i>
+    No works added yet.
+    {% if is_fnc %}
+    <a href="{% url 'ui:work_create' project.pk %}" class="d-block mt-2">Add the first work item</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{# ===== Bulk Add Modal ===== #}
+{% if is_fnc %}
+<div class="modal fade" id="bulkAddModal" tabindex="-1" aria-labelledby="bulkAddModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="bulkAddModalLabel"><i class="bi bi-plus-square-dotted me-2"></i>Bulk Add Works</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small">Use this form to quickly add multiple work items. Each row becomes one Work record.</p>
+        <div class="bulk-grid" id="bulkRows">
+          <div class="bulk-add-row" id="bulkRowTemplate" style="display:none;">
+            <select class="form-select" name="address">
+              <option value="">— Address —</option>
+              {% for addr in addresses %}
+              <option value="{{ addr.pk }}">{{ addr.street }}</option>
+              {% endfor %}
+            </select>
+            <select class="form-select" name="work_type">
+              <option value="">— Work Type —</option>
+            </select>
+            <input type="number" class="form-control text-center" name="bedrooms" placeholder="BR" min="0" max="9">
+            <input type="number" class="form-control" name="quantity" placeholder="Qty" min="1" value="1">
+            <input type="number" class="form-control" name="estimated_cost" placeholder="Est. cost" step="1000">
+            <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeBulkRow(this)">
+              <i class="bi bi-x"></i>
+            </button>
+          </div>
+        </div>
+        <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="addBulkRow()">
+          <i class="bi bi-plus"></i> Add row
+        </button>
+        <div class="bulk-summary" id="bulkSummary">
+          <span>0 rows</span>
+          <span class="fw-bold" id="bulkTotal">$0</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <a href="{% url 'ui:work_create' project.pk %}" class="btn btn-primary">
+          Add works individually <i class="bi bi-arrow-right ms-1"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  'use strict';
+
+  /* ── Status chip counts ─────────────────────────────────────────────── */
+  var rows = Array.from(document.querySelectorAll('#worksTable tbody tr'));
+  var counts = { ALL: rows.length, PENDING: 0, IN_PROGRESS: 0, COMPLETED: 0 };
+  rows.forEach(function (r) {
+    var s = r.dataset.status;
+    if (counts[s] !== undefined) counts[s]++;
+  });
+  ['PENDING', 'IN_PROGRESS', 'COMPLETED'].forEach(function (k) {
+    var el = document.getElementById('cnt-' + k);
+    if (el) el.textContent = String(counts[k]);
+  });
+
+  /* ── Filter + search ────────────────────────────────────────────────── */
+  var currentStatus = 'ALL';
+
+  window.applyFilter = function (btn) {
+    if (btn) {
+      currentStatus = btn.dataset.status || 'ALL';
+      document.querySelectorAll('.chip').forEach(function (c) {
+        c.classList.toggle('active', c === btn);
+      });
+    }
+    var query = (document.getElementById('worksSearch').value || '').toLowerCase().trim();
+    var visible = 0;
+    rows.forEach(function (r) {
+      var statusMatch = currentStatus === 'ALL' || r.dataset.status === currentStatus;
+      var textMatch = !query || (r.dataset.search || '').includes(query);
+      var show = statusMatch && textMatch;
+      r.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+
+    var summary = document.getElementById('filterSummary');
+    if (visible < rows.length) {
+      var word = visible === 1 ? 'work' : 'works';
+      summary.textContent = 'Showing ' + visible + ' of ' + rows.length + ' ' + word;
+      summary.style.display = '';
+    } else {
+      summary.style.display = 'none';
+    }
+  };
+
+  /* ── Bulk add rows ──────────────────────────────────────────────────── */
+  var template = document.getElementById('bulkRowTemplate');
+  var container = document.getElementById('bulkRows');
+
+  window.addBulkRow = function () {
+    if (!template) return;
+    var clone = template.cloneNode(true);
+    clone.id = '';
+    clone.style.display = '';
+    container.appendChild(clone);
+    updateBulkSummary();
+    clone.querySelectorAll('input, select').forEach(function (el) {
+      el.addEventListener('input', updateBulkSummary);
+    });
+  };
+
+  window.removeBulkRow = function (btn) {
+    var row = btn.closest('.bulk-add-row');
+    if (row) row.remove();
+    updateBulkSummary();
+  };
+
+  function updateBulkSummary () {
+    var activeRows = container.querySelectorAll('.bulk-add-row:not(#bulkRowTemplate)');
+    var total = 0;
+    activeRows.forEach(function (r) {
+      var costInput = r.querySelector('[name="estimated_cost"]');
+      var val = costInput ? parseFloat(costInput.value) || 0 : 0;
+      total += val;
+    });
+    var rowCount = activeRows.length;
+    var rowWord = rowCount === 1 ? '1 row' : rowCount + ' rows';
+    var totalEl = document.getElementById('bulkTotal');
+    var rowEl = document.querySelector('#bulkSummary span:first-child');
+    if (rowEl) rowEl.textContent = rowWord;
+    if (totalEl) totalEl.textContent = '$' + total.toLocaleString('en-AU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  }
+
+  // Start with one empty row
+  addBulkRow();
+}());
+</script>
+{% endblock %}

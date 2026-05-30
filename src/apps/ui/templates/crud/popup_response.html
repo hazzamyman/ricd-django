@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html><head><title>Saved</title><meta charset="utf-8"></head>
+<body style="font-family:sans-serif;padding:16px;">
+<p>Saved. Closing…</p>
+<script>
+(function(){
+  if (window.opener && !window.opener.closed) {
+    try {
+      window.opener.postMessage({
+        type: 'popup_added',
+        field: '{{ field|escapejs }}',
+        pk: {{ pk|default:0 }},
+        name: '{{ name|escapejs }}'
+      }, '*');
+    } catch(e) { /* ignore */ }
+  }
+  window.close();
+})();
+</script>
+</body></html>

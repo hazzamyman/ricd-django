@@ -32,9 +32,9 @@
       <td>{{ suburb.name }}</td>
       <td>{{ suburb.postcode }}</td>
       <td>{{ suburb.state }}</td>
-      <td>{{ suburb.state_electorate|default:"—" }}</td>
-      <td>{{ suburb.federal_electorate|default:"—" }}</td>
-      <td>{{ suburb.qhigi_region|default:"—" }}</td>
+      <td>{% if suburb.state_electorate_link %}{{ suburb.state_electorate_link.name }}{% elif suburb.state_electorate %}<span class="text-muted">{{ suburb.state_electorate }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+      <td>{% if suburb.federal_electorate_link %}{{ suburb.federal_electorate_link.name }}{% elif suburb.federal_electorate %}<span class="text-muted">{{ suburb.federal_electorate }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+      <td>{% if suburb.qhigi_region_link %}{{ suburb.qhigi_region_link.name }}{% elif suburb.qhigi_region %}<span class="text-muted">{{ suburb.qhigi_region }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
       <td>{% if suburb.is_active %}<span class="badge bg-success">Yes</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}</td>
       <td>
         <a href="{% url 'ui:suburb_edit' suburb.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>

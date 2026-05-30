@@ -20,6 +20,8 @@ from apps.core.models import (
     QuarterlyReportEntry, QuarterlyReportAttachment,
     StageReport, StageReportItem, StageReportAttachment,
     StageItemDefinition, StageItemGroup, StageItemGroupItem,
+    # Land
+    LandPreCondition,
 )
 
 
@@ -106,11 +108,28 @@ class FundingAgreementAdmin(admin.ModelAdmin):
     search_fields = ('name', 'council__name')
 
 
+class BriefFinancialApprovalItemInline(admin.TabularInline):
+    from apps.core.models import BriefFinancialApprovalItem
+    model = BriefFinancialApprovalItem
+    extra = 0
+    fields = ('project', 'funding_amount', 'contingency_amount', 'cost_centre', 'gl_code')
+    readonly_fields = ('cost_centre', 'gl_code')
+
+
 @admin.register(BriefFinancialApproval)
 class BriefFinancialApprovalAdmin(admin.ModelAdmin):
-    list_display = ('project', 'funding_amount', 'contingency_amount', 'status', 'delegate_level')
+    list_display = ('mincor_reference', 'project_count_col', 'total_amount_col', 'status', 'delegate_level')
     list_filter = ('status', 'delegate_level')
-    search_fields = ('project__name', 'mincor_reference')
+    search_fields = ('mincor_reference', 'document_uri')
+    inlines = [BriefFinancialApprovalItemInline]
+
+    @admin.display(description='Total')
+    def total_amount_col(self, obj):
+        return f"${obj.total_amount:,.0f}"
+
+    @admin.display(description='Projects')
+    def project_count_col(self, obj):
+        return obj.project_count
 
 
 @admin.register(FundingNotice)
@@ -311,3 +330,11 @@ class StageReportItemAdmin(admin.ModelAdmin):
 class StageReportAttachmentAdmin(admin.ModelAdmin):
     list_display = ('item', 'description', 'uploaded_at')
     search_fields = ('description',)
+
+
+@admin.register(LandPreCondition)
+class LandPreConditionAdmin(admin.ModelAdmin):
+    list_display = ('project', 'category', 'status', 'native_title_type', 'completed_date')
+    list_filter = ('category', 'status')
+    search_fields = ('project__name', 'notes')
+    readonly_fields = ('created_at', 'updated_at')

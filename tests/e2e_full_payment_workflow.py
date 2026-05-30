@@ -44,11 +44,10 @@ class TestEndToEndPaymentWorkflow:
         director = User.objects.create_user(username="director", password="pass")
 
         # Step 3: Create BriefFinancialApproval (PENDING → APPROVED)
-        bfa = BriefFinancialApproval.objects.create(
-            project=project,
-            funding_amount=Decimal("1000000.00"),
-            delegate_level="MANAGER",
-            status="PENDING"
+        from tests.fixtures import make_bfa
+        bfa = make_bfa(
+            project, Decimal("1000000.00"),
+            delegate_level="MGR", status="PENDING",
         )
         assert bfa.status == "PENDING"
 
@@ -158,12 +157,10 @@ class TestEndToEndPaymentWorkflow:
         manager = User.objects.create_user(username="mgr", password="pass")
 
         # Create BFA (APPROVED)
-        bfa = BriefFinancialApproval.objects.create(
-            project=project,
-            funding_amount=Decimal("3000000.00"),
-            delegate_level="MANAGER",
-            status="APPROVED",
-            approved_by=manager
+        from tests.fixtures import make_bfa
+        bfa = make_bfa(
+            project, Decimal("3000000.00"),
+            delegate_level="MGR", status="APPROVED", approved_by=manager,
         )
 
         # Create Agreement and Schedule
@@ -273,12 +270,10 @@ class TestEndToEndPaymentWorkflow:
         manager = User.objects.create_user(username="manager2", password="pass")
 
         # BFA
-        bfa = BriefFinancialApproval.objects.create(
-            project=project,
-            funding_amount=Decimal("2000000.00"),
-            delegate_level="MANAGER",
-            status="APPROVED",
-            approved_by=manager
+        from tests.fixtures import make_bfa
+        bfa = make_bfa(
+            project, Decimal("2000000.00"),
+            delegate_level="MGR", status="APPROVED", approved_by=manager,
         )
 
         # Original schedule

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load money %}
 {% load static %}
 
 {% block title %}Aggregate Outputs - RICD{% endblock %}
@@ -34,7 +35,7 @@
                             <tr>
                                 <td>{{ item.council__name }}</td>
                                 <td class="text-right">{{ item.project_count }}</td>
-                                <td class="text-right">${{ item.total_budget|floatformat:0 }}</td>
+                                <td class="text-right">{{ item.total_budget|money }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -71,7 +72,7 @@
                             <tr>
                                 <td>{{ item.program__name }}</td>
                                 <td class="text-right">{{ item.project_count }}</td>
-                                <td class="text-right">${{ item.total_budget|floatformat:0 }}</td>
+                                <td class="text-right">{{ item.total_budget|money }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>

@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}{{ group.name }} — Work Step Group — RICD{% endblock %}
+{% block breadcrumbs %}
+  <span class="sep">/</span><a href="{% url 'ui:maintenance' %}">Maintenance</a>
+  <span class="sep">/</span><a href="{% url 'ui:work_step_group_list' %}">Work Step Groups</a>
+  <span class="sep">/</span><span class="current">{{ group.name }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="pg-head">
+  <div>
+    <h1>{{ group.name }}</h1>
+    <div class="meta">
+      {% if not group.is_active %}<span class="badge bg-secondary">Inactive</span>{% endif %}
+      {% with total=group.total_cost_percentage %}
+        {% if total == 100 %}<span class="badge bg-success">Costs total: {{ total }}%</span>
+        {% else %}<span class="badge bg-warning text-dark" title="Should sum to 100% for accurate cashflow">Costs total: {{ total }}% ⚠</span>
+        {% endif %}
+      {% endwith %}
+      <span class="text-muted">{{ formset.initial_form_count }} existing step(s) · {{ formset.extra }} blank row(s) for new entries</span>
+    </div>
+    {% if group.description %}<p class="text-muted mt-1 mb-0" style="font-size:13px;">{{ group.description }}</p>{% endif %}
+  </div>
+  <div class="actions">
+    <a href="{% url 'ui:work_step_group_edit' group.pk %}" class="btn btn-outline-secondary btn-sm">Edit Group</a>
+    <form method="post" action="{% url 'ui:work_step_group_clone' group.pk %}" class="d-inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-outline-info btn-sm" title="Duplicate this group + items">Clone</button>
+    </form>
+    <a href="{% url 'ui:work_step_group_delete' group.pk %}" class="btn btn-outline-danger btn-sm">Delete Group</a>
+    <a href="{% url 'ui:work_step_group_list' %}" class="btn btn-outline-secondary btn-sm">Back</a>
+  </div>
+</div>
+
+{# Linked work types — single-line summary, edit via group form #}
+<div class="card mb-3"><div class="card-body py-2">
+  <div class="d-flex align-items-center gap-2 flex-wrap">
+    <b class="text-muted small text-uppercase" style="letter-spacing:.04em; font-size:11px;">Applies to:</b>
+    {% if group.work_types.all %}
+      {% for wt in group.work_types.all %}
+        <a href="{% url 'ui:work_type_detail' wt.pk %}" class="pill grey" style="text-decoration:none; font-size:11px;">{{ wt.name }}</a>
+      {% endfor %}
+    {% else %}
+      <span class="text-muted small">— not linked to any work type yet —</span>
+    {% endif %}
+    <a href="{% url 'ui:work_step_group_edit' group.pk %}" class="ms-auto small">Manage links →</a>
+  </div>
+</div></div>
+
+{# ============ INLINE GRID ============ #}
+<form method="post" id="items-form" novalidate>
+  {% csrf_token %}
+  {{ formset.management_form }}
+
+  {% if formset.non_form_errors %}
+    <div class="alert alert-danger">{{ formset.non_form_errors }}</div>
+  {% endif %}
+
+  <div class="card mb-3"><div class="card-body p-0">
+    <div class="sec-h px-3 py-2 d-flex justify-content-between align-items-center">
+      <h2 class="mb-0">Steps (grid edit)</h2>
+      <div class="d-flex gap-2 align-items-center">
+        <button type="button" id="add-row-btn" class="btn btn-sm btn-outline-primary">
+          <i class="bi bi-plus-lg"></i> Add Row
+        </button>
+        <button type="submit" class="btn btn-sm btn-primary">
+          <i class="bi bi-check2"></i> Save All
+        </button>
+      </div>
+    </div>
+
+    <table class="table table-sm align-middle mb-0" id="items-grid">
+      <thead class="table-light">
+        <tr>
+          <th style="width:80px;">Order</th>
+          <th style="min-width:220px;">Step</th>
+          <th style="width:100px;" class="text-end">Days</th>
+          <th style="width:100px;" class="text-end">Cost %</th>
+          <th style="width:160px;">Stage Gate</th>
+          <th style="width:90px;" class="text-center">Tracker col?</th>
+          <th style="width:70px;" class="text-center">Delete</th>
+        </tr>
+      </thead>
+      <tbody id="items-tbody">
+        {% for form in formset %}
+          <tr class="item-row{% if form.errors %} table-warning{% endif %}">
+            {# hidden id field needed by inline formset to track existing rows #}
+            {{ form.id }}
+            <td>
+              {{ form.order }}
+              {% if form.order.errors %}<div class="text-danger small">{{ form.order.errors|striptags }}</div>{% endif %}
+            </td>
+            <td>
+              {{ form.step }}
+              {% if form.step.errors %}<div class="text-danger small">{{ form.step.errors|striptags }}</div>{% endif %}
+            </td>
+            <td>
+              {{ form.expected_duration_days }}
+              {% if form.expected_duration_days.errors %}<div class="text-danger small">{{ form.expected_duration_days.errors|striptags }}</div>{% endif %}
+            </td>
+            <td>
+              {{ form.cost_percentage }}
+              {% if form.cost_percentage.errors %}<div class="text-danger small">{{ form.cost_percentage.errors|striptags }}</div>{% endif %}
+            </td>
+            <td>{{ form.stage_gate }}</td>
+            <td class="text-center">{{ form.is_monthly_tracker_column }}</td>
+            <td class="text-center">
+              {% if form.DELETE %}{{ form.DELETE }}{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {# Empty form template — cloned by JS when "Add Row" is clicked. #}
+    <table style="display:none;">
+      <tbody id="empty-form-tpl">
+        <tr class="item-row">
+          {{ formset.empty_form.id }}
+          <td>{{ formset.empty_form.order }}</td>
+          <td>{{ formset.empty_form.step }}</td>
+          <td>{{ formset.empty_form.expected_duration_days }}</td>
+          <td>{{ formset.empty_form.cost_percentage }}</td>
+          <td>{{ formset.empty_form.stage_gate }}</td>
+          <td class="text-center">{{ formset.empty_form.is_monthly_tracker_column }}</td>
+          <td class="text-center">{% if formset.empty_form.DELETE %}{{ formset.empty_form.DELETE }}{% endif %}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div></div>
+
+  <div class="d-flex justify-content-end gap-2">
+    <button type="button" id="add-row-btn-2" class="btn btn-outline-primary btn-sm">+ Add Row</button>
+    <button type="submit" class="btn btn-primary btn-sm">Save All</button>
+  </div>
+</form>
+
+{# Bootstrap the form inputs to look like form controls. Form widgets render
+   as raw <input>/<select>; class injection keeps the table clean. #}
+<style>
+  #items-grid input[type=number],
+  #items-grid input[type=text],
+  #items-grid select { width:100%; padding:4px 8px; font-size:12.5px;
+                       border:1px solid var(--line-2); border-radius:4px; background:#fff; }
+  #items-grid input[type=checkbox] { transform:scale(1.2); }
+  #items-grid td { padding:4px 8px; vertical-align:middle; }
+  #items-grid tr.item-row.marked-delete { background:#fef2f2; opacity:.55; }
+</style>
+
+<script>
+(function(){
+  const totalFormsInput = document.querySelector('input[name="items-TOTAL_FORMS"]');
+  const tbody = document.getElementById('items-tbody');
+  const tpl   = document.getElementById('empty-form-tpl');
+
+  function addRow() {
+    if (!totalFormsInput) return;
+    const idx = parseInt(totalFormsInput.value, 10);
+    // Pull the empty-form HTML and replace __prefix__ with this row's index.
+    const html = tpl.innerHTML.replace(/__prefix__/g, idx);
+    tbody.insertAdjacentHTML('beforeend', html);
+    totalFormsInput.value = String(idx + 1);
+    // Pre-fill the new row's order = current max + 1.
+    const lastOrderInput = tbody.querySelector('tr:last-child input[name$="-order"]');
+    if (lastOrderInput && !lastOrderInput.value) {
+      const max = Array.from(tbody.querySelectorAll('input[name$="-order"]'))
+        .map(i => parseInt(i.value || '0', 10)).filter(n => !isNaN(n));
+      lastOrderInput.value = String((max.length ? Math.max(...max) : 0) + 1);
+    }
+  }
+
+  document.getElementById('add-row-btn').addEventListener('click', addRow);
+  const second = document.getElementById('add-row-btn-2');
+  if (second) second.addEventListener('click', addRow);
+
+  // Visual dim when DELETE is checked.
+  tbody.addEventListener('change', function(ev){
+    const cb = ev.target;
+    if (cb.type === 'checkbox' && cb.name.endsWith('-DELETE')) {
+      const row = cb.closest('tr.item-row');
+      if (row) row.classList.toggle('marked-delete', cb.checked);
+    }
+  });
+})();
+</script>
+{% endblock %}

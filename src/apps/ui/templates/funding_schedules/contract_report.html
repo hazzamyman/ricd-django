@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Contract Management Report — FS #{{ fs.schedule_number }} — RICD{% endblock %}
+{% block breadcrumbs %}
+  <span class="sep">/</span>
+  <a href="{% url 'ui:funding_schedule_list' %}">Funding Schedules</a>
+  <span class="sep">/</span>
+  <a href="{% url 'ui:funding_schedule_detail' fs.pk %}">#{{ fs.schedule_number }}</a>
+  <span class="sep">/</span>
+  <span class="current">Contract Management Report</span>
+{% endblock %}
+{% block content %}
+
+<div class="pg-head">
+  <div>
+    <h1>Contract Management Report — FS #{{ fs.schedule_number }}</h1>
+    <div class="meta">
+      {% if fs.council %}<span><b>Council</b> <a href="{% url 'ui:council_detail' fs.council.pk %}">{{ fs.council.name }}</a></span>{% endif %}
+      {% if fs.funding_agreement %}<span><b>FA</b> {{ fs.funding_agreement.agreement_reference|default:fs.funding_agreement.pk }}</span>{% endif %}
+      <span><b>Status</b> <span class="pill {% if fs.status == 'ACTIVE' %}green{% elif fs.status == 'EXECUTED' %}blue{% elif fs.status == 'SUPERSEDED' or fs.status == 'CANCELLED' %}red{% else %}grey{% endif %}">{{ fs.get_status_display }}</span></span>
+      {% if fs.payment_rule %}<span><b>Payment Rule</b> {{ fs.payment_rule.name }} v{{ fs.payment_rule.version }}</span>{% endif %}
+    </div>
+  </div>
+  <div class="actions">
+    <a href="{% url 'ui:funding_schedule_detail' fs.pk %}" class="btn btn-outline-secondary btn-sm">Back to FS</a>
+    <button onclick="window.print()" class="btn btn-outline-secondary btn-sm">Print</button>
+  </div>
+</div>
+
+{# ── Financial Snapshot ───────────────────────────────────────── #}
+<div class="card mb-3"><div class="card-body">
+  <div class="sec-h"><h2>Financial Snapshot</h2></div>
+  <div class="row g-3">
+    <div class="col-md-3"><div class="kpi">
+      <div class="label">Approved (BFA)</div>
+      <div class="value">{{ financial.approved_funding|money }}</div>
+      {% if financial.approved_contingency %}
+        <div class="text-muted small">+{{ financial.approved_contingency|money }} contingency</div>
+      {% endif %}
+    </div></div>
+    <div class="col-md-3"><div class="kpi">
+      <div class="label">FS Amount</div>
+      <div class="value">{{ financial.fs_amount|money }}</div>
+      {% if financial.council_contribution %}
+        <div class="text-muted small">+{{ financial.council_contribution|money }} council contribution</div>
+      {% endif %}
+    </div></div>
+    <div class="col-md-3"><div class="kpi">
+      <div class="label">Released</div>
+      <div class="value">{{ financial.released|money }}</div>
+      <div class="text-muted small">{{ financial.drawdown_pct|floatformat:1 }}% drawdown</div>
+    </div></div>
+    <div class="col-md-3"><div class="kpi">
+      <div class="label">Remaining</div>
+      <div class="value">{{ financial.remaining|money }}</div>
+    </div></div>
+  </div>
+</div></div>
+
+{# ── Projects on this Funding Schedule ────────────────────────── #}
+{% if child_projects %}
+<div class="card mb-3"><div class="card-body">
+  <div class="sec-h">
+    <h2>Projects</h2>
+    <span style="font-size:11px; color:var(--muted);">{{ child_projects|length }} on this FS</span>
+  </div>
+  <table class="table table-sm align-middle mb-0">
+    <thead class="table-light"><tr>
+      <th>Project</th><th>Program</th><th>State</th>
+      <th>Stage 1</th><th>Stage 2</th><th>Stage 2 Sunset</th>
+    </tr></thead>
+    <tbody>
+      {% for p in child_projects %}
+      <tr>
+        <td><a href="{% url 'ui:project_detail' p.pk %}">{{ p.name }}</a></td>
+        <td>{{ p.program.name|default:"—" }}</td>
+        <td><span class="state-badge state-{{ p.state|lower }}">{{ p.get_state_display }}</span></td>
+        <td>{{ p.stage1_target_date|date:"d M Y"|default:"—" }}</td>
+        <td>{{ p.stage2_target_date|date:"d M Y"|default:"—" }}</td>
+        <td>{{ p.stage2_sunset_date|date:"d M Y"|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% endif %}
+
+{# ── Payment Timeline ─────────────────────────────────────────── #}
+<div class="card mb-3"><div class="card-body">
+  <div class="sec-h">
+    <h2>Payment Timeline</h2>
+    <span style="font-size:11px; color:var(--muted);">{{ payments|length }} payment(s)</span>
+  </div>
+  {% if payments %}
+  <table class="table table-sm align-middle mb-0">
+    <thead class="table-light"><tr>
+      <th>Type</th><th>Project</th>
+      <th class="text-end">Amount</th>
+      <th>Forecast</th><th>Released</th>
+      <th>Status</th><th>SAP Ref</th>
+    </tr></thead>
+    <tbody>
+      {% for p in payments %}
+      <tr>
+        <td><a href="{% url 'ui:payment_detail' p.pk %}">{{ p.get_payment_type_display }}</a></td>
+        <td>{{ p.project.name|truncatechars:30 }}</td>
+        <td class="text-end">{{ p.calculated_amount_display }}</td>
+        <td>{{ p.forecast_release_date|date:"d M Y"|default:"—" }}</td>
+        <td>{{ p.release_date|date:"d M Y"|default:"—" }}</td>
+        <td><span class="pill {% if p.status == 'RELEASED' %}green{% elif p.status == 'APPROVED' or p.status == 'RECOMMENDED' %}blue{% elif p.status == 'REJECTED' %}red{% else %}grey{% endif %}">{{ p.get_status_display }}</span></td>
+        <td><span class="text-muted small">{{ p.release_sap_reference|default:p.sap_payment_reference|default:"—" }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p class="text-muted small mb-0">No payments configured yet.</p>
+  {% endif %}
+</div></div>
+
+<div class="row g-3 mb-3">
+  {# ── Contracts ─────────────────────────────────────────────── #}
+  <div class="col-md-6">
+    <div class="card h-100"><div class="card-body">
+      <div class="sec-h">
+        <h2>Contracts</h2>
+        <span style="font-size:11px; color:var(--muted);">{{ contracts|length }}</span>
+      </div>
+      {% if contracts %}
+        <ul class="list-unstyled mb-0" style="font-size:13px;">
+          {% for c in contracts %}
+          <li class="py-2 border-bottom">
+            <div><b>{{ c.title }}</b>
+              <span class="pill {% if c.contract_status == 'EXECUTED' %}green{% elif c.contract_status == 'TERMINATED' or c.contract_status == 'EXPIRED' %}red{% else %}grey{% endif %} ms-1" style="font-size:9px;">{{ c.get_contract_status_display }}</span>
+            </div>
+            <div class="text-muted small">{{ c.project.name }}</div>
+            {% if c.execution_date %}<div class="small">Executed {{ c.execution_date|date:"d M Y" }}</div>{% endif %}
+            {% if c.start_date or c.end_date %}<div class="small">{{ c.start_date|date:"d M Y"|default:"—" }} → {{ c.end_date|date:"d M Y"|default:"—" }}</div>{% endif %}
+            {% if c.document_uri %}<div class="small"><a href="{{ c.document_uri }}" target="_blank">Document →</a></div>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-muted small mb-0">No contracts on file.</p>
+      {% endif %}
+    </div></div>
+  </div>
+
+  {# ── Contract Meetings ────────────────────────────────────── #}
+  <div class="col-md-6">
+    <div class="card h-100"><div class="card-body">
+      <div class="sec-h">
+        <h2>Contract Meetings</h2>
+        <span style="font-size:11px; color:var(--muted);">{{ meetings|length }} most recent</span>
+      </div>
+      {% if meetings %}
+        <ul class="list-unstyled mb-0" style="font-size:13px;">
+          {% for m in meetings %}
+          <li class="py-2 border-bottom">
+            <div>
+              <b>{{ m.get_meeting_type_display }}</b>
+              <span class="text-muted small">— {{ m.meeting_date|date:"d M Y H:i" }}</span>
+            </div>
+            <div class="text-muted small">{{ m.contract.project.name }}</div>
+            {% if m.location %}<div class="small">{{ m.location }}</div>{% endif %}
+            {% if m.action_items %}<div class="small mt-1"><b>Actions:</b> {{ m.action_items|truncatechars:120 }}</div>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-muted small mb-0">No meetings recorded.</p>
+      {% endif %}
+    </div></div>
+  </div>
+</div>
+
+{# ── Lifecycle Health ─────────────────────────────────────────── #}
+<div class="card mb-3"><div class="card-body">
+  <div class="sec-h"><h2>Lifecycle Health</h2></div>
+  <div class="row g-3">
+    <div class="col-md-3"><div class="kpi">
+      <div class="label">Works PC complete</div>
+      <div class="value">{{ lifecycle.work_pc_complete }} / {{ lifecycle.work_total }}</div>
+      <div class="text-muted small">{{ lifecycle.pc_pct|floatformat:0 }}%</div>
+    </div></div>
+    <div class="col-md-3"><div class="kpi">
+      <div class="label">Handovers done</div>
+      <div class="value">{{ lifecycle.work_handover_complete }} / {{ lifecycle.work_total }}</div>
+      <div class="text-muted small">{{ lifecycle.handover_pct|floatformat:0 }}%</div>
+    </div></div>
+    <div class="col-md-3"><div class="kpi">
+      <div class="label">Defects open</div>
+      <div class="value">{{ lifecycle.defects_open }}</div>
+      <div class="text-muted small">of {{ lifecycle.defects_total }} total</div>
+    </div></div>
+    <div class="col-md-3"><div class="kpi">
+      <div class="label">Sunset breach (PC&gt;sunset+30d)</div>
+      <div class="value">
+        {% if lifecycle.sunset_breach %}
+          <span style="color:var(--st-red-fg);">{{ lifecycle.sunset_breach|length }}</span>
+        {% else %}
+          0
+        {% endif %}
+      </div>
+    </div></div>
+  </div>
+  {% if lifecycle.sunset_breach %}
+    <div class="mt-3">
+      <h6 class="text-uppercase text-muted" style="font-size:11px; letter-spacing:.04em;">Works at risk</h6>
+      <ul class="list-unstyled mb-0" style="font-size:12.5px;">
+        {% for w in lifecycle.sunset_breach %}
+          <li class="py-1 border-bottom">
+            <a href="{% url 'ui:work_detail' w.pk %}">{{ w.work_type.name }}</a>
+            <span class="text-muted small">— {{ w.project.name }} — forecast PC {{ w.forecast_practical_completion_date|date:"d M Y" }} (sunset {{ w.project.stage2_sunset_date|date:"d M Y" }})</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+</div></div>
+
+{# ── Variations on this FS ────────────────────────────────────── #}
+{% if variations %}
+<div class="card mb-3"><div class="card-body">
+  <div class="sec-h">
+    <h2>Variations</h2>
+    <span style="font-size:11px; color:var(--muted);">{{ variations|length }}</span>
+  </div>
+  <table class="table table-sm align-middle mb-0">
+    <thead class="table-light"><tr>
+      <th>#</th><th>Type</th><th>Status</th><th>Description</th><th>Executed</th>
+    </tr></thead>
+    <tbody>
+      {% for v in variations %}
+      <tr>
+        <td><a href="{% url 'ui:variation_detail' v.pk %}">#{{ v.pk }}</a></td>
+        <td>{{ v.variation_type.name|default:v.get_variation_option_display|default:"—" }}</td>
+        <td><span class="pill grey" style="font-size:9px;">{{ v.get_status_display }}</span></td>
+        <td>{{ v.description|truncatechars:80 }}</td>
+        <td>{{ v.department_executed_date|date:"d M Y"|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% endif %}
+
+{# ── Recent Activity ──────────────────────────────────────────── #}
+{% if audit_logs %}
+<div class="card"><div class="card-body">
+  <div class="sec-h"><h2>Recent Activity</h2></div>
+  <ul class="list-unstyled mb-0" style="font-size:12px;">
+    {% for log in audit_logs %}
+    <li class="py-1 border-bottom">
+      <span class="text-muted">{{ log.timestamp|date:"d M H:i" }}</span> &middot;
+      <b>{{ log.action }}</b> &middot;
+      <span class="text-muted">{{ log.entity_type }} #{{ log.entity_id }}</span> &middot;
+      <span class="text-muted">{{ log.user|default:"system" }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+</div></div>
+{% endif %}
+
+{% endblock %}

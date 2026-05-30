@@ -295,11 +295,12 @@ class TestFundingScheduleCRUD:
             f"GET /ui/funding-schedules/create/ returned {response.status_code}"
 
     def test_funding_schedule_create_post_creates_object(self, auth_client, project):
-        from apps.core.models import FundingSchedule, BriefFinancialApproval
-        BriefFinancialApproval.objects.create(project=project, status='APPROVED', funding_amount='500000')
+        from apps.core.models import FundingSchedule
+        from tests.fixtures import make_bfa
+        make_bfa(project, '500000', status='APPROVED')
         before = FundingSchedule.objects.count()
         response = auth_client.post('/funding-schedules/create/', {
-            'project': project.pk,
+            'projects': [project.pk],  # multi-select (multi-project per FS)
             'schedule_number': 1,
             'status': 'DRAFT',
         })
@@ -319,7 +320,7 @@ class TestFundingScheduleCRUD:
 
     def test_funding_schedule_edit_post_updates_object(self, auth_client, funding_schedule, project):
         response = auth_client.post(f'/funding-schedules/{funding_schedule.pk}/edit/', {
-            'project': project.pk,
+            'projects': [project.pk],  # multi-select
             'schedule_number': 2,
             'status': 'DRAFT',
         })
@@ -497,9 +498,8 @@ class TestStageReportCRUD:
         from apps.core.models import (
             BriefFinancialApproval, FundingSchedule, StageItemGroup, StageReport
         )
-        BriefFinancialApproval.objects.create(
-            project=project, status='APPROVED', funding_amount='100000'
-        )
+        from tests.fixtures import make_bfa
+        make_bfa(project, '100000', status='APPROVED')
         fs = FundingSchedule.objects.create(project=project, schedule_number=1)
         project.funding_schedule = fs
         project.save()

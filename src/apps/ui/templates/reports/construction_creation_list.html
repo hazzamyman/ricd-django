@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Construction Creation List — RICD{% endblock %}
+{% block breadcrumbs %}
+  <span class="sep">/</span>
+  <a href="{% url 'ui:reports_dashboard' %}">Reports</a>
+  <span class="sep">/</span>
+  <span class="current">Construction Creation List</span>
+{% endblock %}
+{% block content %}
+
+<div class="pg-head">
+  <div>
+    <h1>Construction Creation List</h1>
+    <div class="meta">
+      <span><b>Works</b> {{ works_count }}</span>
+      <span><b>Total Estimated</b> {{ total_estimated|money }}</span>
+      {% if selected_council %}<span><b>Council filter</b> active</span>{% endif %}
+      {% if not include_completed %}<span class="text-muted">excluding completed</span>{% endif %}
+    </div>
+  </div>
+  <div class="actions">
+    <form method="get" class="d-inline-flex gap-2 align-items-center">
+      <select name="council" class="form-select form-select-sm" style="width:auto;">
+        <option value="">All councils</option>
+        {% for c in councils %}
+          <option value="{{ c.pk }}" {% if selected_council == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+      <div class="form-check form-check-inline mb-0">
+        <input class="form-check-input" type="checkbox" name="include_completed" value="1" id="include_completed" {% if include_completed %}checked{% endif %}>
+        <label class="form-check-label small" for="include_completed">Include completed</label>
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+    </form>
+    <a href="{% url 'ui:construction_creation_list_export' %}?council={{ selected_council }}{% if include_completed %}&include_completed=1{% endif %}" class="btn btn-outline-primary btn-sm">Export CSV</a>
+  </div>
+</div>
+
+{% if not works %}
+  <div class="card"><div class="card-body">
+    <p class="text-muted mb-0">No works on Active/Executed funding schedules{% if not include_completed %} (excluding completed){% endif %}.</p>
+  </div></div>
+{% else %}
+
+{% for council_name, council_works in by_council %}
+<div class="card mb-3"><div class="card-body">
+  <div class="sec-h">
+    <h2>{{ council_name }}</h2>
+    <span class="text-muted small">{{ council_works|length }} work(s)</span>
+  </div>
+  <table class="table table-sm align-middle mb-0">
+    <thead class="table-light"><tr>
+      <th>Project</th><th>FS #</th><th>Address</th>
+      <th>Work Type</th><th class="text-end">BR</th><th class="text-end">Qty</th>
+      <th class="text-end">Est. Cost</th>
+      <th>Status</th>
+      <th>Stage 1 Target</th><th>Stage 2 Target</th><th>Forecast PC</th>
+    </tr></thead>
+    <tbody>
+      {% for w in council_works %}
+      <tr>
+        <td><a href="{% url 'ui:project_detail' w.project.pk %}">{{ w.project.name|truncatechars:28 }}</a></td>
+        <td>{% if w.project.funding_schedule %}<a href="{% url 'ui:funding_schedule_detail' w.project.funding_schedule.pk %}">#{{ w.project.funding_schedule.schedule_number }}</a>{% else %}—{% endif %}</td>
+        <td>{% if w.address %}{{ w.address.street }}{% if w.address.suburb %}, {{ w.address.suburb.name }}{% endif %}{% else %}—{% endif %}</td>
+        <td><a href="{% url 'ui:work_detail' w.pk %}">{{ w.work_type.name|default:w.work_type_other }}</a></td>
+        <td class="text-end">{% if w.bedrooms %}{{ w.bedrooms }}{% else %}—{% endif %}</td>
+        <td class="text-end">{{ w.quantity }}</td>
+        <td class="text-end">{{ w.total_estimated_cost|money }}</td>
+        <td><span class="pill {% if w.status == 'COMPLETED' %}green{% elif w.status == 'IN_PROGRESS' %}blue{% else %}grey{% endif %}" style="font-size:9px;">{{ w.get_status_display }}</span>{% if w.pc_breaches_sunset %} <span class="pill red" style="font-size:9px;" title="Forecast PC > Stage 2 Sunset + 30 days">SUNSET</span>{% endif %}</td>
+        <td>{{ w.project.stage1_target_date|date:"d M Y"|default:"—" }}</td>
+        <td>{{ w.project.stage2_target_date|date:"d M Y"|default:"—" }}</td>
+        <td>{{ w.forecast_practical_completion_date|date:"d M Y"|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% endfor %}
+
+{% endif %}
+
+{% endblock %}

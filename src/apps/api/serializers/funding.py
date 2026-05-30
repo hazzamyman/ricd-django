@@ -43,18 +43,18 @@ class FundingScheduleSerializer(serializers.ModelSerializer):
     class Meta:
         model = FundingSchedule
         fields = [
-            'id', 'funding_agreement', 'schedule_number', 'payment_rule',
-            'status', 'amount', 'contingency', 'total_funding', 'payment_split',
+            'id', 'funding_agreement', 'council', 'schedule_number', 'payment_rule',
+            'status', 'amount', 'total_funding', 'payment_split',
             'project', 'replaces_schedule', 'created_at',
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'council', 'total_funding', 'created_at']
 
     def validate(self, data):
         project = data.get('project') or (self.instance.project if self.instance else None)
         is_new = self.instance is None
         if is_new and project:
             has_bfa = BriefFinancialApproval.objects.filter(
-                project=project,
+                items__project=project,
                 status=BriefFinancialApproval.Status.APPROVED,
             ).exists()
             if not has_bfa:
@@ -65,10 +65,29 @@ class FundingScheduleSerializer(serializers.ModelSerializer):
 
 
 class BriefFinancialApprovalSerializer(serializers.ModelSerializer):
+    funding_amount = serializers.SerializerMethodField()
+    contingency_amount = serializers.SerializerMethodField()
+    total_amount = serializers.SerializerMethodField()
+    project_count = serializers.IntegerField(read_only=True)
+
     class Meta:
         model = BriefFinancialApproval
-        fields = ['id', 'project', 'funding_amount', 'delegate_level', 'status', 'approved_by', 'approved_at']
-        read_only_fields = ['id', 'approved_at']
+        fields = [
+            'id', 'mincor_reference', 'document_uri',
+            'funding_amount', 'contingency_amount', 'total_amount', 'project_count',
+            'delegate_level', 'status', 'approved_by', 'approved_at',
+        ]
+        read_only_fields = ['id', 'approved_at',
+                            'funding_amount', 'contingency_amount', 'total_amount', 'project_count']
+
+    def get_funding_amount(self, obj):
+        return str(obj.funding_amount)
+
+    def get_contingency_amount(self, obj):
+        return str(obj.contingency_amount)
+
+    def get_total_amount(self, obj):
+        return str(obj.total_amount)
 
 
 class PaymentSerializer(serializers.ModelSerializer):

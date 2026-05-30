@@ -192,6 +192,49 @@ class QuarterlyReport(models.Model):
     )
     approved_at = models.DateTimeField(null=True, blank=True)
     notes = models.TextField(blank=True)
+
+    # ── Council-reported content (per Funding Agreement clause 9.1) ───────
+    pct_works_completed = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True,
+        help_text="Percentage of works completed to date (0–100).",
+    )
+    total_expenditure_to_date = models.DecimalField(
+        max_digits=14, decimal_places=2, null=True, blank=True,
+        help_text="Council's reported total expenditure on the Works to date.",
+    )
+    unspent_funding = models.DecimalField(
+        max_digits=14, decimal_places=2, null=True, blank=True,
+        help_text="Amount of unspent Funding still held by Council.",
+    )
+    council_contribution = models.DecimalField(
+        max_digits=14, decimal_places=2, null=True, blank=True,
+        help_text="Reported Council contribution toward the Works this quarter.",
+    )
+    other_party_contribution = models.DecimalField(
+        max_digits=14, decimal_places=2, null=True, blank=True,
+        help_text="Reported third-party contributions (e.g. Commonwealth).",
+    )
+    total_employed = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Total number of people employed on the projects.",
+    )
+    local_indigenous_employed = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Number of local Aboriginal or Torres Strait Islander people employed.",
+    )
+    indigenous_businesses_engaged = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Number of Indigenous local businesses engaged.",
+    )
+    adverse_matters = models.TextField(
+        blank=True,
+        help_text="Any adverse matters connected with the Funding or the Works.",
+    )
+    bank_statement_uri = models.URLField(
+        blank=True, max_length=500,
+        help_text="Link to the council's bank statement(s) for this quarter.",
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -252,6 +295,29 @@ class QuarterlyReportEntry(models.Model):
 
     def __str__(self):
         return f"{self.report} -- {self.work} -- {self.item.name}"
+
+
+class QuarterlyReportExpenditureItem(models.Model):
+    """One line in the council's itemised expenditure statement for a quarter.
+
+    Per RCPFA clause 9.1: Council must provide 'a statement itemising
+    expenditure on the Works'. Each line captures one cost — supplier,
+    description, and amount.
+    """
+    report = models.ForeignKey(QuarterlyReport, related_name='expenditure_items', on_delete=models.CASCADE)
+    description = models.CharField(max_length=255, help_text="What was paid for (e.g. 'Plumbing rough-in, Lot 12').")
+    supplier = models.CharField(max_length=255, blank=True, help_text="Who was paid (contractor / supplier).")
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    spend_date = models.DateField(null=True, blank=True, help_text="Date the expense was incurred.")
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['spend_date', 'id']
+
+    def __str__(self):
+        return f"{self.description} — ${self.amount:,.0f}"
 
 
 class QuarterlyReportAttachment(models.Model):
