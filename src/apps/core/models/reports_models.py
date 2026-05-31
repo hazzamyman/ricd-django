@@ -235,6 +235,20 @@ class QuarterlyReport(models.Model):
         help_text="Link to the council's bank statement(s) for this quarter.",
     )
 
+    # ── Declaration (authorised officer sign-off before submission) ────────
+    declaration_officer_name = models.CharField(
+        max_length=255, blank=True,
+        help_text="Full name of the duly authorised officer signing off the report.",
+    )
+    declaration_officer_position = models.CharField(
+        max_length=255, blank=True,
+        help_text="Position/title of the authorised officer.",
+    )
+    declaration_date = models.DateField(
+        null=True, blank=True,
+        help_text="Date the authorised officer certified the report.",
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

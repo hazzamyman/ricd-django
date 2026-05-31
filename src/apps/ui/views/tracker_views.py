@@ -497,13 +497,21 @@ class QuarterlyReportDetailView(LoginRequiredMixin, View):
         return {'fs_sections': fs_sections}
 
     def get(self, request, pk):
+        from django.conf import settings as django_settings
         report = self._get(pk, request.user)
         grid = self._build_grid(report)
+        lead = report.council.lead_officer if report.council_id else None
+        officer_email = lead.email if lead and lead.email else ''
+        officer_name = lead.get_full_name() or lead.username if lead else ''
+        reports_email = getattr(django_settings, 'RICD_REPORTS_EMAIL', 'reports@ricd.qld.gov.au')
         return render(request, 'tracker/quarterly_detail.html', {
             'report': report,
             'grid': grid,
             'can_edit': self._can_edit(report, request.user),
             'is_ricd': _is_ricd_staff(request.user),
+            'reports_email': reports_email,
+            'officer_email': officer_email,
+            'officer_name': officer_name,
         })
 
     def post(self, request, pk):
@@ -572,12 +580,44 @@ class QuarterlyReportDetailView(LoginRequiredMixin, View):
                 e.save()
                 updated += 1
 
-        if report.status == QuarterlyReport.Status.DRAFT and updated:
+        # Save report-level fields (adverse matters, declaration)
+        report_changed = False
+        if request.POST.get('no_adverse') == 'on':
+            new_adverse = ''
+        else:
+            new_adverse = request.POST.get('adverse_matters', report.adverse_matters)
+        if report.adverse_matters != new_adverse:
+            report.adverse_matters = new_adverse
+            report_changed = True
+
+        for field in ('declaration_officer_name', 'declaration_officer_position'):
+            val = request.POST.get(field, '')
+            if getattr(report, field) != val:
+                setattr(report, field, val)
+                report_changed = True
+
+        decl_date_raw = request.POST.get('declaration_date', '')
+        if decl_date_raw:
+            try:
+                from datetime import datetime
+                new_decl_date = datetime.strptime(decl_date_raw, '%Y-%m-%d').date()
+            except ValueError:
+                new_decl_date = report.declaration_date
+        else:
+            new_decl_date = None
+        if report.declaration_date != new_decl_date:
+            report.declaration_date = new_decl_date
+            report_changed = True
+
+        if report.status == QuarterlyReport.Status.DRAFT and (updated or report_changed):
             report.status = QuarterlyReport.Status.IN_PROGRESS
+            report_changed = True
+
+        if report_changed:
             report.save()
 
-        if updated:
-            messages.success(request, f'Updated {updated} cell(s).')
+        if updated or report_changed:
+            messages.success(request, f'Report saved.')
         return redirect('ui:quarterly_report_detail', pk=pk)
 
 
