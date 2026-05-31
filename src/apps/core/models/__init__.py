@@ -69,7 +69,7 @@ from .addresses_models import (
 )
 
 # Account & User models
-from .accounts_models import Profile, GroupPermission
+from .accounts_models import Profile, GroupPermission, SiteSettings
 
 # Contract & Document models
 from .contracts_models import Contract, ContractMeeting
@@ -110,7 +110,7 @@ __all__ = [
     'Contractor', 'Suburb', 'Address',
     'StateElectorate', 'FederalElectorate', 'QhigiRegion',
     # Account
-    'Profile', 'GroupPermission',
+    'Profile', 'GroupPermission', 'SiteSettings',
     # Contract & Document
     'Contract', 'ContractMeeting', 'DocumentType', 'ProjectDocument',
     # Defect & Work

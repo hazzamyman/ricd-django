@@ -31,6 +31,7 @@ from apps.core.models import (
     Variation, VariationItem, Payment, StageReport, QuarterlyReport,
     FundingAgreement, FundingNotice, ExpenseClaim, WorkFunding,
     StateElectorate, FederalElectorate, QhigiRegion,
+    SiteSettings,
 )
 
 COUNCIL_ROLES = frozenset({'COUNCIL_USER', 'COUNCIL_MANAGER'})
@@ -3360,8 +3361,41 @@ class MaintenanceView(LoginRequiredMixin, TemplateView):
         ctx['workstep_definition_count'] = WorkStepDefinition.objects.count()
         ctx['construction_method_count'] = ConstructionMethod.objects.count()
         ctx['user_count'] = User.objects.count()
+        ctx['site_settings'] = SiteSettings.get()
         ctx['active_nav'] = 'maintenance'
         return ctx
+
+
+class SiteSettingsView(LoginRequiredMixin, View):
+    template_name = 'maintenance/site_settings.html'
+
+    def _check_permission(self, user):
+        role = getattr(getattr(user, 'profile', None), 'officer_role', None)
+        return user.is_superuser or role in {'MANAGER'}
+
+    def get(self, request):
+        if not self._check_permission(request.user):
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+        settings_obj = SiteSettings.get()
+        return render(request, self.template_name, {
+            'settings_obj': settings_obj,
+            'active_nav': 'maintenance',
+        })
+
+    def post(self, request):
+        if not self._check_permission(request.user):
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+        settings_obj = SiteSettings.get()
+        reports_email = request.POST.get('reports_email', '').strip()
+        if reports_email:
+            settings_obj.reports_email = reports_email
+            settings_obj.save()
+            messages.success(request, 'Site settings updated.')
+        else:
+            messages.error(request, 'A valid email address is required.')
+        return redirect('site_settings')
 
 
 # ============================================================================

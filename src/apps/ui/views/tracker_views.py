@@ -497,13 +497,13 @@ class QuarterlyReportDetailView(LoginRequiredMixin, View):
         return {'fs_sections': fs_sections}
 
     def get(self, request, pk):
-        from django.conf import settings as django_settings
+        from apps.core.models import SiteSettings
         report = self._get(pk, request.user)
         grid = self._build_grid(report)
         lead = report.council.lead_officer if report.council_id else None
         officer_email = lead.email if lead and lead.email else ''
         officer_name = lead.get_full_name() or lead.username if lead else ''
-        reports_email = getattr(django_settings, 'RICD_REPORTS_EMAIL', 'reports@ricd.qld.gov.au')
+        reports_email = SiteSettings.get().reports_email
         return render(request, 'tracker/quarterly_detail.html', {
             'report': report,
             'grid': grid,

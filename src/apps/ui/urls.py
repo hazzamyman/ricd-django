@@ -13,6 +13,7 @@ urlpatterns = [
 
     # Maintenance
     path('maintenance/', views.crud_views.MaintenanceView.as_view(), name='maintenance'),
+    path('maintenance/site-settings/', views.crud_views.SiteSettingsView.as_view(), name='site_settings'),
 
     # Planning views
     path('planning/', views.planning_views.planning_list, name='planning_list'),
