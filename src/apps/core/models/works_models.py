@@ -170,6 +170,17 @@ class Work(models.Model):
         IN_PROGRESS = 'IN_PROGRESS', 'In Progress'
         COMPLETED = 'COMPLETED', 'Completed'
 
+    class LivableHousingLevel(models.TextChoices):
+        SILVER = 'SILVER', 'Silver'
+        GOLD = 'GOLD', 'Gold'
+        PLATINUM = 'PLATINUM', 'Platinum'
+
+    class UsageType(models.TextChoices):
+        PUBLIC_HOUSING = 'PH', 'Public Housing'
+        AFFORDABLE = 'AH', 'Affordable Housing'
+        COMMUNITY = 'CH', 'Community Housing'
+        MIXED = 'MX', 'Mixed Use'
+
     address = models.ForeignKey('Address', related_name='works', on_delete=models.CASCADE, null=True, blank=True)
     project = models.ForeignKey('Project', related_name='works', on_delete=models.CASCADE)
     work_type = models.ForeignKey(WorkType, related_name='works', on_delete=models.PROTECT, null=True, blank=True)
@@ -243,6 +254,26 @@ class Work(models.Model):
         help_text="Floor area in m²",
     )
     drawing_no = models.CharField(max_length=100, blank=True, help_text="Construction drawing reference")
+
+    # As-built dwelling characteristics (the dwelling produced by this work item,
+    # not the land parcel — those stay on Address).
+    floor_number = models.CharField(max_length=10, blank=True, help_text="Floor number for apartments (e.g. '3', 'G')")
+    livable_housing_level = models.CharField(
+        max_length=8, choices=LivableHousingLevel.choices, blank=True, default='',
+        help_text="Livable Housing Design guideline level (Silver / Gold / Platinum)",
+    )
+    usage_type = models.CharField(max_length=2, choices=UsageType.choices, blank=True, default='')
+
+    floor_material = models.CharField(max_length=100, blank=True)
+    frame_material = models.CharField(max_length=100, blank=True)
+    wall_material = models.CharField(max_length=100, blank=True)
+    roof_material = models.CharField(max_length=100, blank=True)
+    car_accommodation = models.CharField(max_length=100, blank=True)
+
+    bathrooms_count = models.PositiveIntegerField(null=True, blank=True)
+    kitchens_count = models.PositiveIntegerField(null=True, blank=True)
+    living_rooms_count = models.PositiveIntegerField(null=True, blank=True)
+
     notes = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)

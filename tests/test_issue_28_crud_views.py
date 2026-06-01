@@ -54,7 +54,6 @@ def funding_schedule(project):
         project=project,
         amount=Decimal('200000'),
         contingency=Decimal('0'),
-        payment_split=FundingSchedule.PaymentSplit.STANDARD,
     )
 
 
@@ -274,7 +273,6 @@ class TestBusinessRuleBFAMissing:
             project=project,
             amount=Decimal('100000'),
             contingency=Decimal('0'),
-            payment_split=FundingSchedule.PaymentSplit.STANDARD,
             status=FundingSchedule.Status.DRAFT,
         )
         with pytest.raises(ValidationError, match='BriefFinancialApproval'):
@@ -287,7 +285,6 @@ class TestBusinessRuleBFAMissing:
             project=project,
             amount=Decimal('100000'),
             contingency=Decimal('0'),
-            payment_split=FundingSchedule.PaymentSplit.STANDARD,
             status=FundingSchedule.Status.DRAFT,
         )
         fs.full_clean()  # must not raise
@@ -301,7 +298,6 @@ class TestBusinessRuleBFAMissing:
             project=project,
             amount=Decimal('100000'),
             contingency=Decimal('0'),
-            payment_split=FundingSchedule.PaymentSplit.STANDARD,
             status=FundingSchedule.Status.DRAFT,
         )
         with pytest.raises(ValidationError, match='BriefFinancialApproval'):
@@ -343,7 +339,6 @@ class TestBusinessRulePaymentRuleImmutability:
             payment_rule=rule,
             amount=Decimal('100000'),
             contingency=Decimal('0'),
-            payment_split=FundingSchedule.PaymentSplit.STANDARD,
         )
         # Immutability is enforced in clean(), so full_clean() must raise.
         rule.name = 'Should not save'

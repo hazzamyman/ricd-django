@@ -99,11 +99,6 @@ class Suburb(models.Model):
 
 class Address(models.Model):
 
-    class LivableHousingLevel(models.TextChoices):
-        SILVER = 'SILVER', 'Silver'
-        GOLD = 'GOLD', 'Gold'
-        PLATINUM = 'PLATINUM', 'Platinum'
-
     class LeaseStatus(models.TextChoices):
         NOT_REQUIRED = 'NR', 'Not Required'
         PENDING = 'PEND', 'Pending'
@@ -115,12 +110,6 @@ class Address(models.Model):
         CROWN = 'CROWN', 'Crown Land'
         TRANSFER_PENDING = 'TPEND', 'Transfer Pending'
 
-    class UsageType(models.TextChoices):
-        PUBLIC_HOUSING = 'PH', 'Public Housing'
-        AFFORDABLE = 'AH', 'Affordable Housing'
-        COMMUNITY = 'CH', 'Community Housing'
-        MIXED = 'MX', 'Mixed Use'
-
     project = models.ForeignKey(Project, related_name='addresses', on_delete=models.CASCADE)
     street = models.CharField(max_length=255)
     suburb = models.ForeignKey(Suburb, related_name='addresses', on_delete=models.PROTECT, null=True, blank=True)
@@ -128,30 +117,12 @@ class Address(models.Model):
     plan = models.CharField(max_length=100, blank=True)
     residence_plc_ref = models.CharField(max_length=100, blank=True, help_text="Reside PLC system reference")
 
-    # Dwelling characteristics
-    floor_number = models.CharField(max_length=10, blank=True, help_text="Floor number for apartments (e.g. '3', 'G')")
-    livable_housing_level = models.CharField(
-        max_length=8, choices=LivableHousingLevel.choices, blank=True, default='',
-        help_text="Livable Housing Design guideline level (Silver / Gold / Platinum)",
-    )
+    # Land / parcel status (the parcel itself — what gets built on it lives on Work)
     land_status = models.CharField(max_length=5, choices=LandStatus.choices, blank=True, default='')
-    usage_type = models.CharField(max_length=2, choices=UsageType.choices, blank=True, default='')
 
     # Lease tracking
     lease_status = models.CharField(max_length=4, choices=LeaseStatus.choices, blank=True, default='')
     lease_executed_date = models.DateField(null=True, blank=True)
-
-    # Construction materials (free text — recorded as-built)
-    floor_material = models.CharField(max_length=100, blank=True)
-    frame_material = models.CharField(max_length=100, blank=True)
-    wall_material = models.CharField(max_length=100, blank=True)
-    roof_material = models.CharField(max_length=100, blank=True)
-    car_accommodation = models.CharField(max_length=100, blank=True)
-
-    # Room counts
-    bathrooms_count = models.PositiveIntegerField(null=True, blank=True)
-    kitchens_count = models.PositiveIntegerField(null=True, blank=True)
-    living_rooms_count = models.PositiveIntegerField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

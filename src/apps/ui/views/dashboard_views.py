@@ -100,7 +100,9 @@ def cashflow_view(request):
         except ValueError:
             councils = None
 
-    data = build_program_cashflow(program=program, councils=councils)
+    role = getattr(getattr(request.user, 'profile', None), 'officer_role', None)
+    hide_contingency = role in ('COUNCIL_USER', 'COUNCIL_MANAGER')
+    data = build_program_cashflow(program=program, councils=councils, hide_contingency=hide_contingency)
 
     return render(request, 'dashboard/cashflow.html', {
         'data': data,

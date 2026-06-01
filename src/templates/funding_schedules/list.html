@@ -8,14 +8,13 @@
 </div>
 <div class="card"><div class="card-body p-0">
 <table class="table table-hover mb-0">
-  <thead class="table-light"><tr><th>Project</th><th>Amount</th><th>Status</th><th>Payment Split</th><th>Actions</th></tr></thead>
+  <thead class="table-light"><tr><th>Project</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
   <tbody>
     {% for fs in funding_schedules %}
     <tr>
       <td><a href="{% url 'ui:funding_schedule_detail' fs.pk %}">{{ fs.project|default:"-" }}</a></td>
       <td>{{ fs.amount|money }}</td>
       <td>{{ fs.get_status_display }}</td>
-      <td>{{ fs.get_payment_split_display }}</td>
       <td>
         <a href="{% url 'ui:funding_schedule_edit' fs.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
         <a href="{% url 'ui:funding_schedule_delete' fs.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>

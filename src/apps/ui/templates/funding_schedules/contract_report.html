@@ -34,7 +34,7 @@
     <div class="col-md-3"><div class="kpi">
       <div class="label">Approved (BFA)</div>
       <div class="value">{{ financial.approved_funding|money }}</div>
-      {% if financial.approved_contingency %}
+      {% if not is_council and financial.approved_contingency %}
         <div class="text-muted small">+{{ financial.approved_contingency|money }} contingency</div>
       {% endif %}
     </div></div>

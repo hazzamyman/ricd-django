@@ -175,7 +175,7 @@
     {% for c in rollup_child_comments %}
     <li class="mb-2 pb-2 border-bottom" style="font-size:13px;">
       <div class="d-flex justify-content-between">
-        <strong>{{ c.user|default:"—" }}</strong>
+        <strong>{{ c.author|default:"—" }}</strong>
         <span class="text-muted" style="font-size:11px;">{{ c.created_at|date:"d M Y H:i" }}</span>
       </div>
       <div>{{ c.body|truncatechars:200 }}</div>

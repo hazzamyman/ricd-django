@@ -37,8 +37,10 @@
         <th>Council(s)</th>
         <th class="text-end">Projects</th>
         <th class="text-end">Funding</th>
+        {% if not is_council %}
         <th class="text-end">Contingency</th>
         <th class="text-end">Total</th>
+        {% endif %}
         <th>Delegate</th>
         <th>Status</th>
         <th>Doc</th>
@@ -52,8 +54,10 @@
         <td>{% for c in bfa.councils %}<a href="{% url 'ui:council_detail' c.pk %}">{{ c.name }}</a>{% if not forloop.last %}, {% endif %}{% empty %}<span class="text-muted">—</span>{% endfor %}</td>
         <td class="text-end">{{ bfa.project_count }}</td>
         <td class="text-end">{{ bfa.funding_amount|money }}</td>
+        {% if not is_council %}
         <td class="text-end">{{ bfa.contingency_amount|money }}</td>
         <td class="text-end fw-bold">{{ bfa.total_amount|money }}</td>
+        {% endif %}
         <td>{{ bfa.get_delegate_level_display }}</td>
         <td>
           {% if bfa.status == 'APPROVED' %}

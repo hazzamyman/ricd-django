@@ -204,11 +204,10 @@
         <tr>
           <th>Street / Lot &amp; Plan</th>
           <th>Suburb</th>
-          <th>Usage</th>
-          <th>LHD</th>
           <th>Lease</th>
           <th class="text-end">Works</th>
           <th>Forecast PC</th>
+          {% if is_fnc %}<th class="text-end">Actions</th>{% endif %}
         </tr>
       </thead>
       <tbody>
@@ -238,24 +237,6 @@
             {% endif %}
           </td>
           <td>
-            {% if addr.usage_type %}
-            <span class="pill soft">{{ addr.get_usage_type_display }}</span>
-            {% else %}
-            <span class="text-muted">—</span>
-            {% endif %}
-          </td>
-          <td>
-            {% if addr.livable_housing_level == 'SILVER' %}
-            <span class="lhd silver">Silver</span>
-            {% elif addr.livable_housing_level == 'GOLD' %}
-            <span class="lhd gold">Gold</span>
-            {% elif addr.livable_housing_level == 'PLATINUM' %}
-            <span class="lhd platinum">Platinum</span>
-            {% else %}
-            <span class="text-muted">—</span>
-            {% endif %}
-          </td>
-          <td>
             {% if addr.lease_status == 'EXEC' %}
             <span class="lease executed"><i class="bi bi-lock-fill"></i> Executed{% if addr.lease_executed_date %} {{ addr.lease_executed_date|date:"d M Y" }}{% endif %}</span>
             {% elif addr.lease_status == 'PEND' %}
@@ -280,6 +261,12 @@
             <span class="text-muted">—</span>
             {% endif %}
           </td>
+          {% if is_fnc %}
+          <td class="text-end" style="white-space:nowrap">
+            <a href="{% url 'ui:address_edit' project.pk addr.pk %}?next={{ request.path }}" class="btn btn-sm btn-outline-secondary" title="Edit address"><i class="bi bi-pencil"></i></a>
+            <a href="{% url 'ui:address_delete' project.pk addr.pk %}?next={{ request.path }}" class="btn btn-sm btn-outline-danger" title="Delete address"><i class="bi bi-trash"></i></a>
+          </td>
+          {% endif %}
         </tr>
         {% endfor %}
       </tbody>
@@ -343,10 +330,13 @@
           <th>Address</th>
           <th>Work Type</th>
           <th class="text-center">Qty</th>
+          <th>Usage</th>
+          <th>LHD</th>
           <th>Contractor</th>
           <th>Status</th>
           <th class="text-end">Est. Cost</th>
           <th>Forecast PC</th>
+          {% if is_fnc %}<th class="text-end">Actions</th>{% endif %}
         </tr>
       </thead>
       <tbody>
@@ -370,6 +360,24 @@
             {% endif %}
           </td>
           <td class="text-center mono">{{ work.quantity }}</td>
+          <td>
+            {% if work.usage_type %}
+            <span class="pill soft">{{ work.get_usage_type_display }}</span>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if work.livable_housing_level == 'SILVER' %}
+            <span class="lhd silver">Silver</span>
+            {% elif work.livable_housing_level == 'GOLD' %}
+            <span class="lhd gold">Gold</span>
+            {% elif work.livable_housing_level == 'PLATINUM' %}
+            <span class="lhd platinum">Platinum</span>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
           <td>
             {% if work.contractor %}
             <div class="contractor-name">{{ work.contractor.company_name }}</div>
@@ -401,6 +409,12 @@
             <span class="text-muted">—</span>
             {% endif %}
           </td>
+          {% if is_fnc %}
+          <td class="text-end" style="white-space:nowrap">
+            <a href="{% url 'ui:work_edit' project.pk work.pk %}?next={{ request.path }}" class="btn btn-sm btn-outline-secondary" title="Edit work"><i class="bi bi-pencil"></i></a>
+            <a href="{% url 'ui:work_delete' project.pk work.pk %}?next={{ request.path }}" class="btn btn-sm btn-outline-danger" title="Delete work"><i class="bi bi-trash"></i></a>
+          </td>
+          {% endif %}
         </tr>
         {% endfor %}
       </tbody>

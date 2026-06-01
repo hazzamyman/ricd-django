@@ -547,16 +547,6 @@ class FundingSchedule(models.Model):
                   "this schedule. Drives the wording inserted in the FS template.",
     )
 
-    class PaymentSplit(models.TextChoices):
-        STANDARD = '30/60/10', 'Standard (30/60/10)'
-        ALTERNATIVE = '90/10', 'Alternative (90/10)'
-        CUSTOM = 'CUSTOM', 'Custom'
-
-    payment_split = models.CharField(
-        max_length=10,
-        choices=PaymentSplit.choices,
-        default=PaymentSplit.STANDARD,
-    )
     notional_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     actual_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     status = models.CharField(max_length=15, choices=Status.choices, default=Status.DRAFT, db_index=True)

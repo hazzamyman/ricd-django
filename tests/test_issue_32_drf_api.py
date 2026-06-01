@@ -98,7 +98,6 @@ def _make_funding_schedule(project, bfa_approved=True):
         status=FundingSchedule.Status.DRAFT,
         amount=Decimal('400000'),
         contingency=Decimal('40000'),
-        payment_split=FundingSchedule.PaymentSplit.STANDARD,
     )
 
 
@@ -328,7 +327,6 @@ class TestFundingScheduleAPI:
         resp = _api(client, 'post', '/api/v1/funding-schedules/', {
             'project': proj.pk, 'funding_agreement': fa.pk, 'payment_rule': pr.pk,
             'schedule_number': 1, 'amount': '400000', 'contingency': '40000',
-            'payment_split': '30/60/10',
         })
         assert resp.status_code == 400
 
@@ -343,7 +341,6 @@ class TestFundingScheduleAPI:
         resp = _api(client, 'post', '/api/v1/funding-schedules/', {
             'project': proj.pk, 'funding_agreement': fa.pk, 'payment_rule': pr.pk,
             'schedule_number': 2, 'amount': '400000', 'contingency': '40000',
-            'payment_split': '30/60/10',
         })
         assert resp.status_code == 201
 

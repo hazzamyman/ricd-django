@@ -44,7 +44,7 @@ class FundingScheduleSerializer(serializers.ModelSerializer):
         model = FundingSchedule
         fields = [
             'id', 'funding_agreement', 'council', 'schedule_number', 'payment_rule',
-            'status', 'amount', 'total_funding', 'payment_split',
+            'status', 'amount', 'total_funding',
             'project', 'replaces_schedule', 'created_at',
         ]
         read_only_fields = ['id', 'council', 'total_funding', 'created_at']

@@ -35,7 +35,7 @@ def _fy_label(fy_code):
     return f"{a}-{b[-2:]}"
 
 
-def build_program_cashflow(program=None, councils=None):
+def build_program_cashflow(program=None, councils=None, hide_contingency=False):
     """Return a dict describing the cashflow matrix.
 
     Args:
@@ -156,7 +156,8 @@ def build_program_cashflow(program=None, councils=None):
         ).select_related('program')
         estimated_total = _zero()
         for i in items:
-            t = (i.funding_amount or _zero()) + (i.contingency_amount or _zero())
+            contingency = _zero() if hide_contingency else (i.contingency_amount or _zero())
+            t = (i.funding_amount or _zero()) + contingency
             if t <= 0:
                 continue
             prog_id = i.program_id or proj.program_id

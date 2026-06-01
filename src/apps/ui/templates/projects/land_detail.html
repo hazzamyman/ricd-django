@@ -235,18 +235,18 @@ table.t-works .num-cell{text-align:right;font-variant-numeric:tabular-nums}
 </div>
 
 {# ===== Tab strip ===== #}
-<div class="pd-tabs" id="projectTabs">
-  <button class="t {% if active_tab == 'overview' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-overview" type="button">Overview</button>
+<div class="pd-tabs" id="projectTabs" role="tablist">
+  <button class="t {% if active_tab == 'overview' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-overview" type="button" role="tab">Overview</button>
   <a class="t{% if active_tab == 'works' %} active{% endif %}" href="{% url 'ui:project_addresses_works' project.pk %}">
     Civil Works{% with cnt=project.works.count %}{% if cnt %} <span class="num">{{ cnt }}</span>{% endif %}{% endwith %}
   </a>
-  <button class="t {% if active_tab == 'funding' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-funding" type="button">
+  <button class="t {% if active_tab == 'funding' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-funding" type="button" role="tab">
     Funding{% with cnt=project.funding_schedules.count %}{% if cnt %} <span class="num">{{ cnt }}</span>{% endif %}{% endwith %}
   </button>
-  <button class="t {% if active_tab == 'payments' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-payments" type="button">
+  <button class="t {% if active_tab == 'payments' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-payments" type="button" role="tab">
     Payments{% with cnt=project.payments.count %}{% if cnt %} <span class="num">{{ cnt }}</span>{% endif %}{% endwith %}
   </button>
-  <button class="t {% if active_tab == 'comments' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-comments" type="button">Comments</button>
+  <button class="t {% if active_tab == 'comments' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-comments" type="button" role="tab">Comments</button>
 </div>
 
 <div class="tab-content" id="projectTabContent">
@@ -692,7 +692,7 @@ table.t-works .num-cell{text-align:right;font-variant-numeric:tabular-nums}
       <div class="table-responsive">
         <table class="table table-hover align-middle">
           <thead class="table-light">
-            <tr><th>MINCOR ref</th><th class="text-end">Funding</th><th class="text-end">Contingency</th><th>Delegate</th><th>Status</th><th></th></tr>
+            <tr><th>MINCOR ref</th><th class="text-end">Funding</th>{% if not is_council %}<th class="text-end">Contingency</th>{% endif %}{% if not is_council %}<th>Delegate</th>{% endif %}<th>Status</th>{% if not is_council %}<th></th>{% endif %}</tr>
           </thead>
           <tbody>
             {% for bfa in bfas %}
@@ -701,10 +701,10 @@ table.t-works .num-cell{text-align:right;font-variant-numeric:tabular-nums}
                 <tr>
                   <td>{{ bfa.mincor_reference|default:"—" }} <span class="text-muted">(#{{ bfa.pk }})</span></td>
                   <td class="text-end">{{ item.funding_amount|money }}</td>
-                  <td class="text-end">{% if item.contingency_amount %}{{ item.contingency_amount|money }}{% else %}—{% endif %}</td>
-                  <td>{{ bfa.get_delegate_level_display|default:"—" }}</td>
+                  {% if not is_council %}<td class="text-end">{% if item.contingency_amount %}{{ item.contingency_amount|money }}{% else %}—{% endif %}</td>{% endif %}
+                  {% if not is_council %}<td>{{ bfa.get_delegate_level_display|default:"—" }}</td>{% endif %}
                   <td><span class="state-badge state-{{ bfa.status|lower }}">{{ bfa.get_status_display }}</span></td>
-                  <td><a href="{% url 'ui:bfa_detail' bfa.pk %}" class="btn btn-outline-secondary btn-sm">View</a></td>
+                  {% if not is_council %}<td><a href="{% url 'ui:bfa_detail' bfa.pk %}" class="btn btn-outline-secondary btn-sm">View</a></td>{% endif %}
                 </tr>
                 {% endif %}
               {% endfor %}

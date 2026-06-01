@@ -289,3 +289,22 @@ class TestFundingScheduleUniqueConstraint:
 
         assert fs1.schedule_number == 1
         assert fs2.schedule_number == 2
+
+
+@pytest.mark.django_db
+class TestFundingScheduleFormCouncilScoping:
+    """The FS edit form must only offer the schedule's own council's Funding
+    Agreement, so a schedule can't be misfiled under another council."""
+
+    def test_fa_dropdown_scoped_to_own_council(self, funding_schedule):
+        from apps.ui.views.crud_views import FundingScheduleForm
+
+        # A second council with its own (different) Funding Agreement.
+        other_council = Council.objects.create(name="Other Council", region="R2")
+        other_fa = FundingAgreement.objects.create(council=other_council, status="DRAFT")
+
+        form = FundingScheduleForm(instance=funding_schedule)
+        choices = set(form.fields['funding_agreement'].queryset)
+
+        assert funding_schedule.funding_agreement in choices
+        assert other_fa not in choices

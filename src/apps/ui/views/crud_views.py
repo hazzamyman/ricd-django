@@ -8,7 +8,7 @@ from django.urls import reverse, reverse_lazy
 
 from apps.core.mixins import (
     CouncilOrFNCMixin, CouncilScopedMixin, WriteRequiredMixin,
-    FNCOnlyMixin, CouncilSubmitMixin,
+    FNCOnlyMixin, CouncilSubmitMixin, InternalOnlyMixin,
 )
 from django.views.generic import (
     ListView, CreateView, DetailView, UpdateView, DeleteView, View, TemplateView,
@@ -39,6 +39,21 @@ COUNCIL_ROLES = frozenset({'COUNCIL_USER', 'COUNCIL_MANAGER'})
 
 def _officer_role(user):
     return getattr(getattr(user, 'profile', None), 'officer_role', None)
+
+
+def _safe_next(request, default):
+    """Return a validated ?next= redirect target, else `default`.
+
+    The CRUD form/delete templates post to the current URL (no action attr), so a
+    ?next= in the query string survives the POST round-trip and is read here.
+    """
+    from django.utils.http import url_has_allowed_host_and_scheme
+    nxt = request.GET.get('next') or request.POST.get('next')
+    if nxt and url_has_allowed_host_and_scheme(
+        nxt, allowed_hosts={request.get_host()}, require_https=request.is_secure(),
+    ):
+        return nxt
+    return default
 
 
 class CommentsMixin:
@@ -252,7 +267,9 @@ class CouncilDetailView(LoginRequiredMixin, NoticesMixin, DetailView):
             .aggregate(t=Sum('funding_amount'), c=Sum('contingency_amount'))
         )
         approved_funding = approved_total['t'] or Decimal('0')
-        approved_contingency = approved_total['c'] or Decimal('0')
+        # Council users must never see contingency (FNC holds it back, releases only if needed).
+        hide_contingency = _officer_role(self.request.user) in COUNCIL_ROLES
+        approved_contingency = Decimal('0') if hide_contingency else (approved_total['c'] or Decimal('0'))
         approved_grand = approved_funding + approved_contingency
 
         active_fses = FundingSchedule.objects.filter(
@@ -463,7 +480,8 @@ class ProgramDetailView(LoginRequiredMixin, DetailView):
         ctx['released_total'] = released
 
         # Cashflow extract: single-program slice of the full matrix
-        cashflow = build_program_cashflow(program=program)
+        hide_contingency = _officer_role(self.request.user) in COUNCIL_ROLES
+        cashflow = build_program_cashflow(program=program, hide_contingency=hide_contingency)
         ctx['cashflow'] = cashflow
         ctx['cashflow_row'] = cashflow['rows'][0] if cashflow['rows'] else None
         return ctx
@@ -544,8 +562,11 @@ class ProgramDeleteView(WriteRequiredMixin, DeleteView):
 
 _PROJECT_ADVANCED_FIELDS = ['cli_no', 'initial_caa_date']
 _ADDRESS_ADVANCED_FIELDS = [
-    'floor_number', 'land_status',
-    'lease_status', 'lease_executed_date',
+    'land_status', 'lease_status', 'lease_executed_date',
+]
+
+_WORK_ADVANCED_FIELDS = [
+    'floor_number', 'livable_housing_level', 'usage_type',
     'floor_material', 'frame_material', 'wall_material', 'roof_material', 'car_accommodation',
     'bathrooms_count', 'kitchens_count', 'living_rooms_count',
 ]
@@ -586,6 +607,9 @@ class ProjectDetailView(CouncilScopedMixin, CouncilOrFNCMixin, CommentsMixin, No
         from decimal import Decimal
         from apps.core.models import BriefFinancialApprovalItem, PaymentAllocation, Program
         project = self.object
+        # Council users must never see contingency — it would let them budget
+        # against funds FNC holds back and releases only if needed.
+        hide_contingency = _officer_role(self.request.user) in COUNCIL_ROLES
         approved_by_prog = {}
         for item in BriefFinancialApprovalItem.objects.filter(
             project=project, bfa__status='APPROVED'
@@ -593,8 +617,9 @@ class ProjectDetailView(CouncilScopedMixin, CouncilOrFNCMixin, CommentsMixin, No
             pid = item.program_id or project.program_id
             if pid is None:
                 continue
+            contingency = Decimal('0') if hide_contingency else (item.contingency_amount or 0)
             approved_by_prog[pid] = approved_by_prog.get(pid, Decimal('0')) + (
-                (item.funding_amount or 0) + (item.contingency_amount or 0)
+                (item.funding_amount or 0) + contingency
             )
         released_by_prog = {}
         for a in PaymentAllocation.objects.filter(payment__project=project):
@@ -884,15 +909,11 @@ class FundingScheduleForm(_forms.ModelForm):
     )
     amount = _forms.DecimalField(max_digits=12, decimal_places=2, required=False, initial=0)
     council_contribution_amount = _forms.DecimalField(max_digits=12, decimal_places=2, required=False, initial=0)
-    payment_split = _forms.ChoiceField(
-        choices=[('30/60/10', 'Standard (30/60/10)'), ('90/10', 'Alternative (90/10)'), ('CUSTOM', 'Custom')],
-        required=False, initial='30/60/10',
-    )
 
     class Meta:
         model = FundingSchedule
         fields = ['funding_agreement', 'payment_rule', 'schedule_number', 'status',
-                  'amount', 'council_contribution_amount', 'payment_split',
+                  'amount', 'council_contribution_amount',
                   'lease_clause_type',
                   'start_date', 'stage1_target_date', 'stage1_sunset_date',
                   'stage2_target_date', 'stage2_sunset_date',
@@ -912,6 +933,20 @@ class FundingScheduleForm(_forms.ModelForm):
                 f"Only projects of {fa.council.name} (the Funding Agreement's council) "
                 f"are listed."
             )
+        # Lock the Funding Agreement dropdown to this schedule's council, so the FS
+        # can't be reassigned to a different council's agreement. The council is
+        # derived from the FA (FA->Council is 1:1), so on edit we know it already.
+        council = None
+        if self.instance and self.instance.pk:
+            council = self.instance.council or (fa.council if fa else None)
+        if council:
+            self.fields['funding_agreement'].queryset = (
+                FundingAgreement.objects.filter(council=council)
+            )
+            self.fields['funding_agreement'].help_text = (
+                f"Only {council.name}'s Funding Agreement is selectable — a schedule "
+                f"cannot move to another council."
+            )
         if self.instance and self.instance.pk:
             self.fields['projects'].initial = self.instance.projects.all()
 
@@ -922,8 +957,6 @@ class FundingScheduleForm(_forms.ModelForm):
             cleaned['amount'] = Decimal('0')
         if cleaned.get('council_contribution_amount') is None:
             cleaned['council_contribution_amount'] = Decimal('0')
-        if not cleaned.get('payment_split'):
-            cleaned['payment_split'] = '30/60/10'
         # Enforce: every selected project must belong to the FA's council
         fa = cleaned.get('funding_agreement')
         selected = cleaned.get('projects') or []
@@ -1021,7 +1054,7 @@ class FundingScheduleDetailView(CouncilScopedMixin, CouncilOrFNCMixin, CommentsM
             project_ct = ContentType.objects.get_for_model(Project)
             ctx['rollup_child_comments'] = (
                 Comment.objects.filter(content_type=project_ct, object_id__in=child_ids)
-                .select_related('user')
+                .select_related('author')
                 .order_by('-created_at')[:50]
             )
         else:
@@ -1060,7 +1093,9 @@ class FundingScheduleContractReportView(CouncilScopedMixin, CouncilOrFNCMixin, N
             .aggregate(t=Sum('funding_amount'), c=Sum('contingency_amount'))
         )
         approved_funding = approved['t'] or Decimal('0')
-        approved_contingency = approved['c'] or Decimal('0')
+        # Council users must never see contingency (FNC holds it back, releases only if needed).
+        hide_contingency = _officer_role(self.request.user) in COUNCIL_ROLES
+        approved_contingency = Decimal('0') if hide_contingency else (approved['c'] or Decimal('0'))
         released_total = (
             PaymentAllocation.objects.filter(payment__funding_schedule=fs)
             .aggregate(t=Sum('amount'))['t'] or Decimal('0')
@@ -1708,8 +1743,8 @@ def _bfa_item_formset_factory():
     )
 
 
-class BriefFinancialApprovalGlobalListView(LoginRequiredMixin, ListView):
-    """All BFAs across all councils — used by the sidebar nav link."""
+class BriefFinancialApprovalGlobalListView(InternalOnlyMixin, ListView):
+    """All BFAs across all councils — used by the sidebar nav link. FNC/internal only."""
     model = BriefFinancialApproval
     template_name = 'brief_financial_approvals/list.html'
     context_object_name = 'approvals'
@@ -1719,8 +1754,8 @@ class BriefFinancialApprovalGlobalListView(LoginRequiredMixin, ListView):
         return BriefFinancialApproval.objects.prefetch_related('items__project__council').order_by('-created_at')
 
 
-class BriefFinancialApprovalListView(LoginRequiredMixin, ListView):
-    """Legacy per-project BFA list: shows BFAs that include the given project."""
+class BriefFinancialApprovalListView(InternalOnlyMixin, ListView):
+    """Legacy per-project BFA list: shows BFAs that include the given project. FNC/internal only."""
     model = BriefFinancialApproval
     template_name = 'brief_financial_approvals/list.html'
     context_object_name = 'approvals'
@@ -1765,7 +1800,7 @@ class BriefFinancialApprovalCreateView(WriteRequiredMixin, WidgetUpgradeMixin, C
         return self.render_to_response(self.get_context_data(form=form))
 
 
-class BriefFinancialApprovalDetailView(LoginRequiredMixin, NoticesMixin, DetailView):
+class BriefFinancialApprovalDetailView(InternalOnlyMixin, NoticesMixin, DetailView):
     model = BriefFinancialApproval
     template_name = 'brief_financial_approvals/detail.html'
     context_object_name = 'bfa'
@@ -2087,7 +2122,10 @@ class WorkCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
     fields = ['work_type', 'work_type_other', 'bedrooms', 'quantity',
               'estimated_cost', 'status', 'is_notional_cost', 'actual_cost', 'address',
               'forecast_practical_completion_date', 'practical_completion_date',
-              'forecast_handover_date', 'handover_date']
+              'forecast_handover_date', 'handover_date',
+              'floor_number', 'livable_housing_level', 'usage_type',
+              'floor_material', 'frame_material', 'wall_material', 'roof_material', 'car_accommodation',
+              'bathrooms_count', 'kitchens_count', 'living_rooms_count']
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -2106,12 +2144,14 @@ class WorkCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
         return form
 
     def get_success_url(self):
-        return reverse_lazy('ui:work_list', kwargs={'project_pk': self.kwargs['project_pk']})
+        return _safe_next(self.request, reverse_lazy('ui:work_list', kwargs={'project_pk': self.kwargs['project_pk']}))
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['title'] = 'Add Work Item'
-        ctx['back_url'] = reverse_lazy('ui:work_list', kwargs={'project_pk': self.kwargs['project_pk']})
+        ctx['back_url'] = _safe_next(self.request, reverse_lazy('ui:work_list', kwargs={'project_pk': self.kwargs['project_pk']}))
+        ctx['advanced_fields'] = _WORK_ADVANCED_FIELDS
+        ctx['advanced_has_errors'] = any(ctx['form'].has_error(f) for f in _WORK_ADVANCED_FIELDS)
         return ctx
 
 
@@ -2203,6 +2243,9 @@ class WorkUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
               'cashflow_method', 'step_group', 'actual_start_date',
               'forecast_practical_completion_date', 'practical_completion_date',
               'forecast_handover_date', 'handover_date',
+              'floor_number', 'livable_housing_level', 'usage_type',
+              'floor_material', 'frame_material', 'wall_material', 'roof_material', 'car_accommodation',
+              'bathrooms_count', 'kitchens_count', 'living_rooms_count',
               'notes']
 
     def get_form(self, form_class=None):
@@ -2216,12 +2259,14 @@ class WorkUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
         return form
 
     def get_success_url(self):
-        return reverse_lazy('ui:work_list', kwargs={'project_pk': self.object.project_id})
+        return _safe_next(self.request, reverse_lazy('ui:work_list', kwargs={'project_pk': self.object.project_id}))
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['title'] = f'Edit Work: {self.object}'
-        ctx['back_url'] = reverse_lazy('ui:work_list', kwargs={'project_pk': self.object.project_id})
+        ctx['back_url'] = _safe_next(self.request, reverse_lazy('ui:work_list', kwargs={'project_pk': self.object.project_id}))
+        ctx['advanced_fields'] = _WORK_ADVANCED_FIELDS
+        ctx['advanced_has_errors'] = any(ctx['form'].has_error(f) for f in _WORK_ADVANCED_FIELDS)
         return ctx
 
 
@@ -2230,11 +2275,11 @@ class WorkDeleteView(WriteRequiredMixin, DeleteView):
     template_name = 'crud/confirm_delete.html'
 
     def get_success_url(self):
-        return reverse_lazy('ui:work_list', kwargs={'project_pk': self.object.project_id})
+        return _safe_next(self.request, reverse_lazy('ui:work_list', kwargs={'project_pk': self.object.project_id}))
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['back_url'] = reverse_lazy('ui:work_list', kwargs={'project_pk': self.object.project_id})
+        ctx['back_url'] = _safe_next(self.request, reverse_lazy('ui:work_list', kwargs={'project_pk': self.object.project_id}))
         return ctx
 
 
@@ -2335,10 +2380,7 @@ class AddressCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = Address
     template_name = 'crud/form.html'
     fields = ['street', 'suburb', 'lot', 'plan', 'residence_plc_ref',
-              'floor_number', 'livable_housing_level', 'land_status', 'usage_type',
-              'lease_status', 'lease_executed_date',
-              'floor_material', 'frame_material', 'wall_material', 'roof_material', 'car_accommodation',
-              'bathrooms_count', 'kitchens_count', 'living_rooms_count']
+              'land_status', 'lease_status', 'lease_executed_date']
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -2357,12 +2399,12 @@ class AddressCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
         return form
 
     def get_success_url(self):
-        return reverse_lazy('ui:address_list', kwargs={'project_pk': self.kwargs['project_pk']})
+        return _safe_next(self.request, reverse_lazy('ui:project_addresses_works', kwargs={'pk': self.kwargs['project_pk']}))
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['title'] = 'Add Address'
-        ctx['back_url'] = reverse_lazy('ui:address_list', kwargs={'project_pk': self.kwargs['project_pk']})
+        ctx['back_url'] = _safe_next(self.request, reverse_lazy('ui:project_addresses_works', kwargs={'pk': self.kwargs['project_pk']}))
         ctx['advanced_fields'] = _ADDRESS_ADVANCED_FIELDS
         ctx['advanced_has_errors'] = any(ctx['form'].has_error(f) for f in _ADDRESS_ADVANCED_FIELDS)
         return ctx
@@ -2378,10 +2420,7 @@ class AddressUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = Address
     template_name = 'crud/form.html'
     fields = ['street', 'suburb', 'lot', 'plan', 'residence_plc_ref',
-              'floor_number', 'livable_housing_level', 'land_status', 'usage_type',
-              'lease_status', 'lease_executed_date',
-              'floor_material', 'frame_material', 'wall_material', 'roof_material', 'car_accommodation',
-              'bathrooms_count', 'kitchens_count', 'living_rooms_count']
+              'land_status', 'lease_status', 'lease_executed_date']
 
     def get_form(self, form_class=None):
         from apps.ui.widgets import PopupAddSelect
@@ -2394,12 +2433,12 @@ class AddressUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
         return form
 
     def get_success_url(self):
-        return reverse_lazy('ui:address_list', kwargs={'project_pk': self.object.project_id})
+        return _safe_next(self.request, reverse_lazy('ui:address_list', kwargs={'project_pk': self.object.project_id}))
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['title'] = f'Edit Address: {self.object}'
-        ctx['back_url'] = reverse_lazy('ui:address_list', kwargs={'project_pk': self.object.project_id})
+        ctx['back_url'] = _safe_next(self.request, reverse_lazy('ui:address_list', kwargs={'project_pk': self.object.project_id}))
         ctx['advanced_fields'] = _ADDRESS_ADVANCED_FIELDS
         ctx['advanced_has_errors'] = any(ctx['form'].has_error(f) for f in _ADDRESS_ADVANCED_FIELDS)
         return ctx
@@ -2410,11 +2449,11 @@ class AddressDeleteView(WriteRequiredMixin, DeleteView):
     template_name = 'crud/confirm_delete.html'
 
     def get_success_url(self):
-        return reverse_lazy('ui:address_list', kwargs={'project_pk': self.object.project_id})
+        return _safe_next(self.request, reverse_lazy('ui:address_list', kwargs={'project_pk': self.object.project_id}))
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['back_url'] = reverse_lazy('ui:address_list', kwargs={'project_pk': self.object.project_id})
+        ctx['back_url'] = _safe_next(self.request, reverse_lazy('ui:address_list', kwargs={'project_pk': self.object.project_id}))
         return ctx
 
 

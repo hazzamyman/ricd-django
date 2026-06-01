@@ -68,7 +68,6 @@ def funding_schedule(db, project):
         project=project,
         amount=Decimal('500000'),
         contingency=Decimal('50000'),
-        payment_split='STANDARD',
     )
 
 
