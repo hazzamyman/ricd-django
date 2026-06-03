@@ -7,7 +7,7 @@ Handles:
 - FundingSchedule lifecycle automation (EXECUTED, ACTIVE, SUPERSEDED)
 - BriefFinancialApproval → FundingSchedule creation enforcement
 """
-from django.db.models.signals import post_save, pre_save, pre_delete
+from django.db.models.signals import post_save, pre_save, pre_delete, post_delete
 from django.dispatch import receiver
 from django.utils import timezone
 from apps.core.middleware import get_current_user
@@ -424,6 +424,75 @@ def recalculate_on_step_completion(sender, instance, **kwargs):
         recalculate_forecast(instance.work)
     except Exception:
         pass
+
+
+def _resync_anchored_payments(project_id):
+    """Re-save every milestone-anchored, not-yet-released payment on a project
+    so its forecast_release_date follows the latest milestone dates. Staff only
+    update the Monthly Tracker; payment cashflow dates follow automatically."""
+    if not project_id:
+        return
+    try:
+        from apps.core.models import Payment
+        anchored = Payment.objects.filter(
+            project_id=project_id,
+            forecast_anchor=Payment.ForecastAnchor.SCHEDULED,
+        ).exclude(status=Payment.Status.RELEASED)
+        for p in anchored:
+            p.save(update_fields=['forecast_release_date', 'updated_at'])
+    except Exception:
+        pass
+
+
+@receiver(post_save, sender='core.Work')
+def sync_anchored_payment_forecasts(sender, instance, **kwargs):
+    """A Work's forecast PC (or start) shifted — roll its anchored payments."""
+    _resync_anchored_payments(instance.project_id)
+
+
+@receiver(post_save, sender='core.WorkStep')
+def sync_anchored_payments_on_step(sender, instance, **kwargs):
+    """A workstep slipped (e.g. Site establishment moved in the tracker) —
+    roll the project's anchored payments even if the parent Work's PC is
+    unchanged."""
+    try:
+        _resync_anchored_payments(instance.work.project_id)
+    except Exception:
+        pass
+
+
+def _resync_payments_for_schedule(schedule_id):
+    """Re-derive scheduled payments after a PaymentMilestoneSchedule/Rule edit,
+    so config changes take effect immediately (not only on the next slip)."""
+    try:
+        from apps.core.models import PaymentMilestoneSchedule, Payment, Work
+        sched = PaymentMilestoneSchedule.objects.filter(pk=schedule_id).first()
+        if not sched:
+            return
+        project_ids = set()
+        if sched.work_step_group_id:
+            project_ids |= set(Work.objects.filter(
+                step_group_id=sched.work_step_group_id
+            ).values_list('project_id', flat=True))
+        if sched.is_default:
+            project_ids |= set(Payment.objects.filter(
+                forecast_anchor=Payment.ForecastAnchor.SCHEDULED
+            ).values_list('project_id', flat=True))
+        for pid in project_ids:
+            _resync_anchored_payments(pid)
+    except Exception:
+        pass
+
+
+@receiver(post_save, sender='core.PaymentMilestoneRule')
+@receiver(post_delete, sender='core.PaymentMilestoneRule')
+def resync_payments_on_rule_change(sender, instance, **kwargs):
+    _resync_payments_for_schedule(instance.schedule_id)
+
+
+@receiver(post_save, sender='core.PaymentMilestoneSchedule')
+def resync_payments_on_schedule_change(sender, instance, **kwargs):
+    _resync_payments_for_schedule(instance.pk)
 
 # ---------------------------------------------------------------------------
 # FundingSchedule date cascade -> child Projects

@@ -31,7 +31,7 @@ from apps.core.models import (
     Variation, VariationItem, Payment, StageReport, QuarterlyReport,
     FundingAgreement, FundingNotice, ExpenseClaim, WorkFunding,
     StateElectorate, FederalElectorate, QhigiRegion,
-    SiteSettings,
+    SiteSettings, PaymentMilestoneSchedule, PaymentMilestoneRule,
 )
 
 COUNCIL_ROLES = frozenset({'COUNCIL_USER', 'COUNCIL_MANAGER'})
@@ -657,6 +657,17 @@ class ProjectDetailView(CouncilScopedMixin, CouncilOrFNCMixin, CommentsMixin, No
         ctx['total_remaining'] = total_approved - total_released
         ctx['drawdown_pct'] = int(total_released / total_approved * 100) if total_approved else 0
 
+        # Estimated cost of all child works — what the project should be funded for.
+        # Lets the user compare the bottom-up works estimate against the BFA approval
+        # and see how much more funding to apply for.
+        from django.db.models import Sum, F
+        from apps.core.models import Work
+        works_cost = Work.objects.filter(project=project).aggregate(
+            total=Sum(F('estimated_cost') * F('quantity'))
+        )['total'] or Decimal('0')
+        ctx['total_works_cost'] = works_cost
+        ctx['funding_gap'] = works_cost - total_approved
+
         # Timeline milestones with pre-computed left-% for CSS positioning
         from datetime import date as _date_t
         _today = _date_t.today()
@@ -1270,7 +1281,8 @@ class PaymentCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = Payment
     template_name = 'crud/form.html'
     fields = ['project', 'funding_schedule', 'payment_type', 'calculation_type',
-              'payment_split', 'percentage', 'amount', 'status']
+              'payment_split', 'percentage', 'amount', 'forecast_anchor',
+              'forecast_release_date', 'status']
 
     def get_success_url(self):
         return reverse_lazy('ui:payment_list', kwargs={'project_pk': self.kwargs['project_pk']})
@@ -1313,7 +1325,8 @@ class PaymentUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = Payment
     template_name = 'crud/form.html'
     fields = ['project', 'funding_schedule', 'payment_type', 'calculation_type',
-              'payment_split', 'percentage', 'amount', 'status']
+              'payment_split', 'percentage', 'amount', 'forecast_anchor',
+              'forecast_release_date', 'status']
 
     def get_success_url(self):
         return reverse_lazy('ui:payment_list', kwargs={'project_pk': self.kwargs['project_pk']})
@@ -1508,12 +1521,21 @@ class FundingNoticeCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView
     model = FundingNotice
     template_name = 'crud/form.html'
     fields = ['project', 'capped_amount', 'issued_date', 'notes']
-    success_url = reverse_lazy('ui:funding_notice_list')
+
+    def get_initial(self):
+        initial = super().get_initial()
+        project_id = self.request.GET.get('project')
+        if project_id:
+            initial['project'] = project_id
+        return initial
+
+    def get_success_url(self):
+        return _safe_next(self.request, reverse_lazy('ui:funding_notice_list'))
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['title'] = 'Create Funding Notice'
-        ctx['back_url'] = reverse_lazy('ui:funding_notice_list')
+        ctx['back_url'] = _safe_next(self.request, reverse_lazy('ui:funding_notice_list'))
         return ctx
 
 
@@ -1536,23 +1558,27 @@ class FundingNoticeUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView
     model = FundingNotice
     template_name = 'crud/form.html'
     fields = ['project', 'capped_amount', 'issued_date', 'notes']
-    success_url = reverse_lazy('ui:funding_notice_list')
+
+    def get_success_url(self):
+        return _safe_next(self.request, reverse_lazy('ui:funding_notice_list'))
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['title'] = f'Edit Funding Notice — {self.object.project.name}'
-        ctx['back_url'] = reverse_lazy('ui:funding_notice_list')
+        ctx['back_url'] = _safe_next(self.request, reverse_lazy('ui:funding_notice_list'))
         return ctx
 
 
 class FundingNoticeDeleteView(WriteRequiredMixin, DeleteView):
     model = FundingNotice
     template_name = 'crud/confirm_delete.html'
-    success_url = reverse_lazy('ui:funding_notice_list')
+
+    def get_success_url(self):
+        return _safe_next(self.request, reverse_lazy('ui:funding_notice_list'))
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['back_url'] = reverse_lazy('ui:funding_notice_list')
+        ctx['back_url'] = _safe_next(self.request, reverse_lazy('ui:funding_notice_list'))
         return ctx
 
 
@@ -3228,6 +3254,94 @@ class WorkStepGroupItemDeleteView(LoginRequiredMixin, DeleteView):
         return reverse('ui:work_step_group_detail', kwargs={'pk': self.object.group_id})
 
 
+# ---------------------------------------------------------------------------
+# PaymentMilestoneSchedule CRUD (Maintenance) — when payments are timed
+# ---------------------------------------------------------------------------
+
+def _payment_milestone_rules_formset():
+    """Inline formset: edit all PaymentMilestoneRule rows for a schedule."""
+    from django.forms import inlineformset_factory
+    return inlineformset_factory(
+        PaymentMilestoneSchedule, PaymentMilestoneRule,
+        fields=['payment_type', 'anchor_type', 'work_step_definition', 'offset_days'],
+        extra=1, can_delete=True,
+    )
+
+
+class PaymentMilestoneScheduleListView(LoginRequiredMixin, ListView):
+    model = PaymentMilestoneSchedule
+    template_name = 'payment_milestones/list.html'
+    context_object_name = 'schedules'
+
+    def get_queryset(self):
+        return (PaymentMilestoneSchedule.objects
+                .select_related('work_step_group')
+                .prefetch_related('rules'))
+
+
+class PaymentMilestoneScheduleCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
+    model = PaymentMilestoneSchedule
+    template_name = 'crud/form.html'
+    fields = ['name', 'work_step_group', 'is_default', 'is_active']
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Add Payment Milestone Schedule'
+        ctx['back_url'] = reverse_lazy('ui:payment_milestone_schedule_list')
+        return ctx
+
+    def get_success_url(self):
+        return reverse('ui:payment_milestone_schedule_detail', kwargs={'pk': self.object.pk})
+
+
+class PaymentMilestoneScheduleUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
+    model = PaymentMilestoneSchedule
+    template_name = 'crud/form.html'
+    fields = ['name', 'work_step_group', 'is_default', 'is_active']
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit Schedule — {self.object.name}'
+        ctx['back_url'] = reverse_lazy('ui:payment_milestone_schedule_detail', kwargs={'pk': self.object.pk})
+        return ctx
+
+    def get_success_url(self):
+        return reverse('ui:payment_milestone_schedule_detail', kwargs={'pk': self.object.pk})
+
+
+class PaymentMilestoneScheduleDeleteView(LoginRequiredMixin, DeleteView):
+    model = PaymentMilestoneSchedule
+    template_name = 'crud/confirm_delete.html'
+
+    def get_success_url(self):
+        return reverse('ui:payment_milestone_schedule_list')
+
+
+class PaymentMilestoneScheduleDetailView(LoginRequiredMixin, View):
+    """Single-page inline grid for a schedule's payment timing rules."""
+
+    template_name = 'payment_milestones/detail.html'
+
+    def _ctx(self, schedule, formset):
+        return {'schedule': schedule, 'formset': formset}
+
+    def get(self, request, pk):
+        schedule = get_object_or_404(PaymentMilestoneSchedule, pk=pk)
+        FormSet = _payment_milestone_rules_formset()
+        formset = FormSet(instance=schedule, prefix='rules')
+        return render(request, self.template_name, self._ctx(schedule, formset))
+
+    def post(self, request, pk):
+        schedule = get_object_or_404(PaymentMilestoneSchedule, pk=pk)
+        FormSet = _payment_milestone_rules_formset()
+        formset = FormSet(request.POST, instance=schedule, prefix='rules')
+        if not formset.is_valid():
+            messages.error(request, 'Some rows have errors — fix the highlighted fields.')
+            return render(request, self.template_name, self._ctx(schedule, formset))
+        formset.save()
+        messages.success(request, 'Payment timing rules saved.')
+        return redirect('ui:payment_milestone_schedule_detail', pk=schedule.pk)
+
 
 # ---------------------------------------------------------------------------
 # ConstructionMethod CRUD (Maintenance)
@@ -3399,6 +3513,7 @@ class MaintenanceView(LoginRequiredMixin, TemplateView):
         ctx['suburb_count'] = Suburb.objects.count()
         ctx['workstep_definition_count'] = WorkStepDefinition.objects.count()
         ctx['construction_method_count'] = ConstructionMethod.objects.count()
+        ctx['payment_milestone_schedule_count'] = PaymentMilestoneSchedule.objects.count()
         ctx['user_count'] = User.objects.count()
         ctx['site_settings'] = SiteSettings.get()
         ctx['active_nav'] = 'maintenance'

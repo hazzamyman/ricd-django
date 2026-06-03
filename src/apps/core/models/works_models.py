@@ -448,6 +448,11 @@ class WorkStepGroup(models.Model):
                     stage_gate=it.stage_gate,
                     is_monthly_tracker_column=it.is_monthly_tracker_column,
                 )
+            # Copy the payment milestone schedule (if any) so the clone keeps the
+            # same payment timing until the user tweaks it.
+            sched = getattr(self, 'payment_schedule', None)
+            if sched is not None:
+                sched.clone_for_group(new, new_name=f"{new.name} payments")
             return new
 
 

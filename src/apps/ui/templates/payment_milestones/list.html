@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Payment Milestone Schedules — RICD{% endblock %}
+{% block breadcrumbs %}
+  <span class="sep">/</span><a href="{% url 'ui:maintenance' %}">Maintenance</a>
+  <span class="sep">/</span><span class="current">Payment Milestone Schedules</span>
+{% endblock %}
+
+{% block content %}
+<div class="pg-head">
+  <div>
+    <h1>Payment Milestone Schedules</h1>
+    <div class="meta">
+      Define when each payment is forecast to release — relative to a project milestone
+      (start, a named work step, or practical completion) plus an offset in days. Scoped to a
+      Work Step Group, so cloning a group carries its payment timing. The default schedule is
+      the fallback for any project whose work group has no schedule of its own.
+    </div>
+  </div>
+  <div class="actions">
+    <a href="{% url 'ui:payment_milestone_schedule_create' %}" class="btn btn-primary btn-sm">Add Schedule</a>
+    <a href="{% url 'ui:maintenance' %}" class="btn btn-outline-secondary btn-sm">Back</a>
+  </div>
+</div>
+
+<div class="card"><div class="card-body p-0">
+  {% if schedules %}
+  <table class="table table-hover align-middle mb-0">
+    <thead class="table-light">
+      <tr>
+        <th>Schedule</th>
+        <th>Work Step Group</th>
+        <th class="text-center">Default?</th>
+        <th class="text-center">Active?</th>
+        <th>Rules</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in schedules %}
+      <tr>
+        <td><a href="{% url 'ui:payment_milestone_schedule_detail' s.pk %}">{{ s.name }}</a></td>
+        <td>{% if s.work_step_group %}{{ s.work_step_group.name }}{% else %}<span class="text-muted">— global —</span>{% endif %}</td>
+        <td class="text-center">{% if s.is_default %}<span class="badge bg-success">Default</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        <td class="text-center">{% if s.is_active %}<span class="badge bg-secondary">Active</span>{% else %}<span class="badge bg-light text-dark">Inactive</span>{% endif %}</td>
+        <td>
+          {% for r in s.rules.all %}
+            <span class="pill grey" style="font-size:11px;">{{ r.get_payment_type_display }}: {{ r.get_anchor_type_display }}{% if r.work_step_definition %} ({{ r.work_step_definition.name }}){% endif %} +{{ r.offset_days }}d</span>
+          {% empty %}
+            <span class="text-muted small">no rules yet</span>
+          {% endfor %}
+        </td>
+        <td class="text-end">
+          <a href="{% url 'ui:payment_milestone_schedule_detail' s.pk %}" class="btn btn-outline-primary btn-sm">Edit rules</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="card-body"><p class="text-muted mb-0">No schedules yet. Add one to control payment timing.</p></div>
+  {% endif %}
+</div></div>
+{% endblock %}

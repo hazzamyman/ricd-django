@@ -188,6 +188,24 @@
     </div>
   </div>
 
+  {# Payment Milestone Schedules — when each payment is forecast to release #}
+  <div class="col-sm-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="ricd-section-title mb-1">
+          <h2><i class="bi bi-calendar2-check me-1 text-muted"></i>Payment Milestone Schedules</h2>
+        </div>
+        <div class="text-muted mb-3" style="font-size:12px">{{ payment_milestone_schedule_count }} schedule{{ payment_milestone_schedule_count|pluralize }} — set when each payment is forecast to release (project start, a named work step, or PC, + offset days). Scoped per Work Step Group; clone a group to vary the timing.</div>
+        <div class="d-flex gap-2">
+          <a href="{% url 'ui:payment_milestone_schedule_list' %}" class="btn btn-sm btn-outline-secondary">View all</a>
+          {% if is_manager %}
+          <a href="{% url 'ui:payment_milestone_schedule_create' %}" class="btn btn-sm btn-primary">Add</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
   {# Stage Item Definitions — catalog of Stage 1/2 contract checklist items #}
   <div class="col-sm-6 col-xl-4">
     <div class="card h-100">

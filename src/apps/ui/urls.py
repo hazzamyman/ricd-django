@@ -123,6 +123,13 @@ urlpatterns = [
     path('step-groups/<int:group_pk>/items/<int:pk>/edit/', views.crud_views.WorkStepGroupItemUpdateView.as_view(), name='work_step_group_item_edit'),
     path('step-groups/<int:group_pk>/items/<int:pk>/delete/', views.crud_views.WorkStepGroupItemDeleteView.as_view(), name='work_step_group_item_delete'),
 
+    # Payment Milestone Schedules (Maintenance — when payments are timed)
+    path('maintenance/payment-milestones/', views.crud_views.PaymentMilestoneScheduleListView.as_view(), name='payment_milestone_schedule_list'),
+    path('maintenance/payment-milestones/create/', views.crud_views.PaymentMilestoneScheduleCreateView.as_view(), name='payment_milestone_schedule_create'),
+    path('maintenance/payment-milestones/<int:pk>/', views.crud_views.PaymentMilestoneScheduleDetailView.as_view(), name='payment_milestone_schedule_detail'),
+    path('maintenance/payment-milestones/<int:pk>/edit/', views.crud_views.PaymentMilestoneScheduleUpdateView.as_view(), name='payment_milestone_schedule_edit'),
+    path('maintenance/payment-milestones/<int:pk>/delete/', views.crud_views.PaymentMilestoneScheduleDeleteView.as_view(), name='payment_milestone_schedule_delete'),
+
     # Funding Schedules CRUD + lifecycle actions
     path('funding-schedules/', views.crud_views.FundingScheduleListView.as_view(), name='funding_schedule_list'),
     path('funding-schedules/create/', views.crud_views.FundingScheduleCreateView.as_view(), name='funding_schedule_create'),
