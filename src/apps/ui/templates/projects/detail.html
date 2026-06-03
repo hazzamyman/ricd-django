@@ -48,7 +48,7 @@
 .banner .b-title{font-weight:600;color:var(--ink);font-size:13.5px}
 .banner .b-body{color:#334155;margin-top:2px;line-height:1.45}
 /* KPI */
-.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px}
+.kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:18px}
 @media(max-width:1100px){.kpi-row{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:700px){.kpi-row{grid-template-columns:repeat(2,1fr)}}
 .kpi{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px 16px 16px;position:relative;overflow:hidden}
@@ -251,9 +251,20 @@
   {# KPI row #}
   <div class="kpi-row">
     <div class="kpi">
+      <div class="label"><i class="bi bi-calculator"></i> Est. works cost</div>
+      <div class="value">{{ total_works_cost|money }}</div>
+      <div class="sub">bottom-up from child works</div>
+    </div>
+    <div class="kpi">
       <div class="label"><i class="bi bi-cash-stack"></i> Approved (BFA)</div>
       <div class="value">{{ total_approved|money }}</div>
-      <div class="sub">{% if has_co_funding %}co-funded{% else %}single program{% endif %}</div>
+      {% if funding_gap > 0 %}
+        <div class="sub" style="color:var(--danger,#c0392b);">{{ funding_gap|money_whole }} short — apply for more</div>
+      {% elif funding_gap < 0 %}
+        <div class="sub">fully funded</div>
+      {% else %}
+        <div class="sub">{% if has_co_funding %}co-funded{% else %}single program{% endif %}</div>
+      {% endif %}
     </div>
     <div class="kpi">
       <div class="label"><i class="bi bi-arrow-down-circle"></i> Released to date</div>
@@ -656,6 +667,46 @@
       </div>
       {% else %}
       <p class="text-muted" style="font-size:13px;">No funding schedules linked to this project.</p>
+      {% endif %}
+      {% endwith %}
+    </div>
+
+    <div class="col-12 mt-2">
+      <div class="ricd-section-title">
+        <h2>Funding Notices</h2>
+        {% if is_fnc %}<a href="{% url 'ui:funding_notice_create' %}?project={{ project.pk }}&next={% url 'ui:project_detail' project.pk %}?tab=funding" class="btn btn-primary btn-sm"><i class="bi bi-plus"></i> New Funding Notice</a>{% endif %}
+      </div>
+      <p class="text-muted" style="font-size:12px;">Capped funding pathway — works are funded up to the notice cap and drawn down via expense claims.</p>
+      {% with notices=project.funding_notices.all %}
+      {% if notices %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light">
+            <tr><th>#</th><th>Issued</th><th class="text-end">Capped</th><th class="text-end">Approved claims</th><th class="text-end">Remaining</th><th>Status</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for fn in notices %}
+            <tr>
+              <td>{{ fn.pk }}</td>
+              <td>{{ fn.issued_date|date:"d M Y"|default:"—" }}</td>
+              <td class="text-end">{{ fn.capped_amount|money }}</td>
+              <td class="text-end">{{ fn.approved_claims_total|money }}</td>
+              <td class="text-end">{{ fn.remaining|money }}</td>
+              <td><span class="state-badge state-{{ fn.status|lower }}">{{ fn.get_status_display }}</span></td>
+              <td class="text-nowrap">
+                <a href="{% url 'ui:funding_notice_detail' fn.pk %}" class="btn btn-outline-secondary btn-sm">View</a>
+                {% if is_fnc %}
+                <a href="{% url 'ui:funding_notice_edit' fn.pk %}?next={% url 'ui:project_detail' project.pk %}?tab=funding" class="btn btn-outline-secondary btn-sm">Edit</a>
+                <a href="{% url 'ui:funding_notice_delete' fn.pk %}?next={% url 'ui:project_detail' project.pk %}?tab=funding" class="btn btn-outline-danger btn-sm">Delete</a>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted" style="font-size:13px;">No funding notices linked to this project.</p>
       {% endif %}
       {% endwith %}
     </div>

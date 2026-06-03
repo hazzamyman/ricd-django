@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load money %}
 
 {% block title %}Projects - RICD{% endblock %}
 
@@ -76,7 +77,7 @@
                                 <th>Council</th>
                                 <th>Program</th>
                                 <th>State</th>
-                                <th class="text-right">Budget</th>
+                                <th class="text-right">Costs<sup>*</sup></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -85,16 +86,19 @@
                                 <td>
                                     <a href="/projects/{{ project.id }}/">{{ project.name }}</a>
                                 </td>
-                                <td>{{ project.council.name }}</td>
-                                <td>{{ project.program.name }}</td>
+                                <td>{{ project.council }}</td>
+                                <td>{{ project.program }}</td>
                                 <td>
                                     <span class="badge bg-info">{{ project.state }}</span>
                                 </td>
-                                <td class="text-right">${{ project.budget|default:"0"|floatformat:0 }}</td>
+                                <td class="text-right">{{ project.total_cost|money_whole }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
+                </div>
+                <div class="card-footer text-muted small">
+                    <sup>*</sup> Costs are the sum of each project's works — actual cost where entered, otherwise estimated from notional rates.
                 </div>
                 {% else %}
                 <div class="card-body">
