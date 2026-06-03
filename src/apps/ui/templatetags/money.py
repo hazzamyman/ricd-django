@@ -40,6 +40,17 @@ def money(value, blank='—'):
     return mark_safe(f"${amt:,.2f}")
 
 
+@register.filter(name='money_whole')
+def money_whole(value, blank='—'):
+    """Format as whole dollars with thousands separators: $1,234,567 (no cents)."""
+    amt = _to_decimal(value)
+    if amt is None:
+        return blank
+    if amt < 0:
+        return format_html('<span class="money-neg">{}</span>', f"-${(-amt):,.0f}")
+    return mark_safe(f"${amt:,.0f}")
+
+
 @register.filter(name='money_plain')
 def money_plain(value, blank='—'):
     """Same number formatting but with no HTML wrapper — suitable for CSV / titles."""
