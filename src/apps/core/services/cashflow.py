@@ -84,6 +84,7 @@ def build_program_cashflow(program=None, councils=None, hide_contingency=False):
 
     forecast_by = defaultdict(_zero)
     released_by = defaultdict(_zero)
+    undated_payments = []  # actual payments with no forecast/release date yet
 
     def _record_program(prog_id):
         if prog_id and prog_id not in programs_seen:
@@ -103,6 +104,10 @@ def build_program_cashflow(program=None, councils=None, hide_contingency=False):
         forecast_fy = date_to_financial_year(p.forecast_release_date)
         if forecast_fy is None:
             forecast_fy = date_to_financial_year(p.release_date)
+        if forecast_fy is None and p.status != 'RELEASED':
+            # No forecast date assigned yet — surface it so committed money isn't
+            # silently dropped from the matrix.
+            undated_payments.append({'payment': p, 'project': p.project, 'amount': amount})
         if forecast_fy:
             fy_set.add(forecast_fy)
             split = p.compute_program_split()
@@ -241,4 +246,6 @@ def build_program_cashflow(program=None, councils=None, hide_contingency=False):
         'column_totals_list': column_totals_list,
         'grand_totals': col_totals['__all__'],
         'undated_projects': undated_projects,
+        'undated_payments': undated_payments,
+        'undated_payments_total': sum((u['amount'] for u in undated_payments), _zero()),
     }
