@@ -140,6 +140,10 @@ class FundingAgreement(models.Model):
 # ============================================================================
 
 class BriefFinancialApproval(models.Model):
+    """Header for one MINCOR-referenced financial approval covering 1..N projects.
+
+    Per-project funding/contingency lives in BriefFinancialApprovalItem rows.
+    """
     class Status(models.TextChoices):
         PENDING = 'PENDING', 'Pending'
         APPROVED = 'APPROVED', 'Approved'
@@ -150,14 +154,23 @@ class BriefFinancialApproval(models.Model):
         DIRECTOR = 'DIR', 'Director'
         GM = 'GM', 'General Manager'
 
-    project = models.ForeignKey(Project, related_name='financial_approvals', on_delete=models.CASCADE)
-    funding_amount = models.DecimalField(max_digits=14, decimal_places=2)
-    contingency_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    mincor_reference = models.CharField(
+        max_length=50, blank=True, db_index=True,
+        help_text="MINCOR / approval reference (groups projects under one approval)",
+    )
+    document_uri = models.URLField(
+        blank=True, max_length=500,
+        help_text="Link to the brief document (OpenDocs / SharePoint / Shared Drive folder or file).",
+    )
+    human_rights_assessment_uri = models.URLField(
+        blank=True, max_length=500,
+        help_text="Link to the Human Rights Assessment that accompanies this brief "
+                  "(required alongside the FAS for financial approval).",
+    )
     delegate_level = models.CharField(max_length=3, choices=DelegateLevel.choices, default=DelegateLevel.MANAGER)
-    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING, db_index=True)
     approved_by = models.ForeignKey(User, related_name='brief_approvals', null=True, blank=True, on_delete=models.SET_NULL)
     approved_at = models.DateTimeField(null=True, blank=True)
-    mincor_reference = models.CharField(max_length=50, blank=True)
     comments = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -166,11 +179,151 @@ class BriefFinancialApproval(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"BriefFA ${self.funding_amount} for {self.project.name} ({self.status})"
+        ref = self.mincor_reference or f"BFA#{self.pk}"
+        return f"{ref} — ${self.total_amount:,.0f} ({self.status})"
+
+    @property
+    def funding_amount(self):
+        """Total funding requested across all items (compat shim)."""
+        from decimal import Decimal
+        return sum((i.funding_amount for i in self.items.all()), Decimal('0'))
+
+    @property
+    def contingency_amount(self):
+        """Total contingency requested across all items (compat shim)."""
+        from decimal import Decimal
+        return sum((i.contingency_amount for i in self.items.all()), Decimal('0'))
 
     @property
     def total_amount(self):
         return self.funding_amount + self.contingency_amount
+
+    @property
+    def project_count(self):
+        return self.items.count()
+
+    @property
+    def councils(self):
+        """Set of distinct councils inferred from item projects."""
+        from apps.core.models import Council
+        return Council.objects.filter(projects__bfa_items__bfa=self).distinct()
+
+
+class BriefFinancialApprovalItem(models.Model):
+    """One (project, program) row in a Brief Financial Approval.
+
+    A single project can have multiple rows pointing at DIFFERENT programs to
+    capture co-funding — e.g. Commonwealth contributes $5.5M, Dept covers
+    $6.5M for the same 34-lot subdivision. cost_centre and gl_code inherit
+    from `program`.
+    """
+    bfa = models.ForeignKey(BriefFinancialApproval, related_name='items', on_delete=models.CASCADE)
+    project = models.ForeignKey(Project, related_name='bfa_items', on_delete=models.PROTECT)
+    program = models.ForeignKey(
+        'Program', related_name='bfa_items',
+        on_delete=models.PROTECT, null=True, blank=True,
+        help_text="Funding program this row draws from. Defaults to project.program "
+                  "in save(); set explicitly when capturing co-funding from a different program.",
+    )
+    cost_centre = models.CharField(max_length=50, blank=True)
+    gl_code = models.CharField(max_length=50, blank=True)
+    funding_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    contingency_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['project__name', 'program__name']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['bfa', 'project', 'program'],
+                name='bfa_item_unique_project_program',
+            ),
+        ]
+
+    def __str__(self):
+        prog = self.program.name if self.program_id else (
+            self.project.program.name if self.project_id and self.project.program_id else '?'
+        )
+        return f"{self.project.name} [{prog}] — ${self.total:,.0f}"
+
+    @property
+    def total(self):
+        return (self.funding_amount or 0) + (self.contingency_amount or 0)
+
+    @property
+    def released_to_date(self):
+        """Sum of PaymentAllocation.amount snapshotted to this row's (project, program)."""
+        from decimal import Decimal
+        prog_id = self.program_id or (self.project.program_id if self.project_id else None)
+        if not prog_id:
+            return Decimal('0')
+        return PaymentAllocation.objects.filter(
+            payment__project=self.project, program_id=prog_id,
+        ).aggregate(t=models.Sum('amount'))['t'] or Decimal('0')
+
+    @property
+    def remaining(self):
+        """Approved total minus what's been released to this (project, program) pot."""
+        return self.total - self.released_to_date
+
+    def save(self, *args, **kwargs):
+        """Auto-default program from project.program; cost_centre + gl_code from
+        the (resolved) program; contingency_amount = 10% of funding_amount when
+        blank. Existing edits with explicit values are kept.
+        """
+        from decimal import Decimal
+        is_new = self.pk is None
+        if is_new and self.project_id and not self.program_id:
+            self.program_id = getattr(self.project, 'program_id', None)
+        if is_new and self.program_id:
+            if not self.cost_centre:
+                self.cost_centre = getattr(self.program, 'cost_centre', '') or ''
+            if not self.gl_code:
+                self.gl_code = getattr(self.program, 'gl_code', '') or ''
+        if (self.contingency_amount or 0) == 0 and (self.funding_amount or 0) > 0:
+            self.contingency_amount = (Decimal(self.funding_amount) * Decimal('0.10')).quantize(Decimal('0.01'))
+        super().save(*args, **kwargs)
+
+
+# ============================================================================
+# PaymentAllocation — snapshot of how a released payment was split across
+# programs (locked at RELEASED status; immutable thereafter — "lock forever")
+# ============================================================================
+
+class PaymentAllocation(models.Model):
+    """Locked snapshot: $N of payment X was charged to program Y at ratio R.
+
+    Created automatically by a post_save signal when a Payment moves to
+    RELEASED. Ratios are computed from the project's BFAItem totals at that
+    moment and frozen — later BFA variations DO NOT retro-adjust existing
+    allocations.
+    """
+    payment = models.ForeignKey(
+        'Payment', related_name='allocations', on_delete=models.CASCADE,
+    )
+    program = models.ForeignKey(
+        'Program', related_name='payment_allocations', on_delete=models.PROTECT,
+    )
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    ratio = models.DecimalField(
+        max_digits=7, decimal_places=6,
+        help_text="Fraction of payment.amount attributed to this program (0..1).",
+    )
+    computed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['payment_id', 'program__name']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['payment', 'program'],
+                name='payment_allocation_unique_program',
+            ),
+        ]
+
+    def __str__(self):
+        return f"Payment #{self.payment_id} → {self.program.name}: ${self.amount:,.0f} ({self.ratio:.2%})"
 
 
 # ============================================================================
@@ -359,25 +512,41 @@ class FundingSchedule(models.Model):
 
     funding_agreement = models.ForeignKey(FundingAgreement, related_name='schedules', on_delete=models.CASCADE, null=True, blank=True)
     payment_rule = models.ForeignKey(PaymentRule, related_name='schedules', on_delete=models.PROTECT, null=True, blank=True, help_text="Payment calculation rule")
+    # Denormalized council FK — auto-synced from funding_agreement.council in save().
+    # Required for the per-council UniqueConstraint on schedule_number.
+    council = models.ForeignKey(
+        'Council', related_name='funding_schedules_via_council',
+        on_delete=models.PROTECT, null=True, blank=True, db_index=True,
+        help_text="Council that owns this schedule (derived from funding_agreement.council)",
+    )
     schedule_number = models.PositiveIntegerField(default=1)
     replaces_schedule = models.ForeignKey('self', related_name='replacements', on_delete=models.SET_NULL, null=True, blank=True, help_text="Replaced by this schedule")
     project = models.ForeignKey(Project, related_name='funding_schedules', on_delete=models.CASCADE, db_index=True, null=True, blank=True)
     councils = models.ManyToManyField('Council', related_name='funding_schedules', blank=True)
     works = models.ManyToManyField('Work', related_name='funding_schedules', blank=True, help_text="Works funded by this schedule")
     amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    contingency = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    # Item 6 of Funding Schedule QA: Council's own contribution toward the works
+    # (usually $0; rare exceptions where Council co-funds).
+    council_contribution_amount = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0,
+        help_text="Council's own contribution toward the works (Item 6 of FS). "
+                  "Usually $0 — fill in only when Council co-funds.",
+    )
+    # `total_funding` kept as a stored field for query/dashboard compatibility;
+    # value is just `amount` (no per-FS contingency — contingency lives on the BFA).
     total_funding = models.DecimalField(max_digits=12, decimal_places=2, default=0, editable=False, db_index=True)
 
-    class PaymentSplit(models.TextChoices):
-        STANDARD = '30/60/10', 'Standard (30/60/10)'
-        ALTERNATIVE = '90/10', 'Alternative (90/10)'
-        CUSTOM = 'CUSTOM', 'Custom'
+    class LeaseClauseType(models.TextChoices):
+        REGISTERED_HOUSING_PROVIDER = 'RHP', 'Council is a Registered Housing Provider'
+        FORTY_YEAR_LEASE = '40Y', '40-year lease to the State'
+        NOT_APPLICABLE = 'NA', 'Not applicable'
 
-    payment_split = models.CharField(
-        max_length=10,
-        choices=PaymentSplit.choices,
-        default=PaymentSplit.STANDARD,
+    lease_clause_type = models.CharField(
+        max_length=3, choices=LeaseClauseType.choices, blank=True,
+        help_text="Item 7 of Funding Schedule QA: which lease clause applies to "
+                  "this schedule. Drives the wording inserted in the FS template.",
     )
+
     notional_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     actual_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     status = models.CharField(max_length=15, choices=Status.choices, default=Status.DRAFT, db_index=True)
@@ -431,9 +600,24 @@ class FundingSchedule(models.Model):
     def linked_project(self):
         return self.project
 
+    @property
+    def contingency(self):
+        """Compat shim — contingency now lives on BFA items, not FS."""
+        from decimal import Decimal
+        return Decimal('0')
+
+    @contingency.setter
+    def contingency(self, value):
+        """Accept-and-ignore setter so legacy `FS(contingency=...)` calls don't error."""
+        # Intentional no-op: per-FS contingency was removed from the schema.
+        pass
+
     def save(self, *args, **kwargs):
-        # Compute stored total_funding from amount + contingency
-        self.total_funding = (self.amount or 0) + (self.contingency or 0)
+        # Sync denormalized council from funding_agreement (source of truth: FA -> Council 1:1)
+        if self.funding_agreement_id and not self.council_id:
+            self.council = self.funding_agreement.council
+        # total_funding is just amount (contingency lives on BFA items)
+        self.total_funding = self.amount or 0
         super().save(*args, **kwargs)
 
     DATE_FIELDS_FOR_SYNC = (
@@ -458,6 +642,21 @@ class FundingSchedule(models.Model):
     def has_out_of_sync_projects(self):
         return bool(self.out_of_sync_projects())
 
+    @property
+    def approved_bfa_total_for_children(self):
+        """Sum of APPROVED BFAItem totals (funding + contingency) for this schedule's child projects."""
+        from decimal import Decimal
+        child_ids = list(self.child_projects().values_list('pk', flat=True))
+        if self.project_id and self.project_id not in child_ids:
+            child_ids.append(self.project_id)
+        if not child_ids:
+            return Decimal('0')
+        items = BriefFinancialApprovalItem.objects.filter(
+            bfa__status=BriefFinancialApproval.Status.APPROVED,
+            project_id__in=child_ids,
+        )
+        return sum(((i.funding_amount or 0) + (i.contingency_amount or 0) for i in items), Decimal('0'))
+
     def clean(self):
         from django.core.exceptions import ValidationError
         from apps.core.business_rules import check_brief_financial_approval
@@ -465,12 +664,45 @@ class FundingSchedule(models.Model):
         if self.status != self.Status.DRAFT and not self.payment_rule:
             raise ValidationError("payment_rule is required when schedule is not DRAFT")
 
+        # On insert, the primary `project` (if set) must have an APPROVED BFA item.
         if self.project and self._state.adding:
             if not check_brief_financial_approval(self.project):
                 raise ValidationError(
                     f"Project '{self.project.name}' requires an APPROVED BriefFinancialApproval "
                     "before a FundingSchedule can be created."
                 )
+
+        # FS.amount must not exceed sum of APPROVED BFA-item totals for child projects.
+        if self.amount and self.pk:
+            cap = self.approved_bfa_total_for_children
+            if self.amount > cap:
+                raise ValidationError(
+                    f"FundingSchedule amount ${self.amount:,.2f} exceeds approved BFA total "
+                    f"${cap:,.2f} for the linked project(s). "
+                    "Reduce the amount or get additional BFA approval first."
+                )
+
+        # Schedule number must be unique per council
+        if self.council_id and self.schedule_number:
+            qs = FundingSchedule.objects.filter(
+                council_id=self.council_id, schedule_number=self.schedule_number,
+            )
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            if qs.exists():
+                raise ValidationError(
+                    f"Schedule #{self.schedule_number} already exists for this council. "
+                    "Use a different schedule number."
+                )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['council', 'schedule_number'],
+                condition=models.Q(council__isnull=False),
+                name='fundingschedule_unique_number_per_council',
+            ),
+        ]
 
     def __str__(self):
         return f"FS#{self.schedule_number} - {self.project.name if self.project else 'No Project'} ({self.get_status_display()})"

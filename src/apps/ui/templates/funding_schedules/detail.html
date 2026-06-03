@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load money %}
 {% block title %}Funding Schedule #{{ funding_schedule.pk }} - RICD{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -28,6 +29,7 @@
         {% csrf_token %}<button class="btn btn-outline-warning">Supersede</button>
       </form>
     {% endif %}
+    <a href="{% url 'ui:funding_schedule_contract_report' funding_schedule.pk %}" class="btn btn-outline-primary">Contract Report</a>
     <a href="{% url 'ui:funding_schedule_list' %}" class="btn btn-outline-secondary">Back</a>
   </div>
 </div>
@@ -35,7 +37,7 @@
   <dl class="row mb-0">
     <dt class="col-sm-3">Project</dt><dd class="col-sm-9">{% if funding_schedule.project %}<a href="{% url 'ui:project_detail' funding_schedule.project.pk %}?tab=funding">{{ funding_schedule.project.name }} (ID {{ funding_schedule.project.pk }})</a>{% else %}-{% endif %}</dd>
     <dt class="col-sm-3">Funding Agreement</dt><dd class="col-sm-9">{{ funding_schedule.funding_agreement|default:"-" }}</dd>
-    <dt class="col-sm-3">Total Funding</dt><dd class="col-sm-9">${{ funding_schedule.total_funding|floatformat:2 }}</dd>
+    <dt class="col-sm-3">Total Funding</dt><dd class="col-sm-9">{{ funding_schedule.total_funding|money }}</dd>
     <dt class="col-sm-3">Status</dt><dd class="col-sm-9"><strong>{{ funding_schedule.get_status_display }}</strong></dd>
     <dt class="col-sm-3">Payment Rule</dt><dd class="col-sm-9">{{ funding_schedule.payment_rule|default:"-" }}</dd>
 
@@ -84,6 +86,105 @@
 </div></div>
 {% endif %}
 {% endwith %}
+
+{# ── Aggregated Works (across all child projects) ── #}
+{% if rollup_works %}
+<div class="card mb-3"><div class="card-body">
+  <div class="d-flex align-items-center justify-content-between mb-2">
+    <h6 class="text-muted mb-0">Works ({{ rollup_works|length }})</h6>
+    <span style="font-size:11px; color:var(--muted);">Read-only roll-up — open a project to edit its works</span>
+  </div>
+  <table class="table table-sm align-middle mb-0">
+    <thead class="table-light">
+      <tr><th>Project</th><th>Work type</th><th>Address</th><th class="text-end">Qty</th><th></th></tr>
+    </thead>
+    <tbody>
+    {% for w in rollup_works %}
+      <tr>
+        <td><a href="{% url 'ui:project_detail' w.project.pk %}">{{ w.project.name }}</a></td>
+        <td>{{ w.work_type.name|default:"—" }}</td>
+        <td>{% if w.address %}{{ w.address }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        <td class="text-end">{{ w.quantity|default:"—" }}</td>
+        <td><a href="{% url 'ui:project_detail' w.project.pk %}" class="btn btn-link btn-sm p-0" style="font-size:11px;">Open project</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% endif %}
+
+{# ── Aggregated Addresses ── #}
+{% if rollup_addresses %}
+<div class="card mb-3"><div class="card-body">
+  <div class="d-flex align-items-center justify-content-between mb-2">
+    <h6 class="text-muted mb-0">Addresses ({{ rollup_addresses|length }})</h6>
+    <span style="font-size:11px; color:var(--muted);">Read-only roll-up</span>
+  </div>
+  <table class="table table-sm align-middle mb-0">
+    <thead class="table-light">
+      <tr><th>Project</th><th>Street</th><th>Suburb</th><th></th></tr>
+    </thead>
+    <tbody>
+    {% for a in rollup_addresses %}
+      <tr>
+        <td><a href="{% url 'ui:project_detail' a.project.pk %}">{{ a.project.name }}</a></td>
+        <td>{{ a.street }}</td>
+        <td>{{ a.suburb.name|default:"—" }}</td>
+        <td><a href="{% url 'ui:project_detail' a.project.pk %}" class="btn btn-link btn-sm p-0" style="font-size:11px;">Open project</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% endif %}
+
+{# ── Aggregated Defects ── #}
+{% if rollup_defects %}
+<div class="card mb-3"><div class="card-body">
+  <div class="d-flex align-items-center justify-content-between mb-2">
+    <h6 class="text-muted mb-0">Defects ({{ rollup_defects|length }})</h6>
+    <span style="font-size:11px; color:var(--muted);">Read-only roll-up</span>
+  </div>
+  <table class="table table-sm align-middle mb-0">
+    <thead class="table-light">
+      <tr><th>Project</th><th>Identified</th><th>Rectified</th><th>Description</th><th></th></tr>
+    </thead>
+    <tbody>
+    {% for d in rollup_defects %}
+      <tr {% if not d.rectified_date %}style="background:var(--st-amber-bg);"{% endif %}>
+        <td>{% if d.project %}<a href="{% url 'ui:project_detail' d.project.pk %}">{{ d.project.name }}</a>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        <td>{{ d.identified_date|date:"d M Y" }}</td>
+        <td>{% if d.rectified_date %}{{ d.rectified_date|date:"d M Y" }}{% else %}<span class="pill amber" style="font-size:9px;">Open</span>{% endif %}</td>
+        <td>{{ d.description|truncatechars:80 }}</td>
+        <td>{% if d.project %}<a href="{% url 'ui:project_detail' d.project.pk %}" class="btn btn-link btn-sm p-0" style="font-size:11px;">Open project</a>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% endif %}
+
+{# ── Comments from child projects (the FS's own comments render below via _comments.html) ── #}
+{% if rollup_child_comments %}
+<div class="card mb-3"><div class="card-body">
+  <div class="d-flex align-items-center justify-content-between mb-2">
+    <h6 class="text-muted mb-0">Comments on child projects ({{ rollup_child_comments|length }})</h6>
+    <span style="font-size:11px; color:var(--muted);">Recent comments across all child projects — open project to reply</span>
+  </div>
+  <ul class="list-unstyled mb-0">
+    {% for c in rollup_child_comments %}
+    <li class="mb-2 pb-2 border-bottom" style="font-size:13px;">
+      <div class="d-flex justify-content-between">
+        <strong>{{ c.author|default:"—" }}</strong>
+        <span class="text-muted" style="font-size:11px;">{{ c.created_at|date:"d M Y H:i" }}</span>
+      </div>
+      <div>{{ c.body|truncatechars:200 }}</div>
+      <a href="{% url 'ui:project_detail' c.object_id %}" style="font-size:11px;">Open project →</a>
+    </li>
+    {% endfor %}
+  </ul>
+</div></div>
+{% endif %}
 
 <div class="card mb-3"><div class="card-body">
   <h6 class="text-muted mb-2">Stage Reports</h6>

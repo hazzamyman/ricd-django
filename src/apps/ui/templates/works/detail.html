@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load money %}
 {% block title %}Work Item{% endblock %}
 {% block content %}
 <div class="container mt-4">
@@ -26,17 +27,17 @@
       <dd class="col-sm-9">{{ work.quantity }}</dd>
 
       <dt class="col-sm-3">Estimated Cost (unit)</dt>
-      <dd class="col-sm-9">${{ work.estimated_cost|floatformat:2 }}</dd>
+      <dd class="col-sm-9">{{ work.estimated_cost|money }}</dd>
 
       <dt class="col-sm-3">Total Estimated Cost</dt>
-      <dd class="col-sm-9">${{ work.total_estimated_cost|floatformat:2 }}</dd>
+      <dd class="col-sm-9">{{ work.total_estimated_cost|money }}</dd>
 
       <dt class="col-sm-3">Cost Source</dt>
       <dd class="col-sm-9">{{ work.cost_source }}</dd>
 
       {% if work.actual_cost %}
       <dt class="col-sm-3">Actual Cost</dt>
-      <dd class="col-sm-9">${{ work.actual_cost|floatformat:2 }}</dd>
+      <dd class="col-sm-9">{{ work.actual_cost|money }}</dd>
       {% endif %}
 
       <dt class="col-sm-3">Status</dt>
@@ -51,8 +52,12 @@
       <dt class="col-sm-3">Step Group</dt>
       <dd class="col-sm-9">
         {% if work.step_group %}
-          {{ work.step_group.name }}
-          <span class="text-muted ms-2" style="font-size:12px">({{ work.step_group.work_type }})</span>
+          <a href="{% url 'ui:work_step_group_detail' work.step_group.pk %}">{{ work.step_group.name }}</a>
+          {% with wts=work.step_group.work_types.all %}
+            {% if wts %}
+              <span class="text-muted ms-2" style="font-size:12px">(applies to: {% for wt in wts %}{{ wt.name }}{% if not forloop.last %}, {% endif %}{% endfor %})</span>
+            {% endif %}
+          {% endwith %}
         {% else %}—{% endif %}
       </dd>
 
@@ -60,82 +65,161 @@
       <dt class="col-sm-3">Actual Start</dt>
       <dd class="col-sm-9">{{ work.actual_start_date }}</dd>
       {% endif %}
+
+      <dt class="col-sm-3">Practical Completion</dt>
+      <dd class="col-sm-9">
+        {% if work.practical_completion_date %}
+          <span class="text-success fw-semibold">{{ work.practical_completion_date|date:"d M Y" }}</span>
+          <span class="text-muted" style="font-size:11px;">(actual)</span>
+        {% elif work.forecast_practical_completion_date %}
+          <span class="text-muted">{{ work.forecast_practical_completion_date|date:"d M Y" }}</span>
+          <span class="text-muted" style="font-size:11px;">(forecast)</span>
+        {% else %}<span class="text-muted">—</span>{% endif %}
+      </dd>
+
+      <dt class="col-sm-3">Handover</dt>
+      <dd class="col-sm-9">
+        {% if work.handover_date %}
+          <span class="text-success fw-semibold">{{ work.handover_date|date:"d M Y" }}</span>
+          <span class="text-muted" style="font-size:11px;">(actual)</span>
+        {% elif work.forecast_handover_date %}
+          <span class="text-muted">{{ work.forecast_handover_date|date:"d M Y" }}</span>
+          <span class="text-muted" style="font-size:11px;">(forecast)</span>
+        {% else %}<span class="text-muted">—</span>{% endif %}
+      </dd>
     </dl>
   </div></div>
 
-  {# WorkStep S-curve section — only shown for Capital Works #}
+  {# ===== Rolling Forecast Schedule — inline editable ===== #}
   {% if work.cashflow_method == 'WORKSTEP' %}
-  <div class="d-flex justify-content-between align-items-center mb-2">
-    <h5>Work Steps</h5>
-    {% if work.step_group %}
-    <form method="post" action="{% url 'ui:work_step_apply_group' project_pk=work.project_id pk=work.pk %}" class="d-inline">
-      {% csrf_token %}
-      <button type="submit" class="btn btn-sm btn-outline-primary">Apply Group (sync steps)</button>
-    </form>
-    {% endif %}
-  </div>
+  <form method="post" id="forecast-form">
+    {% csrf_token %}
 
-  {% with steps=work.steps.all %}
-  {% if steps %}
-  <div class="card mb-3"><div class="card-body p-0">
-    <table class="table table-sm mb-0">
-      <thead class="table-light">
-        <tr>
-          <th style="width:3rem">#</th>
-          <th>Step</th>
-          <th>Duration (days)</th>
-          <th>Cost %</th>
-          <th>Stage Gate</th>
-          <th>Forecast Start</th>
-          <th>Forecast Complete</th>
-          <th>Actual Complete</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for step in steps %}
-        <tr {% if not step.is_active %}class="text-muted"{% endif %}>
-          <td>{{ step.order }}</td>
-          <td>
-            {{ step.step_name }}
-            {% if not step.is_active %}<span class="badge bg-secondary ms-1">Inactive</span>{% endif %}
-            {% if step.actual_completion_date %}<span class="badge bg-success ms-1">Done</span>{% endif %}
-          </td>
-          <td>{{ step.expected_duration_days }}</td>
-          <td>{{ step.expected_cost_percentage }}%</td>
-          <td>
-            {% if step.group_item %}
-              {% if step.group_item.stage_gate == 'STAGE1' %}<span class="badge bg-info text-dark">Stage 1</span>
-              {% elif step.group_item.stage_gate == 'STAGE2' %}<span class="badge bg-primary">Stage 2</span>
-              {% else %}—{% endif %}
-            {% else %}—{% endif %}
-          </td>
-          <td>{{ step.forecast_start_date|default:"—" }}</td>
-          <td>{{ step.forecast_completion_date|default:"—" }}</td>
-          <td>
-            {% if step.actual_completion_date %}
-              <span class="text-success fw-semibold">{{ step.actual_completion_date }}</span>
-            {% else %}—{% endif %}
-          </td>
-          <td>
-            <a href="{% url 'ui:work_step_edit' project_pk=work.project_id work_pk=work.pk pk=step.pk %}" class="btn btn-sm btn-outline-secondary">Update</a>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div></div>
-  {% else %}
-  <div class="text-muted mb-3" style="font-size:13px">
-    No steps yet.
-    {% if work.step_group %}
-    Use <em>Apply Group</em> above to create steps from the assigned group.
+    {# Anchor card: actual_start_date drives the cascade. #}
+    <div class="card mb-3"><div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="mb-0">Rolling Forecast Anchor</h5>
+        {% if work.step_group %}
+        <a href="{% url 'ui:work_step_apply_group' project_pk=work.project_id pk=work.pk %}"
+           class="btn btn-sm btn-outline-secondary"
+           title="Recreate steps from the assigned group template"
+           onclick="event.preventDefault(); document.getElementById('sync-steps-form').submit();">Sync steps from group</a>
+        {% endif %}
+      </div>
+      <p class="text-muted small mb-3">
+        Set <b>Actual Start Date</b> to anchor the forecast. Every step's
+        forecast date is computed forward from there using the durations defined
+        in the step group; as actual completion dates are entered below, the
+        downstream forecasts roll forward automatically.
+      </p>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label">Actual Start Date</label>
+          {{ anchor_form.actual_start_date }}
+          {% if anchor_form.actual_start_date.errors %}<div class="text-danger small">{{ anchor_form.actual_start_date.errors|striptags }}</div>{% endif %}
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Forecast Handover (manual override)</label>
+          {{ anchor_form.forecast_handover_date }}
+          <div class="form-text">Defaults to the calculated Practical Completion date — recomputed every save.</div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label d-block">Computed PC date</label>
+          {% if work.forecast_practical_completion_date %}
+            <span class="form-control-plaintext"><b>{{ work.forecast_practical_completion_date|date:"d M Y" }}</b>
+              {% if work.pc_breaches_sunset %}
+                <span class="badge bg-warning text-dark ms-2" title="Forecast PC > Stage 2 sunset + 30 days">Sunset risk</span>
+              {% endif %}
+            </span>
+          {% else %}<span class="text-muted">— set Actual Start + Save —</span>{% endif %}
+        </div>
+      </div>
+    </div></div>
+
+    {# Steps grid #}
+    {% if step_formset.forms %}
+    {{ step_formset.management_form }}
+    <div class="card mb-3"><div class="card-body p-0">
+      <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+        <h5 class="mb-0">Forecast Schedule ({{ step_formset.initial_form_count }} step(s))</h5>
+        <button type="submit" class="btn btn-sm btn-primary">Save All</button>
+      </div>
+      <table class="table table-sm align-middle mb-0" id="steps-grid">
+        <thead class="table-light">
+          <tr>
+            <th style="width:3rem">#</th>
+            <th>Step</th>
+            <th style="width:90px;" class="text-end">Days</th>
+            <th style="width:90px;" class="text-end">Cost %</th>
+            <th>Stage Gate</th>
+            <th>Forecast Start</th>
+            <th>Forecast Complete</th>
+            <th style="width:170px;">Actual Complete</th>
+            <th style="width:80px;" class="text-center">Active?</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for form in step_formset %}
+          {% with step=form.instance %}
+          <tr{% if not step.is_active %} class="text-muted"{% endif %}{% if form.errors %} class="table-warning"{% endif %}>
+            {{ form.id }}
+            <td>{{ step.order }}</td>
+            <td>
+              {{ step.step_name }}
+              {% if step.actual_completion_date %}<span class="badge bg-success ms-1">Done</span>{% endif %}
+            </td>
+            <td class="text-end">{{ step.expected_duration_days }}</td>
+            <td class="text-end">{{ step.expected_cost_percentage }}%</td>
+            <td>
+              {% if step.group_item %}
+                {% if step.group_item.stage_gate == 'STAGE1' %}<span class="badge bg-info text-dark">Stage 1</span>
+                {% elif step.group_item.stage_gate == 'STAGE2' %}<span class="badge bg-primary">Stage 2</span>
+                {% else %}<span class="text-muted">—</span>{% endif %}
+              {% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
+            <td><span class="text-muted small">{{ step.forecast_start_date|date:"d M Y"|default:"—" }}</span></td>
+            <td><span class="text-muted small">{{ step.forecast_completion_date|date:"d M Y"|default:"—" }}</span></td>
+            <td>
+              {{ form.actual_completion_date }}
+              {% if form.actual_completion_date.errors %}<div class="text-danger small">{{ form.actual_completion_date.errors|striptags }}</div>{% endif %}
+            </td>
+            <td class="text-center">{{ form.is_active }}</td>
+          </tr>
+          {% endwith %}
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="d-flex justify-content-end gap-2 p-2 border-top">
+        <button type="submit" class="btn btn-primary btn-sm">Save All</button>
+      </div>
+    </div></div>
     {% else %}
-    Assign a step group via <a href="{% url 'ui:work_edit' project_pk=work.project_id pk=work.pk %}">Edit</a> first.
+    <div class="text-muted mb-3" style="font-size:13px">
+      No steps yet.
+      {% if work.step_group %}
+        Use <em>Sync steps from group</em> above to create them.
+      {% else %}
+        Assign a step group via <a href="{% url 'ui:work_edit' project_pk=work.project_id pk=work.pk %}">Edit</a> first.
+      {% endif %}
+    </div>
     {% endif %}
-  </div>
+  </form>
+
+  {# Separate small form for the "sync from group" action so it doesn't
+     submit alongside the main forecast save. #}
+  {% if work.step_group %}
+  <form id="sync-steps-form" method="post" action="{% url 'ui:work_step_apply_group' project_pk=work.project_id pk=work.pk %}" style="display:none;">{% csrf_token %}</form>
   {% endif %}
-  {% endwith %}
+
+  {# Style the form inputs to fit the grid #}
+  <style>
+    #steps-grid input[type=date],
+    #steps-grid input[type=checkbox] { padding:4px 8px; }
+    #steps-grid input[type=date] { width:100%; border:1px solid var(--line-2); border-radius:4px; font-size:12.5px; }
+    #steps-grid input[type=checkbox] { transform:scale(1.2); }
+    #steps-grid td { padding:6px 8px; vertical-align:middle; }
+    #forecast-form input[type=date] { padding:4px 8px; border:1px solid var(--line-2); border-radius:4px; font-size:13px; display:block; width:100%; }
+  </style>
   {% endif %}
 
 </div>

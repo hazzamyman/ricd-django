@@ -77,8 +77,8 @@ def _build_entity_registry():
             'BFAs',
             BriefFinancialApproval,
             lambda: [
-                (b.pk, f"BFA #{b.pk} — {getattr(b.project, 'name', '?')}")
-                for b in BriefFinancialApproval.objects.select_related('project').order_by('-pk')[:300]
+                (b.pk, f"BFA #{b.pk} — {b.mincor_reference or '(no MINCOR ref)'}")
+                for b in BriefFinancialApproval.objects.order_by('-pk')[:300]
             ],
         ),
         'variation': (

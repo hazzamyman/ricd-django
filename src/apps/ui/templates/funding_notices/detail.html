@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load money %}
 {% block title %}Funding Notice — {{ notice.project.name }} - RICD{% endblock %}
 {% block content %}
 
@@ -45,17 +46,17 @@
       <dd class="col-sm-9">{{ notice.issued_date|default:"—" }}</dd>
 
       <dt class="col-sm-3">Cap</dt>
-      <dd class="col-sm-9">${{ notice.capped_amount|floatformat:2 }}</dd>
+      <dd class="col-sm-9">{{ notice.capped_amount|money }}</dd>
 
       <dt class="col-sm-3">Approved Claims</dt>
-      <dd class="col-sm-9">${{ notice.approved_claims_total|floatformat:2 }}</dd>
+      <dd class="col-sm-9">{{ notice.approved_claims_total|money }}</dd>
 
       <dt class="col-sm-3">Remaining</dt>
       <dd class="col-sm-9">
         {% if notice.is_exhausted %}
           <span class="text-danger fw-semibold">$0.00 — Cap exhausted</span>
         {% else %}
-          <span class="text-success fw-semibold">${{ notice.remaining|floatformat:2 }}</span>
+          <span class="text-success fw-semibold">{{ notice.remaining|money }}</span>
         {% endif %}
       </dd>
 
@@ -91,7 +92,7 @@
       <tbody>
         {% for claim in claims %}
         <tr>
-          <td>${{ claim.amount|floatformat:2 }}</td>
+          <td>{{ claim.amount|money }}</td>
           <td>{{ claim.date_submitted|default:"—" }}</td>
           <td>
             {% if claim.status == "APPROVED" %}

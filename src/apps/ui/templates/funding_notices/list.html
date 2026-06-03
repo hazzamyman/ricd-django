@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load money %}
 {% block title %}Funding Notices - RICD{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -26,13 +27,13 @@
         <tr>
           <td><a href="{% url 'ui:funding_notice_detail' notice.pk %}">{{ notice.project.name }}</a></td>
           <td>{{ notice.issued_date|default:"—" }}</td>
-          <td>${{ notice.capped_amount|floatformat:0 }}</td>
-          <td>${{ notice.approved_claims_total|floatformat:0 }}</td>
+          <td>{{ notice.capped_amount|money }}</td>
+          <td>{{ notice.approved_claims_total|money }}</td>
           <td>
             {% if notice.is_exhausted %}
               <span class="text-danger fw-semibold">$0</span>
             {% else %}
-              ${{ notice.remaining|floatformat:0 }}
+              {{ notice.remaining|money }}
             {% endif %}
           </td>
           <td>

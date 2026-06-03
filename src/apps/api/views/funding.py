@@ -112,19 +112,22 @@ class FundingScheduleViewSet(viewsets.ModelViewSet):
 
 
 class BriefFinancialApprovalViewSet(viewsets.ModelViewSet):
-    queryset = BriefFinancialApproval.objects.select_related('project').all()
+    queryset = BriefFinancialApproval.objects.prefetch_related('items__project__council').all()
     serializer_class = BriefFinancialApprovalSerializer
     permission_classes = [WriteOrReadOnlyPermission]
-    council_filter_field = 'project__council'
+    # Council scoping walks via items -> project -> council (BFA may span multiple councils)
+    council_filter_field = 'items__project__council'
 
     def get_queryset(self):
-        return _council_scope(super().get_queryset(), self.request, 'project__council')
+        return _council_scope(super().get_queryset(), self.request, 'items__project__council').distinct()
 
     @action(detail=True, methods=['post'], permission_classes=[ApprovalPermission])
     def approve(self, request, pk=None):
+        from django.utils import timezone
         obj = self.get_object()
         obj.status = BriefFinancialApproval.Status.APPROVED
         obj.approved_by = request.user
+        obj.approved_at = timezone.now()
         obj.save(update_fields=['status', 'approved_by', 'approved_at'])
         return Response(self.get_serializer(obj).data)
 

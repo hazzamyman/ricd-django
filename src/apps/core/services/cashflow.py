@@ -35,7 +35,7 @@ def _fy_label(fy_code):
     return f"{a}-{b[-2:]}"
 
 
-def build_program_cashflow(program=None, councils=None):
+def build_program_cashflow(program=None, councils=None, hide_contingency=False):
     """Return a dict describing the cashflow matrix.
 
     Args:
@@ -66,10 +66,17 @@ def build_program_cashflow(program=None, councils=None):
         fy_set.add(b.financial_year)
         programs_seen[b.program_id] = b.program
 
-    # 2) Pull every payment (non-rejected) and bucket by FY
-    payments = Payment.objects.select_related('project__program', 'project__council').exclude(
-        status='REJECTED'
-    )
+    # 2) Pull every payment (non-rejected) and bucket by FY × program.
+    #
+    # Co-funding handling:
+    # - RELEASED payments: use the LOCKED PaymentAllocation snapshot (per-program
+    #   amounts captured at the moment of release; immutable thereafter).
+    # - Non-released forecasts: split on-the-fly using the project's current
+    #   APPROVED BFAItem ratios.
+    from apps.core.models import Program as _Program
+    payments = Payment.objects.select_related('project__program', 'project__council').prefetch_related(
+        'allocations__program'
+    ).exclude(status='REJECTED')
     if program is not None:
         payments = payments.filter(project__program=program)
     if councils is not None:
@@ -77,22 +84,58 @@ def build_program_cashflow(program=None, councils=None):
 
     forecast_by = defaultdict(_zero)
     released_by = defaultdict(_zero)
+    undated_payments = []  # actual payments with no forecast/release date yet
+
+    def _record_program(prog_id):
+        if prog_id and prog_id not in programs_seen:
+            try:
+                programs_seen[prog_id] = _Program.objects.get(pk=prog_id)
+            except _Program.DoesNotExist:
+                pass
+
     for p in payments:
-        if p.project is None or p.project.program_id is None:
+        if p.project is None:
             continue
-        prog_id = p.project.program_id
-        programs_seen.setdefault(prog_id, p.project.program)
         amount = (p.amount or _zero())
+        if amount <= 0:
+            continue
+
+        # Forecast bucket (uses current ratios)
         forecast_fy = date_to_financial_year(p.forecast_release_date)
         if forecast_fy is None:
             forecast_fy = date_to_financial_year(p.release_date)
+        if forecast_fy is None and p.status != 'RELEASED':
+            # No forecast date assigned yet — surface it so committed money isn't
+            # silently dropped from the matrix.
+            undated_payments.append({'payment': p, 'project': p.project, 'amount': amount})
         if forecast_fy:
-            forecast_by[(prog_id, forecast_fy)] += amount
             fy_set.add(forecast_fy)
+            split = p.compute_program_split()
+            for prog_id, (share, _ratio) in split.items():
+                _record_program(prog_id)
+                if program is not None and prog_id != program.pk:
+                    continue
+                forecast_by[(prog_id, forecast_fy)] += share
+
+        # Released bucket (uses LOCKED PaymentAllocation snapshot when present)
         if p.status == 'RELEASED' and p.release_date:
             released_fy = date_to_financial_year(p.release_date)
-            released_by[(prog_id, released_fy)] += amount
             fy_set.add(released_fy)
+            allocs = list(p.allocations.all())
+            if allocs:
+                for a in allocs:
+                    _record_program(a.program_id)
+                    if program is not None and a.program_id != program.pk:
+                        continue
+                    released_by[(a.program_id, released_fy)] += a.amount
+            else:
+                # Legacy released payment with no snapshot — fall back to current ratios
+                split = p.compute_program_split()
+                for prog_id, (share, _ratio) in split.items():
+                    _record_program(prog_id)
+                    if program is not None and prog_id != program.pk:
+                        continue
+                    released_by[(prog_id, released_fy)] += share
 
     # 3) Undated projects bucket
     undated_qs = Project.objects.select_related('program', 'council').filter(
@@ -106,16 +149,31 @@ def build_program_cashflow(program=None, councils=None):
         payments__forecast_release_date__isnull=False
     ).distinct()
 
+    from apps.core.models import BriefFinancialApprovalItem
     undated_by_prog = defaultdict(_zero)
     undated_projects = []
     for proj in undated_qs:
         if proj.program_id is None:
             continue
-        bfa = proj.financial_approvals.filter(status='APPROVED').first()
-        estimated = (bfa.total_amount if bfa else _zero())
-        undated_by_prog[proj.program_id] += estimated
-        programs_seen.setdefault(proj.program_id, proj.program)
-        undated_projects.append({'project': proj, 'estimated': estimated})
+        # Walk BFA item rows so co-funded projects appear in EACH program's column.
+        items = BriefFinancialApprovalItem.objects.filter(
+            bfa__status='APPROVED', project=proj,
+        ).select_related('program')
+        estimated_total = _zero()
+        for i in items:
+            contingency = _zero() if hide_contingency else (i.contingency_amount or _zero())
+            t = (i.funding_amount or _zero()) + contingency
+            if t <= 0:
+                continue
+            prog_id = i.program_id or proj.program_id
+            if program is not None and prog_id != program.pk:
+                continue
+            _record_program(prog_id)
+            undated_by_prog[prog_id] += t
+            estimated_total += t
+        # Show the project in the side-panel with its total estimated value
+        if estimated_total > 0 or not items:
+            undated_projects.append({'project': proj, 'estimated': estimated_total})
 
     # 4) Assemble rows
     fys = sorted(fy_set) if fy_set else []
@@ -188,4 +246,6 @@ def build_program_cashflow(program=None, councils=None):
         'column_totals_list': column_totals_list,
         'grand_totals': col_totals['__all__'],
         'undated_projects': undated_projects,
+        'undated_payments': undated_payments,
+        'undated_payments_total': sum((u['amount'] for u in undated_payments), _zero()),
     }

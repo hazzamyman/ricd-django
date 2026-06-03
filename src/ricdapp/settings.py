@@ -3,12 +3,16 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get(
-    'DJANGO_SECRET_KEY',
-    'dev-only-insecure-key-change-in-production'
-)
+INSECURE_DEFAULT_SECRET = 'dev-only-insecure-key-change-in-production'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', INSECURE_DEFAULT_SECRET)
 
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() in ('true', '1', 'yes')
+
+if not DEBUG and SECRET_KEY == INSECURE_DEFAULT_SECRET:
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured(
+        'DJANGO_SECRET_KEY must be set to a unique secret value when DEBUG is False.'
+    )
 
 ALLOWED_HOSTS = os.environ.get(
     'DJANGO_ALLOWED_HOSTS',
@@ -84,7 +88,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'ricdapp.wsgi.application'
 
-db_engine = os.environ.get('DB_ENGINE', 'sqlite3')
+db_engine = os.environ.get('DB_ENGINE', 'sqlite3' if DEBUG else 'postgresql')
 
 if db_engine == 'postgresql':
     DATABASES = {
@@ -123,8 +127,67 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# RICD-specific
+RICD_REPORTS_EMAIL = 'reports@ricd.qld.gov.au'
+
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
 FORMS_URLFIELD_ASSUME_HTTPS = True
+
+# --- Security hardening (active when DEBUG is False) -----------------------
+# Aligns with QGEA IS18 / Data Encryption Standard expectations: enforce TLS,
+# secure cookies, HSTS, and clickjacking protection in production.
+X_FRAME_OPTIONS = 'DENY'
+SECURE_CONTENT_TYPE_NOSNIFF = True
+CSRF_COOKIE_HTTPONLY = True
+
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
+# Cap request body / non-file POST data to 10 MB (file size enforced by the
+# upload validator in apps.core.validators).
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
+
+# --- Logging ---------------------------------------------------------------
+# Logs to stdout (captured by the hosting platform). Security and request
+# errors are surfaced for the agency's central log capture / SIEM.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{asctime} {levelname} {name} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': os.environ.get('DJANGO_LOG_LEVEL', 'INFO'),
+    },
+    'loggers': {
+        'django.security': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+    },
+}

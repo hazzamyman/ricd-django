@@ -8,7 +8,7 @@ from django.urls import reverse, reverse_lazy
 
 from apps.core.mixins import (
     CouncilOrFNCMixin, CouncilScopedMixin, WriteRequiredMixin,
-    FNCOnlyMixin, CouncilSubmitMixin,
+    FNCOnlyMixin, CouncilSubmitMixin, InternalOnlyMixin,
 )
 from django.views.generic import (
     ListView, CreateView, DetailView, UpdateView, DeleteView, View, TemplateView,
@@ -31,6 +31,7 @@ from apps.core.models import (
     Variation, VariationItem, Payment, StageReport, QuarterlyReport,
     FundingAgreement, FundingNotice, ExpenseClaim, WorkFunding,
     StateElectorate, FederalElectorate, QhigiRegion,
+    SiteSettings, PaymentMilestoneSchedule, PaymentMilestoneRule,
 )
 
 COUNCIL_ROLES = frozenset({'COUNCIL_USER', 'COUNCIL_MANAGER'})
@@ -38,6 +39,21 @@ COUNCIL_ROLES = frozenset({'COUNCIL_USER', 'COUNCIL_MANAGER'})
 
 def _officer_role(user):
     return getattr(getattr(user, 'profile', None), 'officer_role', None)
+
+
+def _safe_next(request, default):
+    """Return a validated ?next= redirect target, else `default`.
+
+    The CRUD form/delete templates post to the current URL (no action attr), so a
+    ?next= in the query string survives the POST round-trip and is read here.
+    """
+    from django.utils.http import url_has_allowed_host_and_scheme
+    nxt = request.GET.get('next') or request.POST.get('next')
+    if nxt and url_has_allowed_host_and_scheme(
+        nxt, allowed_hosts={request.get_host()}, require_https=request.is_secure(),
+    ):
+        return nxt
+    return default
 
 
 class CommentsMixin:
@@ -197,12 +213,13 @@ class CouncilListView(CouncilOrFNCMixin, ListView):
     template_name = 'councils/list.html'
     context_object_name = 'councils'
     paginate_by = 50
+    ordering = ['name']
 
 
 class CouncilCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = Council
     template_name = 'crud/form.html'
-    fields = ['name', 'region',
+    fields = ['name', 'region', 'lead_officer',
               'state_electorate_link', 'federal_electorate_link',
               'contact_email', 'contact_phone', 'is_registered_housing_provider',
               'rcpa_contact_name', 'rcpa_contact_phone', 'rcpa_contact_email']
@@ -222,34 +239,118 @@ class CouncilDetailView(LoginRequiredMixin, NoticesMixin, DetailView):
     context_object_name = 'council'
 
     def get_context_data(self, **kwargs):
+        from decimal import Decimal
+        from datetime import date
+        from django.db.models import Sum, Count
         from apps.core.models import (
             Project, StageReport, MonthlyTracker, QuarterlyReport,
             AuditLog, CouncilTrackerConfig,
+            BriefFinancialApprovalItem, PaymentAllocation, FundingSchedule, Payment,
         )
         ctx = super().get_context_data(**kwargs)
         council = self.object
 
         projects_qs = council.projects.select_related('program').order_by('-created_at')
+        project_ids = list(projects_qs.values_list('pk', flat=True))
+
         ctx['projects'] = projects_qs[:200]
         ctx['project_count'] = projects_qs.count()
         ctx['active_count'] = projects_qs.filter(
             state__in=[Project.State.COMMENCED, Project.State.UNDER_CONSTRUCTION]
         ).count()
-
         ctx['contacts'] = council.contacts.order_by('role', 'name')
 
-        # Outstanding reports for this council
+        # ── Financial summary ─────────────────────────────────────────────
+        approved_total = (
+            BriefFinancialApprovalItem.objects
+            .filter(project__council=council, bfa__status='APPROVED')
+            .aggregate(t=Sum('funding_amount'), c=Sum('contingency_amount'))
+        )
+        approved_funding = approved_total['t'] or Decimal('0')
+        # Council users must never see contingency (FNC holds it back, releases only if needed).
+        hide_contingency = _officer_role(self.request.user) in COUNCIL_ROLES
+        approved_contingency = Decimal('0') if hide_contingency else (approved_total['c'] or Decimal('0'))
+        approved_grand = approved_funding + approved_contingency
+
+        active_fses = FundingSchedule.objects.filter(
+            project__in=project_ids,
+            status__in=[FundingSchedule.Status.EXECUTED, FundingSchedule.Status.ACTIVE],
+        ).distinct()
+        committed_via_fs = active_fses.aggregate(t=Sum('amount'))['t'] or Decimal('0')
+
+        released_total = (
+            PaymentAllocation.objects
+            .filter(payment__project__council=council)
+            .aggregate(t=Sum('amount'))['t'] or Decimal('0')
+        )
+
+        # Most recent QR's unspent funding figure (council's own report)
+        latest_qr_with_unspent = (
+            QuarterlyReport.objects
+            .filter(council=council, unspent_funding__isnull=False)
+            .order_by('-year', '-quarter').first()
+        )
+        council_reported_unspent = latest_qr_with_unspent.unspent_funding if latest_qr_with_unspent else None
+
+        drawdown_pct = (released_total / approved_grand * Decimal('100')) if approved_grand else Decimal('0')
+
+        ctx['fin_summary'] = {
+            'approved_funding': approved_funding,
+            'approved_contingency': approved_contingency,
+            'approved_grand': approved_grand,
+            'committed_via_fs': committed_via_fs,
+            'released_total': released_total,
+            'council_reported_unspent': council_reported_unspent,
+            'unspent_reported_at': latest_qr_with_unspent.quarter_label if latest_qr_with_unspent else None,
+            'drawdown_pct': drawdown_pct,
+            'remaining': approved_grand - released_total,
+        }
+
+        # ── Reporting health ─────────────────────────────────────────────
+        today = date.today()
+        all_qrs = QuarterlyReport.objects.filter(council=council)
+        overdue_qrs = [q for q in all_qrs if q.status in ('DRAFT', 'IN_PROGRESS') and q.due_date < today]
+        upcoming_qrs = [q for q in all_qrs if q.status in ('DRAFT', 'IN_PROGRESS') and q.due_date >= today]
+        ctx['reporting_health'] = {
+            'qr_overdue_count': len(overdue_qrs),
+            'qr_overdue': overdue_qrs,
+            'qr_upcoming': upcoming_qrs[:3],
+            'latest_qr': all_qrs.order_by('-year', '-quarter').first(),
+        }
         ctx['monthly_trackers'] = MonthlyTracker.objects.filter(council=council).order_by('-year', '-month')[:6]
-        ctx['quarterly_reports'] = QuarterlyReport.objects.filter(council=council).order_by('-year', '-quarter')[:6]
+        ctx['quarterly_reports'] = all_qrs.order_by('-year', '-quarter')[:6]
         ctx['stage_reports'] = StageReport.objects.filter(project__council=council).select_related('project').order_by('-updated_at')[:10]
 
-        # Council-scoped audit log: any financial entity attached to projects in this council
-        project_ids = list(projects_qs.values_list('pk', flat=True))
+        # ── Active funding schedules with per-FS drawdown ────────────────
+        fs_summary = []
+        for fs in active_fses.select_related('payment_rule').order_by('schedule_number'):
+            fs_released = (
+                PaymentAllocation.objects.filter(payment__funding_schedule=fs).aggregate(t=Sum('amount'))['t']
+                or Decimal('0')
+            )
+            fs_drawdown = (fs_released / fs.amount * Decimal('100')) if fs.amount else Decimal('0')
+            fs_summary.append({
+                'fs': fs,
+                'released': fs_released,
+                'drawdown_pct': fs_drawdown,
+                'forecast_pc': fs.project.forecast_practical_completion_date if fs.project_id else None,
+            })
+        ctx['active_fs_summary'] = fs_summary
+
+        # ── Project pipeline by state (counts) ───────────────────────────
+        state_counts = dict(
+            projects_qs.values('state').annotate(c=Count('id')).values_list('state', 'c')
+        )
+        ctx['pipeline_counts'] = [
+            {'state': s.value, 'label': s.label, 'count': state_counts.get(s.value, 0)}
+            for s in Project.State
+        ]
+
+        # Council-scoped audit log
         ctx['audit_logs'] = (
             AuditLog.objects.filter(entity_type='project', entity_id__in=project_ids)
             .order_by('-timestamp')[:20]
         )
-
         ctx['tracker_config'] = CouncilTrackerConfig.objects.filter(council=council).first()
         return ctx
 
@@ -301,7 +402,7 @@ class CouncilContactDeleteView(LoginRequiredMixin, View):
 class CouncilUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = Council
     template_name = 'crud/form.html'
-    fields = ['name', 'region',
+    fields = ['name', 'region', 'lead_officer',
               'state_electorate_link', 'federal_electorate_link',
               'contact_email', 'contact_phone', 'is_registered_housing_provider',
               'rcpa_contact_name', 'rcpa_contact_phone', 'rcpa_contact_email']
@@ -334,13 +435,14 @@ class ProgramListView(CouncilOrFNCMixin, ListView):
     template_name = 'programs/list.html'
     context_object_name = 'programs'
     paginate_by = 50
+    ordering = ['name']
 
 
 class ProgramCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = Program
     template_name = 'crud/form.html'
     fields = ['name', 'funding_source', 'funding_source_other', 'budget',
-              'gl_code', 'business_case_reference', 'description', 'is_active']
+              'gl_code', 'cost_centre', 'business_case_reference', 'description', 'is_active']
     success_url = reverse_lazy('ui:program_list')
 
     def get_context_data(self, **kwargs):
@@ -378,7 +480,8 @@ class ProgramDetailView(LoginRequiredMixin, DetailView):
         ctx['released_total'] = released
 
         # Cashflow extract: single-program slice of the full matrix
-        cashflow = build_program_cashflow(program=program)
+        hide_contingency = _officer_role(self.request.user) in COUNCIL_ROLES
+        cashflow = build_program_cashflow(program=program, hide_contingency=hide_contingency)
         ctx['cashflow'] = cashflow
         ctx['cashflow_row'] = cashflow['rows'][0] if cashflow['rows'] else None
         return ctx
@@ -432,7 +535,7 @@ class ProgramUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = Program
     template_name = 'crud/form.html'
     fields = ['name', 'funding_source', 'funding_source_other', 'budget',
-              'gl_code', 'business_case_reference', 'description', 'is_active']
+              'gl_code', 'cost_centre', 'business_case_reference', 'description', 'is_active']
     success_url = reverse_lazy('ui:program_list')
 
     def get_context_data(self, **kwargs):
@@ -457,18 +560,36 @@ class ProgramDeleteView(WriteRequiredMixin, DeleteView):
 # Project
 # ---------------------------------------------------------------------------
 
+_PROJECT_ADVANCED_FIELDS = ['cli_no', 'initial_caa_date']
+_ADDRESS_ADVANCED_FIELDS = [
+    'land_status', 'lease_status', 'lease_executed_date',
+]
+
+_WORK_ADVANCED_FIELDS = [
+    'floor_number', 'livable_housing_level', 'usage_type',
+    'floor_material', 'frame_material', 'wall_material', 'roof_material', 'car_accommodation',
+    'bathrooms_count', 'kitchens_count', 'living_rooms_count',
+]
+
+
 class ProjectCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = Project
     template_name = 'crud/form.html'
     fields = ['name', 'council', 'program', 'project_type', 'financial_year',
+              'financial_year_completed', 'lead_officer',
               'state', 'dwelling_status',
-              'stage1_item_group', 'stage2_item_group']
+              'stage1_item_group', 'stage2_item_group', 'quarterly_report_item_group',
+              'sap_ion', 'cli_no', 'initial_caa_date']
     success_url = reverse_lazy('ui:projects_list')
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['title'] = 'Create Project'
         ctx['back_url'] = reverse_lazy('ui:projects_list')
+        ctx['advanced_fields'] = _PROJECT_ADVANCED_FIELDS
+        ctx['advanced_has_errors'] = any(
+            ctx['form'].has_error(f) for f in _PROJECT_ADVANCED_FIELDS
+        )
         return ctx
 
 
@@ -481,21 +602,161 @@ class ProjectDetailView(CouncilScopedMixin, CouncilOrFNCMixin, CommentsMixin, No
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['active_tab'] = self.request.GET.get('tab', 'overview')
+
+        # Funding split (per program) — approved BFA totals vs released-to-date
+        from decimal import Decimal
+        from apps.core.models import BriefFinancialApprovalItem, PaymentAllocation, Program
+        project = self.object
+        # Council users must never see contingency — it would let them budget
+        # against funds FNC holds back and releases only if needed.
+        hide_contingency = _officer_role(self.request.user) in COUNCIL_ROLES
+        approved_by_prog = {}
+        for item in BriefFinancialApprovalItem.objects.filter(
+            project=project, bfa__status='APPROVED'
+        ).select_related('program'):
+            pid = item.program_id or project.program_id
+            if pid is None:
+                continue
+            contingency = Decimal('0') if hide_contingency else (item.contingency_amount or 0)
+            approved_by_prog[pid] = approved_by_prog.get(pid, Decimal('0')) + (
+                (item.funding_amount or 0) + contingency
+            )
+        released_by_prog = {}
+        for a in PaymentAllocation.objects.filter(payment__project=project):
+            released_by_prog[a.program_id] = released_by_prog.get(a.program_id, Decimal('0')) + a.amount
+        all_program_ids = set(approved_by_prog) | set(released_by_prog)
+        if all_program_ids:
+            program_map = {p.pk: p for p in Program.objects.filter(pk__in=all_program_ids)}
+            grand_approved = sum(approved_by_prog.values()) or Decimal('1')
+            rows = []
+            for pid in all_program_ids:
+                approved = approved_by_prog.get(pid, Decimal('0'))
+                released = released_by_prog.get(pid, Decimal('0'))
+                share = (approved / grand_approved * Decimal('100')) if grand_approved else Decimal('0')
+                drawdown = (released / approved * Decimal('100')) if approved else Decimal('0')
+                rows.append({
+                    'program': program_map.get(pid),
+                    'approved': approved,
+                    'released': released,
+                    'share': share,
+                    'drawdown_pct': drawdown,
+                    'is_primary': pid == project.program_id,
+                })
+            rows.sort(key=lambda r: (-r['approved'], r['program'].name if r['program'] else ''))
+            ctx['funding_split'] = rows
+            ctx['has_co_funding'] = len([r for r in rows if r['approved'] > 0]) > 1
+        else:
+            ctx['funding_split'] = []
+            ctx['has_co_funding'] = False
+
+        # KPI totals for Overview header tiles
+        total_approved = sum(r['approved'] for r in ctx['funding_split']) if ctx['funding_split'] else Decimal('0')
+        total_released = sum(r['released'] for r in ctx['funding_split']) if ctx['funding_split'] else Decimal('0')
+        ctx['total_approved'] = total_approved
+        ctx['total_released'] = total_released
+        ctx['total_remaining'] = total_approved - total_released
+        ctx['drawdown_pct'] = int(total_released / total_approved * 100) if total_approved else 0
+
+        # Estimated cost of all child works — what the project should be funded for.
+        # Lets the user compare the bottom-up works estimate against the BFA approval
+        # and see how much more funding to apply for.
+        from django.db.models import Sum, F
+        from apps.core.models import Work
+        works_cost = Work.objects.filter(project=project).aggregate(
+            total=Sum(F('estimated_cost') * F('quantity'))
+        )['total'] or Decimal('0')
+        ctx['total_works_cost'] = works_cost
+        ctx['funding_gap'] = works_cost - total_approved
+
+        # Timeline milestones with pre-computed left-% for CSS positioning
+        from datetime import date as _date_t
+        _today = _date_t.today()
+        _ms = []
+
+        def _add_ms(d, kind, label):
+            if d:
+                _ms.append({'date': d, 'kind': kind, 'label': label})
+
+        _add_ms(project.start_date,
+                'done' if project.start_date and project.start_date <= _today else 'forecast',
+                'Start')
+        _add_ms(project.stage1_target_date,
+                'done' if project.stage1_target_date and project.stage1_target_date <= _today else 'forecast',
+                'S1 Target')
+        _add_ms(project.stage1_sunset_date, 'sunset', 'S1 Sunset')
+        _add_ms(project.stage2_target_date,
+                'done' if project.stage2_target_date and project.stage2_target_date <= _today else 'forecast',
+                'S2 Target')
+        _add_ms(project.stage2_sunset_date, 'sunset', 'S2 Sunset')
+        _pc = project.practical_completion_date
+        _fpc = project.forecast_practical_completion_date
+        if _pc:
+            _add_ms(_pc, 'done', 'PC')
+        elif _fpc:
+            _add_ms(_fpc, 'breach' if project.pc_breaches_sunset else 'forecast', 'Forecast PC')
+        _ho = project.handover_date
+        _fho = project.forecast_handover_date
+        if _ho:
+            _add_ms(_ho, 'done', 'Handover')
+        elif _fho:
+            _add_ms(_fho, 'forecast', 'Handover')
+
+        if _ms:
+            _all_dates = [m['date'] for m in _ms] + [_today]
+            _min, _max = min(_all_dates), max(_all_dates)
+            _span = max((_max - _min).days, 1)
+            for m in _ms:
+                m['pct'] = round(max(0.0, min(100.0, (m['date'] - _min).days / _span * 100)), 1)
+            ctx['timeline_milestones'] = _ms
+            ctx['timeline_today_pct'] = round(max(0.0, min(100.0, (_today - _min).days / _span * 100)), 1)
+        else:
+            ctx['timeline_milestones'] = []
+            ctx['timeline_today_pct'] = 50
+
+        # Land-specific context
+        if project.project_type == Project.Type.LAND:
+            from apps.core.models import LandPreCondition
+            existing = {f.category: f for f in project.land_pre_conditions.all()}
+            ctx['land_pre_conditions'] = [
+                existing.get(cat) or LandPreCondition(project=project, category=cat, status=LandPreCondition.TrafficLight.RED)
+                for cat, _ in LandPreCondition.Category.choices
+            ]
+            ctx['lpc_green'] = sum(1 for f in ctx['land_pre_conditions'] if f.status == 'GRN')
+            ctx['lpc_amber'] = sum(1 for f in ctx['land_pre_conditions'] if f.status == 'AMB')
+            ctx['lpc_red'] = sum(1 for f in ctx['land_pre_conditions'] if f.status == 'RED')
+            ctx['lpc_all_clear'] = (ctx['lpc_green'] == len(ctx['land_pre_conditions']))
+            ctx['da'] = project.development_application
+            ctx['land_parcels'] = project.land_parcels.all()
+            ctx['child_dwellings'] = project.child_dwellings.select_related(
+                'council', 'program', 'funding_schedule'
+            ).order_by('name')
+
         return ctx
+
+    def get_template_names(self):
+        if self.object.project_type == Project.Type.LAND:
+            return ['projects/land_detail.html']
+        return ['projects/detail.html']
 
 
 class ProjectUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = Project
     template_name = 'crud/form.html'
     fields = ['name', 'council', 'program', 'project_type', 'financial_year',
+              'financial_year_completed', 'lead_officer',
               'state', 'dwelling_status',
-              'stage1_item_group', 'stage2_item_group']
+              'stage1_item_group', 'stage2_item_group', 'quarterly_report_item_group',
+              'sap_ion', 'cli_no', 'initial_caa_date']
     success_url = reverse_lazy('ui:projects_list')
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['title'] = f'Edit Project: {self.object.name}'
         ctx['back_url'] = reverse_lazy('ui:projects_list')
+        ctx['advanced_fields'] = _PROJECT_ADVANCED_FIELDS
+        ctx['advanced_has_errors'] = any(
+            ctx['form'].has_error(f) for f in _PROJECT_ADVANCED_FIELDS
+        )
         return ctx
 
 
@@ -510,6 +771,55 @@ class ProjectDeleteView(WriteRequiredMixin, DeleteView):
         return ctx
 
 
+class ProjectSetCompletionDatesView(WriteRequiredMixin, View):
+    """Project-level bulk set: apply Start / PC / Handover dates to every Work.
+
+    The user normally sets these at the project level — all works in a project
+    typically share a schedule. Accepts up to 5 optional date fields
+    (actual start, forecast PC, actual PC, forecast handover, actual handover)
+    and writes each non-blank value down to every child Work. Blank values are
+    ignored. Saving `actual_start_date` triggers the rolling-forecast cascade
+    via the post_save signal — every child Work's per-step forecasts roll
+    forward and Work.forecast_practical_completion_date is recomputed.
+    """
+    def post(self, request, pk):
+        from datetime import datetime
+        project = get_object_or_404(Project, pk=pk)
+        fields_map = {
+            'actual_start_date': request.POST.get('actual_start_date', '').strip(),
+            'forecast_practical_completion_date': request.POST.get('forecast_practical_completion_date', '').strip(),
+            'practical_completion_date': request.POST.get('practical_completion_date', '').strip(),
+            'forecast_handover_date': request.POST.get('forecast_handover_date', '').strip(),
+            'handover_date': request.POST.get('handover_date', '').strip(),
+        }
+        updates = {}
+        for field, raw in fields_map.items():
+            if not raw:
+                continue
+            try:
+                updates[field] = datetime.strptime(raw, '%Y-%m-%d').date()
+            except ValueError:
+                messages.error(request, f"Invalid date format for {field}: {raw!r}. Expected YYYY-MM-DD.")
+                return redirect('ui:project_detail', pk=pk)
+        if not updates:
+            messages.warning(request, "No dates provided.")
+            return redirect('ui:project_detail', pk=pk)
+        works = list(project.works.all())
+        for w in works:
+            for field, value in updates.items():
+                setattr(w, field, value)
+            # NB: omit update_fields so the post_save signal sees a generic
+            # change and recalculate_forecast (when cashflow_method=WORKSTEP)
+            # is allowed to re-enter and roll dates forward.
+            w.save()
+        messages.success(
+            request,
+            f"Applied {len(updates)} date(s) to {len(works)} work(s). "
+            f"Forecast schedule recalculated where applicable."
+        )
+        return redirect('ui:project_detail', pk=pk)
+
+
 # ---------------------------------------------------------------------------
 # WorkType
 # ---------------------------------------------------------------------------
@@ -521,7 +831,10 @@ class WorkTypeListView(CouncilOrFNCMixin, ListView):
     paginate_by = 50
 
 
-class WorkTypeCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
+from apps.ui.views.popup_mixin import PopupAwareCreateMixin
+
+
+class WorkTypeCreateView(PopupAwareCreateMixin, WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = WorkType
     template_name = 'crud/form.html'
     fields = ['name', 'category', 'short_code', 'has_bedrooms',
@@ -586,15 +899,123 @@ class FundingScheduleListView(CouncilScopedMixin, CouncilOrFNCMixin, ListView):
     template_name = 'funding_schedules/list.html'
     context_object_name = 'funding_schedules'
     paginate_by = 50
+    ordering = ['-created_at']
+
+
+from django import forms as _forms
+
+
+class FundingScheduleForm(_forms.ModelForm):
+    """FS form with multi-select for child projects (via Project.funding_schedule FK).
+
+    The legacy single `project` FK is kept on the model as the "primary" project
+    but is set automatically to the first selected project; it's not editable here.
+    """
+    projects = _forms.ModelMultipleChoiceField(
+        queryset=Project.objects.all().order_by('name'),
+        required=False,
+        widget=_forms.SelectMultiple(attrs={'size': '10', 'class': 'form-select'}),
+        help_text="Hold Ctrl/Cmd to select multiple projects. Only projects belonging to "
+                  "the Funding Agreement's council are valid.",
+    )
+    amount = _forms.DecimalField(max_digits=12, decimal_places=2, required=False, initial=0)
+    council_contribution_amount = _forms.DecimalField(max_digits=12, decimal_places=2, required=False, initial=0)
+
+    class Meta:
+        model = FundingSchedule
+        fields = ['funding_agreement', 'payment_rule', 'schedule_number', 'status',
+                  'amount', 'council_contribution_amount',
+                  'lease_clause_type',
+                  'start_date', 'stage1_target_date', 'stage1_sunset_date',
+                  'stage2_target_date', 'stage2_sunset_date',
+                  'stage1_item_group', 'stage2_item_group']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Scope project picker to the FA's council if we already know one
+        fa = None
+        if self.instance and self.instance.pk and self.instance.funding_agreement_id:
+            fa = self.instance.funding_agreement
+        if fa and fa.council_id:
+            self.fields['projects'].queryset = (
+                Project.objects.filter(council=fa.council).order_by('name')
+            )
+            self.fields['projects'].help_text = (
+                f"Only projects of {fa.council.name} (the Funding Agreement's council) "
+                f"are listed."
+            )
+        # Lock the Funding Agreement dropdown to this schedule's council, so the FS
+        # can't be reassigned to a different council's agreement. The council is
+        # derived from the FA (FA->Council is 1:1), so on edit we know it already.
+        council = None
+        if self.instance and self.instance.pk:
+            council = self.instance.council or (fa.council if fa else None)
+        if council:
+            self.fields['funding_agreement'].queryset = (
+                FundingAgreement.objects.filter(council=council)
+            )
+            self.fields['funding_agreement'].help_text = (
+                f"Only {council.name}'s Funding Agreement is selectable — a schedule "
+                f"cannot move to another council."
+            )
+        if self.instance and self.instance.pk:
+            self.fields['projects'].initial = self.instance.projects.all()
+
+    def clean(self):
+        cleaned = super().clean()
+        from decimal import Decimal
+        if cleaned.get('amount') is None:
+            cleaned['amount'] = Decimal('0')
+        if cleaned.get('council_contribution_amount') is None:
+            cleaned['council_contribution_amount'] = Decimal('0')
+        # Enforce: every selected project must belong to the FA's council
+        fa = cleaned.get('funding_agreement')
+        selected = cleaned.get('projects') or []
+        if fa and fa.council_id and selected:
+            wrong = [p for p in selected if p.council_id != fa.council_id]
+            if wrong:
+                names = ', '.join(p.name for p in wrong)
+                raise _forms.ValidationError(
+                    f"These projects don't belong to {fa.council.name} (the Funding "
+                    f"Agreement's council): {names}. "
+                    "Remove them or pick a different Funding Agreement."
+                )
+        return cleaned
+
+    def save(self, commit=True):
+        fs = super().save(commit=commit)
+        if commit:
+            self._sync_projects(fs)
+        else:
+            # save_m2m-style: caller invokes form.save_m2m()
+            self.save_m2m_orig = self.save_m2m
+            def _save_m2m():
+                self.save_m2m_orig()
+                self._sync_projects(fs)
+            self.save_m2m = _save_m2m
+        return fs
+
+    def _sync_projects(self, fs):
+        selected = set(self.cleaned_data.get('projects', []))
+        current = set(fs.projects.all())
+        # Attach newly-selected projects
+        for p in selected - current:
+            p.funding_schedule = fs
+            p.save(update_fields=['funding_schedule'])
+        # Detach projects no longer selected
+        for p in current - selected:
+            p.funding_schedule = None
+            p.save(update_fields=['funding_schedule'])
+        # Mirror first selection into the legacy `project` FK for back-compat
+        if selected and fs.project_id not in {p.pk for p in selected}:
+            fs.project = next(iter(selected))
+            fs.save(update_fields=['project'])
 
 
 class FundingScheduleCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = FundingSchedule
+    form_class = FundingScheduleForm
     template_name = 'crud/form.html'
-    fields = ['project', 'funding_agreement', 'payment_rule', 'schedule_number', 'status',
-              'start_date', 'stage1_target_date', 'stage1_sunset_date',
-              'stage2_target_date', 'stage2_sunset_date',
-              'stage1_item_group', 'stage2_item_group']
     success_url = reverse_lazy('ui:funding_schedule_list')
 
     def get_context_data(self, **kwargs):
@@ -612,20 +1033,161 @@ class FundingScheduleDetailView(CouncilScopedMixin, CouncilOrFNCMixin, CommentsM
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        from apps.core.models import AuditLog
+        from apps.core.models import AuditLog, Work, Address, Defect, Comment
+        from django.contrib.contenttypes.models import ContentType
+        fs = self.object
+        child_projects = list(fs.projects.select_related('council', 'program').all())
+        child_ids = [p.pk for p in child_projects]
+
         ctx['audit_logs'] = AuditLog.objects.filter(
-            entity_type='fundingschedule', entity_id=self.object.pk
+            entity_type='fundingschedule', entity_id=fs.pk
         ).order_by('-timestamp')[:10]
+
+        # Aggregated rollups across all child projects
+        ctx['rollup_works'] = (
+            Work.objects.filter(project_id__in=child_ids)
+            .select_related('project', 'work_type', 'address')
+            .order_by('project__name', 'work_type__name')
+        )
+        ctx['rollup_addresses'] = (
+            Address.objects.filter(project_id__in=child_ids)
+            .select_related('project', 'suburb')
+            .order_by('project__name', 'street')
+        )
+        ctx['rollup_defects'] = (
+            Defect.objects.filter(project_id__in=child_ids)
+            .select_related('project')
+            .order_by('-identified_date')
+        )
+
+        # Comments across child projects (FS-own comments already injected by CommentsMixin)
+        if child_ids:
+            project_ct = ContentType.objects.get_for_model(Project)
+            ctx['rollup_child_comments'] = (
+                Comment.objects.filter(content_type=project_ct, object_id__in=child_ids)
+                .select_related('author')
+                .order_by('-created_at')[:50]
+            )
+        else:
+            ctx['rollup_child_comments'] = Comment.objects.none()
+        return ctx
+
+
+class FundingScheduleContractReportView(CouncilScopedMixin, CouncilOrFNCMixin, NoticesMixin, DetailView):
+    """Contract Management Report — single-page operational summary for a Funding Schedule.
+
+    Combines: financial snapshot, contracts + meetings, payment timeline,
+    variations, lifecycle health (PC/Handover + defects), recent activity.
+    """
+    model = FundingSchedule
+    council_filter_field = 'project__council'
+    template_name = 'funding_schedules/contract_report.html'
+    context_object_name = 'fs'
+
+    def get_context_data(self, **kwargs):
+        from decimal import Decimal
+        from datetime import date
+        from django.db.models import Sum, Count, Q
+        from apps.core.models import (
+            AuditLog, Work, Defect, PaymentAllocation,
+            BriefFinancialApprovalItem, Contract, ContractMeeting,
+        )
+        ctx = super().get_context_data(**kwargs)
+        fs = self.object
+        child_projects = list(fs.projects.select_related('council', 'program').all())
+        child_ids = [p.pk for p in child_projects]
+
+        # ── Financial snapshot ────────────────────────────────────────────
+        approved = (
+            BriefFinancialApprovalItem.objects
+            .filter(project_id__in=child_ids, bfa__status='APPROVED')
+            .aggregate(t=Sum('funding_amount'), c=Sum('contingency_amount'))
+        )
+        approved_funding = approved['t'] or Decimal('0')
+        # Council users must never see contingency (FNC holds it back, releases only if needed).
+        hide_contingency = _officer_role(self.request.user) in COUNCIL_ROLES
+        approved_contingency = Decimal('0') if hide_contingency else (approved['c'] or Decimal('0'))
+        released_total = (
+            PaymentAllocation.objects.filter(payment__funding_schedule=fs)
+            .aggregate(t=Sum('amount'))['t'] or Decimal('0')
+        )
+        ctx['financial'] = {
+            'approved_funding': approved_funding,
+            'approved_contingency': approved_contingency,
+            'approved_grand': approved_funding + approved_contingency,
+            'fs_amount': fs.amount or Decimal('0'),
+            'council_contribution': fs.council_contribution_amount or Decimal('0'),
+            'released': released_total,
+            'remaining': (fs.amount or Decimal('0')) - released_total,
+            'drawdown_pct': (released_total / fs.amount * Decimal('100')) if fs.amount else Decimal('0'),
+        }
+
+        # ── Payments timeline ─────────────────────────────────────────────
+        ctx['payments'] = (
+            fs.payments
+            .select_related('project', 'approved_by', 'recommended_by')
+            .order_by('payment_type', 'forecast_release_date', 'created_at')
+        )
+
+        # ── Contracts + meetings ──────────────────────────────────────────
+        contracts = (
+            Contract.objects.filter(project_id__in=child_ids)
+            .select_related('project')
+            .prefetch_related('meetings')
+            .order_by('project__name', 'title')
+        )
+        ctx['contracts'] = contracts
+        ctx['meetings'] = (
+            ContractMeeting.objects.filter(contract__project_id__in=child_ids)
+            .select_related('contract__project')
+            .order_by('-meeting_date')[:30]
+        )
+
+        # ── Variations on this FS ─────────────────────────────────────────
+        ctx['variations'] = (
+            fs.variations.select_related('variation_type')
+            .order_by('-created_at')
+        )
+
+        # ── Lifecycle health ─────────────────────────────────────────────
+        today = date.today()
+        works = Work.objects.filter(project_id__in=child_ids).select_related('project', 'work_type', 'address')
+        work_total = works.count()
+        work_pc_complete = works.filter(practical_completion_date__isnull=False).count()
+        work_handover_complete = works.filter(handover_date__isnull=False).count()
+        sunset_breach = [
+            w for w in works
+            if w.forecast_practical_completion_date and w.project.stage2_sunset_date
+            and (w.forecast_practical_completion_date - w.project.stage2_sunset_date).days > 30
+        ]
+        defects = Defect.objects.filter(project_id__in=child_ids)
+        defects_open = defects.filter(rectified_date__isnull=True).count() if hasattr(Defect, 'rectified_date') else defects.count()
+        ctx['lifecycle'] = {
+            'work_total': work_total,
+            'work_pc_complete': work_pc_complete,
+            'work_handover_complete': work_handover_complete,
+            'pc_pct': (work_pc_complete / work_total * 100) if work_total else 0,
+            'handover_pct': (work_handover_complete / work_total * 100) if work_total else 0,
+            'sunset_breach': sunset_breach,
+            'defects_open': defects_open,
+            'defects_total': defects.count(),
+        }
+
+        # ── Recent activity ──────────────────────────────────────────────
+        ctx['audit_logs'] = (
+            AuditLog.objects.filter(
+                Q(entity_type='fundingschedule', entity_id=fs.pk)
+                | Q(entity_type='payment', entity_id__in=fs.payments.values_list('pk', flat=True))
+            ).order_by('-timestamp')[:15]
+        )
+        ctx['child_projects'] = child_projects
         return ctx
 
 
 class FundingScheduleUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = FundingSchedule
+    form_class = FundingScheduleForm
     template_name = 'crud/form.html'
-    fields = ['project', 'funding_agreement', 'payment_rule', 'schedule_number', 'status',
-              'start_date', 'stage1_target_date', 'stage1_sunset_date',
-              'stage2_target_date', 'stage2_sunset_date',
-              'stage1_item_group', 'stage2_item_group']
     success_url = reverse_lazy('ui:funding_schedule_list')
 
     def get_context_data(self, **kwargs):
@@ -719,7 +1281,8 @@ class PaymentCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = Payment
     template_name = 'crud/form.html'
     fields = ['project', 'funding_schedule', 'payment_type', 'calculation_type',
-              'payment_split', 'percentage', 'amount', 'status']
+              'payment_split', 'percentage', 'amount', 'forecast_anchor',
+              'forecast_release_date', 'status']
 
     def get_success_url(self):
         return reverse_lazy('ui:payment_list', kwargs={'project_pk': self.kwargs['project_pk']})
@@ -742,16 +1305,28 @@ class PaymentDetailView(CouncilScopedMixin, CouncilOrFNCMixin, NoticesMixin, Det
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        from apps.core.models import AuditLog
+        from apps.core.models import AuditLog, Program
         ctx['audit_logs'] = AuditLog.objects.filter(
             entity_type='payment', entity_id=self.object.pk
         ).order_by('-timestamp')[:10]
+        # Forecast split (only meaningful when not yet RELEASED)
+        if self.object.status != Payment.Status.RELEASED:
+            split = self.object.compute_program_split()
+            program_map = {p.pk: p for p in Program.objects.filter(pk__in=split.keys())}
+            ctx['forecast_split'] = [
+                {'program': program_map.get(pid), 'amount': amount, 'ratio': ratio}
+                for pid, (amount, ratio) in split.items()
+                if program_map.get(pid) is not None
+            ]
         return ctx
+
+
 class PaymentUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = Payment
     template_name = 'crud/form.html'
     fields = ['project', 'funding_schedule', 'payment_type', 'calculation_type',
-              'payment_split', 'percentage', 'amount', 'status']
+              'payment_split', 'percentage', 'amount', 'forecast_anchor',
+              'forecast_release_date', 'status']
 
     def get_success_url(self):
         return reverse_lazy('ui:payment_list', kwargs={'project_pk': self.kwargs['project_pk']})
@@ -946,12 +1521,21 @@ class FundingNoticeCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView
     model = FundingNotice
     template_name = 'crud/form.html'
     fields = ['project', 'capped_amount', 'issued_date', 'notes']
-    success_url = reverse_lazy('ui:funding_notice_list')
+
+    def get_initial(self):
+        initial = super().get_initial()
+        project_id = self.request.GET.get('project')
+        if project_id:
+            initial['project'] = project_id
+        return initial
+
+    def get_success_url(self):
+        return _safe_next(self.request, reverse_lazy('ui:funding_notice_list'))
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['title'] = 'Create Funding Notice'
-        ctx['back_url'] = reverse_lazy('ui:funding_notice_list')
+        ctx['back_url'] = _safe_next(self.request, reverse_lazy('ui:funding_notice_list'))
         return ctx
 
 
@@ -974,23 +1558,27 @@ class FundingNoticeUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView
     model = FundingNotice
     template_name = 'crud/form.html'
     fields = ['project', 'capped_amount', 'issued_date', 'notes']
-    success_url = reverse_lazy('ui:funding_notice_list')
+
+    def get_success_url(self):
+        return _safe_next(self.request, reverse_lazy('ui:funding_notice_list'))
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['title'] = f'Edit Funding Notice — {self.object.project.name}'
-        ctx['back_url'] = reverse_lazy('ui:funding_notice_list')
+        ctx['back_url'] = _safe_next(self.request, reverse_lazy('ui:funding_notice_list'))
         return ctx
 
 
 class FundingNoticeDeleteView(WriteRequiredMixin, DeleteView):
     model = FundingNotice
     template_name = 'crud/confirm_delete.html'
-    success_url = reverse_lazy('ui:funding_notice_list')
+
+    def get_success_url(self):
+        return _safe_next(self.request, reverse_lazy('ui:funding_notice_list'))
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['back_url'] = reverse_lazy('ui:funding_notice_list')
+        ctx['back_url'] = _safe_next(self.request, reverse_lazy('ui:funding_notice_list'))
         return ctx
 
 
@@ -1163,29 +1751,45 @@ class ExpenseClaimRejectView(FNCOnlyMixin, View):
 # BriefFinancialApproval  (nested under project)
 # ---------------------------------------------------------------------------
 
-class BriefFinancialApprovalGlobalListView(LoginRequiredMixin, ListView):
-    """All BFAs across all projects — used by the sidebar nav link."""
+def _bfa_item_formset_factory():
+    """Inline formset for BFA -> items.
+
+    `program` is optional in the form (auto-defaults to project.program in
+    BFAItem.save) — set it explicitly when capturing co-funding from a
+    different program. cost_centre / gl_code stay out of the form (inherited
+    from the resolved program). contingency_amount defaults to 10% of
+    funding_amount when blank.
+    """
+    from django.forms import inlineformset_factory
+    from apps.core.models import BriefFinancialApprovalItem
+    return inlineformset_factory(
+        BriefFinancialApproval, BriefFinancialApprovalItem,
+        fields=['project', 'program', 'funding_amount', 'contingency_amount'],
+        extra=1, can_delete=True,
+    )
+
+
+class BriefFinancialApprovalGlobalListView(InternalOnlyMixin, ListView):
+    """All BFAs across all councils — used by the sidebar nav link. FNC/internal only."""
+    model = BriefFinancialApproval
+    template_name = 'brief_financial_approvals/list.html'
+    context_object_name = 'approvals'
+    paginate_by = 50
+
+    def get_queryset(self):
+        return BriefFinancialApproval.objects.prefetch_related('items__project__council').order_by('-created_at')
+
+
+class BriefFinancialApprovalListView(InternalOnlyMixin, ListView):
+    """Legacy per-project BFA list: shows BFAs that include the given project. FNC/internal only."""
     model = BriefFinancialApproval
     template_name = 'brief_financial_approvals/list.html'
     context_object_name = 'approvals'
 
     def get_queryset(self):
-        return BriefFinancialApproval.objects.select_related('project').order_by('-created_at')
-
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        ctx['project'] = None  # no project filter
-        return ctx
-
-
-class BriefFinancialApprovalListView(LoginRequiredMixin, ListView):
-    model = BriefFinancialApproval
-    council_filter_field = 'project__council'
-    template_name = 'brief_financial_approvals/list.html'
-    context_object_name = 'approvals'
-
-    def get_queryset(self):
-        return super().get_queryset().filter(project_id=self.kwargs['project_pk'])
+        return BriefFinancialApproval.objects.filter(
+            items__project_id=self.kwargs['project_pk']
+        ).prefetch_related('items__project__council').distinct().order_by('-created_at')
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -1195,90 +1799,112 @@ class BriefFinancialApprovalListView(LoginRequiredMixin, ListView):
 
 class BriefFinancialApprovalCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = BriefFinancialApproval
-    template_name = 'crud/form.html'
-    fields = ['funding_amount', 'contingency_amount', 'delegate_level', 'mincor_reference', 'comments']
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs['instance'] = BriefFinancialApproval(project_id=self.kwargs['project_pk'])
-        return kwargs
-
-    def get_success_url(self):
-        return reverse('ui:project_detail', kwargs={'pk': self.kwargs['project_pk']}) + '?tab=funding'
+    template_name = 'brief_financial_approvals/form.html'
+    fields = ['mincor_reference', 'document_uri', 'human_rights_assessment_uri', 'delegate_level', 'comments']
+    success_url = reverse_lazy('ui:bfa_global_list')
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
+        FormSet = _bfa_item_formset_factory()
+        if self.request.method == 'POST':
+            ctx['items_formset'] = FormSet(self.request.POST, instance=self.object)
+        else:
+            ctx['items_formset'] = FormSet(instance=self.object)
         ctx['title'] = 'Create Brief Financial Approval'
-        ctx['back_url'] = reverse('ui:project_detail', kwargs={'pk': self.kwargs['project_pk']}) + '?tab=funding'
+        ctx['back_url'] = reverse_lazy('ui:bfa_global_list')
         return ctx
 
+    def form_valid(self, form):
+        FormSet = _bfa_item_formset_factory()
+        self.object = form.save(commit=False)
+        formset = FormSet(self.request.POST, instance=self.object)
+        if formset.is_valid():
+            self.object.save()
+            formset.instance = self.object
+            formset.save()
+            return redirect('ui:bfa_detail', pk=self.object.pk)
+        return self.render_to_response(self.get_context_data(form=form))
 
-class BriefFinancialApprovalDetailView(CouncilScopedMixin, CouncilOrFNCMixin, NoticesMixin, DetailView):
+
+class BriefFinancialApprovalDetailView(InternalOnlyMixin, NoticesMixin, DetailView):
     model = BriefFinancialApproval
-    council_filter_field = 'project__council'
     template_name = 'brief_financial_approvals/detail.html'
     context_object_name = 'bfa'
+
+    def get_queryset(self):
+        return BriefFinancialApproval.objects.prefetch_related('items__project__council')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['items'] = self.object.items.select_related('project').all()
+        return ctx
 
 
 class BriefFinancialApprovalUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = BriefFinancialApproval
-    template_name = 'crud/form.html'
-    fields = ['funding_amount', 'contingency_amount', 'delegate_level', 'mincor_reference', 'comments']
+    template_name = 'brief_financial_approvals/form.html'
+    fields = ['mincor_reference', 'document_uri', 'human_rights_assessment_uri', 'delegate_level', 'comments']
 
     def get_success_url(self):
-        return reverse_lazy('ui:bfa_detail', kwargs={
-            'project_pk': self.kwargs['project_pk'],
-            'pk': self.object.pk,
-        })
+        return reverse_lazy('ui:bfa_detail', kwargs={'pk': self.object.pk})
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
+        FormSet = _bfa_item_formset_factory()
+        if self.request.method == 'POST':
+            ctx['items_formset'] = FormSet(self.request.POST, instance=self.object)
+        else:
+            ctx['items_formset'] = FormSet(instance=self.object)
         ctx['title'] = f'Edit Brief Financial Approval #{self.object.pk}'
-        ctx['back_url'] = reverse_lazy('ui:bfa_detail', kwargs={
-            'project_pk': self.kwargs['project_pk'],
-            'pk': self.object.pk,
-        })
+        ctx['back_url'] = reverse_lazy('ui:bfa_detail', kwargs={'pk': self.object.pk})
         return ctx
+
+    def form_valid(self, form):
+        FormSet = _bfa_item_formset_factory()
+        formset = FormSet(self.request.POST, instance=self.object)
+        if formset.is_valid():
+            self.object = form.save()
+            formset.save()
+            return redirect('ui:bfa_detail', pk=self.object.pk)
+        return self.render_to_response(self.get_context_data(form=form))
 
 
 class BriefFinancialApprovalDeleteView(WriteRequiredMixin, DeleteView):
     model = BriefFinancialApproval
     template_name = 'crud/confirm_delete.html'
-
-    def get_success_url(self):
-        return reverse_lazy('ui:bfa_list', kwargs={'project_pk': self.kwargs['project_pk']})
+    success_url = reverse_lazy('ui:bfa_global_list')
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['back_url'] = reverse_lazy('ui:bfa_list', kwargs={'project_pk': self.kwargs['project_pk']})
+        ctx['back_url'] = reverse_lazy('ui:bfa_global_list')
         return ctx
 
 
 class BriefFinancialApprovalApproveView(LoginRequiredMixin, RoleRequiredMixin, View):
     required_roles = MANAGER_ROLES
-    def post(self, request, project_pk, pk):
-        bfa = get_object_or_404(BriefFinancialApproval, pk=pk, project_id=project_pk)
+    def post(self, request, pk):
+        bfa = get_object_or_404(BriefFinancialApproval, pk=pk)
         if bfa.status != BriefFinancialApproval.Status.PENDING:
             messages.error(request, 'Only pending approvals can be approved.')
-            return redirect('ui:bfa_detail', project_pk=project_pk, pk=pk)
+            return redirect('ui:bfa_detail', pk=pk)
         bfa.status = BriefFinancialApproval.Status.APPROVED
         bfa.approved_by = request.user
         bfa.approved_at = timezone.now()
         bfa.save()
         messages.success(request, 'Brief Financial Approval approved.')
-        return redirect('ui:bfa_detail', project_pk=project_pk, pk=pk)
+        return redirect('ui:bfa_detail', pk=pk)
 
 
 class BriefFinancialApprovalRejectView(FNCOnlyMixin, View):
-    def post(self, request, project_pk, pk):
-        bfa = get_object_or_404(BriefFinancialApproval, pk=pk, project_id=project_pk)
+    def post(self, request, pk):
+        bfa = get_object_or_404(BriefFinancialApproval, pk=pk)
         if bfa.status != BriefFinancialApproval.Status.PENDING:
             messages.error(request, 'Only pending approvals can be rejected.')
-            return redirect('ui:bfa_detail', project_pk=project_pk, pk=pk)
+            return redirect('ui:bfa_detail', pk=pk)
         bfa.status = BriefFinancialApproval.Status.REJECTED
         bfa.save()
         messages.success(request, 'Brief Financial Approval rejected.')
-        return redirect('ui:bfa_detail', project_pk=project_pk, pk=pk)
+        return redirect('ui:bfa_detail', pk=pk)
 
 
 # ---------------------------------------------------------------------------
@@ -1520,7 +2146,12 @@ class WorkCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = Work
     template_name = 'crud/form.html'
     fields = ['work_type', 'work_type_other', 'bedrooms', 'quantity',
-              'estimated_cost', 'status', 'is_notional_cost', 'actual_cost', 'address']
+              'estimated_cost', 'status', 'is_notional_cost', 'actual_cost', 'address',
+              'forecast_practical_completion_date', 'practical_completion_date',
+              'forecast_handover_date', 'handover_date',
+              'floor_number', 'livable_housing_level', 'usage_type',
+              'floor_material', 'frame_material', 'wall_material', 'roof_material', 'car_accommodation',
+              'bathrooms_count', 'kitchens_count', 'living_rooms_count']
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -1528,37 +2159,140 @@ class WorkCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
             kwargs['instance'] = Work(project_id=self.kwargs['project_pk'])
         return kwargs
 
+    def get_form(self, form_class=None):
+        from apps.ui.widgets import PopupAddSelect
+        form = super().get_form(form_class)
+        if 'work_type' in form.fields:
+            form.fields['work_type'].widget = PopupAddSelect(
+                add_url=reverse('ui:work_type_create'), add_label='Add work type',
+                choices=form.fields['work_type'].choices,
+            )
+        return form
+
     def get_success_url(self):
-        return reverse_lazy('ui:work_list', kwargs={'project_pk': self.kwargs['project_pk']})
+        return _safe_next(self.request, reverse_lazy('ui:work_list', kwargs={'project_pk': self.kwargs['project_pk']}))
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['title'] = 'Add Work Item'
-        ctx['back_url'] = reverse_lazy('ui:work_list', kwargs={'project_pk': self.kwargs['project_pk']})
+        ctx['back_url'] = _safe_next(self.request, reverse_lazy('ui:work_list', kwargs={'project_pk': self.kwargs['project_pk']}))
+        ctx['advanced_fields'] = _WORK_ADVANCED_FIELDS
+        ctx['advanced_has_errors'] = any(ctx['form'].has_error(f) for f in _WORK_ADVANCED_FIELDS)
         return ctx
 
 
+def _worksteps_inline_formset():
+    """Inline formset for editing per-step actual_completion_date / is_active on a Work."""
+    from django.forms import inlineformset_factory, DateInput
+    class _WorkStepForm(_forms.ModelForm):
+        class Meta:
+            model = WorkStep
+            fields = ['actual_completion_date', 'is_active']
+            widgets = {'actual_completion_date': DateInput(attrs={'type': 'date'})}
+    return inlineformset_factory(
+        Work, WorkStep,
+        form=_WorkStepForm,
+        extra=0, can_delete=False,
+    )
+
+
+class _WorkAnchorForm(_forms.ModelForm):
+    """The 'forecast anchor' for the rolling-forecast page.
+
+    actual_start_date → forward scheduling: step dates cascade left-to-right.
+    forecast_handover_date → backward scheduling when no actual start is set:
+    step dates cascade right-to-left from the target.  When a start IS known,
+    forecast_handover_date is preserved as a manual delivery target if it
+    differs from the computed PC; otherwise it tracks PC automatically.
+    """
+    class Meta:
+        model = Work
+        fields = ['actual_start_date', 'forecast_handover_date']
+        widgets = {
+            'actual_start_date': _forms.DateInput(attrs={'type': 'date'}),
+            'forecast_handover_date': _forms.DateInput(attrs={'type': 'date'}),
+        }
+
+
 class WorkDetailView(CouncilScopedMixin, CouncilOrFNCMixin, DetailView):
+    """Work detail with inline editable rolling-forecast schedule.
+
+    The page bundles three things into one Save:
+      - Anchor form: actual_start_date (forecast cascade input)
+      - Steps formset: per-step actual_completion_date + is_active toggles
+    After save, recalculate_forecast rolls every downstream forecast forward
+    based on actuals, then mirrors the final step date onto
+    Work.forecast_practical_completion_date and forecast_handover_date.
+    """
     model = Work
     council_filter_field = 'project__council'
     template_name = 'works/detail.html'
     context_object_name = 'work'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        work = self.object
+        FormSet = _worksteps_inline_formset()
+        ctx['anchor_form'] = kwargs.get('anchor_form') or _WorkAnchorForm(instance=work)
+        ctx['step_formset'] = kwargs.get('step_formset') or FormSet(
+            instance=work,
+            queryset=work.steps.select_related('group_item').order_by('order'),
+            prefix='steps',
+        )
+        return ctx
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        work = self.object
+        FormSet = _worksteps_inline_formset()
+        anchor_form = _WorkAnchorForm(request.POST, instance=work)
+        step_formset = FormSet(request.POST, instance=work, prefix='steps')
+        if anchor_form.is_valid() and step_formset.is_valid():
+            anchor_form.save()
+            step_formset.save()
+            from apps.core.services.workstep_forecast import recalculate_forecast
+            recalculate_forecast(work)
+            messages.success(request, 'Saved. Forecast recalculated from latest dates.')
+            return redirect('ui:work_detail', project_pk=kwargs['project_pk'], pk=kwargs['pk'])
+        messages.error(request, 'Some rows have errors — fix the highlighted fields.')
+        ctx = self.get_context_data(anchor_form=anchor_form, step_formset=step_formset)
+        return self.render_to_response(ctx)
 
 
 class WorkUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = Work
     template_name = 'crud/form.html'
     fields = ['work_type', 'work_type_other', 'bedrooms', 'quantity',
-              'estimated_cost', 'status', 'is_notional_cost', 'actual_cost', 'address',
-              'cashflow_method', 'step_group', 'actual_start_date']
+              'estimated_cost', 'status', 'is_notional_cost', 'actual_cost',
+              'forecast_final_cost', 'costs_finalised', 'address',
+              'contractor', 'floor_area', 'drawing_no',
+              'cashflow_method', 'step_group', 'actual_start_date',
+              'forecast_practical_completion_date', 'practical_completion_date',
+              'forecast_handover_date', 'handover_date',
+              'floor_number', 'livable_housing_level', 'usage_type',
+              'floor_material', 'frame_material', 'wall_material', 'roof_material', 'car_accommodation',
+              'bathrooms_count', 'kitchens_count', 'living_rooms_count',
+              'notes']
+
+    def get_form(self, form_class=None):
+        from apps.ui.widgets import PopupAddSelect
+        form = super().get_form(form_class)
+        if 'work_type' in form.fields:
+            form.fields['work_type'].widget = PopupAddSelect(
+                add_url=reverse('ui:work_type_create'), add_label='Add work type',
+                choices=form.fields['work_type'].choices,
+            )
+        return form
 
     def get_success_url(self):
-        return reverse_lazy('ui:work_list', kwargs={'project_pk': self.object.project_id})
+        return _safe_next(self.request, reverse_lazy('ui:work_list', kwargs={'project_pk': self.object.project_id}))
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['title'] = f'Edit Work: {self.object}'
-        ctx['back_url'] = reverse_lazy('ui:work_list', kwargs={'project_pk': self.object.project_id})
+        ctx['back_url'] = _safe_next(self.request, reverse_lazy('ui:work_list', kwargs={'project_pk': self.object.project_id}))
+        ctx['advanced_fields'] = _WORK_ADVANCED_FIELDS
+        ctx['advanced_has_errors'] = any(ctx['form'].has_error(f) for f in _WORK_ADVANCED_FIELDS)
         return ctx
 
 
@@ -1567,11 +2301,11 @@ class WorkDeleteView(WriteRequiredMixin, DeleteView):
     template_name = 'crud/confirm_delete.html'
 
     def get_success_url(self):
-        return reverse_lazy('ui:work_list', kwargs={'project_pk': self.object.project_id})
+        return _safe_next(self.request, reverse_lazy('ui:work_list', kwargs={'project_pk': self.object.project_id}))
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['back_url'] = reverse_lazy('ui:work_list', kwargs={'project_pk': self.object.project_id})
+        ctx['back_url'] = _safe_next(self.request, reverse_lazy('ui:work_list', kwargs={'project_pk': self.object.project_id}))
         return ctx
 
 
@@ -1633,10 +2367,46 @@ class AddressListView(CouncilOrFNCMixin, ListView):
         return ctx
 
 
+class ProjectAddressesWorksView(CouncilScopedMixin, CouncilOrFNCMixin, DetailView):
+    """Combined Addresses & Works page for a project."""
+    model = Project
+    template_name = 'projects/addresses_works.html'
+    context_object_name = 'project'
+
+    def get_context_data(self, **kwargs):
+        from django.db.models import Count, Sum
+        ctx = super().get_context_data(**kwargs)
+        project = self.object
+        addresses = (
+            Address.objects
+            .filter(project=project)
+            .select_related('suburb')
+            .annotate(work_count=Count('works'))
+            .order_by('street')
+        )
+        works = (
+            Work.objects
+            .filter(project=project)
+            .select_related('work_type', 'contractor', 'address')
+            .order_by('address__street', 'pk')
+        )
+        total = works.aggregate(total=Sum('estimated_cost'))['total'] or 0
+        ctx.update({
+            'addresses': addresses,
+            'works': works,
+            'total_cost': total,
+            'is_fnc': not self.request.user.groups.filter(
+                name__in=['COUNCIL_USER', 'COUNCIL_MANAGER']
+            ).exists(),
+        })
+        return ctx
+
+
 class AddressCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = Address
     template_name = 'crud/form.html'
-    fields = ['street', 'suburb', 'lot', 'plan', 'residence_plc_ref']
+    fields = ['street', 'suburb', 'lot', 'plan', 'residence_plc_ref',
+              'land_status', 'lease_status', 'lease_executed_date']
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -1644,13 +2414,25 @@ class AddressCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
             kwargs['instance'] = Address(project_id=self.kwargs['project_pk'])
         return kwargs
 
+    def get_form(self, form_class=None):
+        from apps.ui.widgets import PopupAddSelect
+        form = super().get_form(form_class)
+        if 'suburb' in form.fields:
+            form.fields['suburb'].widget = PopupAddSelect(
+                add_url=reverse('ui:suburb_create'), add_label='Add suburb',
+                choices=form.fields['suburb'].choices,
+            )
+        return form
+
     def get_success_url(self):
-        return reverse_lazy('ui:address_list', kwargs={'project_pk': self.kwargs['project_pk']})
+        return _safe_next(self.request, reverse_lazy('ui:project_addresses_works', kwargs={'pk': self.kwargs['project_pk']}))
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['title'] = 'Add Address'
-        ctx['back_url'] = reverse_lazy('ui:address_list', kwargs={'project_pk': self.kwargs['project_pk']})
+        ctx['back_url'] = _safe_next(self.request, reverse_lazy('ui:project_addresses_works', kwargs={'pk': self.kwargs['project_pk']}))
+        ctx['advanced_fields'] = _ADDRESS_ADVANCED_FIELDS
+        ctx['advanced_has_errors'] = any(ctx['form'].has_error(f) for f in _ADDRESS_ADVANCED_FIELDS)
         return ctx
 
 
@@ -1663,15 +2445,28 @@ class AddressDetailView(CouncilOrFNCMixin, DetailView):
 class AddressUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = Address
     template_name = 'crud/form.html'
-    fields = ['street', 'suburb', 'lot', 'plan', 'residence_plc_ref']
+    fields = ['street', 'suburb', 'lot', 'plan', 'residence_plc_ref',
+              'land_status', 'lease_status', 'lease_executed_date']
+
+    def get_form(self, form_class=None):
+        from apps.ui.widgets import PopupAddSelect
+        form = super().get_form(form_class)
+        if 'suburb' in form.fields:
+            form.fields['suburb'].widget = PopupAddSelect(
+                add_url=reverse('ui:suburb_create'), add_label='Add suburb',
+                choices=form.fields['suburb'].choices,
+            )
+        return form
 
     def get_success_url(self):
-        return reverse_lazy('ui:address_list', kwargs={'project_pk': self.object.project_id})
+        return _safe_next(self.request, reverse_lazy('ui:address_list', kwargs={'project_pk': self.object.project_id}))
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['title'] = f'Edit Address: {self.object}'
-        ctx['back_url'] = reverse_lazy('ui:address_list', kwargs={'project_pk': self.object.project_id})
+        ctx['back_url'] = _safe_next(self.request, reverse_lazy('ui:address_list', kwargs={'project_pk': self.object.project_id}))
+        ctx['advanced_fields'] = _ADDRESS_ADVANCED_FIELDS
+        ctx['advanced_has_errors'] = any(ctx['form'].has_error(f) for f in _ADDRESS_ADVANCED_FIELDS)
         return ctx
 
 
@@ -1680,11 +2475,11 @@ class AddressDeleteView(WriteRequiredMixin, DeleteView):
     template_name = 'crud/confirm_delete.html'
 
     def get_success_url(self):
-        return reverse_lazy('ui:address_list', kwargs={'project_pk': self.object.project_id})
+        return _safe_next(self.request, reverse_lazy('ui:address_list', kwargs={'project_pk': self.object.project_id}))
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['back_url'] = reverse_lazy('ui:address_list', kwargs={'project_pk': self.object.project_id})
+        ctx['back_url'] = _safe_next(self.request, reverse_lazy('ui:address_list', kwargs={'project_pk': self.object.project_id}))
         return ctx
 
 
@@ -1985,7 +2780,7 @@ class SuburbListView(LoginRequiredMixin, ListView):
         return ctx
 
 
-class SuburbCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
+class SuburbCreateView(PopupAwareCreateMixin, LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = Suburb
     template_name = 'crud/form.html'
     fields = ['name', 'postcode', 'state',
@@ -2258,34 +3053,123 @@ class WorkStepDefinitionDeleteView(LoginRequiredMixin, DeleteView):
 
 
 # ---------------------------------------------------------------------------
-# WorkStepGroup — nested under WorkType
+# WorkStepGroup — central CRUD under Maintenance.
+# Groups are stand-alone (M2M to WorkType). Both the WorkType detail page
+# and the Maintenance index link here. The Clone action duplicates a group
+# + its items so you can tweak from a known starting point.
 # ---------------------------------------------------------------------------
+
+class WorkStepGroupListView(LoginRequiredMixin, ListView):
+    model = WorkStepGroup
+    template_name = 'work_step_groups/list.html'
+    context_object_name = 'groups'
+    paginate_by = 50
+
+    def get_queryset(self):
+        return WorkStepGroup.objects.prefetch_related('work_types', 'items').order_by('name')
+
+
+def _workstep_group_items_formset():
+    """Inline formset: edit all WorkStepGroupItem rows in one grid."""
+    from django.forms import inlineformset_factory
+    return inlineformset_factory(
+        WorkStepGroup, WorkStepGroupItem,
+        fields=['order', 'step', 'expected_duration_days',
+                'cost_percentage', 'stage_gate', 'is_monthly_tracker_column'],
+        extra=3, can_delete=True,
+    )
+
+
+def _renumber_group_items(group):
+    """Reset all items' order field to a clean 1..N sequence.
+
+    Sort key: existing `order` (so user-typed values determine the relative
+    rank), then `id` (stable tiebreak). Done in two phases to dodge the
+    UniqueConstraint(group, order) — first move everyone to a safe high
+    offset, then back down to 1..N.
+    """
+    items = list(group.items.order_by('order', 'id'))
+    if not items:
+        return
+    high = (max(i.order for i in items) or 0) + 1000
+    for i, item in enumerate(items, start=1):
+        item.order = high + i
+        item.save(update_fields=['order'])
+    for i, item in enumerate(items, start=1):
+        item.order = i
+        item.save(update_fields=['order'])
+
+
+class WorkStepGroupDetailView(LoginRequiredMixin, View):
+    """Single-page inline editable grid for a Work Step Group's items.
+
+    GET  → render the formset.
+    POST → save all rows at once, then renumber sequentially so the order
+           column stays clean even when the user rearranges values.
+    """
+
+    template_name = 'work_step_groups/detail.html'
+
+    def _ctx(self, group, formset):
+        return {
+            'group': group,
+            'formset': formset,
+        }
+
+    def get(self, request, pk):
+        group = get_object_or_404(WorkStepGroup, pk=pk)
+        FormSet = _workstep_group_items_formset()
+        formset = FormSet(
+            instance=group,
+            queryset=group.items.select_related('step').order_by('order'),
+            prefix='items',
+        )
+        return render(request, self.template_name, self._ctx(group, formset))
+
+    def post(self, request, pk):
+        group = get_object_or_404(WorkStepGroup, pk=pk)
+        FormSet = _workstep_group_items_formset()
+        formset = FormSet(request.POST, instance=group, prefix='items')
+        if not formset.is_valid():
+            messages.error(request, 'Some rows have errors — fix the highlighted fields.')
+            return render(request, self.template_name, self._ctx(group, formset))
+        formset.save()
+        _renumber_group_items(group)
+        messages.success(request, 'Saved. Order renumbered 1..N.')
+        return redirect('ui:work_step_group_detail', pk=group.pk)
+
 
 class WorkStepGroupCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = WorkStepGroup
     template_name = 'crud/form.html'
-    fields = ['name', 'description', 'is_active']
+    fields = ['name', 'description', 'work_types', 'is_active']
 
-    def _work_type(self):
-        return get_object_or_404(WorkType, pk=self.kwargs['wt_pk'])
-
-    def form_valid(self, form):
-        form.instance.work_type = self._work_type()
-        return super().form_valid(form)
+    def get_initial(self):
+        initial = super().get_initial()
+        wt_pk = self.kwargs.get('wt_pk') or self.request.GET.get('work_type')
+        if wt_pk:
+            initial['work_types'] = [int(wt_pk)]
+        return initial
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['title'] = f'Add Step Group — {self._work_type().name}'
+        wt_pk = self.kwargs.get('wt_pk')
+        ctx['title'] = (
+            f'Add Step Group — {get_object_or_404(WorkType, pk=wt_pk).name}'
+            if wt_pk else 'Add Work Step Group'
+        )
         return ctx
 
     def get_success_url(self):
-        return reverse('ui:work_type_detail', kwargs={'pk': self.kwargs['wt_pk']})
+        if self.kwargs.get('wt_pk'):
+            return reverse('ui:work_type_detail', kwargs={'pk': self.kwargs['wt_pk']})
+        return reverse('ui:work_step_group_detail', kwargs={'pk': self.object.pk})
 
 
 class WorkStepGroupUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = WorkStepGroup
     template_name = 'crud/form.html'
-    fields = ['name', 'description', 'is_active']
+    fields = ['name', 'description', 'work_types', 'is_active']
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -2293,7 +3177,22 @@ class WorkStepGroupUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView
         return ctx
 
     def get_success_url(self):
-        return reverse('ui:work_type_detail', kwargs={'pk': self.object.work_type_id})
+        return reverse('ui:work_step_group_detail', kwargs={'pk': self.object.pk})
+
+
+class WorkStepGroupCloneView(LoginRequiredMixin, View):
+    """POST-only: duplicate a WorkStepGroup + its items, redirect to the new
+    group's edit page so the user can rename / re-link work types immediately."""
+
+    def post(self, request, pk):
+        original = get_object_or_404(WorkStepGroup, pk=pk)
+        new = original.clone()
+        messages.success(
+            request,
+            f'Cloned "{original.name}" → "{new.name}". '
+            f'Adjust the name, link the right Work Types, and edit items as needed.'
+        )
+        return redirect('ui:work_step_group_edit', pk=new.pk)
 
 
 class WorkStepGroupDeleteView(LoginRequiredMixin, DeleteView):
@@ -2301,7 +3200,7 @@ class WorkStepGroupDeleteView(LoginRequiredMixin, DeleteView):
     template_name = 'crud/confirm_delete.html'
 
     def get_success_url(self):
-        return reverse('ui:work_type_detail', kwargs={'pk': self.object.work_type_id})
+        return reverse('ui:work_step_group_list')
 
 
 # ---------------------------------------------------------------------------
@@ -2311,7 +3210,8 @@ class WorkStepGroupDeleteView(LoginRequiredMixin, DeleteView):
 class WorkStepGroupItemCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = WorkStepGroupItem
     template_name = 'crud/form.html'
-    fields = ['step', 'order', 'cost_percentage', 'expected_duration_days', 'stage_gate']
+    fields = ['step', 'order', 'cost_percentage', 'expected_duration_days',
+              'stage_gate', 'is_monthly_tracker_column']
 
     def _group(self):
         return get_object_or_404(WorkStepGroup, pk=self.kwargs['group_pk'])
@@ -2328,13 +3228,14 @@ class WorkStepGroupItemCreateView(LoginRequiredMixin, WidgetUpgradeMixin, Create
         return ctx
 
     def get_success_url(self):
-        return reverse('ui:work_type_detail', kwargs={'pk': self._group().work_type_id})
+        return reverse('ui:work_step_group_detail', kwargs={'pk': self.kwargs['group_pk']})
 
 
 class WorkStepGroupItemUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = WorkStepGroupItem
     template_name = 'crud/form.html'
-    fields = ['step', 'order', 'cost_percentage', 'expected_duration_days', 'stage_gate']
+    fields = ['step', 'order', 'cost_percentage', 'expected_duration_days',
+              'stage_gate', 'is_monthly_tracker_column']
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -2342,7 +3243,7 @@ class WorkStepGroupItemUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, Update
         return ctx
 
     def get_success_url(self):
-        return reverse('ui:work_type_detail', kwargs={'pk': self.object.group.work_type_id})
+        return reverse('ui:work_step_group_detail', kwargs={'pk': self.object.group_id})
 
 
 class WorkStepGroupItemDeleteView(LoginRequiredMixin, DeleteView):
@@ -2350,8 +3251,96 @@ class WorkStepGroupItemDeleteView(LoginRequiredMixin, DeleteView):
     template_name = 'crud/confirm_delete.html'
 
     def get_success_url(self):
-        return reverse('ui:work_type_detail', kwargs={'pk': self.object.group.work_type_id})
+        return reverse('ui:work_step_group_detail', kwargs={'pk': self.object.group_id})
 
+
+# ---------------------------------------------------------------------------
+# PaymentMilestoneSchedule CRUD (Maintenance) — when payments are timed
+# ---------------------------------------------------------------------------
+
+def _payment_milestone_rules_formset():
+    """Inline formset: edit all PaymentMilestoneRule rows for a schedule."""
+    from django.forms import inlineformset_factory
+    return inlineformset_factory(
+        PaymentMilestoneSchedule, PaymentMilestoneRule,
+        fields=['payment_type', 'anchor_type', 'work_step_definition', 'offset_days'],
+        extra=1, can_delete=True,
+    )
+
+
+class PaymentMilestoneScheduleListView(LoginRequiredMixin, ListView):
+    model = PaymentMilestoneSchedule
+    template_name = 'payment_milestones/list.html'
+    context_object_name = 'schedules'
+
+    def get_queryset(self):
+        return (PaymentMilestoneSchedule.objects
+                .select_related('work_step_group')
+                .prefetch_related('rules'))
+
+
+class PaymentMilestoneScheduleCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
+    model = PaymentMilestoneSchedule
+    template_name = 'crud/form.html'
+    fields = ['name', 'work_step_group', 'is_default', 'is_active']
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Add Payment Milestone Schedule'
+        ctx['back_url'] = reverse_lazy('ui:payment_milestone_schedule_list')
+        return ctx
+
+    def get_success_url(self):
+        return reverse('ui:payment_milestone_schedule_detail', kwargs={'pk': self.object.pk})
+
+
+class PaymentMilestoneScheduleUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
+    model = PaymentMilestoneSchedule
+    template_name = 'crud/form.html'
+    fields = ['name', 'work_step_group', 'is_default', 'is_active']
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit Schedule — {self.object.name}'
+        ctx['back_url'] = reverse_lazy('ui:payment_milestone_schedule_detail', kwargs={'pk': self.object.pk})
+        return ctx
+
+    def get_success_url(self):
+        return reverse('ui:payment_milestone_schedule_detail', kwargs={'pk': self.object.pk})
+
+
+class PaymentMilestoneScheduleDeleteView(LoginRequiredMixin, DeleteView):
+    model = PaymentMilestoneSchedule
+    template_name = 'crud/confirm_delete.html'
+
+    def get_success_url(self):
+        return reverse('ui:payment_milestone_schedule_list')
+
+
+class PaymentMilestoneScheduleDetailView(LoginRequiredMixin, View):
+    """Single-page inline grid for a schedule's payment timing rules."""
+
+    template_name = 'payment_milestones/detail.html'
+
+    def _ctx(self, schedule, formset):
+        return {'schedule': schedule, 'formset': formset}
+
+    def get(self, request, pk):
+        schedule = get_object_or_404(PaymentMilestoneSchedule, pk=pk)
+        FormSet = _payment_milestone_rules_formset()
+        formset = FormSet(instance=schedule, prefix='rules')
+        return render(request, self.template_name, self._ctx(schedule, formset))
+
+    def post(self, request, pk):
+        schedule = get_object_or_404(PaymentMilestoneSchedule, pk=pk)
+        FormSet = _payment_milestone_rules_formset()
+        formset = FormSet(request.POST, instance=schedule, prefix='rules')
+        if not formset.is_valid():
+            messages.error(request, 'Some rows have errors — fix the highlighted fields.')
+            return render(request, self.template_name, self._ctx(schedule, formset))
+        formset.save()
+        messages.success(request, 'Payment timing rules saved.')
+        return redirect('ui:payment_milestone_schedule_detail', pk=schedule.pk)
 
 
 # ---------------------------------------------------------------------------
@@ -2364,7 +3353,7 @@ class ConstructionMethodListView(LoginRequiredMixin, ListView):
     context_object_name = 'methods'
 
 
-class ConstructionMethodCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
+class ConstructionMethodCreateView(PopupAwareCreateMixin, LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = ConstructionMethod
     template_name = 'crud/form.html'
     fields = ['name', 'code', 'is_active']
@@ -2524,9 +3513,43 @@ class MaintenanceView(LoginRequiredMixin, TemplateView):
         ctx['suburb_count'] = Suburb.objects.count()
         ctx['workstep_definition_count'] = WorkStepDefinition.objects.count()
         ctx['construction_method_count'] = ConstructionMethod.objects.count()
+        ctx['payment_milestone_schedule_count'] = PaymentMilestoneSchedule.objects.count()
         ctx['user_count'] = User.objects.count()
+        ctx['site_settings'] = SiteSettings.get()
         ctx['active_nav'] = 'maintenance'
         return ctx
+
+
+class SiteSettingsView(LoginRequiredMixin, View):
+    template_name = 'maintenance/site_settings.html'
+
+    def _check_permission(self, user):
+        role = getattr(getattr(user, 'profile', None), 'officer_role', None)
+        return user.is_superuser or role in {'MANAGER'}
+
+    def get(self, request):
+        if not self._check_permission(request.user):
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+        settings_obj = SiteSettings.get()
+        return render(request, self.template_name, {
+            'settings_obj': settings_obj,
+            'active_nav': 'maintenance',
+        })
+
+    def post(self, request):
+        if not self._check_permission(request.user):
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+        settings_obj = SiteSettings.get()
+        reports_email = request.POST.get('reports_email', '').strip()
+        if reports_email:
+            settings_obj.reports_email = reports_email
+            settings_obj.save()
+            messages.success(request, 'Site settings updated.')
+        else:
+            messages.error(request, 'A valid email address is required.')
+        return redirect('site_settings')
 
 
 # ============================================================================
@@ -2680,3 +3703,64 @@ class QhigiRegionDeleteView(LoginRequiredMixin, DeleteView):
     model = QhigiRegion
     template_name = 'crud/confirm_delete.html'
     success_url = reverse_lazy('ui:qhigi_region_list')
+
+
+# ============================================================================
+# Land Pre-Condition traffic-light editor
+# ============================================================================
+
+class LandPreConditionEditView(WriteRequiredMixin, View):
+    """Bulk-upsert all 4 land pre-condition flags for a project.
+
+    GET  — renders a form with a row per Category, pre-populated from DB.
+    POST — creates-or-updates each flag and redirects to the project detail.
+    """
+    template_name = 'projects/land_pre_conditions.html'
+
+    def _get_project(self, project_pk):
+        from apps.core.models import Project
+        return get_object_or_404(Project, pk=project_pk)
+
+    def _get_or_init_flags(self, project):
+        from apps.core.models import LandPreCondition
+        existing = {f.category: f for f in project.land_pre_conditions.all()}
+        flags = []
+        for cat, label in LandPreCondition.Category.choices:
+            flags.append(existing.get(cat) or LandPreCondition(project=project, category=cat))
+        return flags
+
+    def get(self, request, project_pk):
+        project = self._get_project(project_pk)
+        flags = self._get_or_init_flags(project)
+        return render(request, self.template_name, {
+            'project': project,
+            'flags': flags,
+            'title': f'Land Pre-Conditions: {project.name}',
+        })
+
+    def post(self, request, project_pk):
+        from apps.core.models import LandPreCondition
+        project = self._get_project(project_pk)
+        for cat, _ in LandPreCondition.Category.choices:
+            status = request.POST.get(f'status_{cat}', LandPreCondition.TrafficLight.RED)
+            nt_type = request.POST.get(f'nt_type_{cat}', '')
+            completed_date_raw = request.POST.get(f'completed_date_{cat}', '')
+            notes = request.POST.get(f'notes_{cat}', '')
+            from datetime import date
+            completed_date = None
+            if completed_date_raw:
+                try:
+                    completed_date = date.fromisoformat(completed_date_raw)
+                except ValueError:
+                    pass
+            LandPreCondition.objects.update_or_create(
+                project=project, category=cat,
+                defaults={
+                    'status': status,
+                    'native_title_type': nt_type if cat == LandPreCondition.Category.NATIVE_TITLE else '',
+                    'completed_date': completed_date,
+                    'notes': notes,
+                },
+            )
+        messages.success(request, 'Land pre-conditions saved.')
+        return redirect('ui:project_detail', pk=project_pk)

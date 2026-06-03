@@ -223,7 +223,7 @@ class StageItemGroupListView(LoginRequiredMixin, ListView):
 class StageItemGroupCreateView(LoginRequiredMixin, CreateView):
     model = StageItemGroup
     template_name = 'crud/form.html'
-    fields = ['stage_type', 'name', 'description', 'is_active']
+    fields = ['stage_type', 'name', 'description', 'work_types', 'is_active']
 
     def get_success_url(self):
         return reverse('ui:stage_item_group_detail', kwargs={'pk': self.object.pk})
@@ -238,7 +238,7 @@ class StageItemGroupCreateView(LoginRequiredMixin, CreateView):
 class StageItemGroupUpdateView(LoginRequiredMixin, UpdateView):
     model = StageItemGroup
     template_name = 'crud/form.html'
-    fields = ['stage_type', 'name', 'description', 'is_active']
+    fields = ['stage_type', 'name', 'description', 'work_types', 'is_active']
 
     def get_success_url(self):
         return reverse('ui:stage_item_group_detail', kwargs={'pk': self.object.pk})
@@ -248,6 +248,21 @@ class StageItemGroupUpdateView(LoginRequiredMixin, UpdateView):
         ctx['title'] = f'Edit Group: {self.object.name}'
         ctx['back_url'] = reverse('ui:stage_item_group_detail', kwargs={'pk': self.object.pk})
         return ctx
+
+
+class StageItemGroupCloneView(LoginRequiredMixin, View):
+    """POST-only: duplicate a StageItemGroup + its items. Redirects to edit
+    page so the user can rename / re-link work types immediately."""
+
+    def post(self, request, pk):
+        original = get_object_or_404(StageItemGroup, pk=pk)
+        new = original.clone()
+        messages.success(
+            request,
+            f'Cloned "{original.name}" → "{new.name}". '
+            f'Adjust the name, link Work Types, and edit items as needed.'
+        )
+        return redirect('ui:stage_item_group_edit', pk=new.pk)
 
 
 class StageItemGroupDeleteView(LoginRequiredMixin, DeleteView):

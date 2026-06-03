@@ -7,7 +7,7 @@ Handles:
 - FundingSchedule lifecycle automation (EXECUTED, ACTIVE, SUPERSEDED)
 - BriefFinancialApproval → FundingSchedule creation enforcement
 """
-from django.db.models.signals import post_save, pre_save, pre_delete
+from django.db.models.signals import post_save, pre_save, pre_delete, post_delete
 from django.dispatch import receiver
 from django.utils import timezone
 from apps.core.middleware import get_current_user
@@ -397,7 +397,14 @@ def unlock_next_payment_on_report_approval(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender='core.Work')
 def recalculate_work_forecast(sender, instance, **kwargs):
-    """Re-run rolling forecast whenever actual_start_date is updated."""
+    """Re-run rolling forecast whenever the Work changes, except when the save
+    was itself triggered by the forecast engine writing the computed PC date
+    back onto the Work (those saves carry update_fields={pc, handover})."""
+    update_fields = kwargs.get('update_fields')
+    if update_fields:
+        from apps.core.services.workstep_forecast import RECALC_UPDATE_FIELDS
+        if set(update_fields).issubset(RECALC_UPDATE_FIELDS):
+            return  # this save IS the forecast engine writing back — don't recurse
     if instance.cashflow_method != 'WORKSTEP':
         return
     if not instance.steps.exists():
@@ -417,6 +424,75 @@ def recalculate_on_step_completion(sender, instance, **kwargs):
         recalculate_forecast(instance.work)
     except Exception:
         pass
+
+
+def _resync_anchored_payments(project_id):
+    """Re-save every milestone-anchored, not-yet-released payment on a project
+    so its forecast_release_date follows the latest milestone dates. Staff only
+    update the Monthly Tracker; payment cashflow dates follow automatically."""
+    if not project_id:
+        return
+    try:
+        from apps.core.models import Payment
+        anchored = Payment.objects.filter(
+            project_id=project_id,
+            forecast_anchor=Payment.ForecastAnchor.SCHEDULED,
+        ).exclude(status=Payment.Status.RELEASED)
+        for p in anchored:
+            p.save(update_fields=['forecast_release_date', 'updated_at'])
+    except Exception:
+        pass
+
+
+@receiver(post_save, sender='core.Work')
+def sync_anchored_payment_forecasts(sender, instance, **kwargs):
+    """A Work's forecast PC (or start) shifted — roll its anchored payments."""
+    _resync_anchored_payments(instance.project_id)
+
+
+@receiver(post_save, sender='core.WorkStep')
+def sync_anchored_payments_on_step(sender, instance, **kwargs):
+    """A workstep slipped (e.g. Site establishment moved in the tracker) —
+    roll the project's anchored payments even if the parent Work's PC is
+    unchanged."""
+    try:
+        _resync_anchored_payments(instance.work.project_id)
+    except Exception:
+        pass
+
+
+def _resync_payments_for_schedule(schedule_id):
+    """Re-derive scheduled payments after a PaymentMilestoneSchedule/Rule edit,
+    so config changes take effect immediately (not only on the next slip)."""
+    try:
+        from apps.core.models import PaymentMilestoneSchedule, Payment, Work
+        sched = PaymentMilestoneSchedule.objects.filter(pk=schedule_id).first()
+        if not sched:
+            return
+        project_ids = set()
+        if sched.work_step_group_id:
+            project_ids |= set(Work.objects.filter(
+                step_group_id=sched.work_step_group_id
+            ).values_list('project_id', flat=True))
+        if sched.is_default:
+            project_ids |= set(Payment.objects.filter(
+                forecast_anchor=Payment.ForecastAnchor.SCHEDULED
+            ).values_list('project_id', flat=True))
+        for pid in project_ids:
+            _resync_anchored_payments(pid)
+    except Exception:
+        pass
+
+
+@receiver(post_save, sender='core.PaymentMilestoneRule')
+@receiver(post_delete, sender='core.PaymentMilestoneRule')
+def resync_payments_on_rule_change(sender, instance, **kwargs):
+    _resync_payments_for_schedule(instance.schedule_id)
+
+
+@receiver(post_save, sender='core.PaymentMilestoneSchedule')
+def resync_payments_on_schedule_change(sender, instance, **kwargs):
+    _resync_payments_for_schedule(instance.pk)
 
 # ---------------------------------------------------------------------------
 # FundingSchedule date cascade -> child Projects
@@ -444,4 +520,34 @@ def cascade_fs_dates_to_projects(sender, instance, created, **kwargs):
                 p.save(update_fields=changed + ['updated_at'])
     except Exception:
         # Signal-safe: never crash a FundingSchedule save because of a stale state
+        pass
+
+
+# ---------------------------------------------------------------------------
+# Payment -> PaymentAllocation snapshot (Option 2: lock at RELEASED, forever)
+# ---------------------------------------------------------------------------
+# When a Payment transitions to RELEASED, snapshot the program split using the
+# project's current BFAItem ratios. Allocations are immutable thereafter —
+# later BFA variations do NOT retro-adjust existing rows. Idempotent: re-saving
+# a RELEASED payment does not create duplicate allocations.
+
+@receiver(post_save, sender='core.Payment')
+def snapshot_payment_allocations_on_release(sender, instance, **kwargs):
+    try:
+        from apps.core.models import PaymentAllocation
+        if instance.status != instance.Status.RELEASED:
+            return
+        if instance.allocations.exists():
+            return  # locked forever — never overwrite
+        split = instance.compute_program_split()
+        if not split:
+            return
+        for prog_id, (amount, ratio) in split.items():
+            PaymentAllocation.objects.create(
+                payment=instance,
+                program_id=prog_id,
+                amount=amount,
+                ratio=ratio,
+            )
+    except Exception:
         pass

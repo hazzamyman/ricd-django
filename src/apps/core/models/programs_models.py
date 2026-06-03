@@ -15,6 +15,10 @@ class Program(models.Model):
     funding_source_other = models.CharField(max_length=255, blank=True, help_text="If 'Other' is selected")
     budget = models.DecimalField(max_digits=14, decimal_places=2, default=0, help_text="Total budget (use budgets below for year-specific)")
     gl_code = models.CharField(max_length=100, blank=True, db_index=True)
+    cost_centre = models.CharField(
+        max_length=50, blank=True, db_index=True,
+        help_text="Cost centre code for this program (inherited by BFA items + reports).",
+    )
     business_case_reference = models.CharField(max_length=100, blank=True)
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True, db_index=True)
@@ -72,15 +76,15 @@ class ProgramBudget(models.Model):
 
     @property
     def committed(self):
-        """Calculate committed amount from projects with an approved BriefFinancialApproval."""
-        from apps.core.models import BriefFinancialApproval
-        approvals = BriefFinancialApproval.objects.filter(
+        """Calculate committed amount from BFA items on projects in this program/FY."""
+        from apps.core.models import BriefFinancialApprovalItem
+        items = BriefFinancialApprovalItem.objects.filter(
+            bfa__status='APPROVED',
             project__program=self.program,
             project__financial_year=self.financial_year,
             project__state__in=['FUNDED', 'COMMENCED', 'UNDER_CONSTRUCTION', 'COMPLETED'],
-            status='APPROVED',
         )
-        return sum((a.funding_amount or 0) + (a.contingency_amount or 0) for a in approvals)
+        return sum((i.funding_amount or 0) + (i.contingency_amount or 0) for i in items)
 
     @property
     def spent(self):

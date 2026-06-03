@@ -18,6 +18,9 @@ from django.core.exceptions import PermissionDenied
 COUNCIL_ROLES = frozenset({'COUNCIL_USER', 'COUNCIL_MANAGER'})
 FNC_ROLES = frozenset({'OFFICER', 'MANAGER'})
 WRITE_ROLES = frozenset({'OFFICER', 'MANAGER'})
+# Internal staff = FNC frontline/managers + read-only audit/finance/executives.
+# Mirrors the `is_fnc` context flag: everyone EXCEPT council roles.
+INTERNAL_ROLES = frozenset({'OFFICER', 'MANAGER', 'READ_ONLY'})
 ALL_ROLES = frozenset({'OFFICER', 'MANAGER', 'COUNCIL_USER', 'COUNCIL_MANAGER', 'READ_ONLY'})
 
 
@@ -49,6 +52,17 @@ class RoleRequiredMixin(LoginRequiredMixin):
 class FNCOnlyMixin(RoleRequiredMixin):
     """Only FNC staff (Officer or Manager) can access this view."""
     required_roles = FNC_ROLES
+
+
+class InternalOnlyMixin(RoleRequiredMixin):
+    """Internal staff only (FNC + read-only audit/finance/exec). Council roles get 403.
+
+    Used for records councils must never inspect in detail — e.g. Brief Financial
+    Approvals, where the contingency hold-back and delegate/cost-centre internals
+    are FNC-team-only. Councils learn only *whether* funding was approved via their
+    own project/schedule pages, never the BFA itself.
+    """
+    required_roles = INTERNAL_ROLES
 
 
 class WriteRequiredMixin(RoleRequiredMixin):

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load money %}
 {% block title %}Notional Costs{% endblock %}
 {% block breadcrumbs %}
   <span class="sep">/</span>
@@ -67,7 +68,7 @@
             <td class="text-end">
               {% if cell %}
                 <a href="{% url 'ui:notional_cost_edit' wt_pk=r.work_type.pk pk=cell.pk %}" title="Edit">
-                  ${{ cell.cost_per_unit|floatformat:0 }}
+                  {{ cell.cost_per_unit|money }}
                 </a>
               {% else %}
                 <span class="text-muted">—</span>

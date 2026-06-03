@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load money %}
 {% block title %}Cashflow Forecast{% endblock %}
 {% block breadcrumbs %}
   <span class="sep">/</span>
@@ -46,23 +47,26 @@
 
 {% with t=data.grand_totals %}
 <div class="row g-3 mb-3">
-  <div class="col-md-3"><div class="kpi"><div class="label">Budgeted (all FY)</div><div class="value">${{ t.budgeted|floatformat:0 }}</div></div></div>
+  <div class="col-md-3"><div class="kpi"><div class="label">Budgeted (all FY)</div><div class="value">{{ t.budgeted|money }}</div></div></div>
   <div class="col-md-3"><div class="kpi">
     <div class="label">Forecast committed</div>
-    <div class="value">${{ t.forecast|floatformat:0 }}</div>
+    <div class="value">{{ t.forecast|money }}</div>
     {% if t.budgeted %}
       {% if t.forecast > t.budgeted %}
-        <div class="delta dn">Over by ${{ t.forecast|floatformat:0 }}</div>
+        <div class="delta dn">Over by {{ t.forecast|money }}</div>
       {% else %}
-        <div class="delta up">${{ t.variance|floatformat:0 }} headroom</div>
+        <div class="delta up">{{ t.variance|money }} headroom</div>
       {% endif %}
     {% endif %}
   </div></div>
-  <div class="col-md-3"><div class="kpi"><div class="label">Released</div><div class="value">${{ t.released|floatformat:0 }}</div></div></div>
+  <div class="col-md-3"><div class="kpi"><div class="label">Released</div><div class="value">{{ t.released|money }}</div></div></div>
   <div class="col-md-3"><div class="kpi">
     <div class="label">Undated (committed-but-no-date)</div>
-    <div class="value">${{ t.undated|floatformat:0 }}</div>
+    <div class="value">{{ t.undated|money }}</div>
     <div class="delta">{{ data.undated_projects|length }} project{{ data.undated_projects|length|pluralize }}</div>
+    {% if data.undated_payments %}
+      <div class="delta dn">+ {{ data.undated_payments_total|money }} in {{ data.undated_payments|length }} undated payment{{ data.undated_payments|length|pluralize }}</div>
+    {% endif %}
   </div></div>
 </div>
 {% endwith %}
@@ -106,28 +110,28 @@
         <tr>
           <td class="sticky-l"><a href="{% url 'ui:program_detail' r.program.pk %}">{{ r.program.name }}</a></td>
           {% for c in r.cells %}
-            <td class="text-end" style="border-left:2px solid var(--line-2);">{% if c.budgeted %}${{ c.budgeted|floatformat:0 }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+            <td class="text-end" style="border-left:2px solid var(--line-2);">{% if c.budgeted %}{{ c.budgeted|money }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
             <td class="text-end" style="{% if c.over %}background:var(--st-amber-bg);{% endif %}">
-              {% if c.forecast %}${{ c.forecast|floatformat:0 }}{% else %}<span class="text-muted">—</span>{% endif %}
+              {% if c.forecast %}{{ c.forecast|money }}{% else %}<span class="text-muted">—</span>{% endif %}
               {% if c.over %}<span class="pill amber" style="font-size:9px; margin-left:4px;" title="Forecast exceeds budget">over</span>{% endif %}
             </td>
-            <td class="text-end">{% if c.released %}${{ c.released|floatformat:0 }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+            <td class="text-end">{% if c.released %}{{ c.released|money }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
           {% endfor %}
-          <td class="text-end fw-bold">${{ r.totals.budgeted|floatformat:0 }}</td>
-          <td class="text-end fw-bold {% if r.totals.budgeted and r.totals.forecast > r.totals.budgeted %}text-danger{% endif %}">${{ r.totals.forecast|floatformat:0 }}</td>
-          <td class="text-end fw-bold">{% if r.undated %}${{ r.undated|floatformat:0 }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+          <td class="text-end fw-bold">{{ r.totals.budgeted|money }}</td>
+          <td class="text-end fw-bold {% if r.totals.budgeted and r.totals.forecast > r.totals.budgeted %}text-danger{% endif %}">{{ r.totals.forecast|money }}</td>
+          <td class="text-end fw-bold">{% if r.undated %}{{ r.undated|money }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
         </tr>
       {% endfor %}
         <tr class="table-light">
           <td class="sticky-l fw-bold" style="background:var(--panel-alt);">Total</td>
           {% for t in data.column_totals_list %}
-            <td class="text-end fw-bold" style="border-left:2px solid var(--line-2);">${{ t.budgeted|floatformat:0 }}</td>
-            <td class="text-end fw-bold {% if t.budgeted and t.forecast > t.budgeted %}text-danger{% endif %}">${{ t.forecast|floatformat:0 }}</td>
-            <td class="text-end fw-bold">${{ t.released|floatformat:0 }}</td>
+            <td class="text-end fw-bold" style="border-left:2px solid var(--line-2);">{{ t.budgeted|money }}</td>
+            <td class="text-end fw-bold {% if t.budgeted and t.forecast > t.budgeted %}text-danger{% endif %}">{{ t.forecast|money }}</td>
+            <td class="text-end fw-bold">{{ t.released|money }}</td>
           {% endfor %}
-          <td class="text-end fw-bold">${{ data.grand_totals.budgeted|floatformat:0 }}</td>
-          <td class="text-end fw-bold">${{ data.grand_totals.forecast|floatformat:0 }}</td>
-          <td class="text-end fw-bold">${{ data.grand_totals.undated|floatformat:0 }}</td>
+          <td class="text-end fw-bold">{{ data.grand_totals.budgeted|money }}</td>
+          <td class="text-end fw-bold">{{ data.grand_totals.forecast|money }}</td>
+          <td class="text-end fw-bold">{{ data.grand_totals.undated|money }}</td>
         </tr>
       </tbody>
     </table>
@@ -151,7 +155,33 @@
         <td>{% if u.project.council %}<a href="{% url 'ui:council_detail' u.project.council.pk %}">{{ u.project.council.name }}</a>{% else %}&mdash;{% endif %}</td>
         <td>{% if u.project.program %}<a href="{% url 'ui:program_detail' u.project.program.pk %}">{{ u.project.program.name }}</a>{% else %}&mdash;{% endif %}</td>
         <td><span class="state-badge state-{{ u.project.state|lower }}">{{ u.project.get_state_display }}</span></td>
-        <td class="text-end">{% if u.estimated %}${{ u.estimated|floatformat:0 }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        <td class="text-end">{% if u.estimated %}{{ u.estimated|money }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% endif %}
+
+{% if data.undated_payments %}
+<div class="card mb-3"><div class="card-body">
+  <div class="sec-h">
+    <h2>Undated Payments ({{ data.undated_payments|length }})</h2>
+    <span style="font-size:12px; color:var(--muted);">Payments without a forecast release date — they can't be placed in a financial year. Edit each to assign a forecast release date so it appears in the matrix above.</span>
+  </div>
+  <table class="table table-sm align-middle">
+    <thead class="table-light">
+      <tr><th>Project</th><th>Council</th><th>Type</th><th>Status</th><th class="text-end">Amount</th><th></th></tr>
+    </thead>
+    <tbody>
+    {% for u in data.undated_payments %}
+      <tr>
+        <td><a href="{% url 'ui:project_detail' u.project.pk %}">{{ u.project.name }}</a></td>
+        <td>{% if u.project.council %}<a href="{% url 'ui:council_detail' u.project.council.pk %}">{{ u.project.council.name }}</a>{% else %}&mdash;{% endif %}</td>
+        <td>{{ u.payment.get_payment_type_display }}</td>
+        <td>{{ u.payment.get_status_display }}</td>
+        <td class="text-end">{{ u.amount|money }}</td>
+        <td class="text-end"><a href="{% url 'ui:payment_edit' u.project.pk u.payment.pk %}" class="btn btn-outline-primary btn-sm">Set date</a></td>
       </tr>
     {% endfor %}
     </tbody>

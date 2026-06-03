@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}{{ schedule.name }} — Payment Milestone Schedule — RICD{% endblock %}
+{% block breadcrumbs %}
+  <span class="sep">/</span><a href="{% url 'ui:maintenance' %}">Maintenance</a>
+  <span class="sep">/</span><a href="{% url 'ui:payment_milestone_schedule_list' %}">Payment Milestone Schedules</a>
+  <span class="sep">/</span><span class="current">{{ schedule.name }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="pg-head">
+  <div>
+    <h1>{{ schedule.name }}</h1>
+    <div class="meta">
+      {% if schedule.is_default %}<span class="badge bg-success">Default</span>{% endif %}
+      {% if not schedule.is_active %}<span class="badge bg-light text-dark">Inactive</span>{% endif %}
+      {% if schedule.work_step_group %}
+        <span class="text-muted">Applies to work group: <b>{{ schedule.work_step_group.name }}</b></span>
+      {% else %}
+        <span class="text-muted">Global (not tied to a specific work group)</span>
+      {% endif %}
+    </div>
+    <p class="text-muted mt-1 mb-0" style="font-size:13px;">
+      Each row sets one payment's forecast date: pick the milestone it tracks and how many days after.
+      For "Work step completion" choose the exact step (e.g. Site establishment, or the final handover step).
+    </p>
+  </div>
+  <div class="actions">
+    <a href="{% url 'ui:payment_milestone_schedule_edit' schedule.pk %}" class="btn btn-outline-secondary btn-sm">Edit Schedule</a>
+    <a href="{% url 'ui:payment_milestone_schedule_delete' schedule.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
+    <a href="{% url 'ui:payment_milestone_schedule_list' %}" class="btn btn-outline-secondary btn-sm">Back</a>
+  </div>
+</div>
+
+<form method="post" id="rules-form" novalidate>
+  {% csrf_token %}
+  {{ formset.management_form }}
+
+  {% if formset.non_form_errors %}
+    <div class="alert alert-danger">{{ formset.non_form_errors }}</div>
+  {% endif %}
+
+  <div class="card mb-3"><div class="card-body p-0">
+    <div class="sec-h px-3 py-2 d-flex justify-content-between align-items-center">
+      <h2 class="mb-0">Payment timing rules</h2>
+      <div class="d-flex gap-2 align-items-center">
+        <button type="button" id="add-row-btn" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus-lg"></i> Add Row</button>
+        <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-check2"></i> Save All</button>
+      </div>
+    </div>
+
+    <table class="table table-sm align-middle mb-0" id="rules-grid">
+      <thead class="table-light">
+        <tr>
+          <th style="min-width:140px;">Payment</th>
+          <th style="min-width:200px;">Anchor</th>
+          <th style="min-width:220px;">Work Step (if "Work step completion")</th>
+          <th style="width:110px;" class="text-end">Offset days</th>
+          <th style="width:70px;" class="text-center">Delete</th>
+        </tr>
+      </thead>
+      <tbody id="rules-tbody">
+        {% for form in formset %}
+          <tr class="rule-row{% if form.errors %} table-warning{% endif %}">
+            {{ form.id }}
+            <td>{{ form.payment_type }}{% if form.payment_type.errors %}<div class="text-danger small">{{ form.payment_type.errors|striptags }}</div>{% endif %}</td>
+            <td>{{ form.anchor_type }}{% if form.anchor_type.errors %}<div class="text-danger small">{{ form.anchor_type.errors|striptags }}</div>{% endif %}</td>
+            <td>{{ form.work_step_definition }}{% if form.work_step_definition.errors %}<div class="text-danger small">{{ form.work_step_definition.errors|striptags }}</div>{% endif %}</td>
+            <td>{{ form.offset_days }}{% if form.offset_days.errors %}<div class="text-danger small">{{ form.offset_days.errors|striptags }}</div>{% endif %}</td>
+            <td class="text-center">{% if form.DELETE %}{{ form.DELETE }}{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <table style="display:none;">
+      <tbody id="empty-form-tpl">
+        <tr class="rule-row">
+          {{ formset.empty_form.id }}
+          <td>{{ formset.empty_form.payment_type }}</td>
+          <td>{{ formset.empty_form.anchor_type }}</td>
+          <td>{{ formset.empty_form.work_step_definition }}</td>
+          <td>{{ formset.empty_form.offset_days }}</td>
+          <td class="text-center">{% if formset.empty_form.DELETE %}{{ formset.empty_form.DELETE }}{% endif %}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div></div>
+
+  <div class="d-flex justify-content-end gap-2">
+    <button type="button" id="add-row-btn-2" class="btn btn-outline-primary btn-sm">+ Add Row</button>
+    <button type="submit" class="btn btn-primary btn-sm">Save All</button>
+  </div>
+</form>
+
+<style>
+  #rules-grid input[type=number],
+  #rules-grid input[type=text],
+  #rules-grid select { width:100%; padding:4px 8px; font-size:12.5px;
+                       border:1px solid var(--line-2); border-radius:4px; background:#fff; }
+  #rules-grid input[type=checkbox] { transform:scale(1.2); }
+  #rules-grid td { padding:4px 8px; vertical-align:middle; }
+  #rules-grid tr.rule-row.marked-delete { background:#fef2f2; opacity:.55; }
+</style>
+
+<script>
+(function(){
+  const totalFormsInput = document.querySelector('input[name="rules-TOTAL_FORMS"]');
+  const tbody = document.getElementById('rules-tbody');
+  const tpl   = document.getElementById('empty-form-tpl');
+
+  function addRow() {
+    if (!totalFormsInput) return;
+    const idx = parseInt(totalFormsInput.value, 10);
+    const html = tpl.innerHTML.replace(/__prefix__/g, idx);
+    tbody.insertAdjacentHTML('beforeend', html);
+    totalFormsInput.value = String(idx + 1);
+  }
+
+  document.getElementById('add-row-btn').addEventListener('click', addRow);
+  const second = document.getElementById('add-row-btn-2');
+  if (second) second.addEventListener('click', addRow);
+
+  tbody.addEventListener('change', function(ev){
+    const cb = ev.target;
+    if (cb.type === 'checkbox' && cb.name.endsWith('-DELETE')) {
+      const row = cb.closest('tr.rule-row');
+      if (row) row.classList.toggle('marked-delete', cb.checked);
+    }
+  });
+})();
+</script>
+{% endblock %}

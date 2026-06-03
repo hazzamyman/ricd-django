@@ -33,6 +33,12 @@ class Project(models.Model):
 
     council = models.ForeignKey('Council', related_name='projects', on_delete=models.CASCADE, db_index=True)
     program = models.ForeignKey('Program', related_name='projects', on_delete=models.CASCADE, db_index=True)
+    lead_officer = models.ForeignKey(
+        'auth.User', related_name='led_projects',
+        on_delete=models.SET_NULL, null=True, blank=True,
+        help_text="FNC officer for this project. Overrides Council.lead_officer "
+                  "(use effective_lead_officer for resolved value).",
+    )
     project_type = models.CharField(max_length=10, choices=Type.choices, default=Type.DWELLING, db_index=True)
     name = models.CharField(max_length=255, db_index=True)
     funding_schedule = models.ForeignKey(
@@ -117,6 +123,14 @@ class Project(models.Model):
         blank=True,
         help_text="Template group of Stage 2 items for this project's stage report",
     )
+    quarterly_report_item_group = models.ForeignKey(
+        'QuarterlyReportItemGroup',
+        related_name='projects',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Template group of Quarterly Report items for this project's quarterly reports",
+    )
 
     # Lease fields
     lease_signed_date = models.DateField(null=True, blank=True, help_text="Date lease was signed (only for non-registered housing providers)")
@@ -143,6 +157,28 @@ class Project(models.Model):
     completion_date = models.DateField(null=True, blank=True)
     handover_checklist_link = models.URLField(blank=True)
     warranty_end_date = models.DateField(null=True, blank=True)
+
+    # Financial year tracking (commenced captured via financial_year above)
+    financial_year_completed = models.CharField(
+        max_length=9, choices=FINANCIAL_YEAR_CHOICES, blank=True, default='',
+        help_text="Financial year in which the project was completed",
+    )
+
+    # External system references
+    sap_ion = models.CharField(
+        max_length=50, blank=True,
+        help_text="SAP Internal Order Number",
+    )
+
+    # Optionally-visible reference fields (kept for import/reporting; hidden in UI by default)
+    cli_no = models.CharField(
+        max_length=50, blank=True,
+        help_text="Client reference number (hidden in UI by default — toggle via Advanced section)",
+    )
+    initial_caa_date = models.DateField(
+        null=True, blank=True,
+        help_text="Initial date of CAA (hidden in UI by default — toggle via Advanced section)",
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -198,6 +234,108 @@ class Project(models.Model):
         if self.funding_approval_date:
             return self.funding_approval_date
         return self.start_date
+
+    @property
+    def financial_approvals(self):
+        """BFAs that include this project (compat shim — actual link is via BFAItem)."""
+        from apps.core.models import BriefFinancialApproval
+        return BriefFinancialApproval.objects.filter(items__project=self).distinct()
+
+    def bfa_program_ratios(self, *, approved_only=True):
+        """Return a dict {program_id: Decimal ratio (0..1)} for this project.
+
+        Ratios are derived from BriefFinancialApprovalItem rows
+        (item.total = funding + contingency) grouped by program. Used for
+        Payment co-funding splits at RELEASED time (see PaymentAllocation).
+
+        If `approved_only` is True (default), only items on APPROVED BFAs count.
+        Returns `{}` if no qualifying items — callers fall back to single-program
+        behaviour (`{self.program_id: 1}`).
+        """
+        from decimal import Decimal
+        from apps.core.models import BriefFinancialApprovalItem
+        qs = BriefFinancialApprovalItem.objects.filter(project=self)
+        if approved_only:
+            qs = qs.filter(bfa__status='APPROVED')
+        totals = {}
+        grand = Decimal('0')
+        for item in qs:
+            t = (item.funding_amount or Decimal('0')) + (item.contingency_amount or Decimal('0'))
+            if t <= 0:
+                continue
+            prog_id = item.program_id or self.program_id
+            if prog_id is None:
+                continue
+            totals[prog_id] = totals.get(prog_id, Decimal('0')) + t
+            grand += t
+        if grand == 0:
+            return {}
+        return {pid: (amt / grand).quantize(Decimal('0.000001')) for pid, amt in totals.items()}
+
+    # ----- Practical Completion + Handover aggregates (derived from child Works)
+    #
+    # Convention (Option C): Project doesn't store these dates directly. They
+    # live on each Work; Project shows the LATEST work's date (the "all works
+    # complete" date), unless any work hasn't reached that milestone yet, in
+    # which case the actual aggregate is None — i.e. the project isn't there
+    # yet. Forecast aggregates ignore nulls (best-effort projection).
+
+    def _work_date_aggregate(self, field_name):
+        """max(work.<field_name>) only if EVERY work has it set; else None."""
+        works = list(self.works.all())
+        if not works:
+            return None
+        vals = [getattr(w, field_name) for w in works]
+        if any(v is None for v in vals):
+            return None
+        return max(vals)
+
+    def _work_date_forecast(self, field_name):
+        """max(work.<field_name>) ignoring nulls; None if every value is null."""
+        works = list(self.works.all())
+        if not works:
+            return None
+        vals = [v for v in (getattr(w, field_name) for w in works) if v is not None]
+        return max(vals) if vals else None
+
+    @property
+    def practical_completion_date(self):
+        """Latest actual PC across all works, or None if any work hasn't PC'd yet."""
+        return self._work_date_aggregate('practical_completion_date')
+
+    @property
+    def forecast_practical_completion_date(self):
+        """Latest forecast PC across all works (whichever finishes last)."""
+        return self._work_date_forecast('forecast_practical_completion_date')
+
+    @property
+    def handover_date(self):
+        """Latest actual Handover across all works, or None if any work hasn't handed over yet."""
+        return self._work_date_aggregate('handover_date')
+
+    @property
+    def forecast_handover_date(self):
+        """Latest forecast Handover across all works."""
+        return self._work_date_forecast('forecast_handover_date')
+
+    @property
+    def is_practically_completed(self):
+        """True when every Work has a recorded practical_completion_date."""
+        return self.practical_completion_date is not None
+
+    @property
+    def effective_lead_officer(self):
+        """FNC officer responsible for this project — own override, else council default."""
+        return self.lead_officer or (self.council.lead_officer if self.council_id else None)
+
+    @property
+    def pc_breaches_sunset(self):
+        """True when forecast PC is >30 days past Stage 2 sunset (warning, not blocker)."""
+        from datetime import timedelta
+        forecast = self.forecast_practical_completion_date
+        if forecast is None or self.stage2_sunset_date is None:
+            return False
+        return forecast > self.stage2_sunset_date + timedelta(days=30)
 
     @property
     def dates_in_sync(self):

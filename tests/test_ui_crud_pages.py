@@ -293,13 +293,20 @@ class TestFundingScheduleCRUD:
         response = auth_client.get('/funding-schedules/create/')
         assert response.status_code == 200, \
             f"GET /ui/funding-schedules/create/ returned {response.status_code}"
+        # Regression: crud/form.html must render the form's fields, not just the
+        # Save/Cancel buttons. Views that don't set `advanced_fields` previously
+        # rendered an empty form because `{% if x not in undefined %}` is False.
+        body = response.content.decode()
+        assert 'name="schedule_number"' in body
+        assert 'name="status"' in body
 
     def test_funding_schedule_create_post_creates_object(self, auth_client, project):
-        from apps.core.models import FundingSchedule, BriefFinancialApproval
-        BriefFinancialApproval.objects.create(project=project, status='APPROVED', funding_amount='500000')
+        from apps.core.models import FundingSchedule
+        from tests.fixtures import make_bfa
+        make_bfa(project, '500000', status='APPROVED')
         before = FundingSchedule.objects.count()
         response = auth_client.post('/funding-schedules/create/', {
-            'project': project.pk,
+            'projects': [project.pk],  # multi-select (multi-project per FS)
             'schedule_number': 1,
             'status': 'DRAFT',
         })
@@ -316,10 +323,15 @@ class TestFundingScheduleCRUD:
         response = auth_client.get(f'/funding-schedules/{funding_schedule.pk}/edit/')
         assert response.status_code == 200, \
             f"GET /ui/funding-schedules/{funding_schedule.pk}/edit/ returned {response.status_code}"
+        # Regression guard: the edit form must show its editable fields, not an
+        # empty shell with only Save/Cancel.
+        body = response.content.decode()
+        assert 'name="schedule_number"' in body
+        assert 'name="status"' in body
 
     def test_funding_schedule_edit_post_updates_object(self, auth_client, funding_schedule, project):
         response = auth_client.post(f'/funding-schedules/{funding_schedule.pk}/edit/', {
-            'project': project.pk,
+            'projects': [project.pk],  # multi-select
             'schedule_number': 2,
             'status': 'DRAFT',
         })
@@ -497,9 +509,8 @@ class TestStageReportCRUD:
         from apps.core.models import (
             BriefFinancialApproval, FundingSchedule, StageItemGroup, StageReport
         )
-        BriefFinancialApproval.objects.create(
-            project=project, status='APPROVED', funding_amount='100000'
-        )
+        from tests.fixtures import make_bfa
+        make_bfa(project, '100000', status='APPROVED')
         fs = FundingSchedule.objects.create(project=project, schedule_number=1)
         project.funding_schedule = fs
         project.save()
@@ -596,3 +607,44 @@ class TestUnauthenticatedRedirects:
     def test_project_list_redirects_unauthenticated(self, client):
         response = client.get('/projects/')
         assert response.status_code == 302
+
+
+# ---------------------------------------------------------------------------
+# Addresses & Works combined page: inline edit/delete + ?next= redirects
+# ---------------------------------------------------------------------------
+
+@pytest.mark.django_db
+class TestAddressesWorksActions:
+
+    def test_combined_page_exposes_work_and_address_actions(
+        self, auth_client, work, address, project
+    ):
+        """Both tables must offer Edit + Delete inline so the user doesn't have
+        to dig into sub-pages — and works must be editable here, not just addresses."""
+        resp = auth_client.get(f'/projects/{project.pk}/addresses-works/')
+        assert resp.status_code == 200
+        body = resp.content.decode()
+        assert f'/projects/{project.pk}/works/{work.pk}/edit/' in body
+        assert f'/projects/{project.pk}/works/{work.pk}/delete/' in body
+        assert f'/projects/{project.pk}/addresses/{address.pk}/edit/' in body
+        assert f'/projects/{project.pk}/addresses/{address.pk}/delete/' in body
+
+    def test_work_delete_honors_next(self, auth_client, work, project):
+        from apps.core.models import Work
+        nxt = f'/projects/{project.pk}/addresses-works/'
+        resp = auth_client.post(
+            f'/projects/{project.pk}/works/{work.pk}/delete/?next={nxt}'
+        )
+        assert resp.status_code == 302
+        assert resp.url == nxt
+        assert not Work.objects.filter(pk=work.pk).exists()
+
+    def test_address_edit_cancel_link_honors_next(self, auth_client, address, project):
+        """The edit form's Cancel must return to wherever the user came from
+        (the combined page), not the bare address list dead-end."""
+        nxt = f'/projects/{project.pk}/addresses-works/'
+        resp = auth_client.get(
+            f'/projects/{project.pk}/addresses/{address.pk}/edit/?next={nxt}'
+        )
+        assert resp.status_code == 200
+        assert f'href="{nxt}"' in resp.content.decode()

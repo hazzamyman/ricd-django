@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load money %}
 {% block title %}{{ agreement.name }} - RICD{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -69,7 +70,7 @@
         <tr>
           <td><a href="{% url 'ui:funding_schedule_detail' schedule.pk %}">{{ schedule.schedule_number }}</a></td>
           <td>{{ schedule.payment_rule }}</td>
-          <td>${{ schedule.amount|floatformat:0 }}</td>
+          <td>{{ schedule.amount|money }}</td>
           <td><span class="badge bg-info">{{ schedule.status }}</span></td>
           <td class="text-end">
             <a href="{% url 'ui:funding_schedule_detail' schedule.pk %}" class="btn btn-sm btn-outline-secondary">View</a>

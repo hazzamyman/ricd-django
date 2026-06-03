@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Work Step Groups — RICD{% endblock %}
+{% block breadcrumbs %}
+  <span class="sep">/</span><a href="{% url 'ui:maintenance' %}">Maintenance</a>
+  <span class="sep">/</span><span class="current">Work Step Groups</span>
+{% endblock %}
+
+{% block content %}
+<div class="pg-head">
+  <div>
+    <h1>Work Step Groups</h1>
+    <div class="meta">
+      Reusable Monthly-Tracker / Cashflow step templates. One group can be linked to
+      many Work Types — clone any group as a starting point for a near-identical variant.
+    </div>
+  </div>
+  <div class="actions">
+    <a href="{% url 'ui:work_step_definition_list' %}" class="btn btn-outline-secondary btn-sm">Step Catalog</a>
+    <a href="{% url 'ui:work_step_group_create' %}" class="btn btn-primary btn-sm">+ New Group</a>
+  </div>
+</div>
+
+<div class="card"><div class="card-body p-0">
+<table class="table table-hover mb-0 align-middle">
+  <thead class="table-light"><tr>
+    <th>Name</th>
+    <th>Work Types</th>
+    <th class="text-end">Items</th>
+    <th class="text-end">Cost %</th>
+    <th>Active</th>
+    <th class="text-end">Actions</th>
+  </tr></thead>
+  <tbody>
+    {% for g in groups %}
+    <tr>
+      <td><a href="{% url 'ui:work_step_group_detail' g.pk %}">{{ g.name }}</a></td>
+      <td>
+        {% for wt in g.work_types.all %}
+          <span class="pill grey" style="font-size:10px;">{{ wt.name }}</span>
+        {% empty %}<span class="text-muted small">— unlinked —</span>{% endfor %}
+      </td>
+      <td class="text-end">{{ g.items.count }}</td>
+      <td class="text-end">
+        {% with total=g.total_cost_percentage %}
+          {% if total == 100 %}<span class="badge bg-success">{{ total }}%</span>
+          {% else %}<span class="badge bg-warning text-dark" title="Must total 100%">{{ total }}% ⚠</span>
+          {% endif %}
+        {% endwith %}
+      </td>
+      <td>{% if g.is_active %}<span class="badge bg-success">Yes</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}</td>
+      <td class="text-end">
+        <a href="{% url 'ui:work_step_group_edit' g.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+        <form method="post" action="{% url 'ui:work_step_group_clone' g.pk %}" class="d-inline">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-sm btn-outline-info" title="Duplicate this group + its items">Clone</button>
+        </form>
+        <a href="{% url 'ui:work_step_group_delete' g.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6" class="text-center text-muted py-4">
+      No groups yet. <a href="{% url 'ui:work_step_group_create' %}">Create the first.</a>
+    </td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div></div>
+{% endblock %}

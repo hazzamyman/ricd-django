@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load money %}
 {% load static %}
 
 {% block title %}Financial Traceability — RICD{% endblock %}
@@ -49,7 +50,7 @@
       <div class="card bg-light">
         <div class="card-body py-2">
           <small class="text-muted d-block">Total Allocated</small>
-          <strong>${{ grand_total|floatformat:0 }}</strong>
+          <strong>{{ grand_total|money }}</strong>
         </div>
       </div>
     </div>
@@ -57,7 +58,7 @@
       <div class="card bg-light">
         <div class="card-body py-2">
           <small class="text-muted d-block">Total Released</small>
-          <strong>${{ grand_paid|floatformat:0 }}</strong>
+          <strong>{{ grand_paid|money }}</strong>
         </div>
       </div>
     </div>
@@ -87,9 +88,9 @@
         {% endif %}
       </div>
       <div class="text-end small">
-        <span class="text-muted">${{ agreement_row.total|floatformat:0 }} total</span>
+        <span class="text-muted">{{ agreement_row.total|money }} total</span>
         &nbsp;·&nbsp;
-        <span class="text-success">${{ agreement_row.paid|floatformat:0 }} released</span>
+        <span class="text-success">{{ agreement_row.paid|money }} released</span>
         &nbsp;·&nbsp;
         <strong>{{ agreement_row.pct_expended }}%</strong>
         <div class="progress mt-1" style="height:4px;width:120px;display:inline-block;vertical-align:middle;">
@@ -109,11 +110,11 @@
             <span class="badge bg-info text-dark ms-2 small">{{ srow.schedule.get_status_display }}</span>
           </div>
           <div class="text-end small">
-            <span class="text-muted">${{ srow.schedule.total_funding|floatformat:0 }}</span>
+            <span class="text-muted">{{ srow.schedule.total_funding|money }}</span>
             &nbsp;·&nbsp;
-            <span class="text-success">${{ srow.paid|floatformat:0 }} released</span>
+            <span class="text-success">{{ srow.paid|money }} released</span>
             &nbsp;·&nbsp;
-            <span class="text-warning">${{ srow.remaining|floatformat:0 }} remaining</span>
+            <span class="text-warning">{{ srow.remaining|money }} remaining</span>
             &nbsp;·&nbsp;
             <strong>{{ srow.pct_expended }}%</strong>
           </div>
@@ -135,7 +136,7 @@
             <tr class="small">
               <td>{% if alloc.project %}{{ alloc.project.name }}{% elif alloc.work %}Work #{{ alloc.work.pk }}{% endif %}</td>
               <td>{{ alloc.cost_centre|default:"—" }}</td>
-              <td class="text-end">${{ alloc.amount|floatformat:0 }}</td>
+              <td class="text-end">{{ alloc.amount|money }}</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -163,7 +164,7 @@
                 </span>
               </td>
               <td>{{ pmt.release_date|default:"—" }}</td>
-              <td class="text-end">${{ pmt.amount|floatformat:0 }}</td>
+              <td class="text-end">{{ pmt.amount|money }}</td>
             </tr>
             {% endfor %}
           </tbody>

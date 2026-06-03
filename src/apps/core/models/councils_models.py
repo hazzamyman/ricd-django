@@ -3,6 +3,12 @@ from django.db import models
 class Council(models.Model):
     name = models.CharField(max_length=255, db_index=True)
     region = models.CharField(max_length=255, blank=True, db_index=True)
+    lead_officer = models.ForeignKey(
+        'auth.User', related_name='led_councils',
+        on_delete=models.SET_NULL, null=True, blank=True,
+        help_text="Default FNC officer assigned to this council. Individual "
+                  "projects may override via Project.lead_officer.",
+    )
     # Free-text legacy fields (kept for display fallback during transition)
     state_electorate = models.CharField(max_length=100, blank=True, help_text="State Electorate (legacy free text)")
     federal_electorate = models.CharField(max_length=100, blank=True, help_text="Federal Electorate (legacy free text)")

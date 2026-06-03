@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load money %}
 {% block title %}{{ work_type.name }} - RICD{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -54,7 +55,7 @@
     <tr>
       <td>{{ cost.financial_year }}</td>
       <td>{{ cost.bedrooms|default:"—" }}</td>
-      <td>${{ cost.cost_per_unit|floatformat:2 }}</td>
+      <td>{{ cost.cost_per_unit|money }}</td>
       <td>{% if cost.is_default %}<span class="badge bg-success">Yes</span>{% else %}—{% endif %}</td>
       <td>
         <a href="{% url 'ui:notional_cost_edit' wt_pk=work_type.pk pk=cost.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
@@ -68,28 +69,39 @@
 </table>
 </div></div>
 
-{# Step Groups #}
+{# Step Groups — groups are now reusable across many Work Types via M2M. #}
+{# This page lists groups linked to THIS work type. Adding pre-selects this WT. #}
 <div class="d-flex justify-content-between align-items-center mt-4 mb-2">
-  <h5>Work Step Groups</h5>
-  <a href="{% url 'ui:work_step_group_create' wt_pk=work_type.pk %}" class="btn btn-sm btn-outline-primary">Add Group</a>
+  <h5>Work Step Groups <span class="text-muted small">(linked to this work type)</span></h5>
+  <div class="d-flex gap-2">
+    <a href="{% url 'ui:work_step_group_list' %}" class="btn btn-sm btn-outline-secondary">Browse all groups</a>
+    <a href="{% url 'ui:work_step_group_create_for_work_type' wt_pk=work_type.pk %}" class="btn btn-sm btn-outline-primary">Add Group</a>
+  </div>
 </div>
 
 {% for group in work_type.step_groups.all %}
 <div class="card mb-3">
   <div class="card-header d-flex justify-content-between align-items-center py-2">
     <div>
-      <strong>{{ group.name }}</strong>
+      <a href="{% url 'ui:work_step_group_detail' group.pk %}"><strong>{{ group.name }}</strong></a>
       {% if not group.is_active %}<span class="badge bg-secondary ms-2">Inactive</span>{% endif %}
       {% with total=group.total_cost_percentage %}
         {% if total == 100 %}<span class="badge bg-success ms-2">{{ total }}%</span>
         {% else %}<span class="badge bg-warning text-dark ms-2" title="Must total 100%">{{ total }}% ⚠</span>
         {% endif %}
       {% endwith %}
+      {% with shared=group.work_types.count %}
+        {% if shared > 1 %}<span class="badge bg-info text-dark ms-2" title="Shared with {{ shared|add:'-1' }} other work type(s)">Shared × {{ shared }}</span>{% endif %}
+      {% endwith %}
     </div>
     <div class="d-flex gap-2">
       <a href="{% url 'ui:work_step_group_item_create' group_pk=group.pk %}" class="btn btn-sm btn-outline-secondary">Add Step</a>
-      <a href="{% url 'ui:work_step_group_edit' wt_pk=work_type.pk pk=group.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
-      <a href="{% url 'ui:work_step_group_delete' wt_pk=work_type.pk pk=group.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
+      <a href="{% url 'ui:work_step_group_edit' pk=group.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+      <form method="post" action="{% url 'ui:work_step_group_clone' pk=group.pk %}" class="d-inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-outline-info" title="Make a copy you can tweak">Clone</button>
+      </form>
+      <a href="{% url 'ui:work_step_group_delete' pk=group.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
     </div>
   </div>
   <div class="card-body p-0">
@@ -122,6 +134,6 @@
   </div>
 </div>
 {% empty %}
-<div class="text-muted mt-1" style="font-size:13px">No step groups yet. <a href="{% url 'ui:work_step_group_create' wt_pk=work_type.pk %}">Add one.</a></div>
+<div class="text-muted mt-1" style="font-size:13px">No step groups yet. <a href="{% url 'ui:work_step_group_create_for_work_type' wt_pk=work_type.pk %}">Add one</a> — or <a href="{% url 'ui:work_step_group_list' %}">link an existing group</a>.</div>
 {% endfor %}
 {% endblock %}

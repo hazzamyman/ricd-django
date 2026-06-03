@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load money %}
 {% block title %}Works — {{ project.name }}{% endblock %}
 {% block content %}
 <div class="container mt-4">
@@ -26,7 +27,7 @@
         <td>{{ work.work_type|default:work.work_type_other }}</td>
         <td>{% if work.bedrooms %}{{ work.bedrooms }}BR{% else %}—{% endif %}</td>
         <td>{{ work.quantity }}</td>
-        <td>${{ work.total_estimated_cost|floatformat:0 }}</td>
+        <td>{{ work.total_estimated_cost|money }}</td>
         <td>{{ work.get_status_display }}</td>
         <td>
           <a href="{% url 'ui:work_detail' project_pk=project.pk pk=work.pk %}" class="btn btn-sm btn-outline-secondary">View</a>

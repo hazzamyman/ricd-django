@@ -54,7 +54,6 @@ def funding_schedule(project):
         project=project,
         amount=Decimal('200000'),
         contingency=Decimal('0'),
-        payment_split=FundingSchedule.PaymentSplit.STANDARD,
     )
 
 
@@ -274,23 +273,18 @@ class TestBusinessRuleBFAMissing:
             project=project,
             amount=Decimal('100000'),
             contingency=Decimal('0'),
-            payment_split=FundingSchedule.PaymentSplit.STANDARD,
             status=FundingSchedule.Status.DRAFT,
         )
         with pytest.raises(ValidationError, match='BriefFinancialApproval'):
             fs.full_clean()
 
     def test_approved_bfa_allows_full_clean(self, project):
-        BriefFinancialApproval.objects.create(
-            project=project,
-            status=BriefFinancialApproval.Status.APPROVED,
-            funding_amount=Decimal('500000'),
-        )
+        from tests.fixtures import make_bfa
+        make_bfa(project, Decimal('500000'), status=BriefFinancialApproval.Status.APPROVED)
         fs = FundingSchedule(
             project=project,
             amount=Decimal('100000'),
             contingency=Decimal('0'),
-            payment_split=FundingSchedule.PaymentSplit.STANDARD,
             status=FundingSchedule.Status.DRAFT,
         )
         fs.full_clean()  # must not raise
@@ -298,16 +292,12 @@ class TestBusinessRuleBFAMissing:
     def test_pending_bfa_is_not_sufficient(self, project):
         """A BFA in PENDING (not APPROVED) does not satisfy the pre-condition."""
         from django.core.exceptions import ValidationError
-        BriefFinancialApproval.objects.create(
-            project=project,
-            status=BriefFinancialApproval.Status.PENDING,
-            funding_amount=Decimal('500000'),
-        )
+        from tests.fixtures import make_bfa
+        make_bfa(project, Decimal('500000'), status=BriefFinancialApproval.Status.PENDING)
         fs = FundingSchedule(
             project=project,
             amount=Decimal('100000'),
             contingency=Decimal('0'),
-            payment_split=FundingSchedule.PaymentSplit.STANDARD,
             status=FundingSchedule.Status.DRAFT,
         )
         with pytest.raises(ValidationError, match='BriefFinancialApproval'):
@@ -349,7 +339,6 @@ class TestBusinessRulePaymentRuleImmutability:
             payment_rule=rule,
             amount=Decimal('100000'),
             contingency=Decimal('0'),
-            payment_split=FundingSchedule.PaymentSplit.STANDARD,
         )
         # Immutability is enforced in clean(), so full_clean() must raise.
         rule.name = 'Should not save'

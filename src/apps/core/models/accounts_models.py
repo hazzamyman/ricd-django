@@ -72,3 +72,28 @@ class GroupPermission(models.Model):
                 self.group_type = self.GroupType.READ_ONLY
 
         super().save(*args, **kwargs)
+
+
+class SiteSettings(models.Model):
+    """
+    Singleton (pk=1) holding site-wide config that RICD managers can edit
+    at runtime without a deployment.
+    """
+    reports_email = models.EmailField(
+        default='reports@ricd.qld.gov.au',
+        help_text='Email address that quarterly-report submission emails are addressed to.',
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Site settings'
+        verbose_name_plural = 'Site settings'
+
+    def __str__(self):
+        return 'Site settings'
+
+    @classmethod
+    def get(cls):
+        """Return the singleton row, creating it with defaults if it doesn't exist yet."""
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj

@@ -100,7 +100,9 @@ def cashflow_view(request):
         except ValueError:
             councils = None
 
-    data = build_program_cashflow(program=program, councils=councils)
+    role = getattr(getattr(request.user, 'profile', None), 'officer_role', None)
+    hide_contingency = role in ('COUNCIL_USER', 'COUNCIL_MANAGER')
+    data = build_program_cashflow(program=program, councils=councils, hide_contingency=hide_contingency)
 
     return render(request, 'dashboard/cashflow.html', {
         'data': data,
@@ -117,28 +119,91 @@ def cashflow_view(request):
 
 @login_required
 def aggregate_outputs_view(request):
+    """Work-level output report: what we are actually funding — dwellings by
+    type and bedroom count, residential allotments, and their costs (actual
+    where entered, otherwise estimated from notional rates)."""
+    from collections import defaultdict
+    from decimal import Decimal
     from apps.core.models import Work
 
-    by_council = (
-        Project.objects.exclude(state=Project.State.COMPLETED)
-        .values('council__name')
-        .annotate(project_count=Count('id'), total_budget=Sum('funding_schedules__total_funding'))
-    )
-    by_program = (
-        Project.objects.exclude(state=Project.State.COMPLETED)
-        .values('program__name')
-        .annotate(project_count=Count('id'), total_budget=Sum('funding_schedules__total_funding'))
-    )
-    by_work_type = (
-        Work.objects.filter(project__state__in=[Project.State.COMMENCED, Project.State.UNDER_CONSTRUCTION])
-        .values('work_type__name')
-        .annotate(total_quantity=Sum('quantity'))
+    works = (
+        Work.objects.exclude(project__state=Project.State.COMPLETED)
+        .select_related('work_type', 'project__council', 'project__program')
     )
 
+    def _bucket():
+        return {'units': 0, 'bedrooms': 0, 'cost': Decimal('0'), 'projects': set()}
+
+    by_work_type = {}
+    by_bedrooms = defaultdict(_bucket)
+    by_category = defaultdict(_bucket)
+    by_council = defaultdict(_bucket)
+    by_program = defaultdict(_bucket)
+    totals = _bucket()
+
+    for w in works:
+        qty = w.quantity or 0
+        cost = w.total_effective_cost or Decimal('0')
+        beds = (w.bedrooms or 0) * qty
+        has_bedrooms = bool(w.work_type and w.work_type.has_bedrooms)
+        name = w.work_type.name if w.work_type else (w.work_type_other or 'Other')
+        category = w.work_type.get_category_display() if w.work_type else 'Other'
+
+        wt_key = (category, name)
+        row = by_work_type.setdefault(wt_key, {
+            'name': name, 'category': category,
+            'short_code': w.work_type.short_code if w.work_type else '',
+            'has_bedrooms': has_bedrooms, **_bucket(),
+        })
+        for tgt in (row, by_category[category], by_council[w.project.council.name if w.project.council else '—'],
+                    by_program[w.project.program.name if w.project.program else '—'], totals):
+            tgt['units'] += qty
+            tgt['bedrooms'] += beds
+            tgt['cost'] += cost
+            tgt['projects'].add(w.project_id)
+
+        if has_bedrooms and w.bedrooms:
+            b = by_bedrooms[w.bedrooms]
+            b['units'] += qty
+            b['cost'] += cost
+            b['projects'].add(w.project_id)
+
+    def _finalise(bucket, **extra):
+        units = bucket['units']
+        return {
+            **extra,
+            'units': units,
+            'bedrooms': bucket['bedrooms'],
+            'cost': bucket['cost'],
+            'avg_cost': (bucket['cost'] / units) if units else Decimal('0'),
+            'project_count': len(bucket['projects']),
+        }
+
+    work_type_rows = [
+        _finalise(r, name=r['name'], category=r['category'],
+                  short_code=r['short_code'], has_bedrooms=r['has_bedrooms'])
+        for r in sorted(by_work_type.values(), key=lambda x: (x['category'], x['name']))
+    ]
+    bedroom_rows = [
+        _finalise(v, bedrooms_label=b) for b, v in sorted(by_bedrooms.items())
+    ]
+    category_rows = [
+        _finalise(v, category=c) for c, v in sorted(by_category.items())
+    ]
+    council_rows = [
+        _finalise(v, council=c) for c, v in sorted(by_council.items())
+    ]
+    program_rows = [
+        _finalise(v, program=p) for p, v in sorted(by_program.items())
+    ]
+
     return render(request, 'dashboard/aggregate.html', {
-        'by_council': by_council,
-        'by_program': by_program,
-        'by_work_type': by_work_type,
+        'work_type_rows': work_type_rows,
+        'bedroom_rows': bedroom_rows,
+        'category_rows': category_rows,
+        'council_rows': council_rows,
+        'program_rows': program_rows,
+        'totals': _finalise(totals),
     })
 
 

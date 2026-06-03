@@ -152,18 +152,90 @@
     </div>
   </div>
 
-  {# Work Step Definitions #}
+  {# Work Step Definitions — catalog of names (Slab, Framing, Lockup...) #}
   <div class="col-sm-6 col-xl-4">
     <div class="card h-100">
       <div class="card-body">
         <div class="ricd-section-title mb-1">
           <h2><i class="bi bi-list-ol me-1 text-muted"></i>Work Step Definitions</h2>
         </div>
-        <div class="text-muted mb-3" style="font-size:12px">{{ workstep_definition_count }} step{{ workstep_definition_count|pluralize }} in catalogue</div>
+        <div class="text-muted mb-3" style="font-size:12px">{{ workstep_definition_count }} step{{ workstep_definition_count|pluralize }} in catalogue — the building blocks (Slab, Framing, Lockup…).</div>
         <div class="d-flex gap-2">
           <a href="{% url 'ui:work_step_definition_list' %}" class="btn btn-sm btn-outline-secondary">View all</a>
           {% if is_manager %}
           <a href="{% url 'ui:work_step_definition_create' %}" class="btn btn-sm btn-primary">Add</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Work Step Groups — ordered templates per Work Type set (Monthly Tracker / cashflow) #}
+  <div class="col-sm-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="ricd-section-title mb-1">
+          <h2><i class="bi bi-collection-fill me-1 text-muted"></i>Work Step Groups</h2>
+        </div>
+        <div class="text-muted mb-3" style="font-size:12px">Ordered templates of steps for the Monthly Tracker. One group can serve many Work Types (House, Duplex, Townhouse…). Clone any group to make a variant.</div>
+        <div class="d-flex gap-2">
+          <a href="{% url 'ui:work_step_group_list' %}" class="btn btn-sm btn-outline-secondary">View all</a>
+          {% if is_manager %}
+          <a href="{% url 'ui:work_step_group_create' %}" class="btn btn-sm btn-primary">Add</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Payment Milestone Schedules — when each payment is forecast to release #}
+  <div class="col-sm-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="ricd-section-title mb-1">
+          <h2><i class="bi bi-calendar2-check me-1 text-muted"></i>Payment Milestone Schedules</h2>
+        </div>
+        <div class="text-muted mb-3" style="font-size:12px">{{ payment_milestone_schedule_count }} schedule{{ payment_milestone_schedule_count|pluralize }} — set when each payment is forecast to release (project start, a named work step, or PC, + offset days). Scoped per Work Step Group; clone a group to vary the timing.</div>
+        <div class="d-flex gap-2">
+          <a href="{% url 'ui:payment_milestone_schedule_list' %}" class="btn btn-sm btn-outline-secondary">View all</a>
+          {% if is_manager %}
+          <a href="{% url 'ui:payment_milestone_schedule_create' %}" class="btn btn-sm btn-primary">Add</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Stage Item Definitions — catalog of Stage 1/2 contract checklist items #}
+  <div class="col-sm-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="ricd-section-title mb-1">
+          <h2><i class="bi bi-clipboard-check me-1 text-muted"></i>Stage Item Definitions</h2>
+        </div>
+        <div class="text-muted mb-3" style="font-size:12px">Catalog of Stage 1 / Stage 2 contract checklist items (Native title addressed, Tender invited, Practical Completion…).</div>
+        <div class="d-flex gap-2">
+          <a href="{% url 'ui:stage_item_definition_list' %}" class="btn btn-sm btn-outline-secondary">View all</a>
+          {% if is_manager %}
+          <a href="{% url 'ui:stage_item_definition_create' %}" class="btn btn-sm btn-primary">Add</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Stage Item Groups — templated checklists per stage + work type context #}
+  <div class="col-sm-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="ricd-section-title mb-1">
+          <h2><i class="bi bi-collection me-1 text-muted"></i>Stage Item Groups</h2>
+        </div>
+        <div class="text-muted mb-3" style="font-size:12px">Templated Stage 1 / Stage 2 checklists (Construction vs Land). Linked to Work Types and assigned per Funding Schedule.</div>
+        <div class="d-flex gap-2">
+          <a href="{% url 'ui:stage_item_group_list' %}" class="btn btn-sm btn-outline-secondary">View all</a>
+          {% if is_manager %}
+          <a href="{% url 'ui:stage_item_group_create' %}" class="btn btn-sm btn-primary">Add</a>
           {% endif %}
         </div>
       </div>
@@ -238,6 +310,25 @@
       </div>
     </div>
   </div>
+
+  {# System Settings #}
+  {% if is_manager %}
+  <div class="col-sm-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="ricd-section-title mb-1">
+          <h2><i class="bi bi-gear me-1 text-muted"></i>System Settings</h2>
+        </div>
+        <div class="text-muted mb-3" style="font-size:12px">
+          Reports email: <strong>{{ site_settings.reports_email }}</strong>
+        </div>
+        <div class="d-flex gap-2">
+          <a href="{% url 'ui:site_settings' %}" class="btn btn-sm btn-primary">Edit</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
 </div>
 

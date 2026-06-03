@@ -1,5 +1,6 @@
 from django.db import models
 
+from apps.core.validators import validate_upload
 from .projects_models import Project
 
 
@@ -30,7 +31,7 @@ class DocumentType(models.Model):
 class ProjectDocument(models.Model):
     project = models.ForeignKey(Project, related_name='documents', on_delete=models.CASCADE)
     document_type = models.ForeignKey(DocumentType, on_delete=models.CASCADE)
-    file = models.FileField(upload_to='project_documents/', blank=True)
+    file = models.FileField(upload_to='project_documents/', blank=True, validators=[validate_upload])
     link = models.URLField(blank=True)
     description = models.CharField(max_length=500, blank=True)
     uploaded_by = models.ForeignKey('auth.User', null=True, on_delete=models.SET_NULL)

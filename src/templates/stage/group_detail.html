@@ -5,9 +5,22 @@
   <div>
     <h2 class="mb-0">{{ group.name }} <span class="badge bg-{% if group.stage_type == 'STAGE1' %}info{% else %}primary{% endif %} ms-2">{{ group.get_stage_type_display }}</span></h2>
     {% if group.description %}<small class="text-muted">{{ group.description }}</small>{% endif %}
+    {% with wts=group.work_types.all %}
+      {% if wts %}
+        <div class="mt-1">
+          {% for wt in wts %}<span class="badge bg-light text-dark border me-1">{{ wt.name }}</span>{% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
   </div>
-  <div>
-    {% if can_edit %}<a href="{% url 'ui:stage_item_group_edit' group.pk %}" class="btn btn-outline-secondary btn-sm">Edit group</a>{% endif %}
+  <div class="d-flex gap-2">
+    {% if can_edit %}
+      <a href="{% url 'ui:stage_item_group_edit' group.pk %}" class="btn btn-outline-secondary btn-sm">Edit group</a>
+      <form method="post" action="{% url 'ui:stage_item_group_clone' group.pk %}" class="d-inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline-info btn-sm" title="Duplicate this group + its items">Clone</button>
+      </form>
+    {% endif %}
     <a href="{% url 'ui:stage_item_group_list' %}" class="btn btn-outline-secondary btn-sm">Back to groups</a>
   </div>
 </div>

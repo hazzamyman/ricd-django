@@ -8,6 +8,23 @@ from datetime import date, datetime
 from django.contrib.auth.models import User
 
 
+def make_bfa(project, funding_amount, contingency_amount=Decimal('0'), status='APPROVED', **extra):
+    """Test helper: create a BFA header + one BFAItem row for `project`.
+
+    Mimics the old `BriefFinancialApproval.objects.create(project=..., funding_amount=...,
+    contingency_amount=...)` signature so existing tests can switch over with a
+    one-line edit.
+    """
+    from apps.core.models import BriefFinancialApproval, BriefFinancialApprovalItem
+    bfa = BriefFinancialApproval.objects.create(status=status, **extra)
+    BriefFinancialApprovalItem.objects.create(
+        bfa=bfa, project=project,
+        funding_amount=Decimal(str(funding_amount)),
+        contingency_amount=Decimal(str(contingency_amount)),
+    )
+    return bfa
+
+
 # ============================================================================
 # COUNCIL FIXTURES
 # ============================================================================
@@ -169,20 +186,22 @@ def address(project):
 
 @pytest.fixture
 def funding_schedule(project):
-    """Create a test funding schedule (total derived from WorkFunding allocations).
-    Seeds a project-level WorkFunding so .total_funding == 500_000.00.
-    """
-    from apps.core.models import FundingSchedule, BriefFinancialApproval, WorkFunding
-    BriefFinancialApproval.objects.create(
-        project=project,
+    """Test FS with amount=500k. BFA is created as header + one BFAItem row."""
+    from apps.core.models import (
+        FundingSchedule, BriefFinancialApproval, BriefFinancialApprovalItem, WorkFunding,
+    )
+    bfa = BriefFinancialApproval.objects.create(
+        status=BriefFinancialApproval.Status.APPROVED,
+    )
+    BriefFinancialApprovalItem.objects.create(
+        bfa=bfa, project=project,
         funding_amount=Decimal('500000.00'),
         contingency_amount=Decimal('50000.00'),
-        status=BriefFinancialApproval.Status.APPROVED,
     )
     fs = FundingSchedule.objects.create(project=project, amount=Decimal('500000.00'))
     WorkFunding.objects.create(
         funding_schedule=fs,
-        project=project,  # project-level allocation (work is None)
+        project=project,
         amount=Decimal('500000.00'),
     )
     return fs
@@ -190,13 +209,17 @@ def funding_schedule(project):
 
 @pytest.fixture
 def funding_schedule_land(project):
-    """Create a test funding schedule for land project."""
-    from apps.core.models import FundingSchedule, BriefFinancialApproval, WorkFunding
-    BriefFinancialApproval.objects.create(
-        project=project,
+    """Test FS for land project."""
+    from apps.core.models import (
+        FundingSchedule, BriefFinancialApproval, BriefFinancialApprovalItem, WorkFunding,
+    )
+    bfa = BriefFinancialApproval.objects.create(
+        status=BriefFinancialApproval.Status.APPROVED,
+    )
+    BriefFinancialApprovalItem.objects.create(
+        bfa=bfa, project=project,
         funding_amount=Decimal('1000000.00'),
         contingency_amount=Decimal('100000.00'),
-        status=BriefFinancialApproval.Status.APPROVED,
     )
     fs = FundingSchedule.objects.create(project=project, amount=Decimal('1000000.00'))
     WorkFunding.objects.create(

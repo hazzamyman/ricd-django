@@ -49,7 +49,6 @@ def funding_schedule(project):
         project=project,
         amount=Decimal('300000'),
         contingency=Decimal('0'),
-        payment_split=FundingSchedule.PaymentSplit.STANDARD,
         status=FundingSchedule.Status.ACTIVE,
     )
 

@@ -98,14 +98,67 @@ class Suburb(models.Model):
 
 
 class Address(models.Model):
+
+    class LeaseStatus(models.TextChoices):
+        NOT_REQUIRED = 'NR', 'Not Required'
+        PENDING = 'PEND', 'Pending'
+        EXECUTED = 'EXEC', 'Executed'
+
+    class LandStatus(models.TextChoices):
+        AVAILABLE = 'AVAIL', 'Available'
+        ACQUIRED = 'ACQ', 'Acquired'
+        CROWN = 'CROWN', 'Crown Land'
+        TRANSFER_PENDING = 'TPEND', 'Transfer Pending'
+
     project = models.ForeignKey(Project, related_name='addresses', on_delete=models.CASCADE)
     street = models.CharField(max_length=255)
     suburb = models.ForeignKey(Suburb, related_name='addresses', on_delete=models.PROTECT, null=True, blank=True)
     lot = models.CharField(max_length=100, blank=True)
     plan = models.CharField(max_length=100, blank=True)
     residence_plc_ref = models.CharField(max_length=100, blank=True, help_text="Reside PLC system reference")
+
+    # Land / parcel status (the parcel itself — what gets built on it lives on Work)
+    land_status = models.CharField(max_length=5, choices=LandStatus.choices, blank=True, default='')
+
+    # Lease tracking
+    lease_status = models.CharField(max_length=4, choices=LeaseStatus.choices, blank=True, default='')
+    lease_executed_date = models.DateField(null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    # PC + Handover aggregates — derived from Works at this address (Option C)
+    def _work_date_aggregate(self, field_name):
+        works = list(self.works.all())
+        if not works:
+            return None
+        vals = [getattr(w, field_name) for w in works]
+        if any(v is None for v in vals):
+            return None
+        return max(vals)
+
+    def _work_date_forecast(self, field_name):
+        works = list(self.works.all())
+        if not works:
+            return None
+        vals = [v for v in (getattr(w, field_name) for w in works) if v is not None]
+        return max(vals) if vals else None
+
+    @property
+    def practical_completion_date(self):
+        return self._work_date_aggregate('practical_completion_date')
+
+    @property
+    def forecast_practical_completion_date(self):
+        return self._work_date_forecast('forecast_practical_completion_date')
+
+    @property
+    def handover_date(self):
+        return self._work_date_aggregate('handover_date')
+
+    @property
+    def forecast_handover_date(self):
+        return self._work_date_forecast('forecast_handover_date')
 
     def __str__(self):
         parts = [self.street]

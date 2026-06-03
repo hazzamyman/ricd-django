@@ -22,22 +22,34 @@
           </div>
           {% endif %}
 
-          {% for field in form %}
+          {% for field in form %}{% if not advanced_fields or field.name not in advanced_fields %}
           <div class="mb-3">
             <label for="{{ field.id_for_label }}" class="form-label">
               {{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}
             </label>
             {{ field }}
-            {% if field.help_text %}
-            <div class="form-text text-muted">{{ field.help_text }}</div>
-            {% endif %}
-            {% if field.errors %}
-            <div class="text-danger" style="font-size:12px">
-              {% for err in field.errors %}{{ err }}{% endfor %}
-            </div>
-            {% endif %}
+            {% if field.help_text %}<div class="form-text text-muted">{{ field.help_text }}</div>{% endif %}
+            {% if field.errors %}<div class="text-danger" style="font-size:12px">{% for err in field.errors %}{{ err }}{% endfor %}</div>{% endif %}
           </div>
-          {% endfor %}
+          {% endif %}{% endfor %}
+
+          {% if advanced_fields %}
+          <details class="mb-3 border rounded p-3" {% if advanced_has_errors %}open{% endif %}>
+            <summary class="fw-semibold text-muted" style="cursor:pointer;font-size:13px">
+              Advanced / optional reference fields
+            </summary>
+            <div class="mt-3">
+            {% for field in form %}{% if field.name in advanced_fields %}
+            <div class="mb-3">
+              <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+              {{ field }}
+              {% if field.help_text %}<div class="form-text text-muted">{{ field.help_text }}</div>{% endif %}
+              {% if field.errors %}<div class="text-danger" style="font-size:12px">{% for err in field.errors %}{{ err }}{% endfor %}</div>{% endif %}
+            </div>
+            {% endif %}{% endfor %}
+            </div>
+          </details>
+          {% endif %}
 
           <div class="d-flex gap-2 mt-4 pt-3 border-top">
             <button type="submit" class="btn btn-primary">
