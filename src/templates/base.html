@@ -336,7 +336,7 @@
     <input type="text" placeholder="Search projects, councils, funding schedules…">
   </div>
   <div class="nv-spacer"></div>
-  <button class="icon-btn" title="Help"><i class="bi bi-question-circle"></i></button>
+  <a href="{% url 'ui:help' %}" target="_blank" rel="noopener" class="icon-btn" title="Help &amp; user guide (opens in new tab)"><i class="bi bi-question-circle"></i></a>
   <button class="icon-btn" title="Notifications"><i class="bi bi-bell"></i></button>
   {% if user.is_authenticated %}
     <div class="user-chip">
@@ -444,7 +444,35 @@
   {% endif %}
 
   {% block content %}{% endblock %}
+
+  <footer class="ricd-footer">
+    <span>RICD — Remote Indigenous Capital Delivery</span>
+    <span class="sep">·</span>
+    <a href="{% url 'ui:help' %}" target="_blank" rel="noopener">
+      <i class="bi bi-question-circle"></i> Help &amp; User Guide
+    </a>
+    <span class="sep">·</span>
+    <span class="muted">Internal use only</span>
+  </footer>
 </main>
+
+<style>
+  .ricd-footer {
+    margin-top: 32px;
+    padding: 16px 4px;
+    border-top: 1px solid var(--line, #e5e7eb);
+    color: var(--muted, #6b7280);
+    font-size: 12.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .ricd-footer a { color: var(--brand, #2563eb); text-decoration: none; font-weight: 500; }
+  .ricd-footer a:hover { text-decoration: underline; }
+  .ricd-footer .sep { opacity: .5; }
+  .ricd-footer .muted { opacity: .8; }
+</style>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>

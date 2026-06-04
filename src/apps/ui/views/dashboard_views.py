@@ -365,3 +365,17 @@ def traceability_view(request):
         'grand_remaining': grand_total - grand_paid,
         'grand_pct': grand_pct,
     })
+
+
+# ---------------------------------------------------------------------------
+# In-app Help / documentation (standalone page, opened in a new tab)
+# ---------------------------------------------------------------------------
+
+@login_required
+def help_view(request):
+    """Standalone user guide — features, roles, workflows, domain model.
+
+    Rendered without the app chrome so it reads cleanly in a new tab/popup and
+    prints well. Role context (is_fnc/is_council/...) is supplied globally by the
+    context processor, so the page can tailor what it shows to the viewer."""
+    return render(request, 'help/index.html')

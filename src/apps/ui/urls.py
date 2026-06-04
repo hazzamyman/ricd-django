@@ -10,6 +10,7 @@ urlpatterns = [
     path('aggregate/', views.dashboard_views.aggregate_outputs_view, name='aggregate_outputs'),
     path('dashboard/projects/', views.dashboard_views.projects_board_view, name='projects_board'),
     path('dashboard/traceability/', views.dashboard_views.traceability_view, name='traceability'),
+    path('help/', views.dashboard_views.help_view, name='help'),
 
     # Maintenance
     path('maintenance/', views.crud_views.MaintenanceView.as_view(), name='maintenance'),
