@@ -1070,7 +1070,43 @@ class FundingScheduleDetailView(CouncilScopedMixin, CouncilOrFNCMixin, CommentsM
             )
         else:
             ctx['rollup_child_comments'] = Comment.objects.none()
+
+        # Funding sufficiency (allocations vs approved BFA funding, contingency excluded)
+        ctx['funding_has_bfa'] = fs.has_approved_bfa()
+        ctx['funding_available'] = fs.approved_bfa_funding_only_for_children
+        ctx['funding_allocated'] = fs.total_allocated()
+        ctx['funding_shortfall'] = fs.funding_shortfall()
+        ctx['funding_sufficient'] = fs.is_funding_sufficient()
+        ctx['generated_payment_count'] = fs.payments.count()
         return ctx
+
+
+class FundingScheduleGenerateInstalmentsView(WriteRequiredMixin, View):
+    """Generate per-project sub-payment instalment records for the schedule."""
+
+    def post(self, request, pk):
+        fs = get_object_or_404(FundingSchedule, pk=pk)
+        if fs.funding_shortfall() is not None and fs.funding_shortfall() < 0:
+            messages.error(
+                request,
+                "Allocations exceed the approved BFA funding for this schedule — "
+                "resolve the shortfall before generating instalments."
+            )
+            return redirect('ui:funding_schedule_detail', pk=pk)
+        created, total = fs.generate_project_instalments()
+        if created:
+            messages.success(
+                request,
+                f"Generated {created} per-project instalment payment{'' if created == 1 else 's'} "
+                f"(total ${total:,.2f}). Dates follow each project's payment milestone schedule."
+            )
+        else:
+            messages.info(
+                request,
+                "No instalments generated — check the schedule has a payment rule with "
+                "milestones and projects with WorkFunding allocations (existing payments are kept)."
+            )
+        return redirect('ui:funding_schedule_detail', pk=pk)
 
 
 class FundingScheduleContractReportView(CouncilScopedMixin, CouncilOrFNCMixin, NoticesMixin, DetailView):

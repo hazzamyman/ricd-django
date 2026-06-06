@@ -143,6 +143,7 @@ urlpatterns = [
     path('funding-schedules/<int:pk>/complete/', views.crud_views.FundingScheduleCompleteView.as_view(), name='funding_schedule_complete'),
     path('funding-schedules/<int:pk>/supersede/', views.crud_views.FundingScheduleSupersededView.as_view(), name='funding_schedule_supersede'),
     path('funding-schedules/<int:pk>/cancel/', views.crud_views.FundingScheduleCancelView.as_view(), name='funding_schedule_cancel'),
+    path('funding-schedules/<int:pk>/generate-instalments/', views.crud_views.FundingScheduleGenerateInstalmentsView.as_view(), name='funding_schedule_generate_instalments'),
 
     # Funding Notices CRUD + close action
     path('funding-notices/', views.crud_views.FundingNoticeListView.as_view(), name='funding_notice_list'),

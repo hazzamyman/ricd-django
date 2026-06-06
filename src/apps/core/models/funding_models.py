@@ -695,6 +695,108 @@ class FundingSchedule(models.Model):
                     "Use a different schedule number."
                 )
 
+    # ------------------------------------------------------------------
+    # Funding sufficiency + per-project instalment generation
+    # ------------------------------------------------------------------
+
+    def _bfa_pool_project_ids(self):
+        ids = list(self.child_projects().values_list('pk', flat=True))
+        if self.project_id and self.project_id not in ids:
+            ids.append(self.project_id)
+        return ids
+
+    @property
+    def approved_bfa_funding_only_for_children(self):
+        """Sum of APPROVED BFAItem funding_amount EXCLUDING contingency for this
+        schedule's projects. Contingency is held back by FNC and is NOT counted
+        as available for allocation."""
+        from decimal import Decimal
+        ids = self._bfa_pool_project_ids()
+        if not ids:
+            return Decimal('0')
+        items = BriefFinancialApprovalItem.objects.filter(
+            bfa__status=BriefFinancialApproval.Status.APPROVED, project_id__in=ids,
+        )
+        return sum((i.funding_amount or Decimal('0') for i in items), Decimal('0'))
+
+    def has_approved_bfa(self):
+        ids = self._bfa_pool_project_ids()
+        if not ids:
+            return False
+        return BriefFinancialApprovalItem.objects.filter(
+            bfa__status=BriefFinancialApproval.Status.APPROVED, project_id__in=ids,
+        ).exists()
+
+    def total_allocated(self):
+        """Sum of WorkFunding allocation amounts on this schedule."""
+        from decimal import Decimal
+        return sum((wf.amount or Decimal('0') for wf in self.work_fundings.all()), Decimal('0'))
+
+    def funding_shortfall(self):
+        """Approved BFA funding (excl. contingency) minus total allocated. Negative
+        means over-allocated. None when there's no approved BFA to assess against."""
+        if not self.has_approved_bfa():
+            return None
+        return self.approved_bfa_funding_only_for_children - self.total_allocated()
+
+    def is_funding_sufficient(self):
+        s = self.funding_shortfall()
+        return None if s is None else s >= 0
+
+    def project_allocations(self):
+        """{project_id: Decimal allocated} from WorkFunding (project + work→project)."""
+        from decimal import Decimal
+        out = {}
+        for wf in self.work_fundings.select_related('work'):
+            pid = wf.project_id or (wf.work.project_id if wf.work_id else None)
+            if pid is None:
+                continue
+            out[pid] = out.get(pid, Decimal('0')) + (wf.amount or Decimal('0'))
+        return out
+
+    def generate_project_instalments(self):
+        """Create per-project sub-payment records — one Payment per project per
+        payment-rule milestone, sized by the project's WorkFunding allocation
+        share. Dates follow the PaymentMilestoneSchedule (anchor SCHEDULED).
+        Idempotent: skips (project, payment_type) that already have a non-rejected
+        payment; never touches released/reconciled ones. Returns (created, total)."""
+        from decimal import Decimal
+        from apps.core.models import Payment
+        if not self.payment_rule:
+            return 0, Decimal('0')
+        milestones = list(self.payment_rule.milestones.order_by('order'))
+        if not milestones:
+            return 0, Decimal('0')
+        types = [Payment.PaymentType.FIRST, Payment.PaymentType.SECOND,
+                 Payment.PaymentType.THIRD, Payment.PaymentType.INTERIM,
+                 Payment.PaymentType.FINAL]
+        created, total = 0, Decimal('0')
+        for pid, amount in self.project_allocations().items():
+            if amount <= 0:
+                continue
+            running = Decimal('0')
+            for i, m in enumerate(milestones):
+                ptype = types[i] if i < len(types) else Payment.PaymentType.FINAL
+                if i == len(milestones) - 1:
+                    share = (amount - running).quantize(Decimal('0.01'))
+                else:
+                    share = (amount * (m.percentage or 0) / Decimal('100')).quantize(Decimal('0.01'))
+                    running += share
+                if Payment.objects.filter(
+                    funding_schedule=self, project_id=pid, payment_type=ptype,
+                ).exclude(status=Payment.Status.REJECTED).exists():
+                    continue
+                Payment.objects.create(
+                    funding_schedule=self, project_id=pid, payment_type=ptype,
+                    calculation_type=Payment.CalculationType.FIXED, amount=share,
+                    percentage=m.percentage, payment_split=Payment.PaymentSplit.CUSTOM,
+                    forecast_anchor=Payment.ForecastAnchor.SCHEDULED,
+                    status=Payment.Status.PENDING,
+                )
+                created += 1
+                total += share
+        return created, total
+
     class Meta:
         constraints = [
             models.UniqueConstraint(
@@ -755,6 +857,23 @@ class WorkFunding(models.Model):
             raise ValidationError('An allocation must target either a project or a work item — not both.')
         if neither_set:
             raise ValidationError('An allocation must target either a project or a work item.')
+        # Funding sufficiency (block): once a BFA is approved, total allocations on
+        # the schedule may not exceed the approved BFA funding. Contingency is held
+        # back by FNC and is NOT counted as available here.
+        if self.amount and self.funding_schedule_id:
+            from decimal import Decimal
+            sched = self.funding_schedule
+            if sched.has_approved_bfa():
+                others = sched.work_fundings.exclude(pk=self.pk) if self.pk else sched.work_fundings.all()
+                other_total = sum((wf.amount or Decimal('0') for wf in others), Decimal('0'))
+                projected = other_total + (self.amount or Decimal('0'))
+                available = sched.approved_bfa_funding_only_for_children
+                if projected > available:
+                    raise ValidationError(
+                        f"Allocations (${projected:,.2f}) would exceed the approved BFA funding "
+                        f"(${available:,.2f}) for this schedule's projects. Increase the BFA or "
+                        f"reduce allocations. (Contingency is held back and not counted.)"
+                    )
 
     def __str__(self):
         if self.work:

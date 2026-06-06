@@ -57,6 +57,44 @@
   </dl>
 </div></div>
 
+{# ── Funding sufficiency + per-project instalments ── #}
+<div class="card mb-3"><div class="card-body">
+  <div class="d-flex justify-content-between align-items-start mb-2">
+    <h6 class="text-muted mb-0">Funding sufficiency &amp; per-project instalments</h6>
+    {% if is_fnc %}
+    <form method="post" action="{% url 'ui:funding_schedule_generate_instalments' funding_schedule.pk %}"
+          onsubmit="return confirm('Generate per-project instalment payments for this schedule? Existing payments are kept.');">
+      {% csrf_token %}
+      <button class="btn btn-sm btn-primary" {% if funding_sufficient is False %}disabled title="Resolve the funding shortfall first"{% endif %}>
+        Generate per-project instalments
+      </button>
+    </form>
+    {% endif %}
+  </div>
+  <dl class="row mb-0" style="font-size:13.5px;">
+    <dt class="col-sm-3">Allocated (WorkFunding)</dt><dd class="col-sm-9">{{ funding_allocated|money }}</dd>
+    {% if funding_has_bfa %}
+      <dt class="col-sm-3">Approved BFA funding</dt>
+      <dd class="col-sm-9">{{ funding_available|money }} <span class="text-muted" style="font-size:11px;">(contingency held back, not counted)</span></dd>
+      <dt class="col-sm-3">Sufficiency</dt>
+      <dd class="col-sm-9">
+        {% if funding_sufficient %}
+          <span class="badge bg-success">Sufficient</span>
+          <span class="text-muted">— {{ funding_shortfall|money }} headroom</span>
+        {% else %}
+          <span class="badge bg-danger">Short by {{ funding_shortfall|money }}</span>
+          <span class="text-muted">— allocations exceed approved BFA funding</span>
+        {% endif %}
+      </dd>
+    {% else %}
+      <dt class="col-sm-3">Approved BFA funding</dt>
+      <dd class="col-sm-9"><span class="text-muted">No approved BFA yet — sufficiency check runs once a BFA is approved.</span></dd>
+    {% endif %}
+    <dt class="col-sm-3">Instalment payments</dt>
+    <dd class="col-sm-9">{{ generated_payment_count }} recorded · sized by each project's allocation × the payment rule, dated by the milestone schedule.</dd>
+  </dl>
+</div></div>
+
 {% with children=funding_schedule.child_projects.all %}
 {% if children %}
 <div class="card mb-3"><div class="card-body">
