@@ -1,140 +1,119 @@
-# RICD Domain Model Gap Analysis
+# RICD Domain Model — Gap Analysis (current state)
 
-**Analysis Date:** 2026-04-27
-**Reference:** docs/RICD_domain_model.md
+**Refreshed:** 2026-06-06
+**Reference spec:** `docs/RICD_domain_model.md`
+**Scope:** `src/apps/core/models/*` (the consolidated `core` models layer)
+
+> **Note:** This supersedes the 2026-04-27 version, which predated the layer
+> refactor and the Phase-1/2 build-out. Most entities that the old version
+> listed as "missing" now exist. This document reflects the model as built.
 
 ---
 
 ## Summary
 
-The current codebase covers ~60% of the domain model entities. Major gaps exist in:
-1. FundingAgreement entity (legal umbrella)
-2. PaymentRule (immutable, versioned)
-3. FundingNotice + ExpenseClaim pathway
-4. BriefFinancialApproval (pre-condition)
-5. Generic Approval + WorkflowAction + AuditLog
+The domain model is **substantially complete** and in several areas exceeds the
+spec (reporting and stages are richer than the single `Report`/`ProjectStage`
+entities the spec describes). All spec entities are present. The remaining
+differences are a handful of deliberate structural/naming choices plus two small
+items closed on 2026-06-06 (see "Recently closed").
 
 ---
 
-## Entity Mapping
+## Entity coverage
 
-### ✅ Present & Aligned
-
-| Domain Entity | Current Model | App | Status |
-|--------------|---------------|-----|--------|
-| Council | Council | councils | ✅ Matches spec |
-| Program | Program | programs | ✅ Matches spec |
-| Project | Project | projects | ✅ Has type field, parent ref |
-| Address | Address | addresses | ✅ Matches spec |
-| Work | Work | works | ✅ Matches spec |
-| WorkType | WorkType | works | ✅ Matches spec |
-| ProjectStage | Stage | stages | ✅ Matches spec |
-| Report | Report | reports | ✅ Matches spec |
-| VariationDeed | Variation | variations | ✅ Matches spec |
-| VariationItem | VariationItem | variations | ✅ Matches spec |
-| Payment | Payment | payments | ✅ Matches spec |
-
-### ⚠️ Present but Different Structure
-
-| Domain Entity | Current Model | Issues |
-|--------------|--------------|--------|
-| **FundingAgreement** | `FundingSchedule` (funding app) | Currently serves as both agreement + schedule. Spec requires split. |
-| **FundingSchedule** | `FundingSchedule` (funding app) | Missing: payment_rule_id (NOT NULL), schedule_number, replaces_schedule_id, agreement link |
-| **Allocation** | `WorkFunding` (funding app) | Partial. Missing DB CHECK for XOR project/work |
-| **Project (LAND)** | `LandProject` (land_infra app) | Separate app instead of type=LAND on Project |
-| **Approval** | `FundingApproval` (funding app) | Specific to funding, not generic |
-| **FundingNotice** | None | Missing entity |
-| **ExpenseClaim** | None | Missing entity |
-| **BriefFinancialApproval** | `FundingApproval` (funding app) | Partial - serves similar purpose |
-| **WorkflowAction** | `ProjectStateLog` (funding app) | Partial - only projects, not generic |
-| **AuditLog** | None | Missing entity |
-| **PaymentRule** | None | Missing entity |
-
-### ❌ Missing Entities
-
-| Domain Entity | Priority | Notes |
-|--------------|----------|-------|
-| PaymentRule | HIGH | Required for FundingSchedule (NOT NULL) |
-| FundingAgreement | HIGH | Legal umbrella - split from FundingSchedule |
-| FundingNotice | MEDIUM | Capped payment pathway |
-| ExpenseClaim | MEDIUM | Against FundingNotice |
-| BriefFinancialApproval | HIGH | Pre-condition for funding creation |
-| Approval (generic) | HIGH | Unified governance |
-| WorkflowAction | MEDIUM | Generic event log |
-| AuditLog | LOW | Data-level change tracking |
+| Spec entity | Implemented as | Status |
+|-------------|----------------|--------|
+| Council | `Council` | ✅ |
+| FundingAgreement | `FundingAgreement` | ✅ legal umbrella, split from schedule |
+| PaymentRule | `PaymentRule` (+ `PaymentRuleMilestone`) | ✅ versioned; `clean()` immutability |
+| FundingSchedule | `FundingSchedule` | ✅ agreement link, schedule_number, payment_rule, replaces_schedule, lifecycle |
+| VariationDeed | `Variation` | ✅ (status DRAFT/SENT/EXECUTED) |
+| VariationItem | `VariationItem` | ✅ option types as `OPTION_1..9`/`OTHER` (QGDS deed numbering) |
+| Program | `Program` | ✅ (+ per-FY `ProgramBudget`) |
+| Project | `Project` | ✅ `type` LAND/DWELLING, parent-land self-ref, state machine |
+| Address | `Address` | ✅ (richer than spec) |
+| Work | `Work` | ✅ + `cashflow_method`, `step_group`, `actual_start_date` |
+| WorkType | `WorkType` | ✅ + `short_code`, notional costs |
+| Allocation | `WorkFunding` | ✅ **project-XOR-work `CheckConstraint`** + cost_centre/gl_code/tax_code |
+| Payment | `Payment` | ✅ (see divergences) |
+| FundingNotice | `FundingNotice` | ✅ capped_amount, remaining/expended props |
+| ExpenseClaim | `ExpenseClaim` | ✅ **cap enforced in `clean()`** |
+| BriefFinancialApproval | `BriefFinancialApproval` (+ items) | ✅ + per-program split, contingency |
+| Approval | `Approval` | ✅ generic (entity_type/entity_id/approval_type/required_role) |
+| Report | `MonthlyTracker`, `QuarterlyReport`, `StageReport` | ✅ split into 3 purpose-built models |
+| ProjectStage | `Stage` (+ `StageReport`/`StageItemGroup`) | ⚠️ thin `Stage`; richer workflow elsewhere |
+| WorkflowAction | `WorkflowAction` | ✅ generic immutable event log |
+| AuditLog | `AuditLog` | ✅ auto-written by signals for financial models |
+| PaymentAllocation | `PaymentAllocation` | ✅ (extra) per-program snapshot locked at release |
+| WorkStep* (cashflow) | `WorkStepDefinition/Group/GroupItem`, `WorkStep` | ✅ rolling forecast |
+| PaymentMilestoneSchedule/Rule | same | ✅ (extra) configurable payment timing |
 
 ---
 
-## Structural Gaps
+## Remaining divergences from the spec
 
-### 1. FundingSchedule
-**Current:** Links to Project OR LandProject directly
-**Spec Required:**
-- `funding_agreement_id` FK → FundingAgreement
-- `schedule_number` int
-- `payment_rule_id` FK (NOT NULL)
-- `replaces_schedule_id` self-FK
-- Status: `DRAFT → READY_FOR_EXECUTION → EXECUTED → ACTIVE → COMPLETED/SUPERSEDED`
+### 1. Payment ↔ Allocation linkage (partially addressed)
+- **Spec:** `Payment.allocation_id → Allocation(→ Project XOR Work)`.
+- **Built:** `Payment → project + funding_schedule`. As of 2026-06-06 an optional
+  `Payment.work` FK exists for "trace this payment to its dwelling". Program-level
+  traceability is via `PaymentAllocation` (snapshotted at release).
+- **Residual gap:** no FK to the `WorkFunding` allocation row itself; payment isn't
+  tied to a specific allocation line, only (optionally) to a Work.
 
-### 2. Project
-**Current:** Uses LandProject for land, Project for dwelling
-**Spec Required:** Single entity with `type = LAND | DWELLING`, `parent_land_project_id` self-FK
+### 2. FundingNotice / ExpenseClaim pathway is separate from Payment & Cashflow
+- Notice disbursements are `ExpenseClaim` rows, not `Payment` rows, so they don't
+  appear in the program × FY cashflow matrix.
+- As of 2026-06-06 the cashflow page shows a **Notice / Expense-Claim pathway**
+  summary panel so the stream is acknowledged, but it is not bucketed by FY.
 
-### 3. PaymentRule
-**Spec Required (NOT NULL on FundingSchedule):**
-- `id`, `name`, `rule_type` (SPLIT/INVOICE_BASED), `config_json`, `version`
+### 3. `Stage` thinner than spec `ProjectStage`
+- `Stage` has name/dates/status only — no `stage_type`, planned-vs-actual split,
+  or `sequence_order` UNIQUE per project. The real stage-gate workflow is carried
+  by `StageReport` (STAGE1/STAGE2, DRAFT→SUBMITTED→ASSESSED→APPROVED) and
+  `StageItemGroup` checklists, plus `WorkStepGroupItem.stage_gate`.
 
-### 4. Approval Chain
-**Current:** FundingApproval has hardcoded chain (manager → director → ed → gm → ddg → dg)
-**Spec Required:** Generic Approval entity with `entity_type`, `entity_id`, `approval_type`, `required_role`
-
----
-
-## Key Business Rules Not Implemented
-
-1. **BriefFinancialApproval must be APPROVED before FundingSchedule creation**
-2. **PaymentRule immutable once linked to FundingSchedule**
-3. **ExpenseClaim cap enforcement** (SUM approved ≤ capped_amount)
-4. **FundingSchedule.status = ACTIVE** on first APPROVED payment
-5. **FundingSchedule.status = SUPERSEDED** on REPLACE variation
-6. **Stage 1 APPROVED** → unlocks second payment
-7. **Stage 2 APPROVED** → unlocks final payment
+### 4. Naming: Variation options
+- `VariationItem.option` uses `OPTION_1..OPTION_9`/`OTHER` (matching the QGDS deed
+  "Option N" structure) rather than the spec's `ADD_/REMOVE_/REPLACE_/VARY_*`
+  enum names. Semantics are equivalent; the replace→supersede effect is handled
+  via `VariationFundingSchedule` + signals.
 
 ---
 
-## Recommendations
+## Recently closed (2026-06-06)
 
-### Phase 1: Core Structure (HIGH)
-1. Create PaymentRule model
-2. Create FundingAgreement model  
-3. Refactor FundingSchedule to reference FundingAgreement, add payment_rule_id (NOT NULL)
-4. Add BriefFinancialApproval model
-
-### Phase 2: Payment Pathways (MEDIUM)
-1. Create FundingNotice model
-2. Create ExpenseClaim model
-3. Implement cap enforcement logic
-
-### Phase 3: Governance (MEDIUM)
-1. Create generic Approval model
-2. Create WorkflowAction model (generic, not just projects)
-3. Create AuditLog model
-
-### Phase 4: Cleanup (LOW)
-1. Merge LandProject → Project with type field
-2. Add DB CHECK constraint for Allocation (project XOR work)
-3. Implement lifecycle signals/automation
+- **Payment `RECONCILED` status** added (spec lifecycle `RELEASED → RECONCILED`),
+  with a `reconciled_date` stamp and a "Reconcile" action on released payments.
+- **`Payment.work`** optional FK so a payment can be traced to the specific
+  dwelling/lot it funds (form constrains choices to the project's works).
+- **Cashflow notice-pathway panel** added (item 2 above).
 
 ---
 
-## Migration Complexity Estimate
+## Business rules — implementation status
 
-| Phase | Complexity | Models Affected |
-|-------|-----------|---------------|
-| Phase 1 | High | funding |
-| Phase 2 | Medium | funding, payments |
-| Phase 3 | Medium | funding, accounts |
-| Phase 4 | High | projects, land_infra |
+| Rule | Status |
+|------|--------|
+| BFA APPROVED before FundingSchedule creation | Enforced in model `clean()` |
+| PaymentRule immutable once linked | Enforced in `PaymentRule.clean()` |
+| ExpenseClaim `SUM(approved) ≤ capped_amount` | Enforced in `ExpenseClaim.clean()` |
+| Allocation project XOR work | DB `CheckConstraint` + `clean()` |
+| FundingSchedule → ACTIVE on first APPROVED payment | Signal (`apps/core/signals.py`) |
+| FundingSchedule → SUPERSEDED on REPLACE variation | Signal/business-rules trigger |
+| Stage 1/2 APPROVED → unlock next payment | Signal on report/stage approval |
+| WorkflowAction + AuditLog on state changes | Signals (broad post_save/pre_save) |
 
-**Total models to modify/create:** ~12
-**Estimated migration files:** 8-10
+> **Caveat:** rules in `.clean()` run via ModelForms/admin, but bulk writes and
+> `save(update_fields=...)` paths can bypass `clean()`. Acceptable for current use;
+> worth promoting the most critical ones to DB constraints or `save()` guards later.
+
+---
+
+## Suggested follow-ups (non-blocking)
+
+1. Optional `Payment.allocation` FK (to `WorkFunding`) to fully close divergence #1.
+2. Squash migrations `0037–0040` (forecast-anchor churn) into one.
+3. Consolidate the 17 live `src/templates/*` files into `apps/ui/templates/` and
+   drop `src/templates` from `TEMPLATES['DIRS']`.
+4. Promote key `clean()` rules to `save()`/DB constraints for non-form write paths.

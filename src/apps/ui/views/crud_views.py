@@ -1280,7 +1280,7 @@ class PaymentListView(CouncilScopedMixin, CouncilOrFNCMixin, ListView):
 class PaymentCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = Payment
     template_name = 'crud/form.html'
-    fields = ['project', 'funding_schedule', 'payment_type', 'calculation_type',
+    fields = ['project', 'funding_schedule', 'work', 'payment_type', 'calculation_type',
               'payment_split', 'percentage', 'amount', 'forecast_anchor',
               'forecast_release_date', 'status']
 
@@ -1289,6 +1289,12 @@ class PaymentCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
 
     def get_initial(self):
         return {'project': self.kwargs['project_pk']}
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        if 'work' in form.fields:
+            form.fields['work'].queryset = Work.objects.filter(project_id=self.kwargs['project_pk'])
+        return form
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -1324,12 +1330,18 @@ class PaymentDetailView(CouncilScopedMixin, CouncilOrFNCMixin, NoticesMixin, Det
 class PaymentUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = Payment
     template_name = 'crud/form.html'
-    fields = ['project', 'funding_schedule', 'payment_type', 'calculation_type',
+    fields = ['project', 'funding_schedule', 'work', 'payment_type', 'calculation_type',
               'payment_split', 'percentage', 'amount', 'forecast_anchor',
               'forecast_release_date', 'status']
 
     def get_success_url(self):
         return reverse_lazy('ui:payment_list', kwargs={'project_pk': self.kwargs['project_pk']})
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        if 'work' in form.fields:
+            form.fields['work'].queryset = Work.objects.filter(project_id=self.kwargs['project_pk'])
+        return form
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -2576,6 +2588,19 @@ class PaymentReleaseView(LoginRequiredMixin, RoleRequiredMixin, View):
         payment.status = Payment.Status.RELEASED
         payment.save()
         messages.success(request, 'Payment released.')
+        return redirect('ui:payment_detail', project_pk=project_pk, pk=pk)
+
+
+class PaymentReconcileView(LoginRequiredMixin, RoleRequiredMixin, View):
+    required_roles = MANAGER_ROLES
+    def post(self, request, project_pk, pk):
+        payment = get_object_or_404(Payment, pk=pk, project_id=project_pk)
+        if payment.status != Payment.Status.RELEASED:
+            messages.error(request, 'Only released payments can be reconciled.')
+            return redirect('ui:payment_detail', project_pk=project_pk, pk=pk)
+        payment.status = Payment.Status.RECONCILED
+        payment.save()  # save() stamps reconciled_date
+        messages.success(request, 'Payment reconciled (acquitted).')
         return redirect('ui:payment_detail', project_pk=project_pk, pk=pk)
 
 

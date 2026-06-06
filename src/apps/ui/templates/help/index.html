@@ -211,7 +211,8 @@
         <li><strong>Funding Schedule</strong> created for the project (requires an approved BFA) and executed.</li>
         <li><strong>Payments</strong> raised against the schedule's payment rule (e.g. 30/60/10). The first approved payment moves the schedule to <em>Active</em>.</li>
         <li><strong>Reports</strong> (Stage 1 / Stage 2) approved unlock the next payment.</li>
-        <li><strong>Release &amp; reconcile</strong> — released payments are snapshotted against program allocations for traceability.</li>
+        <li><strong>Release &amp; reconcile</strong> — released payments are snapshotted against program allocations for
+          traceability, then marked <code>RECONCILED</code> once acquitted.</li>
       </ol>
       <p>Use <strong>Dashboard → Traceability</strong> to "follow the money" from a council down through agreements, schedules, allocations and payments.</p>
     </section>
@@ -247,6 +248,17 @@
         project. No code change, and the payment dates follow.
       </div>
       <p>When you edit a schedule or rule, existing scheduled payments are re-derived immediately.</p>
+
+      <h3>Reconciliation &amp; the notice pathway</h3>
+      <ul>
+        <li>A payment moves <code>PENDING → RECOMMENDED → APPROVED → RELEASED → RECONCILED</code>. Use the
+          <strong>Reconcile</strong> button on a released payment to mark it acquitted (the reconciled date is stamped automatically).</li>
+        <li>A payment can optionally name the <strong>specific work (dwelling/lot) it funds</strong>, so finance can trace a
+          payment down to the physical output.</li>
+        <li>The cashflow page also shows a <strong>Notice / Expense-Claim pathway</strong> panel. That capped, claim-based
+          stream is funded via Funding Notices + Expense Claims, <em>not</em> Payment rows, so it sits beside the matrix
+          rather than inside it.</li>
+      </ul>
     </section>
 
     <section id="tracker">
@@ -306,9 +318,10 @@
     <section id="limits">
       <h2><i class="bi bi-exclamation-triangle"></i> 9. Limitations &amp; things to know</h2>
       <ul>
-        <li><strong>Payments link to a project + funding schedule, not a single work.</strong> Scheduled timing resolves the
-          milestone across the project's works (latest date wins for "site establishment" / completion). Keep a project's
-          works on one work-step group for predictable timing; use a cloned group or a separate project for outliers.</li>
+        <li><strong>Payments link to a project + funding schedule, and optionally to one specific work.</strong> Use the
+          "Funds work" field to trace a payment to a dwelling/lot. Scheduled timing still resolves the milestone across all
+          the project's works (latest date wins for "site establishment" / completion), so keep a project's works on one
+          work-step group for predictable timing; use a cloned group or a separate project for outliers.</li>
         <li><strong>Scheduled payment dates need their milestone to exist.</strong> If a project's works have no
           "Site establishment" step yet, that payment stays undated until the step (or its date) is recorded.</li>
         <li><strong>Manual always wins.</strong> Setting a payment to Manual, or typing a date, opts it out of automatic rolling.</li>

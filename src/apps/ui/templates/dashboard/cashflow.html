@@ -190,4 +190,19 @@
 {% endif %}
 
 {% endif %}
+
+{% if notice_summary.count %}
+<div class="card mb-3"><div class="card-body">
+  <div class="sec-h">
+    <h2>Notice / Expense-Claim pathway ({{ notice_summary.count }})</h2>
+    <span style="font-size:12px; color:var(--muted);">Capped funding paid via expense claims against a Funding Notice — a separate stream that is <strong>not</strong> part of the schedule-based matrix above.</span>
+  </div>
+  <div class="row g-3">
+    <div class="col-md-3"><div class="kpi"><div class="label">Capped (total)</div><div class="value">{{ notice_summary.capped|money }}</div></div></div>
+    <div class="col-md-3"><div class="kpi"><div class="label">Approved claims</div><div class="value">{{ notice_summary.approved|money }}</div></div></div>
+    <div class="col-md-3"><div class="kpi"><div class="label">Remaining cap</div><div class="value">{{ notice_summary.remaining|money }}</div></div></div>
+    <div class="col-md-3"><div class="kpi"><div class="label">Open notices</div><div class="value">{{ notice_summary.open }}</div></div></div>
+  </div>
+</div></div>
+{% endif %}
 {% endblock %}

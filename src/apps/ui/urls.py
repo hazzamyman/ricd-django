@@ -36,6 +36,7 @@ urlpatterns = [
     path('projects/<int:project_pk>/payments/<int:pk>/recommend/', views.crud_views.PaymentRecommendView.as_view(), name='payment_recommend'),
     path('projects/<int:project_pk>/payments/<int:pk>/approve/', views.crud_views.PaymentApproveView.as_view(), name='payment_approve'),
     path('projects/<int:project_pk>/payments/<int:pk>/release/', views.crud_views.PaymentReleaseView.as_view(), name='payment_release'),
+    path('projects/<int:project_pk>/payments/<int:pk>/reconcile/', views.crud_views.PaymentReconcileView.as_view(), name='payment_reconcile'),
     path('projects/<int:project_pk>/payments/<int:pk>/reject/', views.crud_views.PaymentRejectView.as_view(), name='payment_reject'),
 
     # Stage Reports (nested under project)

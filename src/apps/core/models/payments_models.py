@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import date, timedelta
 from django.db import models
 from decimal import Decimal
 
@@ -26,6 +26,7 @@ class Payment(models.Model):
         RECOMMENDED = 'RECOMMENDED', 'Recommended'
         APPROVED = 'APPROVED', 'Approved'
         RELEASED = 'RELEASED', 'Released'
+        RECONCILED = 'RECONCILED', 'Reconciled (acquitted)'
         REJECTED = 'REJECTED', 'Rejected'
 
     class ForecastAnchor(models.TextChoices):
@@ -39,7 +40,13 @@ class Payment(models.Model):
 
     project = models.ForeignKey('Project', related_name='payments', on_delete=models.CASCADE)
     funding_schedule = models.ForeignKey('FundingSchedule', related_name='payments', on_delete=models.CASCADE)
-    
+    # Optional trace to the specific work (dwelling/lot/infrastructure) this
+    # payment funds — lets finance follow a payment down to the physical output.
+    work = models.ForeignKey(
+        'Work', related_name='payments', null=True, blank=True, on_delete=models.SET_NULL,
+        help_text="The specific work (dwelling/lot) this payment funds, if applicable.",
+    )
+
     # Payment calculation type
     calculation_type = models.CharField(max_length=20, choices=CalculationType.choices, default=CalculationType.PERCENTAGE)
     
@@ -102,7 +109,10 @@ class Payment(models.Model):
     release_document_url = models.URLField(max_length=500, blank=True, help_text="Link to receipt in OpenDocs/SharePoint")
     release_document_path = models.CharField(max_length=500, blank=True, help_text="Path to receipt on shared drive")
     release_notes = models.TextField(blank=True, help_text="Notes from release (e.g., finance team comments)")
-    
+
+    # Reconciliation / acquittal (terminal state after RELEASED)
+    reconciled_date = models.DateField(null=True, blank=True, help_text="Date this payment was reconciled/acquitted")
+
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -150,6 +160,9 @@ class Payment(models.Model):
     def save(self, *args, **kwargs):
         if not self.forecast_anchor:
             self.forecast_anchor = self.ForecastAnchor.MANUAL
+        # Stamp the acquittal date when a payment is marked reconciled.
+        if self.status == self.Status.RECONCILED and self.reconciled_date is None:
+            self.reconciled_date = date.today()
         # New payments auto-opt into scheduling when a milestone rule applies, so
         # staff never hand-set dates for the standard flow. Explicit MANUAL picks
         # (or a hand-set date) are preserved.

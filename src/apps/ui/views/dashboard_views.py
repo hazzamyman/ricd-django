@@ -104,8 +104,32 @@ def cashflow_view(request):
     hide_contingency = role in ('COUNCIL_USER', 'COUNCIL_MANAGER')
     data = build_program_cashflow(program=program, councils=councils, hide_contingency=hide_contingency)
 
+    # Notice / Expense-Claim pathway runs alongside the schedule-based matrix:
+    # these disbursements are ExpenseClaims against a FundingNotice cap, NOT
+    # Payment rows, so they don't appear in the matrix above. Summarise them so
+    # the cashflow page acknowledges this funding stream (same program/council
+    # filters as the matrix).
+    from decimal import Decimal
+    from apps.core.models import FundingNotice
+    notices = FundingNotice.objects.select_related('project')
+    if program:
+        notices = notices.filter(project__program=program)
+    if councils:
+        notices = notices.filter(project__council_id__in=councils)
+    notice_list = list(notices)
+    notice_capped = sum((n.capped_amount or Decimal('0')) for n in notice_list)
+    notice_approved = sum((n.approved_claims_total or Decimal('0')) for n in notice_list)
+    notice_summary = {
+        'count': len(notice_list),
+        'capped': notice_capped,
+        'approved': notice_approved,
+        'remaining': notice_capped - notice_approved,
+        'open': sum(1 for n in notice_list if n.status == 'OPEN'),
+    }
+
     return render(request, 'dashboard/cashflow.html', {
         'data': data,
+        'notice_summary': notice_summary,
         'programs': Program.objects.filter(is_active=True).order_by('name'),
         'councils': Council.objects.order_by('name'),
         'selected_program_id': program_id,
