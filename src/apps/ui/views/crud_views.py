@@ -31,7 +31,7 @@ from apps.core.models import (
     Variation, VariationItem, Payment, StageReport, QuarterlyReport,
     FundingAgreement, FundingNotice, ExpenseClaim, WorkFunding,
     StateElectorate, FederalElectorate, QhigiRegion,
-    SiteSettings, PaymentMilestoneSchedule, PaymentMilestoneRule,
+    SiteSettings, PaymentMilestoneSchedule, PaymentMilestoneRule, Contractor,
 )
 
 COUNCIL_ROLES = frozenset({'COUNCIL_USER', 'COUNCIL_MANAGER'})
@@ -2279,6 +2279,7 @@ class WorkCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
     template_name = 'crud/form.html'
     fields = ['work_type', 'work_type_other', 'bedrooms', 'quantity',
               'estimated_cost', 'status', 'is_notional_cost', 'actual_cost', 'address',
+              'contractor',
               'forecast_practical_completion_date', 'practical_completion_date',
               'forecast_handover_date', 'handover_date',
               'floor_number', 'livable_housing_level', 'usage_type',
@@ -2298,6 +2299,24 @@ class WorkCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
             form.fields['work_type'].widget = PopupAddSelect(
                 add_url=reverse('ui:work_type_create'), add_label='Add work type',
                 choices=form.fields['work_type'].choices,
+            )
+        if 'contractor' in form.fields:
+            council_id = Project.objects.filter(
+                pk=self.kwargs['project_pk']
+            ).values_list('council_id', flat=True).first()
+            if council_id:
+                form.fields['contractor'].queryset = Contractor.objects.filter(
+                    council_id=council_id, is_active=True
+                )
+            add_url = reverse('ui:contractor_quick_add')
+            if council_id:
+                add_url += f'?council={council_id}'
+            form.fields['contractor'].widget = PopupAddSelect(
+                add_url=add_url, add_label='Add contractor',
+                choices=form.fields['contractor'].choices,
+            )
+            form.fields['contractor'].help_text = (
+                "If the Council will NOT be the principal contractor, add the contractor here."
             )
         return form
 
@@ -2414,6 +2433,22 @@ class WorkUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
                 add_url=reverse('ui:work_type_create'), add_label='Add work type',
                 choices=form.fields['work_type'].choices,
             )
+        if 'contractor' in form.fields:
+            council_id = self.object.project.council_id if self.object and self.object.project_id else None
+            if council_id:
+                form.fields['contractor'].queryset = Contractor.objects.filter(
+                    council_id=council_id, is_active=True
+                )
+            add_url = reverse('ui:contractor_quick_add')
+            if council_id:
+                add_url += f'?council={council_id}'
+            form.fields['contractor'].widget = PopupAddSelect(
+                add_url=add_url, add_label='Add contractor',
+                choices=form.fields['contractor'].choices,
+            )
+            form.fields['contractor'].help_text = (
+                "If the Council will NOT be the principal contractor, add the contractor here."
+            )
         return form
 
     def get_success_url(self):
@@ -2425,6 +2460,48 @@ class WorkUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
         ctx['back_url'] = _safe_next(self.request, reverse_lazy('ui:work_list', kwargs={'project_pk': self.object.project_id}))
         ctx['advanced_fields'] = _WORK_ADVANCED_FIELDS
         ctx['advanced_has_errors'] = any(ctx['form'].has_error(f) for f in _WORK_ADVANCED_FIELDS)
+        return ctx
+
+
+class ContractorQuickAddView(PopupAwareCreateMixin, WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
+    """Inline (popup) quick-add of a contractor from a Work form, so staff don't
+    have to leave to create one. Only the contractor name is required; the
+    council is taken from the work's project via the ?council= query param."""
+    model = Contractor
+    template_name = 'crud/form.html'
+    fields = ['company_name', 'abn', 'licence_number', 'email', 'phone',
+              'address', 'trade_type', 'notes']
+
+    def _council_id(self):
+        return self.request.GET.get('council') or self.request.POST.get('council')
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        # Only the name is mandatory.
+        for name, field in form.fields.items():
+            field.required = (name == 'company_name')
+        form.fields['company_name'].label = 'Name'
+        if 'licence_number' in form.fields:
+            form.fields['licence_number'].label = 'QBCC licence number'
+        if 'phone' in form.fields:
+            form.fields['phone'].label = 'Phone'
+        return form
+
+    def form_valid(self, form):
+        cid = self._council_id()
+        if cid:
+            form.instance.council_id = cid
+        if not form.instance.trade_type:
+            form.instance.trade_type = Contractor.TradeType.OTHER
+        if not form.instance.council_id:
+            from django.contrib import messages as _m
+            _m.error(self.request, 'Could not determine the council for this contractor.')
+            return self.form_invalid(form)
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Add contractor'
         return ctx
 
 

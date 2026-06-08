@@ -28,6 +28,7 @@ urlpatterns = [
     path('projects/<int:pk>/archive/', views.crud_views.ProjectArchiveView.as_view(), name='project_archive'),
     path('projects/<int:pk>/unarchive/', views.crud_views.ProjectUnarchiveView.as_view(), name='project_unarchive'),
     path('projects/<int:pk>/transfer-works/', views.crud_views.ProjectTransferWorksView.as_view(), name='project_transfer_works'),
+    path('contractors/quick-add/', views.crud_views.ContractorQuickAddView.as_view(), name='contractor_quick_add'),
     path('projects/<int:pk>/set-completion-dates/', views.crud_views.ProjectSetCompletionDatesView.as_view(), name='project_set_completion_dates'),
 
     # Payments (nested under project)

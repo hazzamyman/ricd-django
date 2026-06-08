@@ -25,7 +25,8 @@ class Contractor(models.Model):
 
     council = models.ForeignKey(Council, related_name='contractors', on_delete=models.CASCADE)
     company_name = models.CharField(max_length=255)
-    trade_type = models.CharField(max_length=30, choices=TradeType.choices)
+    # Only the contractor name is mandatory; trade type defaults to Other.
+    trade_type = models.CharField(max_length=30, choices=TradeType.choices, blank=True, default=TradeType.OTHER)
     contact_name = models.CharField(max_length=255, blank=True)
     email = models.EmailField(blank=True)
     phone = models.CharField(max_length=50, blank=True)
