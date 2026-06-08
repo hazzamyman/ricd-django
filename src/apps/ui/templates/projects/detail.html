@@ -201,6 +201,9 @@
     {% if is_fnc %}
     <a href="{% url 'ui:project_edit' project.pk %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-pencil"></i> Edit</a>
     {% endif %}
+    {% if is_manager %}
+    <a href="{% url 'ui:project_delete' project.pk %}" class="btn btn-outline-danger btn-sm" title="Delete this project (RICD Manager / superuser only)"><i class="bi bi-trash"></i> Delete</a>
+    {% endif %}
     <a href="{% url 'ui:projects_list' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back</a>
   </div>
 </div>

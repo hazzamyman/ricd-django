@@ -761,6 +761,10 @@ class ProjectUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
 
 
 class ProjectDeleteView(WriteRequiredMixin, DeleteView):
+    # Deleting a project is destructive — it cascades to works, addresses,
+    # payments, funding allocations etc. Restrict to RICD Managers and
+    # superusers only (regular officers and council/read-only roles cannot).
+    required_roles = MANAGER_ROLES
     model = Project
     template_name = 'crud/confirm_delete.html'
     success_url = reverse_lazy('ui:projects_list')
