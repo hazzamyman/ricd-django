@@ -3771,7 +3771,7 @@ class SiteSettingsView(LoginRequiredMixin, View):
             messages.success(request, 'Site settings updated.')
         else:
             messages.error(request, 'A valid email address is required.')
-        return redirect('site_settings')
+        return redirect('ui:site_settings')
 
 
 # ============================================================================
