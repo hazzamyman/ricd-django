@@ -73,6 +73,12 @@ class Project(models.Model):
     )
     status_flag = models.CharField(max_length=2, choices=StatusFlag.choices, default=StatusFlag.ON_TRACK, db_index=True)
 
+    # Archive (reversible) — for projects that started but were cancelled / never
+    # finished. Archived projects are retained but hidden from active lists.
+    is_archived = models.BooleanField(default=False, db_index=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
+    archived_reason = models.CharField(max_length=255, blank=True)
+
     land_parcels = models.ManyToManyField('LandTenure', related_name='projects', blank=True)
     
     # Land-specific fields (from LandProject migration)

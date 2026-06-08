@@ -185,7 +185,7 @@
       {% elif project.state == 'COMP' %}<span class="state-badge state-comp">Completed</span>
       {% endif %}
     </div>
-    <h1 style="margin-top:8px;">{{ project.name }}</h1>
+    <h1 style="margin-top:8px;">{{ project.name }}{% if project.is_archived %} <span class="badge bg-secondary" title="{{ project.archived_reason|default:'Archived' }}">Archived</span>{% endif %}</h1>
     <div class="meta">
       <span><b>Council:</b> <a href="{% url 'ui:council_detail' project.council.pk %}">{{ project.council }}</a></span>
       <span class="sep-dot">·</span>
@@ -200,6 +200,14 @@
   <div class="actions">
     {% if is_fnc %}
     <a href="{% url 'ui:project_edit' project.pk %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-pencil"></i> Edit</a>
+    {% endif %}
+    {% if is_writer %}
+    <a href="{% url 'ui:project_transfer_works' project.pk %}" class="btn btn-outline-secondary btn-sm" title="Move works to another project in the same council"><i class="bi bi-arrow-left-right"></i> Move works</a>
+    {% if project.is_archived %}
+    <form method="post" action="{% url 'ui:project_unarchive' project.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-outline-success btn-sm"><i class="bi bi-arrow-counterclockwise"></i> Unarchive</button></form>
+    {% else %}
+    <form method="post" action="{% url 'ui:project_archive' project.pk %}" class="d-inline" onsubmit="return confirm('Archive this project? It will be hidden from active lists but kept (reversible).');">{% csrf_token %}<button class="btn btn-outline-warning btn-sm"><i class="bi bi-archive"></i> Archive</button></form>
+    {% endif %}
     {% endif %}
     {% if is_manager %}
     <a href="{% url 'ui:project_delete' project.pk %}" class="btn btn-outline-danger btn-sm" title="Delete this project (RICD Manager / superuser only)"><i class="bi bi-trash"></i> Delete</a>

@@ -775,6 +775,86 @@ class ProjectDeleteView(WriteRequiredMixin, DeleteView):
         return ctx
 
 
+class ProjectArchiveView(WriteRequiredMixin, View):
+    """Reversible archive — for projects that were cancelled / never finished.
+    Keeps the record but hides it from active lists. FNC staff only."""
+    def post(self, request, pk):
+        project = get_object_or_404(Project, pk=pk)
+        project.is_archived = True
+        project.archived_at = timezone.now()
+        project.archived_reason = (request.POST.get('reason') or '').strip()[:255]
+        project.save(update_fields=['is_archived', 'archived_at', 'archived_reason', 'updated_at'])
+        messages.success(request, f"Project '{project.name}' archived.")
+        return redirect('ui:project_detail', pk=pk)
+
+
+class ProjectUnarchiveView(WriteRequiredMixin, View):
+    def post(self, request, pk):
+        project = get_object_or_404(Project, pk=pk)
+        project.is_archived = False
+        project.archived_at = None
+        project.archived_reason = ''
+        project.save(update_fields=['is_archived', 'archived_at', 'archived_reason', 'updated_at'])
+        messages.success(request, f"Project '{project.name}' restored from archive.")
+        return redirect('ui:project_detail', pk=pk)
+
+
+class ProjectTransferWorksView(WriteRequiredMixin, View):
+    """Move works from this project to another project of the SAME council.
+    Moving a work also moves its address (and any sibling works at that address)
+    so an address never spans two projects. FNC staff only."""
+    template_name = 'projects/transfer_works.html'
+
+    def _targets(self, source):
+        return (Project.objects.filter(council=source.council, is_archived=False)
+                .exclude(pk=source.pk).order_by('name'))
+
+    def get(self, request, pk):
+        source = get_object_or_404(Project, pk=pk)
+        return render(request, self.template_name, {
+            'source': source,
+            'works': source.works.select_related('work_type', 'address').order_by('id'),
+            'targets': self._targets(source),
+        })
+
+    def post(self, request, pk):
+        source = get_object_or_404(Project, pk=pk)
+        target = (Project.objects.filter(
+            pk=request.POST.get('target_project'), council=source.council
+        ).exclude(pk=source.pk).first())
+        work_ids = request.POST.getlist('works')
+        if not target:
+            messages.error(request, 'Choose a valid target project in the same council.')
+            return redirect('ui:project_transfer_works', pk=pk)
+        if not work_ids:
+            messages.error(request, 'Select at least one work to move.')
+            return redirect('ui:project_transfer_works', pk=pk)
+
+        moved = set()
+
+        def _move(w):
+            if w.pk in moved:
+                return
+            w.project = target
+            w.save(update_fields=['project', 'updated_at'])
+            moved.add(w.pk)
+
+        for w in Work.objects.filter(pk__in=work_ids, project=source).select_related('address'):
+            _move(w)
+            if w.address_id:
+                if w.address.project_id != target.pk:
+                    Address.objects.filter(pk=w.address_id).update(project=target)
+                for sib in Work.objects.filter(address_id=w.address_id):
+                    _move(sib)
+
+        messages.success(
+            request,
+            f"Moved {len(moved)} work{'' if len(moved) == 1 else 's'} to '{target.name}'. "
+            "Any addresses (and their works) moved with them."
+        )
+        return redirect(f"{reverse('ui:project_detail', kwargs={'pk': pk})}?tab=works")
+
+
 class ProjectSetCompletionDatesView(WriteRequiredMixin, View):
     """Project-level bulk set: apply Start / PC / Handover dates to every Work.
 

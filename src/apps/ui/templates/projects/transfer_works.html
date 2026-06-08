@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Move works — {{ source.name }} — RICD{% endblock %}
+{% block breadcrumbs %}
+  <span class="sep">/</span><a href="{% url 'ui:projects_list' %}">Projects</a>
+  <span class="sep">/</span><a href="{% url 'ui:project_detail' source.pk %}">{{ source.name }}</a>
+  <span class="sep">/</span><span class="current">Move works</span>
+{% endblock %}
+
+{% block content %}
+<div class="pg-head">
+  <div>
+    <h1>Move works</h1>
+    <div class="meta">
+      From <b>{{ source.name }}</b> · Council: <b>{{ source.council }}</b>.
+      Works can only move to another project in the <b>same council</b>.
+    </div>
+  </div>
+  <div class="actions">
+    <a href="{% url 'ui:project_detail' source.pk %}?tab=works" class="btn btn-outline-secondary btn-sm">Cancel</a>
+  </div>
+</div>
+
+{% if targets %}
+<form method="post" action="{% url 'ui:project_transfer_works' source.pk %}">
+  {% csrf_token %}
+
+  <div class="card mb-3"><div class="card-body">
+    <label class="form-label"><b>Move selected works to:</b></label>
+    <select name="target_project" class="form-select" style="max-width:480px;" required>
+      <option value="">— choose a project in {{ source.council }} —</option>
+      {% for t in targets %}
+        <option value="{{ t.pk }}">{{ t.name }} ({{ t.get_state_display }})</option>
+      {% endfor %}
+    </select>
+    <div class="text-muted mt-2" style="font-size:12px;">
+      Moving a work also moves its address — and any other works at that address — so an address never spans two projects.
+    </div>
+  </div></div>
+
+  <div class="card mb-3"><div class="card-body p-0">
+    <div class="px-3 py-2 d-flex justify-content-between align-items-center" style="border-bottom:1px solid var(--line);">
+      <b>Works in {{ source.name }}</b>
+      <label class="small text-muted mb-0"><input type="checkbox" id="check-all"> select all</label>
+    </div>
+    {% if works %}
+    <table class="table table-sm align-middle mb-0">
+      <thead class="table-light">
+        <tr><th style="width:40px;"></th><th>Work</th><th>Type</th><th>Address</th></tr>
+      </thead>
+      <tbody>
+        {% for w in works %}
+        <tr>
+          <td><input type="checkbox" name="works" value="{{ w.pk }}" class="work-cb"></td>
+          <td>{{ w }}</td>
+          <td>{{ w.work_type.name|default:w.work_type_other|default:"—" }}</td>
+          <td>{% if w.address %}{{ w.address }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="p-3 text-muted">This project has no works to move.</div>
+    {% endif %}
+  </div></div>
+
+  {% if works %}
+  <button type="submit" class="btn btn-primary">Move selected works</button>
+  {% endif %}
+</form>
+
+<script>
+(function(){
+  var all = document.getElementById('check-all');
+  if (all) all.addEventListener('change', function(){
+    document.querySelectorAll('.work-cb').forEach(function(cb){ cb.checked = all.checked; });
+  });
+})();
+</script>
+{% else %}
+<div class="card"><div class="card-body">
+  <p class="text-muted mb-0">There are no other projects in <b>{{ source.council }}</b> to move works to.
+  Create another project in this council first.</p>
+</div></div>
+{% endif %}
+{% endblock %}
