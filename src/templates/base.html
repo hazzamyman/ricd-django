@@ -363,6 +363,11 @@
   <a href="{% url 'ui:projects_list' %}" class="nav-item {% if active_nav == 'projects' %}active{% endif %}">
     <i class="bi bi-kanban"></i> Projects
   </a>
+  {% if is_writer %}
+  <a href="{% url 'ui:project_create' %}" class="nav-item" style="padding-left:34px; font-size:12px; opacity:.85;" title="Create a new project">
+    <i class="bi bi-plus-lg"></i> New project
+  </a>
+  {% endif %}
   <a href="{% url 'ui:cashflow' %}" class="nav-item {% if active_nav == 'cashflow' %}active{% endif %}">
     <i class="bi bi-graph-up"></i> Cashflow
   </a>
