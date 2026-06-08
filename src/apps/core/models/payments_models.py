@@ -39,7 +39,12 @@ class Payment(models.Model):
         LOCAL = 'LOCAL', 'Local Upload'
 
     project = models.ForeignKey('Project', related_name='payments', on_delete=models.CASCADE)
-    funding_schedule = models.ForeignKey('FundingSchedule', related_name='payments', on_delete=models.CASCADE)
+    # Optional: QBUILD (State-builder) direct payments are NOT attached to a
+    # Council funding schedule — see Payment.clean().
+    funding_schedule = models.ForeignKey(
+        'FundingSchedule', related_name='payments', on_delete=models.CASCADE,
+        null=True, blank=True,
+    )
     # Optional trace to the specific work (dwelling/lot/infrastructure) this
     # payment funds — lets finance follow a payment down to the physical output.
     work = models.ForeignKey(
@@ -270,6 +275,13 @@ class Payment(models.Model):
         approved capacity >= already released + this payment's share.
         """
         from django.core.exceptions import ValidationError
+        # A funding schedule is required unless QBUILD (State builder) delivers the
+        # project — those are paid directly with no Council funding schedule.
+        if not self.funding_schedule_id and self.project_id and not self.project.qbuild_delivered:
+            raise ValidationError(
+                "A funding schedule is required unless the project is QBUILD-delivered "
+                "(State builder appointed)."
+            )
         if not self.project_id or not (self.amount or self.calculated_amount):
             return
         if self.status == self.Status.REJECTED:

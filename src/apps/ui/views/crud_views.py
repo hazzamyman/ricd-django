@@ -577,7 +577,7 @@ class ProjectCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
     template_name = 'crud/form.html'
     fields = ['name', 'council', 'program', 'project_type', 'financial_year',
               'financial_year_completed', 'lead_officer',
-              'state', 'dwelling_status',
+              'state', 'dwelling_status', 'qbuild_delivered',
               'stage1_item_group', 'stage2_item_group', 'quarterly_report_item_group',
               'sap_ion', 'cli_no', 'initial_caa_date']
     success_url = reverse_lazy('ui:projects_list')
@@ -744,7 +744,7 @@ class ProjectUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
     template_name = 'crud/form.html'
     fields = ['name', 'council', 'program', 'project_type', 'financial_year',
               'financial_year_completed', 'lead_officer',
-              'state', 'dwelling_status',
+              'state', 'dwelling_status', 'qbuild_delivered',
               'stage1_item_group', 'stage2_item_group', 'quarterly_report_item_group',
               'sap_ion', 'cli_no', 'initial_caa_date']
     success_url = reverse_lazy('ui:projects_list')

@@ -185,7 +185,7 @@
       {% elif project.state == 'COMP' %}<span class="state-badge state-comp">Completed</span>
       {% endif %}
     </div>
-    <h1 style="margin-top:8px;">{{ project.name }}{% if project.is_archived %} <span class="badge bg-secondary" title="{{ project.archived_reason|default:'Archived' }}">Archived</span>{% endif %}</h1>
+    <h1 style="margin-top:8px;">{{ project.name }}{% if project.is_archived %} <span class="badge bg-secondary" title="{{ project.archived_reason|default:'Archived' }}">Archived</span>{% endif %}{% if project.qbuild_delivered %} <span class="badge bg-info" title="Delivered by QBUILD (State builder) — no Council funding schedule or Council reporting; FNC pays QBUILD directly">QBUILD</span>{% endif %}</h1>
     <div class="meta">
       <span><b>Council:</b> <a href="{% url 'ui:council_detail' project.council.pk %}">{{ project.council }}</a></span>
       <span class="sep-dot">·</span>

@@ -79,6 +79,16 @@ class Project(models.Model):
     archived_at = models.DateTimeField(null=True, blank=True)
     archived_reason = models.CharField(max_length=255, blank=True)
 
+    # State-builder (QBUILD) delivery: RICD appoints QBUILD when a Council can't
+    # deliver. These projects have a BFA but NO Council funding schedule; FNC pays
+    # QBUILD directly and runs the Monthly Tracker. Council is not expected to
+    # report (no stage/quarterly/monthly obligations).
+    qbuild_delivered = models.BooleanField(
+        default=False, db_index=True,
+        help_text="QBUILD (State builder) delivers this project — no Council funding "
+                  "schedule or Council reporting; FNC pays QBUILD directly.",
+    )
+
     land_parcels = models.ManyToManyField('LandTenure', related_name='projects', blank=True)
     
     # Land-specific fields (from LandProject migration)
