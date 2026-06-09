@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Notification Log — RICD{% endblock %}
+{% block breadcrumbs %}
+  <span class="sep">/</span><a href="{% url 'ui:maintenance' %}">Maintenance</a>
+  <span class="sep">/</span><span class="current">Notification Log</span>
+{% endblock %}
+
+{% block content %}
+<div class="pg-head">
+  <div>
+    <h1>Notification log</h1>
+    <div class="meta">
+      Every automated email the system generated. In this environment emails are not sent
+      externally (no mail server configured yet) — this log shows exactly what would be sent,
+      with placeholders filled in. Click a row to expand the full message.
+    </div>
+  </div>
+  <div class="actions">
+    <a href="{% url 'ui:email_template_list' %}" class="btn btn-outline-secondary btn-sm">Edit templates</a>
+    <a href="{% url 'ui:maintenance' %}" class="btn btn-outline-secondary btn-sm">Back</a>
+  </div>
+</div>
+
+<div class="card"><div class="card-body p-0">
+  <table class="table table-sm align-middle mb-0">
+    <thead class="table-light">
+      <tr><th>When</th><th>Event</th><th>Council</th><th>To</th><th>Subject</th><th class="text-center">Sent</th></tr>
+    </thead>
+    <tbody>
+      {% for n in notifications %}
+      <tr data-bs-toggle="collapse" data-bs-target="#n{{ n.pk }}" style="cursor:pointer;">
+        <td class="text-muted" style="white-space:nowrap;">{{ n.sent_at|date:"d M Y H:i" }}</td>
+        <td>{{ n.event }}</td>
+        <td>{% if n.council %}{{ n.council.name }}{% else %}—{% endif %}</td>
+        <td class="small">{{ n.recipients|default:"(no recipients configured)" }}</td>
+        <td>{{ n.subject }}</td>
+        <td class="text-center">{% if n.recipients %}{% if n.success %}<span class="badge bg-success">✓</span>{% else %}<span class="badge bg-danger" title="{{ n.error }}">!</span>{% endif %}{% else %}<span class="badge bg-light text-dark">logged</span>{% endif %}</td>
+      </tr>
+      <tr class="collapse" id="n{{ n.pk }}"><td colspan="6" style="background:var(--panel-alt,#f8fafc);">
+        <pre class="mb-0" style="white-space:pre-wrap; font-size:12.5px;">{{ n.body }}</pre>
+      </td></tr>
+      {% empty %}
+      <tr><td colspan="6" class="text-muted p-3">No notifications yet. They appear here when an event fires (a payment is released, a report is approved, etc.).</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+
+{% if is_paginated %}
+<div class="mt-3 d-flex gap-2">
+  {% if page_obj.has_previous %}<a class="btn btn-outline-secondary btn-sm" href="?page={{ page_obj.previous_page_number }}">Prev</a>{% endif %}
+  <span class="text-muted small align-self-center">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}<a class="btn btn-outline-secondary btn-sm" href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

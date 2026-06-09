@@ -62,6 +62,11 @@ class CouncilContact(models.Model):
     name = models.CharField(max_length=255)
     email = models.EmailField(blank=True)
     phone = models.CharField(max_length=50, blank=True)
+    receives_notifications = models.BooleanField(
+        default=False,
+        help_text="Tick to send this contact the automated notices for their council "
+                  "(payment released, agreement signed, report decisions, etc.).",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

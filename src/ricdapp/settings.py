@@ -130,6 +130,13 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # RICD-specific
 RICD_REPORTS_EMAIL = 'reports@ricd.qld.gov.au'
 
+# Email — dev uses the console backend (emails print to the runserver console;
+# nothing is sent externally). For production, switch EMAIL_BACKEND to the SMTP
+# backend and configure EMAIL_HOST / EMAIL_HOST_USER / EMAIL_HOST_PASSWORD /
+# EMAIL_PORT / EMAIL_USE_TLS once the department mail relay is available.
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = 'noreply@ricd.qld.gov.au'
+
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'

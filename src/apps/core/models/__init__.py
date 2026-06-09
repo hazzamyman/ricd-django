@@ -38,6 +38,7 @@ from .funding_models import (
     InterimFRPAgreement,
 )
 from .payments_models import Payment, PaymentMilestoneSchedule, PaymentMilestoneRule
+from .notifications_models import EmailTemplate, SentNotification
 
 # Variation & Stage models
 from .variations_models import (
@@ -98,6 +99,7 @@ __all__ = [
     'FundingSchedule', 'ProjectStateLog', 'WorkFunding',
     'Approval', 'WorkflowAction', 'AuditLog', 'Payment',
     'PaymentMilestoneSchedule', 'PaymentMilestoneRule',
+    'EmailTemplate', 'SentNotification',
     'ForwardRPFAgreement', 'InterimFRPAgreement',
     # Variation & Stage
     'VariationType', 'Variation', 'VariationItem', 'VariationFundingSchedule',

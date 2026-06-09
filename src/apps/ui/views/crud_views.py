@@ -32,6 +32,7 @@ from apps.core.models import (
     FundingAgreement, FundingNotice, ExpenseClaim, WorkFunding,
     StateElectorate, FederalElectorate, QhigiRegion,
     SiteSettings, PaymentMilestoneSchedule, PaymentMilestoneRule, Contractor,
+    EmailTemplate, SentNotification,
 )
 
 COUNCIL_ROLES = frozenset({'COUNCIL_USER', 'COUNCIL_MANAGER'})
@@ -358,7 +359,7 @@ class CouncilDetailView(LoginRequiredMixin, NoticesMixin, DetailView):
 class CouncilContactCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = CouncilContact
     template_name = 'crud/form.html'
-    fields = ['role', 'name', 'email', 'phone']
+    fields = ['role', 'name', 'email', 'phone', 'receives_notifications']
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -378,7 +379,7 @@ class CouncilContactCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateVie
 class CouncilContactUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = CouncilContact
     template_name = 'crud/form.html'
-    fields = ['role', 'name', 'email', 'phone']
+    fields = ['role', 'name', 'email', 'phone', 'receives_notifications']
 
     def get_success_url(self):
         return reverse_lazy('ui:council_detail', kwargs={'pk': self.object.council_id})
@@ -3765,13 +3766,59 @@ class SiteSettingsView(LoginRequiredMixin, View):
             raise PermissionDenied
         settings_obj = SiteSettings.get()
         reports_email = request.POST.get('reports_email', '').strip()
+        from_email = request.POST.get('notifications_from_email', '').strip()
         if reports_email:
             settings_obj.reports_email = reports_email
+            if from_email:
+                settings_obj.notifications_from_email = from_email
             settings_obj.save()
             messages.success(request, 'Site settings updated.')
         else:
             messages.error(request, 'A valid email address is required.')
         return redirect('ui:site_settings')
+
+
+class EmailTemplateListView(WriteRequiredMixin, ListView):
+    model = EmailTemplate
+    template_name = 'maintenance/email_templates.html'
+    context_object_name = 'templates'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['active_nav'] = 'maintenance'
+        return ctx
+
+
+class EmailTemplateUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
+    model = EmailTemplate
+    template_name = 'maintenance/email_template_form.html'
+    fields = ['subject', 'body', 'is_active']
+
+    def get_success_url(self):
+        return reverse_lazy('ui:email_template_list')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        from apps.core.services.notifications import EVENT_PLACEHOLDERS
+        ctx['placeholders'] = EVENT_PLACEHOLDERS.get(self.object.event, [])
+        ctx['event_label'] = self.object.get_event_display()
+        ctx['active_nav'] = 'maintenance'
+        return ctx
+
+
+class NotificationLogView(WriteRequiredMixin, ListView):
+    model = SentNotification
+    template_name = 'maintenance/notification_log.html'
+    context_object_name = 'notifications'
+    paginate_by = 50
+
+    def get_queryset(self):
+        return SentNotification.objects.select_related('council', 'project').all()
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['active_nav'] = 'maintenance'
+        return ctx
 
 
 # ============================================================================

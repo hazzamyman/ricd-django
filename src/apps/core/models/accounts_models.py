@@ -83,6 +83,10 @@ class SiteSettings(models.Model):
         default='reports@ricd.qld.gov.au',
         help_text='Email address that quarterly-report submission emails are addressed to.',
     )
+    notifications_from_email = models.EmailField(
+        default='noreply@ricd.qld.gov.au',
+        help_text='"From" address used for automated notification emails sent by the system.',
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

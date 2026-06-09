@@ -37,6 +37,22 @@
             </div>
           </div>
 
+          <div class="mb-3">
+            <label for="notifications_from_email" class="form-label fw-semibold">Automated emails "from" address</label>
+            <input
+              type="email"
+              class="form-control"
+              id="notifications_from_email"
+              name="notifications_from_email"
+              value="{{ settings_obj.notifications_from_email }}"
+              placeholder="noreply@example.gov.au"
+            >
+            <div class="form-text text-muted">
+              The "from" address used when the system sends automated notices
+              (payment released, agreement signed, report decisions, overdue reminders).
+            </div>
+          </div>
+
           <div class="d-flex gap-2">
             <button type="submit" class="btn btn-primary">Save</button>
             <a href="{% url 'ui:maintenance' %}" class="btn btn-outline-secondary">Cancel</a>

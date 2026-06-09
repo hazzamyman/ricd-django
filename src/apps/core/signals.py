@@ -531,6 +531,74 @@ def cascade_fs_dates_to_projects(sender, instance, created, **kwargs):
 # later BFA variations do NOT retro-adjust existing rows. Idempotent: re-saving
 # a RELEASED payment does not create duplicate allocations.
 
+# ---------------------------------------------------------------------------
+# Automated notification emails (event-driven). Time-based reminders (overdue,
+# stage target/sunset) are sent by a daily management command — see Phase 2.
+# ---------------------------------------------------------------------------
+
+@receiver(post_save, sender='core.Payment')
+def notify_payment_released(sender, instance, **kwargs):
+    if instance.status != instance.Status.RELEASED:
+        return
+    try:
+        from apps.core.services.notifications import send_event_email, project_context, money
+        proj = instance.project
+        ctx = project_context(proj)
+        ctx['amount'] = money(instance.calculated_amount or instance.amount)
+        ctx['payment_type'] = instance.get_payment_type_display()
+        send_event_email('PAYMENT_RELEASED', council=proj.council if proj else None,
+                         project=proj, context=ctx, dedupe_key=f'PAYMENT_RELEASED:{instance.pk}')
+    except Exception:
+        pass
+
+
+@receiver(post_save, sender='core.FundingAgreement')
+def notify_agreement_signed(sender, instance, **kwargs):
+    if instance.status != 'ACTIVE':
+        return
+    try:
+        from apps.core.services.notifications import send_event_email, _today
+        ctx = {
+            'council': instance.council.name if instance.council_id else '',
+            'agreement': str(instance),
+            'execution_date': instance.execution_date.strftime('%d %b %Y') if instance.execution_date else '',
+            'date': _today(),
+        }
+        send_event_email('AGREEMENT_SIGNED', council=instance.council, context=ctx,
+                         dedupe_key=f'AGREEMENT_SIGNED:{instance.pk}')
+    except Exception:
+        pass
+
+
+@receiver(post_save, sender='core.StageReport')
+def notify_stage_report_decision(sender, instance, **kwargs):
+    if instance.status not in ('APPROVED', 'REJECTED'):
+        return
+    event = 'REPORT_APPROVED' if instance.status == 'APPROVED' else 'REPORT_REJECTED'
+    try:
+        from apps.core.services.notifications import send_event_email, project_context
+        proj = instance.project
+        ctx = project_context(proj)
+        ctx['report_type'] = f"{instance.get_stage_type_display()} report"
+        send_event_email(event, council=proj.council if proj else None, project=proj,
+                         context=ctx, dedupe_key=f'{event}:STAGE:{instance.pk}')
+    except Exception:
+        pass
+
+
+@receiver(post_save, sender='core.Project')
+def notify_project_completed(sender, instance, **kwargs):
+    if instance.state != instance.State.COMPLETED:
+        return
+    try:
+        from apps.core.services.notifications import send_event_email, project_context
+        ctx = project_context(instance)
+        send_event_email('PROJECT_COMPLETED', council=instance.council, project=instance,
+                         context=ctx, dedupe_key=f'PROJECT_COMPLETED:{instance.pk}')
+    except Exception:
+        pass
+
+
 @receiver(post_save, sender='core.Payment')
 def snapshot_payment_allocations_on_release(sender, instance, **kwargs):
     try:
