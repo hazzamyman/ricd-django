@@ -367,6 +367,7 @@ urlpatterns = [
     path('reports/eom-reconciliation/export.csv', views.reports_views.eom_reconciliation_export, name='eom_reconciliation_export'),
     path('reports/construction-creation-list/', views.reports_views.construction_creation_list_view, name='construction_creation_list'),
     path('reports/construction-creation-list/export.csv', views.reports_views.construction_creation_list_export, name='construction_creation_list_export'),
+    path('reports/work-items/export.csv', views.reports_views.work_items_export, name='work_items_export'),
     path('land-infra/', views.land_infra_views.land_projects_list_view, name='land_projects_list'),
     path('documents/', views.documents_views.documents_list_view, name='documents_list'),
 ]

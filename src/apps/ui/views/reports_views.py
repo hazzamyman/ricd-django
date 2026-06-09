@@ -354,3 +354,96 @@ def construction_creation_list_export(request):
             w.handover_date.isoformat() if w.handover_date else '',
         ])
     return response
+
+
+# ────────────────────────────────────────────────────────────────────
+# All Work Items — flat "dump everything" export for mass analysis
+# ────────────────────────────────────────────────────────────────────
+
+@login_required
+def work_items_export(request):
+    """CSV dump: one row per Work item across all projects, for mass analysis.
+
+    Every work item with its LGA, project, program, status, costs, the parent
+    project's approved budget (BFA) and amount expended (released), step
+    completion, and key actual/forecast dates — a single sheet to share for
+    pivoting in Excel.
+
+    Optional GET filters:
+      council            — Council pk
+      include_archived   — '1' to include archived projects (default: exclude)
+    """
+    from apps.core.models import Work, BriefFinancialApprovalItem, PaymentAllocation
+
+    works = (
+        Work.objects
+        .select_related('project__council', 'project__program', 'work_type',
+                        'address', 'contractor')
+        .prefetch_related('steps')
+        .order_by('project__council__name', 'project__name', 'work_type__name', 'id')
+    )
+    council_id = request.GET.get('council', '').strip()
+    if council_id:
+        works = works.filter(project__council_id=council_id)
+    if request.GET.get('include_archived') != '1':
+        works = works.filter(project__is_archived=False)
+
+    # Project-level approved budget (approved BFA) + expended (released), one query each.
+    approved = dict(
+        BriefFinancialApprovalItem.objects.filter(bfa__status='APPROVED')
+        .values('project_id').annotate(t=Sum('funding_amount'))
+        .values_list('project_id', 't')
+    )
+    expended = dict(
+        PaymentAllocation.objects.values('payment__project_id')
+        .annotate(t=Sum('amount')).values_list('payment__project_id', 't')
+    )
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = (
+        f'attachment; filename="work_items_{datetime.date.today().isoformat()}.csv"'
+    )
+    w = csv.writer(response)
+    w.writerow([
+        'Council (LGA)', 'Region', 'Project', 'Project State', 'Financial Year', 'Program',
+        'Address', 'Work Type', 'Category', 'Bedrooms', 'Quantity', 'Work Status',
+        'Estimated Cost', 'Actual Cost', 'Effective Cost',
+        'Project Approved Budget (BFA)', 'Project Expended (Released)',
+        'Steps Total', 'Steps Completed', 'All Steps Complete', 'Last Step Completed',
+        'Actual Start', 'Practical Completion (Actual)', 'Forecast PC', 'Handover (Actual)',
+        'Contractor', 'Costs Finalised',
+    ])
+
+    def _d(x):
+        return x.isoformat() if x else ''
+
+    def _m(x):
+        return f"{x:.2f}" if x is not None else ''
+
+    for wk in works:
+        p = wk.project
+        steps = [s for s in wk.steps.all() if s.is_active]
+        done = [s for s in steps if s.completed or s.actual_completion_date]
+        last_done = max((s.actual_completion_date for s in done if s.actual_completion_date),
+                        default=None)
+        wt = wk.work_type
+        w.writerow([
+            p.council.name if p.council_id else '',
+            (p.council.region if (p.council_id and p.council.region) else ''),
+            p.name, p.get_state_display(), p.financial_year or '',
+            p.program.name if p.program_id else '',
+            str(wk.address) if wk.address_id else '',
+            wt.name if wt else (wk.work_type_other or 'Other'),
+            wt.get_category_display() if wt else '',
+            wk.bedrooms or 0, wk.quantity or 0, wk.get_status_display(),
+            _m(wk.estimated_cost), _m(wk.actual_cost), _m(wk.total_effective_cost),
+            _m(approved.get(p.pk)), _m(expended.get(p.pk)),
+            len(steps), len(done),
+            ('Yes' if (steps and len(done) == len(steps)) else 'No'),
+            _d(last_done),
+            _d(wk.actual_start_date), _d(wk.practical_completion_date),
+            _d(wk.forecast_practical_completion_date), _d(wk.handover_date),
+            str(wk.contractor) if wk.contractor_id else '',
+            ('Yes' if wk.costs_finalised else 'No'),
+        ])
+    return response

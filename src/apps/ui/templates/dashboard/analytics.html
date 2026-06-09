@@ -145,6 +145,11 @@
       <span>Cost basis: <b>effective</b> (actual where entered, else notional)</span>
     </div>
   </div>
+  <div class="actions">
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'ui:work_items_export' %}" title="Flat dump of every work item"><i class="bi bi-box-arrow-down"></i> All Work Items</a>
+    <button type="button" class="btn btn-outline-secondary btn-sm" id="btnCsv"><i class="bi bi-filetype-csv"></i> CSV</button>
+    <button type="button" class="btn btn-primary btn-sm" id="btnXlsx" disabled title="XLSX export coming soon"><i class="bi bi-filetype-xlsx"></i> Export XLSX</button>
+  </div>
 </div>
 
 <div class="an-tabs" id="catTabs">
@@ -525,6 +530,39 @@
   progSel.addEventListener('change', e=>{ state.program=e.target.value; render(); });
   document.getElementById('fGroup').addEventListener('change', e=>{ state.group=e.target.value; render(); });
   document.getElementById('fFocus').addEventListener('change', e=>{ state.focus=e.target.value; render(); });
+
+  // CSV export of the current category table (client-side, reflects filters).
+  function csvCell(v){ const s = String(v==null?'':v); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }
+  function downloadCSV(name, matrix){
+    const text = matrix.map(r=> r.map(csvCell).join(',')).join('\r\n');
+    const blob = new Blob([text], {type:'text/csv;charset=utf-8;'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name; a.click();
+    setTimeout(()=> URL.revokeObjectURL(a.href), 1000);
+  }
+  function exportCurrentCSV(){
+    const cat = state.cat, cd = catData(), progs = visiblePrograms();
+    const showDA = !(cat==='overall' || cat==='dwellings');
+    const header = ['LGA','Region','Potential','In pipeline','Funded·NC','Commenced','Under constr.','Completed','Funded Yield'];
+    progs.forEach(p=> header.push(p.short+' (approved)'));
+    header.push('Total Approved','Paid to Council');
+    if (showDA) header.push('DA appr.','DA subm.','DA none','Surplus/Deficit');
+    header.push('Avg cost / '+CAT_UNIT1[cat]);
+    const matrix = [header];
+    const emit = (r)=>{
+      const row = [r.council, r.region, n0(r.potential), n0(r.inPipeline), n0(r.fundedNotCommenced),
+        n0(r.commenced), n0(r.underConstruction), n0(r.completed), n0(r.fundedYield)];
+      progs.forEach(p=> row.push(n0((r.funding||{})[p.id]||0)));
+      row.push(n0(r.totalApproved), n0(r.paid));
+      if (showDA) row.push(n0(r.daApproved), n0(r.daSubmitted), n0(r.daNotStarted), n0(r.surplus));
+      row.push(n0(r.avgCost));
+      matrix.push(row);
+    };
+    (cd.rows||[]).forEach(emit);
+    if (cd.totals) emit(cd.totals);
+    downloadCSV('aggregate_outputs_'+cat+'.csv', matrix);
+  }
+  document.getElementById('btnCsv').addEventListener('click', exportCurrentCSV);
 
   refillProgramFilter();
   render();

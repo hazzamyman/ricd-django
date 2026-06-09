@@ -36,6 +36,15 @@
                 </div>
             </div>
         </div>
+        <div class="col-md-4 mt-3">
+            <div class="card border-primary h-100">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-table me-2 text-primary"></i>All Work Items (dump)</h5>
+                    <p class="card-text text-muted" style="font-size:13px">One row per work item across all projects — LGA, project, program, status, approved budget (BFA), amount expended, step completion, and key dates. A flat sheet for mass analysis in Excel.</p>
+                    <a href="{% url 'ui:work_items_export' %}" class="btn btn-sm btn-primary"><i class="bi bi-filetype-csv"></i> Download CSV</a>
+                </div>
+            </div>
+        </div>
     </div>
     <div class="row mb-4">
         <div class="col-md-12">

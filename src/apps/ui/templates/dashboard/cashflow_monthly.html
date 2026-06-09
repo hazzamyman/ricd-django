@@ -201,6 +201,8 @@
   </div>
   <div class="actions">
     <a href="{% url 'ui:cashflow' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-graph-up"></i> By Financial Year</a>
+    <button type="button" class="btn btn-outline-secondary btn-sm" id="btnCsv"><i class="bi bi-filetype-csv"></i> CSV</button>
+    <button type="button" class="btn btn-primary btn-sm" id="btnXlsx" disabled title="XLSX export coming soon"><i class="bi bi-filetype-xlsx"></i> Export XLSX</button>
   </div>
 </div>
 
@@ -689,6 +691,27 @@
     document.querySelectorAll('#fShow button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
     state.show=b.dataset.s; applyShowMode();
   }));
+
+  // CSV export (long format: one row per program × month for easy pivoting).
+  function csvCell(v){ const s=String(v==null?'':v); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }
+  function exportCSV(){
+    const months = buildMonths(state.start, state.months);
+    const matrix = [['Program','CC','GL','Month','Forecast','Released']];
+    PROGRAMS.forEach(prog=>{
+      months.forEach(mo=>{
+        const c = CELLS[prog.id+'|'+mo.key];
+        const f = c ? Math.round(c.forecast||0) : 0;
+        const r = (c && c.released!=null) ? Math.round(c.released) : '';
+        if (f || r!=='') matrix.push([prog.name, prog.cc||'', prog.gl||'', mo.key, f, r]);
+      });
+    });
+    const text = matrix.map(row=> row.map(csvCell).join(',')).join('\r\n');
+    const blob = new Blob([text], {type:'text/csv;charset=utf-8;'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'monthly_cashflow_'+state.start+'_'+state.months+'mo.csv'; a.click();
+    setTimeout(()=> URL.revokeObjectURL(a.href), 1000);
+  }
+  document.getElementById('btnCsv').addEventListener('click', exportCSV);
 
   renderPivot();
 })();
