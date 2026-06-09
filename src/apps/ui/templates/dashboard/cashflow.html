@@ -191,6 +191,68 @@
 
 {% endif %}
 
+{% if data.forward_demand %}
+<div class="card mb-3"><div class="card-body">
+  <div class="sec-h">
+    <h2>Forward demand by financial year</h2>
+    <span style="font-size:12px; color:var(--muted);">Committed (approved BFA) <strong>plus programmed</strong> projects not yet approved — the total funding need per year (e.g. for Treasury). Programmed = estimated cost of projects with no approved BFA, in their programmed financial year.</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Financial year</th>
+          <th class="text-end">Budgeted</th>
+          <th class="text-end">Committed (approved)</th>
+          <th class="text-end">Programmed (unapproved)</th>
+          <th class="text-end">Total need</th>
+          <th class="text-end">Gap vs budget</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for fd in data.forward_demand %}
+        <tr>
+          <td><b>{{ fd.fy_label }}</b></td>
+          <td class="text-end">{{ fd.budgeted|money }}</td>
+          <td class="text-end">{{ fd.forecast|money }}</td>
+          <td class="text-end">{% if fd.programmed %}<span class="pill amber" style="font-size:10px;">{{ fd.programmed|money }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+          <td class="text-end fw-bold">{{ fd.total_need|money }}</td>
+          <td class="text-end {% if fd.gap < 0 %}text-danger{% endif %}">{{ fd.gap|money }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="text-muted mt-2" style="font-size:11px;">A negative gap = total need (committed + programmed) exceeds the budgeted allocation for that year.</div>
+</div></div>
+{% endif %}
+
+{% if data.programmed_projects %}
+<div class="card mb-3"><div class="card-body">
+  <div class="sec-h">
+    <h2>Programmed projects — not yet approved ({{ data.programmed_projects|length }})</h2>
+    <span style="font-size:12px; color:var(--muted);">Total programmed (unapproved): <strong>{{ data.programmed_total|money }}</strong>. No approved BFA yet; figures estimated from works (actual where entered, otherwise notional).</span>
+  </div>
+  <table class="table table-sm align-middle">
+    <thead class="table-light">
+      <tr><th>Project</th><th>Council</th><th>Program</th><th>FY</th><th>State</th><th class="text-end">Estimated</th></tr>
+    </thead>
+    <tbody>
+    {% for pp in data.programmed_projects %}
+      <tr>
+        <td><a href="{% url 'ui:project_detail' pp.project.pk %}">{{ pp.project.name }}</a></td>
+        <td>{% if pp.project.council %}{{ pp.project.council.name }}{% else %}&mdash;{% endif %}</td>
+        <td>{% if pp.project.program %}{{ pp.project.program.name }}{% else %}&mdash;{% endif %}</td>
+        <td>{{ pp.fy }}</td>
+        <td><span class="state-badge state-{{ pp.project.state|lower }}">{{ pp.project.get_state_display }}</span></td>
+        <td class="text-end">{{ pp.estimated|money }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% endif %}
+
 {% if notice_summary.count %}
 <div class="card mb-3"><div class="card-body">
   <div class="sec-h">

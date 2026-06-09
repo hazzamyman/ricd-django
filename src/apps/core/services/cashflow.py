@@ -175,22 +175,62 @@ def build_program_cashflow(program=None, councils=None, hide_contingency=False):
         if estimated_total > 0 or not items:
             undated_projects.append({'project': proj, 'estimated': estimated_total})
 
+    # 3b) Programmed (NOT approved) projects — forward demand for Treasury.
+    # A project is "programmed" when it has NO approved BFA and no payments yet.
+    # Its estimated cost (works' effective cost) lands in its programmed
+    # financial_year. This is the unapproved layer, kept separate from committed.
+    approved_pids = set(
+        BriefFinancialApprovalItem.objects.filter(bfa__status='APPROVED')
+        .values_list('project_id', flat=True)
+    )
+    paid_pids = set(
+        Payment.objects.exclude(status='REJECTED').values_list('project_id', flat=True)
+    )
+    prog_qs = (
+        Project.objects.select_related('program')
+        .filter(is_archived=False, program__isnull=False)
+        .exclude(state=Project.State.COMPLETED)
+        .prefetch_related('works__work_type')
+    )
+    if program is not None:
+        prog_qs = prog_qs.filter(program=program)
+    if councils is not None:
+        prog_qs = prog_qs.filter(council__in=councils)
+
+    programmed_by = defaultdict(_zero)   # (program_id, fy_code) -> Decimal
+    programmed_projects = []
+    for proj in prog_qs:
+        if proj.pk in approved_pids or proj.pk in paid_pids:
+            continue  # already committed (approved BFA or has payments)
+        fy = (proj.financial_year or '').strip()
+        if not fy:
+            continue  # no programmed year to bucket into
+        est = sum((w.total_effective_cost for w in proj.works.all()), _zero())
+        if est <= 0:
+            continue
+        fy_set.add(fy)
+        _record_program(proj.program_id)
+        programmed_by[(proj.program_id, fy)] += est
+        programmed_projects.append({'project': proj, 'estimated': est, 'fy': fy})
+
     # 4) Assemble rows
     fys = sorted(fy_set) if fy_set else []
     rows = []
     col_totals = defaultdict(lambda: {'budgeted': _zero(), 'forecast': _zero(),
                                        'released': _zero(), 'undated': _zero(),
-                                       'variance': _zero()})
+                                       'programmed': _zero(), 'variance': _zero()})
 
     for prog_id, prog in sorted(programs_seen.items(), key=lambda x: x[1].name):
         cells = []  # ordered list aligned with `fys`
         total_b = _zero()
         total_f = _zero()
         total_r = _zero()
+        total_p = _zero()
         for fy in fys:
             b = budgeted_by[(prog_id, fy)]
             f = forecast_by[(prog_id, fy)]
             r = released_by[(prog_id, fy)]
+            pr = programmed_by[(prog_id, fy)]
             variance = b - f
             pct = (f / b * Decimal('100')) if b else _zero()
             cells.append({
@@ -199,6 +239,8 @@ def build_program_cashflow(program=None, councils=None, hide_contingency=False):
                 'budgeted': b,
                 'forecast': f,
                 'released': r,
+                'programmed': pr,
+                'total_need': f + pr,
                 'variance': variance,
                 'pct': pct,
                 'over': f > b and b > 0,
@@ -206,9 +248,11 @@ def build_program_cashflow(program=None, councils=None, hide_contingency=False):
             total_b += b
             total_f += f
             total_r += r
+            total_p += pr
             col_totals[fy]['budgeted'] += b
             col_totals[fy]['forecast'] += f
             col_totals[fy]['released'] += r
+            col_totals[fy]['programmed'] += pr
             col_totals[fy]['variance'] += variance
 
         undated = undated_by_prog[prog_id]
@@ -216,6 +260,7 @@ def build_program_cashflow(program=None, councils=None, hide_contingency=False):
         col_totals['__all__']['forecast'] += total_f
         col_totals['__all__']['released'] += total_r
         col_totals['__all__']['undated'] += undated
+        col_totals['__all__']['programmed'] += total_p
         col_totals['__all__']['variance'] += (total_b - total_f)
 
         rows.append({
@@ -226,6 +271,8 @@ def build_program_cashflow(program=None, councils=None, hide_contingency=False):
                 'budgeted': total_b,
                 'forecast': total_f,
                 'released': total_r,
+                'programmed': total_p,
+                'total_need': total_f + total_p,
                 'variance': total_b - total_f,
                 'pct': (total_f / total_b * Decimal('100')) if total_b else _zero(),
             },
@@ -238,6 +285,24 @@ def build_program_cashflow(program=None, councils=None, hide_contingency=False):
         for fy in fys
     ]
 
+    # Forward demand by FY: budgeted vs (committed forecast + programmed-unapproved).
+    forward_demand = []
+    for fy in fys:
+        ct = col_totals[fy]
+        total_need = ct['forecast'] + ct['programmed']
+        forward_demand.append({
+            'fy': fy, 'fy_label': _fy_label(fy),
+            'budgeted': ct['budgeted'],
+            'forecast': ct['forecast'],
+            'programmed': ct['programmed'],
+            'total_need': total_need,
+            'gap': ct['budgeted'] - total_need,
+        })
+    programmed_projects.sort(
+        key=lambda x: (x['fy'], x['project'].program.name if x['project'].program_id else '',
+                       x['project'].name)
+    )
+
     return {
         'fys': fys,
         'fy_labels': {fy: _fy_label(fy) for fy in fys},
@@ -248,4 +313,7 @@ def build_program_cashflow(program=None, councils=None, hide_contingency=False):
         'undated_projects': undated_projects,
         'undated_payments': undated_payments,
         'undated_payments_total': sum((u['amount'] for u in undated_payments), _zero()),
+        'forward_demand': forward_demand,
+        'programmed_projects': programmed_projects,
+        'programmed_total': sum((pp['estimated'] for pp in programmed_projects), _zero()),
     }
