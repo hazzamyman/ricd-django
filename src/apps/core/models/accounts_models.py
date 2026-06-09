@@ -87,6 +87,29 @@ class SiteSettings(models.Model):
         default='noreply@ricd.qld.gov.au',
         help_text='"From" address used for automated notification emails sent by the system.',
     )
+
+    # ----- Automated email / SMTP config (superuser-editable at runtime) -----
+    class EmailSendMode(models.TextChoices):
+        LOG = 'LOG', 'Log only (do not actually send)'
+        SMTP = 'SMTP', 'Send via SMTP'
+
+    notifications_enabled = models.BooleanField(
+        default=True, help_text='Master switch — turn ALL automated emails on/off.'
+    )
+    email_send_mode = models.CharField(
+        max_length=4, choices=EmailSendMode.choices, default=EmailSendMode.LOG,
+        help_text='LOG = generate + record but do not send (safe default). SMTP = actually send.',
+    )
+    email_host = models.CharField(max_length=255, blank=True, help_text='SMTP server hostname')
+    email_port = models.PositiveIntegerField(default=587)
+    email_use_tls = models.BooleanField(default=True)
+    email_use_ssl = models.BooleanField(default=False)
+    email_host_user = models.CharField(max_length=255, blank=True, help_text='SMTP username (optional)')
+    email_host_password = models.CharField(
+        max_length=255, blank=True,
+        help_text='SMTP password (optional; stored masked). Leave blank for an unauthenticated relay.',
+    )
+
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

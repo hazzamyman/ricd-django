@@ -69,14 +69,52 @@ def _recipients_for_council(council):
     )
 
 
-def send_event_email(event, *, council=None, project=None, context=None, dedupe_key=None):
-    """Render + send (and log) the email for `event`. Idempotent on dedupe_key.
-
-    Returns the SentNotification, or None when there's no active template / it was
-    already sent."""
+def _from_email(s):
     from django.conf import settings
+    return (s.notifications_from_email or '').strip() \
+        or getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@ricd.qld.gov.au')
+
+
+def _smtp_connection(s):
+    """Build an SMTP connection from the saved SiteSettings, or None for LOG mode."""
+    from apps.core.models import SiteSettings
+    if s.email_send_mode != SiteSettings.EmailSendMode.SMTP or not s.email_host:
+        return None
+    from django.core.mail import get_connection
+    return get_connection(
+        backend='django.core.mail.backends.smtp.EmailBackend',
+        host=s.email_host, port=s.email_port,
+        username=s.email_host_user or None, password=s.email_host_password or None,
+        use_tls=s.email_use_tls, use_ssl=s.email_use_ssl, fail_silently=False,
+    )
+
+
+def _deliver(subject, body, recipients, s):
+    """Send when in SMTP mode; in LOG mode do nothing (the SentNotification IS the
+    record). Returns (success, error)."""
+    if not recipients:
+        return True, ''
+    conn = _smtp_connection(s)
+    if conn is None:
+        return True, ''  # LOG mode — not sent
+    try:
+        from django.core.mail import EmailMessage
+        EmailMessage(subject, body, _from_email(s), recipients, connection=conn).send()
+        return True, ''
+    except Exception as e:  # never let a mail failure break the triggering save
+        return False, str(e)
+
+
+def send_event_email(event, *, council=None, project=None, context=None, dedupe_key=None):
+    """Render + (maybe) send + log the email for `event`. Idempotent on dedupe_key.
+
+    Returns the SentNotification, or None when notifications are disabled / there's
+    no active template / it was already sent."""
     from apps.core.models import EmailTemplate, SentNotification, SiteSettings
 
+    s = SiteSettings.get()
+    if not s.notifications_enabled:
+        return None  # master switch off
     tmpl = EmailTemplate.objects.filter(event=event, is_active=True).first()
     if not tmpl:
         return None
@@ -90,16 +128,7 @@ def send_event_email(event, *, council=None, project=None, context=None, dedupe_
     body = render(tmpl.body, ctx)
     recipients = _recipients_for_council(council)
 
-    from_email = (SiteSettings.get().notifications_from_email or '').strip() \
-        or getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@ricd.qld.gov.au')
-
-    success, error = True, ''
-    if recipients:
-        try:
-            from django.core.mail import send_mail
-            send_mail(subject, body, from_email, recipients, fail_silently=False)
-        except Exception as e:  # don't let a mail failure break the triggering save
-            success, error = False, str(e)
+    success, error = _deliver(subject, body, recipients, s)
 
     return SentNotification.objects.create(
         event=event, dedupe_key=key,
@@ -107,6 +136,27 @@ def send_event_email(event, *, council=None, project=None, context=None, dedupe_
         recipients=', '.join(recipients), subject=subject, body=body,
         success=success, error=error,
     )
+
+
+def send_test_email(to_email):
+    """Send a one-off test email using the saved config. Returns (ok, message)."""
+    from apps.core.models import SiteSettings
+    s = SiteSettings.get()
+    if not to_email:
+        return False, 'No email address on your user account to send the test to.'
+    subject = 'RICD — test notification email'
+    body = ('This is a test email from the RICD application to confirm the email '
+            'configuration is working.\n\nIf you received this, sending is set up correctly.')
+    conn = _smtp_connection(s)
+    if conn is None:
+        return True, ('Email mode is "Log only" — no email was actually sent. '
+                      'Switch to SMTP mode and set a host to send for real.')
+    try:
+        from django.core.mail import EmailMessage
+        EmailMessage(subject, body, _from_email(s), [to_email], connection=conn).send()
+        return True, f'Test email sent to {to_email}.'
+    except Exception as e:
+        return False, f'Send failed: {e}'
 
 
 def money(value):

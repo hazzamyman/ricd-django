@@ -18,6 +18,7 @@ urlpatterns = [
     path('maintenance/email-templates/', views.crud_views.EmailTemplateListView.as_view(), name='email_template_list'),
     path('maintenance/email-templates/<int:pk>/edit/', views.crud_views.EmailTemplateUpdateView.as_view(), name='email_template_edit'),
     path('maintenance/notifications-log/', views.crud_views.NotificationLogView.as_view(), name='notification_log'),
+    path('maintenance/email-settings/', views.crud_views.EmailSettingsView.as_view(), name='email_settings'),
 
     # Planning views
     path('planning/', views.planning_views.planning_list, name='planning_list'),

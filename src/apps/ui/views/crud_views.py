@@ -3821,6 +3821,50 @@ class NotificationLogView(WriteRequiredMixin, ListView):
         return ctx
 
 
+class EmailSettingsView(LoginRequiredMixin, View):
+    """Superuser-only runtime email/SMTP config: master on/off, log-vs-SMTP mode,
+    host/port/TLS/credentials (password masked), from-address, and a test send."""
+    template_name = 'maintenance/email_settings.html'
+
+    def _check(self, user):
+        if not user.is_superuser:
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+
+    def get(self, request):
+        self._check(request.user)
+        return render(request, self.template_name,
+                      {'s': SiteSettings.get(), 'active_nav': 'maintenance'})
+
+    def post(self, request):
+        self._check(request.user)
+        s = SiteSettings.get()
+        if request.POST.get('action') == 'test':
+            from apps.core.services.notifications import send_test_email
+            ok, msg = send_test_email((request.user.email or '').strip())
+            (messages.success if ok else messages.error)(request, msg)
+            return redirect('ui:email_settings')
+        s.notifications_enabled = request.POST.get('notifications_enabled') == 'on'
+        s.email_send_mode = request.POST.get('email_send_mode') or SiteSettings.EmailSendMode.LOG
+        s.email_host = request.POST.get('email_host', '').strip()
+        try:
+            s.email_port = int(request.POST.get('email_port') or 587)
+        except (TypeError, ValueError):
+            s.email_port = 587
+        s.email_use_tls = request.POST.get('email_use_tls') == 'on'
+        s.email_use_ssl = request.POST.get('email_use_ssl') == 'on'
+        s.email_host_user = request.POST.get('email_host_user', '').strip()
+        from_email = request.POST.get('notifications_from_email', '').strip()
+        if from_email:
+            s.notifications_from_email = from_email
+        pw = request.POST.get('email_host_password', '')
+        if pw:  # masked field — only overwrite when a new value is typed
+            s.email_host_password = pw
+        s.save()
+        messages.success(request, 'Email settings saved.')
+        return redirect('ui:email_settings')
+
+
 # ============================================================================
 # Geographic / electoral lookup CRUD (Maintenance)
 # ============================================================================
