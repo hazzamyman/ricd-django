@@ -200,91 +200,24 @@ def cashflow_monthly_view(request):
 
 @login_required
 def aggregate_outputs_view(request):
-    """Work-level output report: what we are actually funding — dwellings by
-    type and bedroom count, residential allotments, and their costs (actual
-    where entered, otherwise estimated from notional rates)."""
-    from collections import defaultdict
-    from decimal import Decimal
-    from apps.core.models import Work
+    """Analytics — Aggregate Outputs.
 
-    works = (
-        Work.objects.exclude(project__state=Project.State.COMPLETED)
-        .select_related('work_type', 'project__council', 'project__program')
-    )
+    Per output category (Overall + Land/Dwellings/Extensions/Demolition/Other),
+    broken down by LGA: pipeline unit counts, dynamic per-Program approved
+    funding (from BriefFinancialApprovalItem — what program funded what outputs),
+    paid-to-council, DA buckets, and an output-mix breakdown.
+    """
+    import json
+    from apps.core.services.analytics import build_aggregate_outputs
 
-    def _bucket():
-        return {'units': 0, 'bedrooms': 0, 'cost': Decimal('0'), 'projects': set()}
+    region = request.GET.get('region', '').strip() or None
+    data = build_aggregate_outputs(region=region)
 
-    by_work_type = {}
-    by_bedrooms = defaultdict(_bucket)
-    by_category = defaultdict(_bucket)
-    by_council = defaultdict(_bucket)
-    by_program = defaultdict(_bucket)
-    totals = _bucket()
-
-    for w in works:
-        qty = w.quantity or 0
-        cost = w.total_effective_cost or Decimal('0')
-        beds = (w.bedrooms or 0) * qty
-        has_bedrooms = bool(w.work_type and w.work_type.has_bedrooms)
-        name = w.work_type.name if w.work_type else (w.work_type_other or 'Other')
-        category = w.work_type.get_category_display() if w.work_type else 'Other'
-
-        wt_key = (category, name)
-        row = by_work_type.setdefault(wt_key, {
-            'name': name, 'category': category,
-            'short_code': w.work_type.short_code if w.work_type else '',
-            'has_bedrooms': has_bedrooms, **_bucket(),
-        })
-        for tgt in (row, by_category[category], by_council[w.project.council.name if w.project.council else '—'],
-                    by_program[w.project.program.name if w.project.program else '—'], totals):
-            tgt['units'] += qty
-            tgt['bedrooms'] += beds
-            tgt['cost'] += cost
-            tgt['projects'].add(w.project_id)
-
-        if has_bedrooms and w.bedrooms:
-            b = by_bedrooms[w.bedrooms]
-            b['units'] += qty
-            b['cost'] += cost
-            b['projects'].add(w.project_id)
-
-    def _finalise(bucket, **extra):
-        units = bucket['units']
-        return {
-            **extra,
-            'units': units,
-            'bedrooms': bucket['bedrooms'],
-            'cost': bucket['cost'],
-            'avg_cost': (bucket['cost'] / units) if units else Decimal('0'),
-            'project_count': len(bucket['projects']),
-        }
-
-    work_type_rows = [
-        _finalise(r, name=r['name'], category=r['category'],
-                  short_code=r['short_code'], has_bedrooms=r['has_bedrooms'])
-        for r in sorted(by_work_type.values(), key=lambda x: (x['category'], x['name']))
-    ]
-    bedroom_rows = [
-        _finalise(v, bedrooms_label=b) for b, v in sorted(by_bedrooms.items())
-    ]
-    category_rows = [
-        _finalise(v, category=c) for c, v in sorted(by_category.items())
-    ]
-    council_rows = [
-        _finalise(v, council=c) for c, v in sorted(by_council.items())
-    ]
-    program_rows = [
-        _finalise(v, program=p) for p, v in sorted(by_program.items())
-    ]
-
-    return render(request, 'dashboard/aggregate.html', {
-        'work_type_rows': work_type_rows,
-        'bedroom_rows': bedroom_rows,
-        'category_rows': category_rows,
-        'council_rows': council_rows,
-        'program_rows': program_rows,
-        'totals': _finalise(totals),
+    return render(request, 'dashboard/analytics.html', {
+        'data_json': json.dumps(data),
+        'regions': data['regions'],
+        'selected_region': region or '',
+        'active_nav': 'aggregate',
     })
 
 
