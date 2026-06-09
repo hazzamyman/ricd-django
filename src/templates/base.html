@@ -371,6 +371,9 @@
   <a href="{% url 'ui:cashflow' %}" class="nav-item {% if active_nav == 'cashflow' %}active{% endif %}">
     <i class="bi bi-graph-up"></i> Cashflow
   </a>
+  <a href="{% url 'ui:cashflow_monthly' %}" class="nav-item {% if active_nav == 'cashflow_monthly' %}active{% endif %}" style="padding-left:34px; font-size:12px;" title="Per-program cashflow broken down by calendar month">
+    <i class="bi bi-calendar3"></i> By Month
+  </a>
   <a href="{% url 'ui:aggregate_outputs' %}" class="nav-item {% if active_nav == 'aggregate' %}active{% endif %}">
     <i class="bi bi-bar-chart-line"></i> Analytics
   </a>

@@ -27,6 +27,160 @@ def _zero():
     return Decimal('0')
 
 
+def _month_key(d):
+    return f"{d.year}-{d.month:02d}"
+
+
+def _pay_entry(p, share, kind, d):
+    """A serialisable payment row for a monthly drill-down cell."""
+    return {
+        'ref': p.reference or f"PMT-{p.pk}",
+        'project': p.project.name if p.project_id else '',
+        'project_id': p.project_id,
+        'council': p.project.council.name if (p.project_id and p.project.council_id) else '',
+        'amount': float(share),
+        'status': p.get_status_display(),
+        'kind': kind,
+        'date': d.strftime('%d %b %Y'),
+        'type': p.get_payment_type_display(),
+    }
+
+
+def build_program_monthly_cashflow(program=None, councils=None, start=None, months=24,
+                                   hide_contingency=False):
+    """Per-Program x per-calendar-MONTH cashflow (for the Monthly Cashflow page).
+
+    Forecast  = non-RELEASED, non-rejected Payment.amount split per program, by the
+                month of forecast_release_date (fallback release_date).
+    Released  = RELEASED payments by release_date month, using the locked
+                PaymentAllocation snapshot (fallback to current ratios).
+    Programmed (unapproved) projects are intentionally EXCLUDED -- they have a FY but
+    no payment month; they live on the FY cashflow page.
+
+    Returns a JSON-serialisable dict for the client renderer:
+      programs[{id,name,cc,gl,src}], cells{"<progId>|YYYY-MM":{forecast,released,payments}},
+      fy_budgets{fy_code: budget}, start, months, current_month, as_of, program_count.
+    """
+    import datetime
+    from apps.core.models import Program as _Program, ProgramBudget
+
+    if start:
+        try:
+            sy, sm = (int(x) for x in str(start).split('-')[:2])
+        except (ValueError, TypeError):
+            t = datetime.date.today(); sy, sm = t.year, t.month
+    else:
+        t = datetime.date.today(); sy, sm = t.year, t.month
+    months = max(1, min(int(months or 24), 60))
+    start = f"{sy}-{sm:02d}"
+
+    month_set = set()
+    y, m = sy, sm
+    for _ in range(months):
+        month_set.add(f"{y}-{m:02d}")
+        m += 1
+        if m > 12:
+            m = 1; y += 1
+
+    payments = (Payment.objects
+                .select_related('project__program', 'project__council')
+                .prefetch_related('allocations__program')
+                .exclude(status='REJECTED'))
+    if program is not None:
+        payments = payments.filter(project__program=program)
+    if councils is not None:
+        payments = payments.filter(project__council__in=councils)
+
+    cells = {}
+    programs_seen = {}
+
+    def _cell(prog_id, mkey):
+        k = f"{prog_id}|{mkey}"
+        c = cells.get(k)
+        if c is None:
+            c = {'forecast': _zero(), 'released': None, 'payments': []}
+            cells[k] = c
+        return c
+
+    def _rec(prog_id):
+        if prog_id and prog_id not in programs_seen:
+            try:
+                programs_seen[prog_id] = _Program.objects.get(pk=prog_id)
+            except _Program.DoesNotExist:
+                pass
+
+    for p in payments:
+        if p.project is None:
+            continue
+        amount = p.calculated_amount or p.amount or _zero()
+        if amount <= 0:
+            continue
+        if p.status == 'RELEASED' and p.release_date:
+            mkey = _month_key(p.release_date)
+            if mkey not in month_set:
+                continue
+            allocs = list(p.allocations.all())
+            parts = ([(a.program_id, a.amount) for a in allocs] if allocs
+                     else [(pid, share) for pid, (share, _r) in p.compute_program_split().items()])
+            for prog_id, share in parts:
+                if program is not None and prog_id != program.pk:
+                    continue
+                _rec(prog_id)
+                c = _cell(prog_id, mkey)
+                c['released'] = (c['released'] or _zero()) + share
+                c['payments'].append(_pay_entry(p, share, 'released', p.release_date))
+        else:
+            fdate = p.forecast_release_date or p.release_date
+            if not fdate:
+                continue
+            mkey = _month_key(fdate)
+            if mkey not in month_set:
+                continue
+            for prog_id, (share, _r) in p.compute_program_split().items():
+                if program is not None and prog_id != program.pk:
+                    continue
+                _rec(prog_id)
+                c = _cell(prog_id, mkey)
+                c['forecast'] += share
+                c['payments'].append(_pay_entry(p, share, 'forecast', fdate))
+
+    # Per-FY ProgramBudget context (no monthly budget exists).
+    pb_qs = ProgramBudget.objects.select_related('program')
+    if program is not None:
+        pb_qs = pb_qs.filter(program=program)
+    if councils is not None:
+        pb_qs = pb_qs.filter(program__projects__council__in=councils).distinct()
+    fy_budgets = defaultdict(_zero)
+    for b in pb_qs:
+        _rec(b.program_id)
+        fy_budgets[b.financial_year] += (b.allocated or _zero())
+
+    programs = [{
+        'id': str(pid), 'name': pr.name,
+        'cc': getattr(pr, 'cost_centre', '') or '', 'gl': pr.gl_code or '',
+        'src': pr.funding_source_display_name if pr.funding_source else '',
+    } for pid, pr in sorted(programs_seen.items(), key=lambda x: x[1].name)]
+
+    cells_out = {
+        k: {'forecast': float(c['forecast']),
+            'released': (float(c['released']) if c['released'] is not None else None),
+            'payments': c['payments']}
+        for k, c in cells.items()
+    }
+
+    today = datetime.date.today()
+    return {
+        'programs': programs,
+        'cells': cells_out,
+        'fy_budgets': {k: float(v) for k, v in fy_budgets.items()},
+        'start': start,
+        'months': months,
+        'current_month': f"{today.year}-{today.month:02d}",
+        'as_of': today.strftime('%d %b %Y'),
+        'program_count': len(programs),
+    }
+
+
 def _fy_label(fy_code):
     """Convert internal '2025-2026' to display '2025-26'."""
     if not fy_code or '-' not in fy_code:

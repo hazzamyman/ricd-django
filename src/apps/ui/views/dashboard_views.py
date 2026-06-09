@@ -137,6 +137,63 @@ def cashflow_view(request):
     })
 
 
+@login_required
+def cashflow_monthly_view(request):
+    """Monthly cashflow — per-Program x per-calendar-MONTH grid.
+
+    Plots approved payments by their forecast/actual release month (a separate
+    breakdown from the FY cashflow page). Programmed (unapproved) projects are
+    excluded — they have a FY but no payment month. ProgramBudget is surfaced as
+    per-FY context only (there is no monthly budget figure).
+    """
+    import json
+    from apps.core.services.cashflow import build_program_monthly_cashflow
+
+    program_id = request.GET.get('program', '').strip()
+    council_id = request.GET.get('council', '').strip()
+    start = request.GET.get('start', '').strip() or None
+
+    try:
+        months = int(request.GET.get('months', '24'))
+    except (TypeError, ValueError):
+        months = 24
+    if months not in (12, 24, 36):
+        months = 24
+
+    program = None
+    if program_id:
+        try:
+            program = Program.objects.get(pk=int(program_id))
+        except (Program.DoesNotExist, ValueError):
+            program = None
+
+    councils = None
+    if council_id:
+        try:
+            councils = [int(council_id)]
+        except ValueError:
+            councils = None
+
+    role = getattr(getattr(request.user, 'profile', None), 'officer_role', None)
+    hide_contingency = role in ('COUNCIL_USER', 'COUNCIL_MANAGER')
+    data = build_program_monthly_cashflow(
+        program=program, councils=councils, start=start, months=months,
+        hide_contingency=hide_contingency,
+    )
+
+    return render(request, 'dashboard/cashflow_monthly.html', {
+        'data_json': json.dumps(data),
+        'data': data,
+        'programs': Program.objects.filter(is_active=True).order_by('name'),
+        'councils': Council.objects.order_by('name'),
+        'selected_program_id': program_id,
+        'selected_council_id': council_id,
+        'selected_start': data['start'],
+        'selected_months': months,
+        'active_nav': 'cashflow_monthly',
+    })
+
+
 # ---------------------------------------------------------------------------
 # Aggregate outputs
 # ---------------------------------------------------------------------------

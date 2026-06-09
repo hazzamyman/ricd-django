@@ -1,0 +1,696 @@
+{% extends "base.html" %}
+{% block title %}Monthly Cashflow{% endblock %}
+{% block breadcrumbs %}
+  <span class="sep">/</span>
+  <a href="{% url 'ui:cashflow' %}">Cashflow</a>
+  <span class="sep">/</span>
+  <span class="current">By Month</span>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  :root { --fy-band:#f0f5fb; --fy-band-bd:#cfe0f2; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* tabs */
+  .mc-tabs { display:flex; gap:0; border-bottom:1px solid var(--line); margin:4px 0 14px 0; }
+  .mc-tabs .t { padding:10px 16px 12px; font-size:13.5px; color:#475569; border:0; border-bottom:2px solid transparent;
+    cursor:pointer; display:inline-flex; align-items:center; gap:8px; white-space:nowrap; background:transparent; }
+  .mc-tabs .t:hover { color: var(--ink); }
+  .mc-tabs .t .ic { color: var(--muted-2); font-size:14px; }
+  .mc-tabs .t.active { color: var(--brand); border-bottom-color: var(--brand); font-weight:600; }
+  .mc-tabs .t.active .ic { color: var(--brand); }
+
+  /* filter bar */
+  .filterbar { background:#fff; border:1px solid var(--line); border-radius:8px; padding:12px 14px;
+    margin-bottom:14px; display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap; }
+  .filt { display:inline-flex; flex-direction:column; gap:4px; min-width:0; }
+  .filt .lbl { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  .seg { display:inline-flex; padding:2px; background:var(--panel-alt); border:1px solid var(--line); border-radius:4px; height:32px; }
+  .seg button { background:transparent; border:0; padding:0 12px; font-size:12px; color:var(--muted); border-radius:3px; cursor:pointer; font-weight:500; }
+  .seg button:hover { color: var(--ink); }
+  .seg button.on { background:#fff; color:var(--brand-700); font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.06); }
+  .filterbar .spacer { flex:1; }
+  .filt-clear { background:transparent; border:0; color:var(--muted); font-size:12px; cursor:pointer; padding:6px 8px; height:32px; text-decoration:none; }
+  .filt-clear:hover { color:var(--brand); text-decoration:underline; }
+
+  /* note */
+  .note { display:flex; gap:10px; align-items:flex-start; border-radius:8px; padding:10px 14px;
+    font-size:12.5px; margin-bottom:14px; border:1px solid; line-height:1.5; }
+  .note .bi { font-size:15px; flex-shrink:0; margin-top:1px; }
+  .note.blue { background:var(--st-blue-bg); border-color:var(--st-blue-bd); color:var(--st-blue-fg); }
+  .note b { font-weight:700; }
+  .note a { color:inherit; text-decoration:underline; font-weight:600; }
+
+  .cc-pill { display:inline-flex; align-items:center; gap:3px; padding:1px 6px; border-radius:3px;
+    font-family:'JetBrains Mono', ui-monospace, monospace; font-size:10.5px; font-weight:600;
+    background:var(--brand-50); color:var(--brand-700); border:1px solid var(--brand-100); letter-spacing:.02em; }
+  .cc-pill .lbl { color:var(--muted); font-weight:500; }
+
+  /* pivot */
+  .pivot-wrap { background:#fff; border:1px solid var(--line); border-radius:8px; overflow:hidden; margin-bottom:18px; }
+  .pivot-head { display:flex; align-items:center; gap:12px; padding:14px 18px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .pivot-head h2 { font-size:14px; font-weight:700; margin:0; color:var(--ink); }
+  .pivot-head .meta { font-size:12px; color:var(--muted); }
+  .pivot-head .meta b { color:#334155; font-weight:600; }
+  .pivot-head .spacer { flex:1; }
+  .pivot-head .legend { display:flex; gap:14px; font-size:11.5px; color:var(--muted); align-items:center; flex-wrap:wrap; }
+  .pivot-head .legend .sw { width:12px; height:12px; border-radius:2px; display:inline-block; margin-right:5px; vertical-align:middle; }
+  .pivot-head .legend .sw.fy { background:var(--fy-band); border:1px solid var(--fy-band-bd); }
+  .pivot-head .legend .sw.cur { background:var(--brand-50); border:1px solid var(--brand-100); }
+  .pivot-head .legend .sw.fcdot { background:#fff; border:1px solid var(--muted-2); }
+  .pivot-scroll { overflow-x:auto; overflow-y:visible; position:relative; }
+
+  table.pivot { border-collapse:separate; border-spacing:0; width:100%; min-width:100%; font-size:12.5px; }
+  table.pivot thead th { background:var(--panel-alt); white-space:nowrap; z-index:2; }
+  table.pivot thead tr.fy-row th { position:sticky; top:0; z-index:2;
+    font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--muted);
+    padding:8px 12px 4px; border-bottom:0; text-align:center; }
+  table.pivot thead tr.fy-row th.fy-grp { border-left:1px solid var(--line); }
+  table.pivot thead tr.fy-row th .fy-budget { display:block; font-size:9.5px; font-weight:500; color:var(--muted-2); text-transform:none; letter-spacing:0; margin-top:2px; }
+  table.pivot thead tr.mo-row th { position:sticky; top:30px; z-index:2;
+    font-size:10.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.04em;
+    padding:6px 12px 9px; border-bottom:1px solid var(--line); text-align:right; white-space:nowrap; }
+  table.pivot thead tr.mo-row th.mo-fy-start { border-left:1px solid var(--line); }
+  table.pivot thead tr.mo-row th .mo { font-size:11.5px; font-weight:700; color:var(--ink); text-transform:none; letter-spacing:0; display:block; }
+  table.pivot thead tr.mo-row th .yr { font-size:10px; font-weight:500; color:var(--muted); }
+  table.pivot thead th.is-current { background:var(--brand-50); }
+  table.pivot thead th.is-current .mo { color:var(--brand-700); }
+  table.pivot thead th.fy-sub { background:var(--fy-band); color:var(--ink); border-left:1px solid var(--fy-band-bd); border-right:1px solid var(--fy-band-bd); }
+
+  table.pivot th.sticky-l { position:sticky; left:0; z-index:4; background:var(--panel-alt); box-shadow:1px 0 0 var(--line); text-align:left; min-width:250px; }
+  table.pivot thead tr.fy-row th.sticky-l { top:0; }
+  table.pivot th.sticky-r, table.pivot td.sticky-r { position:sticky; right:0; z-index:3; box-shadow:-1px 0 0 var(--line-2); min-width:124px; }
+  table.pivot thead th.sticky-r { background:var(--brand-50); color:var(--brand-700); text-align:right; }
+
+  table.pivot tbody td { padding:9px 12px; border-bottom:1px solid var(--line-soft); text-align:right; vertical-align:top; white-space:nowrap; }
+  table.pivot tbody tr:last-child td { border-bottom:1px solid var(--line); }
+  table.pivot tbody td.sticky-l { position:sticky; left:0; z-index:1; background:#fff; box-shadow:1px 0 0 var(--line); text-align:left; min-width:250px; }
+  table.pivot tbody td.mo-fy-start { border-left:1px solid var(--line-soft); }
+  table.pivot tbody td.is-current { background:rgba(232,240,251,.3); }
+  table.pivot tbody td.fy-sub { background:var(--fy-band); border-left:1px solid var(--fy-band-bd); border-right:1px solid var(--fy-band-bd); font-weight:700; }
+  table.pivot tbody td.sticky-r { background:#fafbfd; font-weight:700; }
+
+  .prg-cell .name { font-size:13px; font-weight:600; color:var(--ink); display:flex; align-items:center; gap:8px; }
+  .prg-cell .meta1 { display:flex; gap:8px; align-items:center; margin-top:4px; }
+  .prg-cell .gl { font-family:'JetBrains Mono', ui-monospace, monospace; font-size:10.5px; color:var(--muted); }
+  .prg-cell .gl .lbl { color:var(--muted-2); }
+  .prg-cell .src { font-size:11px; color:var(--muted); }
+
+  .cell { display:flex; flex-direction:column; gap:1px; text-align:right; cursor:pointer;
+    margin:-9px -12px; padding:9px 12px; transition:background .12s; }
+  .cell:hover { background:var(--brand-50); outline:1px solid var(--brand-100); outline-offset:-1px; }
+  .cell .fc { font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .cell .ac { font-size:12.5px; color:var(--ink); font-weight:600; font-variant-numeric:tabular-nums; }
+  .cell .ac.empty { color:var(--muted-2); font-weight:400; }
+  .cell.zero { cursor:default; }
+  .cell.zero:hover { background:transparent; outline:0; }
+  .cell.zero .ac { color:var(--muted-2); font-weight:400; }
+  td.selected .cell { background:var(--brand); outline:2px solid var(--brand-700); outline-offset:-2px; }
+  td.selected .cell .fc { color:rgba(255,255,255,.75); }
+  td.selected .cell .ac { color:#fff; }
+  td.fy-sub .cell { cursor:default; }
+  td.fy-sub .cell:hover { background:transparent; outline:0; }
+  td.fy-sub .cell .ac { color:var(--brand-700); }
+
+  table.pivot tr.totals td { background:var(--panel-alt); border-top:2px solid var(--line-2); font-weight:700; padding:11px 12px; }
+  table.pivot tr.totals td.sticky-l { background:var(--panel-alt); box-shadow:1px 0 0 var(--line-2); font-size:11px; text-transform:uppercase; letter-spacing:.06em; }
+  table.pivot tr.totals td.fy-sub { background:#e7f0fa; }
+  table.pivot tr.totals td.sticky-r { background:var(--brand-50); color:var(--brand-700); box-shadow:-1px 0 0 var(--line-2); }
+  table.pivot tr.totals .cell { cursor:default; }
+  table.pivot tr.totals .cell:hover { background:transparent; outline:0; }
+
+  .pivot-foot { display:flex; align-items:center; justify-content:space-between; padding:10px 18px;
+    background:var(--panel-alt); border-top:1px solid var(--line); font-size:12px; color:var(--muted); flex-wrap:wrap; gap:8px; }
+  .pivot-foot b { color:var(--ink); font-weight:600; }
+
+  /* flat tables */
+  .flat-list { background:#fff; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .flat-list table { width:100%; border-collapse:separate; border-spacing:0; font-size:13px; }
+  .flat-list thead th { background:var(--panel-alt); font-size:11px; font-weight:600; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.04em; padding:10px 14px; border-bottom:1px solid var(--line); text-align:left; }
+  .flat-list thead th.num-cell { text-align:right; }
+  .flat-list tbody td { padding:10px 14px; border-bottom:1px solid var(--line-soft); vertical-align:middle; }
+  .flat-list tbody tr.current td { background:rgba(232,240,251,.35); }
+  .flat-list tbody tr.fy-divider td { background:var(--fy-band); font-weight:700; color:var(--brand-700);
+    font-size:11px; text-transform:uppercase; letter-spacing:.06em; padding:7px 14px; }
+  .flat-list tbody tr:last-child td { border-bottom:0; }
+  .flat-list .num-cell { text-align:right; font-variant-numeric:tabular-nums; }
+  .flat-list .delta { display:inline-flex; align-items:center; gap:3px; font-size:11.5px; font-weight:600; padding:1px 6px; border-radius:4px; }
+  .flat-list .delta.over { background:var(--st-amber-bg); color:var(--st-amber-fg); }
+  .flat-list .delta.under { background:var(--st-green-bg); color:var(--st-green-fg); }
+  .flat-list .delta.even { background:var(--st-grey-bg); color:var(--st-grey-fg); }
+  .flat-list .bar-wrap { height:6px; background:var(--st-grey-bg); border-radius:999px; overflow:hidden; min-width:120px; display:inline-block; vertical-align:middle; }
+  .flat-list .bar-wrap > div { height:100%; background:var(--brand); border-radius:999px; }
+  .flat-list tfoot td { background:var(--panel-alt); font-weight:700; padding:12px 14px; font-size:13px; border-top:2px solid var(--line-2); }
+
+  [data-pane] { display:none; }
+  [data-pane].on { display:block; }
+
+  /* drilldown slideover */
+  .drill { position:fixed; top:92px; right:0; bottom:0; width:430px; background:#fff; border-left:1px solid var(--line);
+    box-shadow:-8px 0 24px rgba(15,23,42,.08); z-index:1040; display:flex; flex-direction:column;
+    transform:translateX(100%); transition:transform .2s ease-out; }
+  .drill.open { transform:translateX(0); }
+  .drill-head { padding:14px 18px; border-bottom:1px solid var(--line); display:flex; align-items:flex-start; gap:12px; }
+  .drill-head .lbl { font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  .drill-head h3 { font-size:16px; font-weight:700; margin:3px 0 0; color:var(--ink); letter-spacing:-.005em; }
+  .drill-head .sub { font-size:12px; color:var(--muted); margin-top:4px; }
+  .drill-head .close { background:transparent; border:0; color:var(--muted-2); width:28px; height:28px;
+    border-radius:4px; cursor:pointer; display:flex; align-items:center; justify-content:center; margin-left:auto; flex-shrink:0; }
+  .drill-head .close:hover { background:var(--st-grey-bg); color:var(--ink); }
+  .drill-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line-soft); border-bottom:1px solid var(--line); }
+  .drill-summary .stat { background:#fff; padding:12px 14px; }
+  .drill-summary .stat .lbl { font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+  .drill-summary .stat .v { font-size:15px; font-weight:700; margin-top:4px; font-variant-numeric:tabular-nums; }
+  .drill-summary .stat .v.muted { color:var(--muted); }
+  .drill-summary .stat .v.green { color:var(--st-green-fg); }
+  .drill-list { padding:4px 0; flex:1; overflow-y:auto; }
+  .pay-row { display:grid; grid-template-columns:32px 1fr auto; gap:12px; align-items:center; padding:11px 16px; border-bottom:1px solid var(--line-soft); }
+  .pay-row .ic { width:32px; height:32px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:14px; background:var(--st-green-bg); color:var(--st-green-fg); }
+  .pay-row.forecast .ic { background:var(--brand-50); color:var(--brand); }
+  .pay-row .ref { font-family:'JetBrains Mono', ui-monospace, monospace; font-size:12px; color:var(--brand); font-weight:600; }
+  .pay-row .det { font-size:12px; color:#334155; margin-top:2px; line-height:1.4; }
+  .pay-row .det .b { color:var(--ink); font-weight:500; }
+  .pay-row .metarow { font-size:11px; color:var(--muted); margin-top:3px; font-family:'JetBrains Mono', ui-monospace, monospace; }
+  .pay-row .right { text-align:right; }
+  .pay-row .right .amt { font-size:13.5px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .pay-row .right .status { font-size:10.5px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-top:3px; }
+  .pay-row.forecast .right .status { color:var(--brand); }
+  .drill-foot { padding:12px 16px; border-top:1px solid var(--line); background:var(--panel-alt); display:flex; align-items:center; justify-content:space-between; font-size:12px; }
+  .drill-foot .label { color:var(--muted); }
+  .drill-foot .total { font-size:14px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .scrim { display:none; position:fixed; inset:92px 430px 0 220px; background:rgba(15,23,42,.08); z-index:1035; }
+  .scrim.on { display:block; }
+  .empty-pivot { padding:40px 20px; text-align:center; color:var(--muted); font-size:13px; }
+</style>
+{% endblock %}
+
+{% block content %}
+{{ data_json|json_script:"monthly-data" }}
+
+<div class="pg-head">
+  <div style="flex:1;">
+    <h1>Monthly Cashflow</h1>
+    <div class="meta">
+      <span><b>Scope:</b> {% if selected_program_id %}1 program{% else %}{{ data.program_count }} program{{ data.program_count|pluralize }}{% endif %}</span>
+      <span id="rangeMeta"><b>Range:</b> —</span>
+      <span>As of <b>{{ data.as_of }}</b></span>
+      <span><b>Source:</b> Payment.forecast_release_date / release_date</span>
+    </div>
+  </div>
+  <div class="actions">
+    <a href="{% url 'ui:cashflow' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-graph-up"></i> By Financial Year</a>
+  </div>
+</div>
+
+<div class="mc-tabs" id="viewTabs">
+  <button class="t active" data-view="pivot"><i class="bi bi-table ic"></i> Pivot</button>
+  <button class="t" data-view="by-month"><i class="bi bi-calendar3 ic"></i> By Month</button>
+  <button class="t" data-view="by-program"><i class="bi bi-tags ic"></i> By Program</button>
+</div>
+
+<form method="get" class="filterbar" id="filterForm">
+  <div class="filt">
+    <div class="lbl">Program</div>
+    <select class="form-select form-select-sm" name="program" style="min-width:200px;" onchange="this.form.submit()">
+      <option value="">All programs</option>
+      {% for p in programs %}
+        <option value="{{ p.pk }}" {% if selected_program_id == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="filt">
+    <div class="lbl">Council</div>
+    <select class="form-select form-select-sm" name="council" style="min-width:170px;" onchange="this.form.submit()">
+      <option value="">All councils</option>
+      {% for c in councils %}
+        <option value="{{ c.pk }}" {% if selected_council_id == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="filt">
+    <div class="lbl">Start month</div>
+    <input type="month" class="form-control form-control-sm" name="start" value="{{ selected_start }}" style="min-width:150px;" onchange="this.form.submit()">
+  </div>
+  <div class="filt">
+    <div class="lbl">Months</div>
+    <div class="seg" id="fMonths">
+      <button type="button" data-n="12" {% if selected_months == 12 %}class="on"{% endif %}>12</button>
+      <button type="button" data-n="24" {% if selected_months == 24 %}class="on"{% endif %}>24</button>
+      <button type="button" data-n="36" {% if selected_months == 36 %}class="on"{% endif %}>36</button>
+    </div>
+    <input type="hidden" name="months" id="monthsInput" value="{{ selected_months }}">
+  </div>
+  <div class="filt">
+    <div class="lbl">Show</div>
+    <div class="seg" id="fShow">
+      <button type="button" data-s="forecast">Forecast</button>
+      <button type="button" data-s="actual">Actual</button>
+      <button type="button" data-s="both" class="on">Both</button>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <a class="filt-clear" href="{% url 'ui:cashflow_monthly' %}"><i class="bi bi-x-circle"></i> Reset</a>
+</form>
+
+<div class="note blue">
+  <i class="bi bi-info-circle-fill"></i>
+  <div>
+    <b>Approved payments only.</b> This grid plots payments by their forecast or actual release month.
+    <b>Programmed (unapproved) projects</b> — which carry a financial year but no payment month — are <b>excluded</b> here;
+    view them on the <a href="{% url 'ui:cashflow' %}">FY Cashflow page</a>. Per-FY <b>ProgramBudget</b> is shown in the tinted
+    <b>FY&nbsp;Σ</b> columns for context — there is no monthly budget figure.
+  </div>
+</div>
+
+<!-- PIVOT -->
+<div data-pane="pivot" class="on">
+  <div class="pivot-wrap">
+    <div class="pivot-head">
+      <h2>Pivot · Programs × Months</h2>
+      <span class="meta" id="pivotMeta">—</span>
+      <div class="spacer"></div>
+      <div class="legend">
+        <span><span class="sw cur"></span>Current month</span>
+        <span><span class="sw fy"></span>FY subtotal</span>
+        <span><span class="sw fcdot"></span>Forecast (no actual yet)</span>
+      </div>
+    </div>
+    <div class="pivot-scroll">
+      <table class="pivot" id="pivotTable">
+        <thead id="pivotHead"></thead>
+        <tbody id="pivotBody"></tbody>
+      </table>
+    </div>
+    <div class="pivot-foot" id="pivotFoot"></div>
+  </div>
+</div>
+
+<!-- BY MONTH -->
+<div data-pane="by-month">
+  <div class="flat-list">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:30%;">Month</th>
+          <th class="num-cell">Forecast</th>
+          <th class="num-cell">Released</th>
+          <th class="num-cell">Variance</th>
+          <th style="width:22%;">Released vs forecast</th>
+        </tr>
+      </thead>
+      <tbody id="byMonthBody"></tbody>
+      <tfoot id="byMonthFoot"></tfoot>
+    </table>
+  </div>
+</div>
+
+<!-- BY PROGRAM -->
+<div data-pane="by-program">
+  <div class="flat-list">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:34%;">Program</th>
+          <th class="num-cell">Forecast (range)</th>
+          <th class="num-cell">Released (range)</th>
+          <th class="num-cell">FY budget</th>
+          <th class="num-cell">Variance</th>
+        </tr>
+      </thead>
+      <tbody id="byProgramBody"></tbody>
+      <tfoot id="byProgramFoot"></tfoot>
+    </table>
+  </div>
+</div>
+
+<!-- drilldown -->
+<div class="scrim" id="scrim"></div>
+<div class="drill" id="drill">
+  <div class="drill-head">
+    <div>
+      <div class="lbl" id="drillLbl">Drilldown</div>
+      <h3 id="drillTitle">—</h3>
+      <div class="sub" id="drillSub">—</div>
+    </div>
+    <button class="close" id="drillClose"><i class="bi bi-x-lg"></i></button>
+  </div>
+  <div class="drill-summary">
+    <div class="stat"><div class="lbl">Forecast</div><div class="v muted" id="dForecast">—</div></div>
+    <div class="stat"><div class="lbl">Released</div><div class="v green" id="dReleased">—</div></div>
+    <div class="stat"><div class="lbl">Payments</div><div class="v" id="dCount">—</div></div>
+  </div>
+  <div class="drill-list" id="drillList"></div>
+  <div class="drill-foot">
+    <span class="label">Total this cell</span>
+    <span class="total" id="drillTotal">—</span>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function(){
+  const DATA = JSON.parse(document.getElementById('monthly-data').textContent);
+  const PROGRAMS = DATA.programs;            // [{id,name,cc,gl,src}]
+  const CELLS = DATA.cells;                  // {"<id>|YYYY-MM":{forecast,released,payments}}
+  const FY_BUDGETS = DATA.fy_budgets;        // {"YYYY-YYYY": number}
+  const CUR_KEY = DATA.current_month;
+  const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const [CUR_Y, CUR_M] = CUR_KEY.split('-').map(Number); // CUR_M is 1-based
+
+  let state = { start: DATA.start, months: DATA.months, show:'both', selKey:null };
+
+  // ---- DOM builder: textContent for all dynamic data (no innerHTML) ----
+  function el(tag, opts){
+    const e = document.createElement(tag);
+    if (opts){
+      if (opts.cls) e.className = opts.cls;
+      if (opts.text != null) e.textContent = opts.text;
+      if (opts.style) e.setAttribute('style', opts.style);
+      if (opts.colspan) e.colSpan = opts.colspan;
+      if (opts.rowspan) e.rowSpan = opts.rowspan;
+      if (opts.attrs) for (const k in opts.attrs) e.setAttribute(k, opts.attrs[k]);
+    }
+    for (let i=2;i<arguments.length;i++){
+      const c = arguments[i];
+      if (c == null) continue;
+      e.appendChild(typeof c === 'object' ? c : document.createTextNode(String(c)));
+    }
+    return e;
+  }
+  function clear(node){ while (node.firstChild) node.removeChild(node.firstChild); }
+
+  function fyOf(y, m){ return (m >= 6) ? [y, y+1] : [y-1, y]; }   // m is 0-based
+  function fyKey(y,m){ const [a,b]=fyOf(y,m); return a+'-'+b; }
+  function fyLabel(y,m){ const [a,b]=fyOf(y,m); return 'FY '+a+'–'+String(b).slice(2); }
+  function money(n){ return '$' + Math.round(n).toLocaleString('en-AU'); }
+  function moneyFull(n){ return '$' + Number(Math.round(n)).toLocaleString('en-AU', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+  function moneyM(n){ const m = n/1e6; return '$' + (m>=10 ? m.toFixed(1) : m.toFixed(2)) + 'M'; }
+
+  function buildMonths(startStr, n){
+    const [sy, sm] = startStr.split('-').map(Number);
+    const arr = []; let y = sy, m = sm-1;
+    for (let i=0;i<n;i++){
+      const key = y + '-' + String(m+1).padStart(2,'0');
+      arr.push({ y, m, key, name: MONTH_NAMES[m], label: MONTH_NAMES[m]+' '+y,
+                 fyKey: fyKey(y,m), fyLabel: fyLabel(y,m), isCurrent: key===CUR_KEY,
+                 isPast: (y < CUR_Y) || (y===CUR_Y && (m+1) < CUR_M) });
+      m++; if (m>11){ m=0; y++; }
+    }
+    return arr;
+  }
+  function valueFor(prog, mo){
+    const c = CELLS[prog.id+'|'+mo.key];
+    return c ? { forecast: c.forecast||0, released: (c.released==null?null:c.released) } : { forecast:0, released:null };
+  }
+
+  function cellEl(f, r, isSub){
+    const z = (f<1 && (r==null||r<1));
+    const div = el('div', {cls: 'cell'+(z?' zero':'')+(isSub?' subcell':'')});
+    div.appendChild(el('span', {cls:'fc', text: money(f)}));
+    div.appendChild(r==null ? el('span',{cls:'ac empty', text:'—'}) : el('span',{cls:'ac num', text: money(r)}));
+    return div;
+  }
+  function metaB(label, rest){
+    const span = document.createDocumentFragment();
+    span.appendChild(el('b', {text: label}));
+    if (rest != null) span.appendChild(document.createTextNode(' ' + rest));
+    return span;
+  }
+
+  function renderPivot(){
+    const months = buildMonths(state.start, state.months);
+    const progs = PROGRAMS;
+    const head = document.getElementById('pivotHead');
+    const body = document.getElementById('pivotBody');
+    const foot = document.getElementById('pivotFoot');
+    clear(head); clear(body); clear(foot);
+
+    document.getElementById('rangeMeta').replaceChildren(
+      metaB('Range:', months[0].label+' → '+months[months.length-1].label+' ('+months.length+' mo)'));
+
+    if (!progs.length){
+      document.getElementById('pivotMeta').textContent = '0 programs';
+      foot.appendChild(el('div', {cls:'empty-pivot', style:'width:100%', text:'No approved payments in this range.'}));
+      return;
+    }
+
+    const fyGroups = [];
+    months.forEach((mo, i)=>{
+      let g = fyGroups[fyGroups.length-1];
+      if (!g || g.fyKey !== mo.fyKey){ g = { fyKey:mo.fyKey, fyLabel:mo.fyLabel, months:[] }; fyGroups.push(g); }
+      g.months.push({ ...mo, idx:i });
+    });
+
+    // header
+    const fyTr = el('tr', {cls:'fy-row'});
+    fyTr.appendChild(el('th', {cls:'sticky-l', rowspan:2, style:'vertical-align:bottom;', text:'Program'}));
+    const moTr = el('tr', {cls:'mo-row'});
+    fyGroups.forEach(g=>{
+      const fyBudget = FY_BUDGETS[g.fyKey] || 0;
+      const th = el('th', {cls:'fy-grp', colspan: g.months.length+1}, g.fyLabel);
+      if (fyBudget>0) th.appendChild(el('span', {cls:'fy-budget', text:'budget '+moneyM(fyBudget)}));
+      fyTr.appendChild(th);
+      g.months.forEach((mo, j)=>{
+        const cls = (j===0?'mo-fy-start ':'') + (mo.isCurrent?'is-current':'');
+        moTr.appendChild(el('th', {cls: cls.trim()},
+          el('span', {cls:'mo', text: mo.name}), el('span', {cls:'yr', text: String(mo.y)})));
+      });
+      moTr.appendChild(el('th', {cls:'fy-sub', text:'FY Σ'}));
+    });
+    fyTr.appendChild(el('th', {cls:'sticky-r', rowspan:2, style:'vertical-align:bottom;', text:'Total'}));
+    head.appendChild(fyTr); head.appendChild(moTr);
+
+    // body
+    const colTotals = {}, fyColTotals = {};
+    let grandF=0, grandR=0;
+
+    progs.forEach(prog=>{
+      const tr = el('tr');
+      const nameDiv = el('div', {cls:'name'}, prog.name);
+      if (prog.cc) nameDiv.appendChild(el('span', {cls:'cc-pill'}, el('span',{cls:'lbl',text:'CC'}), ' '+prog.cc));
+      const meta1 = el('div', {cls:'meta1'});
+      if (prog.gl) meta1.appendChild(el('span', {cls:'gl'}, el('span',{cls:'lbl',text:'GL'}), ' '+prog.gl));
+      if (prog.src) meta1.appendChild(el('span', {cls:'src', text:'· '+prog.src}));
+      tr.appendChild(el('td', {cls:'sticky-l'}, el('div', {cls:'prg-cell'}, nameDiv, meta1)));
+
+      let rowF=0, rowR=0;
+      fyGroups.forEach(g=>{
+        let gF=0, gR=0, gHasR=false;
+        g.months.forEach((mo, j)=>{
+          const v = valueFor(prog, mo);
+          const f = v.forecast, r = v.released;
+          rowF+=f; rowR+=(r||0); gF+=f; if(r!=null){ gR+=r; gHasR=true; }
+          colTotals[mo.key] = colTotals[mo.key] || {f:0,r:0,hasR:false};
+          colTotals[mo.key].f += f; if(r!=null){ colTotals[mo.key].r += r; colTotals[mo.key].hasR=true; }
+          const cls = (j===0?'mo-fy-start ':'') + (mo.isCurrent?'is-current ':'')
+                    + (state.selKey===prog.id+'|'+mo.key?'selected ':'');
+          const td = el('td', {cls: cls.trim(), attrs:{'data-prog':prog.id, 'data-mo':mo.key}}, cellEl(f, r));
+          const cell = CELLS[prog.id+'|'+mo.key];
+          if (cell && cell.payments && cell.payments.length){
+            td.addEventListener('click', ()=>{
+              state.selKey = prog.id+'|'+mo.key;
+              document.querySelectorAll('#pivotBody td.selected').forEach(x=>x.classList.remove('selected'));
+              td.classList.add('selected');
+              openDrill(prog.id, mo.key);
+            });
+          }
+          tr.appendChild(td);
+        });
+        fyColTotals[g.fyKey] = fyColTotals[g.fyKey] || {f:0,r:0,hasR:false};
+        fyColTotals[g.fyKey].f += gF; fyColTotals[g.fyKey].r += gR; fyColTotals[g.fyKey].hasR = fyColTotals[g.fyKey].hasR || gHasR;
+        tr.appendChild(el('td', {cls:'fy-sub'}, cellEl(gF, gHasR?gR:null, true)));
+      });
+      grandF+=rowF; grandR+=rowR;
+      tr.appendChild(el('td', {cls:'sticky-r'},
+        el('div', {cls:'fc', text:'fc '+moneyM(rowF)}), el('div', {cls:'ac num', text: money(rowR)})));
+      body.appendChild(tr);
+    });
+
+    // totals row
+    const totTr = el('tr', {cls:'totals'});
+    totTr.appendChild(el('td', {cls:'sticky-l', text:'Total · '+progs.length+' program'+(progs.length===1?'':'s')}));
+    fyGroups.forEach(g=>{
+      g.months.forEach((mo,j)=>{
+        const c = colTotals[mo.key] || {f:0,r:0,hasR:false};
+        const cls = (j===0?'mo-fy-start ':'') + (mo.isCurrent?'is-current':'');
+        totTr.appendChild(el('td', {cls: cls.trim()}, cellEl(c.f, c.hasR?c.r:null)));
+      });
+      const fc = fyColTotals[g.fyKey] || {f:0,r:0,hasR:false};
+      totTr.appendChild(el('td', {cls:'fy-sub'}, cellEl(fc.f, fc.hasR?fc.r:null, true)));
+    });
+    totTr.appendChild(el('td', {cls:'sticky-r'},
+      el('div', {cls:'fc', text:'fc '+moneyM(grandF)}), el('div', {cls:'ac num', text: money(grandR)})));
+    body.appendChild(totTr);
+
+    document.getElementById('pivotMeta').textContent = progs.length+' programs · '+months.length+' months';
+    const pastMonths = months.filter(m=>m.isPast).length;
+    const left = el('div');
+    left.appendChild(el('b', {cls:'num', text: money(grandR)}));
+    left.appendChild(document.createTextNode(' released across '));
+    left.appendChild(el('b', {text: pastMonths+' month'+(pastMonths===1?'':'s')}));
+    left.appendChild(document.createTextNode(' · '));
+    left.appendChild(el('b', {cls:'num', text: money(Math.max(grandF-grandR,0))}));
+    left.appendChild(document.createTextNode(' remaining forecast'));
+    const right = el('div');
+    right.appendChild(el('span', {style:'margin-right:12px;', text:'Click any cell for the payments behind it'}));
+    const toFlat = el('a', {attrs:{href:'#'}, text:'View by month →'});
+    toFlat.addEventListener('click', (e)=>{ e.preventDefault(); switchView('by-month'); });
+    right.appendChild(toFlat);
+    foot.appendChild(left); foot.appendChild(right);
+
+    applyShowMode();
+  }
+
+  function applyShowMode(){
+    const showF = state.show!=='actual';
+    const showA = state.show!=='forecast';
+    document.querySelectorAll('#pivotTable .cell .fc, #pivotTable .sticky-r .fc').forEach(e=> e.style.display = showF?'':'none');
+    document.querySelectorAll('#pivotTable .cell .ac, #pivotTable .sticky-r .ac').forEach(e=> e.style.display = showA?'':'none');
+  }
+
+  function openDrill(progId, moKey){
+    const prog = PROGRAMS.find(p=>p.id===progId);
+    const months = buildMonths(state.start, state.months);
+    const mo = months.find(m=>m.key===moKey);
+    const cell = CELLS[progId+'|'+moKey];
+    const f = cell.forecast||0, r = (cell.released==null?null:cell.released);
+    document.getElementById('drillLbl').textContent = (r!=null?'Released':'Forecast')+' · '+mo.label;
+    document.getElementById('drillTitle').textContent = prog.name;
+    const sub = document.getElementById('drillSub'); clear(sub);
+    const monoStr = (prog.cc?'CC '+prog.cc:'') + (prog.gl?' · GL '+prog.gl:'');
+    if (monoStr) sub.appendChild(el('span', {cls:'mono', text: monoStr}));
+    sub.appendChild(document.createTextNode((monoStr?' · ':'') + mo.label));
+    document.getElementById('dForecast').textContent = f>0 ? money(f) : '—';
+    document.getElementById('dReleased').textContent = r!=null ? money(r) : '—';
+
+    const list = document.getElementById('drillList'); clear(list);
+    (cell.payments||[]).forEach(p=>{
+      const isReleased = p.kind==='released';
+      const row = el('div', {cls:'pay-row '+(isReleased?'':'forecast')});
+      const icon = el('i', {cls:'bi '+(isReleased?'bi-check-circle-fill':'bi-calendar-event')});
+      row.appendChild(el('div', {cls:'ic'}, icon));
+      const mid = el('div');
+      mid.appendChild(el('div', {cls:'ref', text: p.ref}));
+      const det = el('div', {cls:'det'}, el('span', {cls:'b', text: p.project || '—'}));
+      if (p.council) det.appendChild(document.createTextNode(' · ' + p.council));
+      mid.appendChild(det);
+      mid.appendChild(el('div', {cls:'metarow', text: (isReleased?'released ':'forecast ')+p.date+(p.type?' · '+p.type:'')}));
+      row.appendChild(mid);
+      const right = el('div', {cls:'right'});
+      right.appendChild(el('div', {cls:'amt', text: money(p.amount)}));
+      right.appendChild(el('div', {cls:'status', text: p.status}));
+      row.appendChild(right);
+      list.appendChild(row);
+    });
+    const total = r!=null ? r : f;
+    document.getElementById('dCount').textContent = (cell.payments||[]).length;
+    document.getElementById('drillTotal').textContent = moneyFull(total);
+    document.getElementById('drill').classList.add('open');
+    document.getElementById('scrim').classList.add('on');
+  }
+  function closeDrill(){
+    document.getElementById('drill').classList.remove('open');
+    document.getElementById('scrim').classList.remove('on');
+    document.querySelectorAll('#pivotBody td.selected').forEach(x=>x.classList.remove('selected'));
+    state.selKey=null;
+  }
+  document.getElementById('drillClose').onclick = closeDrill;
+  document.getElementById('scrim').onclick = closeDrill;
+
+  function deltaEl(value){
+    const vCls = value==null?'even':(value<0?'over':'under');
+    const txt = value==null? '—' : (value>=0?'+':'−')+money(Math.abs(value));
+    return el('span', {cls:'delta '+vCls, text: txt});
+  }
+
+  function renderByMonth(){
+    const months = buildMonths(state.start, state.months);
+    const progs = PROGRAMS;
+    const body = document.getElementById('byMonthBody'); clear(body);
+    let tF=0, tR=0, lastFy=null;
+    const maxF = Math.max(1, ...months.map(mo=> progs.reduce((s,p)=>s+valueFor(p,mo).forecast,0)));
+    months.forEach(mo=>{
+      if (mo.fyKey!==lastFy){ lastFy=mo.fyKey;
+        const dtr = el('tr', {cls:'fy-divider'}); dtr.appendChild(el('td', {colspan:5, text: mo.fyLabel})); body.appendChild(dtr); }
+      let f=0, r=0, hasR=false;
+      progs.forEach(p=>{ const v=valueFor(p,mo); f+=v.forecast; if(v.released!=null){ r+=v.released; hasR=true; } });
+      tF+=f; tR+=(hasR?r:0);
+      const variance = hasR ? r-f : null;
+      const pct = Math.min(100, Math.round((hasR?r:f)/maxF*100));
+      const tr = el('tr', {cls: mo.isCurrent?'current':''});
+      const mcell = el('td', {}, el('b', {text: mo.label}));
+      if (mo.isCurrent) mcell.appendChild(el('span', {cls:'pill blue', style:'font-size:9px;', text:'Current'}));
+      tr.appendChild(mcell);
+      tr.appendChild(el('td', {cls:'num-cell', text: money(f)}));
+      tr.appendChild(el('td', {cls:'num-cell'}, hasR ? document.createTextNode(money(r)) : el('span', {style:'color:var(--muted-2)', text:'—'})));
+      tr.appendChild(el('td', {cls:'num-cell'}, deltaEl(variance)));
+      tr.appendChild(el('td', {}, el('span', {cls:'bar-wrap'}, el('div', {style:'width:'+pct+'%'}))));
+      body.appendChild(tr);
+    });
+    const foot = document.getElementById('byMonthFoot'); clear(foot);
+    const ftr = el('tr');
+    ftr.appendChild(el('td', {text:'Total · '+months.length+' months'}));
+    ftr.appendChild(el('td', {cls:'num-cell', text: money(tF)}));
+    ftr.appendChild(el('td', {cls:'num-cell', text: money(tR)}));
+    ftr.appendChild(el('td', {cls:'num-cell'}, deltaEl(tR-tF)));
+    ftr.appendChild(el('td'));
+    foot.appendChild(ftr);
+  }
+
+  function renderByProgram(){
+    const months = buildMonths(state.start, state.months);
+    const progs = PROGRAMS;
+    const body = document.getElementById('byProgramBody'); clear(body);
+    const fysInRange = [...new Set(months.map(m=>m.fyKey))];
+    let tF=0,tR=0,tB=0;
+    let budgetAll=0; fysInRange.forEach(fk=>{ budgetAll += (FY_BUDGETS[fk]||0); });
+    progs.forEach(p=>{
+      let f=0,r=0; months.forEach(mo=>{ const v=valueFor(p,mo); f+=v.forecast; if(v.released!=null) r+=v.released; });
+      tF+=f; tR+=r; tB+=budgetAll;
+      const variance = r-f;
+      const tr = el('tr');
+      const c0 = el('td', {}, el('div', {style:'font-weight:600;', text: p.name}));
+      const metaStr = (p.cc?'CC '+p.cc:'') + (p.gl?' · GL '+p.gl:'') + (p.src?' · '+p.src:'');
+      c0.appendChild(el('div', {cls:'mono', style:'font-size:11px;color:var(--muted);margin-top:3px;', text: metaStr}));
+      tr.appendChild(c0);
+      tr.appendChild(el('td', {cls:'num-cell', text: money(f)}));
+      tr.appendChild(el('td', {cls:'num-cell', text: money(r)}));
+      tr.appendChild(el('td', {cls:'num-cell', style:'color:var(--muted)'},
+        money(budgetAll)+' ', el('span', {style:'font-size:10px;', text:'('+fysInRange.length+' FY)'})));
+      tr.appendChild(el('td', {cls:'num-cell'}, deltaEl(variance)));
+      body.appendChild(tr);
+    });
+    const foot = document.getElementById('byProgramFoot'); clear(foot);
+    const ftr = el('tr');
+    ftr.appendChild(el('td', {text:'Total · '+progs.length+' programs'}));
+    ftr.appendChild(el('td', {cls:'num-cell', text: money(tF)}));
+    ftr.appendChild(el('td', {cls:'num-cell', text: money(tR)}));
+    ftr.appendChild(el('td', {cls:'num-cell', style:'color:var(--muted)', text: money(tB)}));
+    ftr.appendChild(el('td', {cls:'num-cell'}, deltaEl(tR-tF)));
+    foot.appendChild(ftr);
+  }
+
+  function switchView(view){
+    document.querySelectorAll('#viewTabs .t').forEach(t=> t.classList.toggle('active', t.dataset.view===view));
+    document.querySelectorAll('[data-pane]').forEach(p=> p.classList.toggle('on', p.dataset.pane===view));
+    if (view==='by-month') renderByMonth();
+    if (view==='by-program') renderByProgram();
+  }
+  document.querySelectorAll('#viewTabs .t').forEach(t=> t.addEventListener('click', ()=> switchView(t.dataset.view)));
+
+  document.querySelectorAll('#fMonths button').forEach(b=> b.addEventListener('click', ()=>{
+    document.getElementById('monthsInput').value = b.dataset.n;
+    document.getElementById('filterForm').submit();
+  }));
+  document.querySelectorAll('#fShow button').forEach(b=> b.addEventListener('click', ()=>{
+    document.querySelectorAll('#fShow button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+    state.show=b.dataset.s; applyShowMode();
+  }));
+
+  renderPivot();
+})();
+</script>
+{% endblock %}
