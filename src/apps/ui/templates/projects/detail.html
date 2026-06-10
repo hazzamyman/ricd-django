@@ -458,6 +458,10 @@
               <div class="val">{{ project.get_project_type_display }}</div>
             </div>
             <div class="det-field">
+              <div class="lbl">Cashflow Method</div>
+              <div class="val">{{ project.get_cashflow_method_display }}</div>
+            </div>
+            <div class="det-field">
               <div class="lbl">SAP ION</div>
               <div class="val{% if not project.sap_ion %} empty{% endif %}">{{ project.sap_ion|default:"—" }}</div>
             </div>

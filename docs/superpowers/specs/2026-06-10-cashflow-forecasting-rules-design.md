@@ -45,8 +45,10 @@ Maintenance page.
 - Choices reuse `Work.CashflowMethod`: `MILESTONE` ("Capital Grants (Payment Milestone)") /
   `WORKSTEP` ("Capital Works (WorkStep Progressive)").
 - `default = MILESTONE` so **existing projects stay payment-based** (numbers don't move).
-- Added to the Project create/edit form (a labelled select with help text).
-- File: `apps/core/models/projects_models.py`.
+- Surfaced in the Project **create + edit** forms (labelled select with help text) **and shown
+  on the Project detail view** so it's visible and editable.
+- File: `apps/core/models/projects_models.py` (choices `Project.CashflowMethod`, mirroring
+  `Work.CashflowMethod`).
 
 ### `CashflowMethodRule` (new model, one row per method)
 

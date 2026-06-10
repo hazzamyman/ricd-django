@@ -576,7 +576,7 @@ _WORK_ADVANCED_FIELDS = [
 class ProjectCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = Project
     template_name = 'crud/form.html'
-    fields = ['name', 'council', 'program', 'project_type', 'financial_year',
+    fields = ['name', 'council', 'program', 'project_type', 'cashflow_method', 'financial_year',
               'financial_year_completed', 'lead_officer',
               'state', 'dwelling_status', 'qbuild_delivered',
               'stage1_item_group', 'stage2_item_group', 'quarterly_report_item_group',
@@ -743,7 +743,7 @@ class ProjectDetailView(CouncilScopedMixin, CouncilOrFNCMixin, CommentsMixin, No
 class ProjectUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = Project
     template_name = 'crud/form.html'
-    fields = ['name', 'council', 'program', 'project_type', 'financial_year',
+    fields = ['name', 'council', 'program', 'project_type', 'cashflow_method', 'financial_year',
               'financial_year_completed', 'lead_officer',
               'state', 'dwelling_status', 'qbuild_delivered',
               'stage1_item_group', 'stage2_item_group', 'quarterly_report_item_group',

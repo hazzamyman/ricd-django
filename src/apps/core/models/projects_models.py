@@ -10,6 +10,10 @@ class Project(models.Model):
         DWELLING = 'DWELLING', 'Dwelling'
         LAND = 'LAND', 'Land'
 
+    class CashflowMethod(models.TextChoices):
+        MILESTONE = 'MILESTONE', 'Capital Grants (Payment Milestone)'
+        WORKSTEP = 'WORKSTEP', 'Capital Works (WorkStep Progressive)'
+
     class State(models.TextChoices):
         PROSPECTIVE = 'PROS', 'Prospective'
         PROGRAMMED = 'PROG', 'Programmed'
@@ -40,6 +44,12 @@ class Project(models.Model):
                   "(use effective_lead_officer for resolved value).",
     )
     project_type = models.CharField(max_length=10, choices=Type.choices, default=Type.DWELLING, db_index=True)
+    cashflow_method = models.CharField(
+        max_length=10, choices=CashflowMethod.choices,
+        default=CashflowMethod.MILESTONE, db_index=True,
+        help_text="How this project's cashflow is forecast/accrued: Capital Grants "
+                  "by payment milestone; Capital Works progressively by workstep.",
+    )
     name = models.CharField(max_length=255, db_index=True)
     funding_schedule = models.ForeignKey(
         'FundingSchedule',
