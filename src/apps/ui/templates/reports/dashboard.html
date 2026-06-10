@@ -41,7 +41,17 @@
                 <div class="card-body">
                     <h5 class="card-title"><i class="bi bi-table me-2 text-primary"></i>All Work Items (dump)</h5>
                     <p class="card-text text-muted" style="font-size:13px">One row per work item across all projects — LGA, project, program, status, approved budget (BFA), amount expended, step completion, and key dates. A flat sheet for mass analysis in Excel.</p>
-                    <a href="{% url 'ui:work_items_export' %}" class="btn btn-sm btn-primary"><i class="bi bi-filetype-csv"></i> Download CSV</a>
+                    <a href="{% url 'ui:work_items_export' %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-filetype-csv"></i> CSV</a>
+                    <a href="{% url 'ui:work_items_export' %}?format=xlsx" class="btn btn-sm btn-primary"><i class="bi bi-filetype-xlsx"></i> XLSX</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mt-3">
+            <div class="card border-primary h-100">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-journal-richtext me-2 text-primary"></i>Full reports workbook</h5>
+                    <p class="card-text text-muted" style="font-size:13px">One .xlsx workbook with everything: a <b>Work Items</b> sheet, one sheet <b>per Analytics category</b> (Overall, Land, Dwellings, …), and a <b>Cashflow (Monthly)</b> sheet. Bold headers, frozen top row, auto-filter.</p>
+                    <a href="{% url 'ui:reports_workbook_export' %}" class="btn btn-sm btn-primary"><i class="bi bi-filetype-xlsx"></i> Download workbook</a>
                 </div>
             </div>
         </div>

@@ -362,88 +362,66 @@ def construction_creation_list_export(request):
 
 @login_required
 def work_items_export(request):
-    """CSV dump: one row per Work item across all projects, for mass analysis.
+    """One row per Work item across all projects, for mass analysis.
 
-    Every work item with its LGA, project, program, status, costs, the parent
+    Each work item with its LGA, project, program, status, costs, the parent
     project's approved budget (BFA) and amount expended (released), step
-    completion, and key actual/forecast dates — a single sheet to share for
-    pivoting in Excel.
+    completion, and key actual/forecast dates.
 
-    Optional GET filters:
-      council            — Council pk
-      include_archived   — '1' to include archived projects (default: exclude)
+    GET:
+      format=xlsx          — return a formatted .xlsx (default: CSV)
+      council              — Council pk
+      include_archived=1   — include archived projects (default: exclude)
     """
-    from apps.core.models import Work, BriefFinancialApprovalItem, PaymentAllocation
+    from apps.core.services import exports
 
-    works = (
-        Work.objects
-        .select_related('project__council', 'project__program', 'work_type',
-                        'address', 'contractor')
-        .prefetch_related('steps')
-        .order_by('project__council__name', 'project__name', 'work_type__name', 'id')
-    )
-    council_id = request.GET.get('council', '').strip()
-    if council_id:
-        works = works.filter(project__council_id=council_id)
-    if request.GET.get('include_archived') != '1':
-        works = works.filter(project__is_archived=False)
+    council = request.GET.get('council', '').strip() or None
+    include_archived = request.GET.get('include_archived') == '1'
+    headers, rows = exports.work_items_rows(council=council, include_archived=include_archived)
+    today = datetime.date.today().isoformat()
 
-    # Project-level approved budget (approved BFA) + expended (released), one query each.
-    approved = dict(
-        BriefFinancialApprovalItem.objects.filter(bfa__status='APPROVED')
-        .values('project_id').annotate(t=Sum('funding_amount'))
-        .values_list('project_id', 't')
-    )
-    expended = dict(
-        PaymentAllocation.objects.values('payment__project_id')
-        .annotate(t=Sum('amount')).values_list('payment__project_id', 't')
-    )
+    if request.GET.get('format') == 'xlsx':
+        wb = exports.build_workbook([('Work Items', headers, rows)])
+        return exports.workbook_response(wb, f'work_items_{today}.xlsx')
 
     response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = (
-        f'attachment; filename="work_items_{datetime.date.today().isoformat()}.csv"'
-    )
+    response['Content-Disposition'] = f'attachment; filename="work_items_{today}.csv"'
     w = csv.writer(response)
-    w.writerow([
-        'Council (LGA)', 'Region', 'Project', 'Project State', 'Financial Year', 'Program',
-        'Address', 'Work Type', 'Category', 'Bedrooms', 'Quantity', 'Work Status',
-        'Estimated Cost', 'Actual Cost', 'Effective Cost',
-        'Project Approved Budget (BFA)', 'Project Expended (Released)',
-        'Steps Total', 'Steps Completed', 'All Steps Complete', 'Last Step Completed',
-        'Actual Start', 'Practical Completion (Actual)', 'Forecast PC', 'Handover (Actual)',
-        'Contractor', 'Costs Finalised',
-    ])
-
-    def _d(x):
-        return x.isoformat() if x else ''
-
-    def _m(x):
-        return f"{x:.2f}" if x is not None else ''
-
-    for wk in works:
-        p = wk.project
-        steps = [s for s in wk.steps.all() if s.is_active]
-        done = [s for s in steps if s.completed or s.actual_completion_date]
-        last_done = max((s.actual_completion_date for s in done if s.actual_completion_date),
-                        default=None)
-        wt = wk.work_type
-        w.writerow([
-            p.council.name if p.council_id else '',
-            (p.council.region if (p.council_id and p.council.region) else ''),
-            p.name, p.get_state_display(), p.financial_year or '',
-            p.program.name if p.program_id else '',
-            str(wk.address) if wk.address_id else '',
-            wt.name if wt else (wk.work_type_other or 'Other'),
-            wt.get_category_display() if wt else '',
-            wk.bedrooms or 0, wk.quantity or 0, wk.get_status_display(),
-            _m(wk.estimated_cost), _m(wk.actual_cost), _m(wk.total_effective_cost),
-            _m(approved.get(p.pk)), _m(expended.get(p.pk)),
-            len(steps), len(done),
-            ('Yes' if (steps and len(done) == len(steps)) else 'No'),
-            _d(last_done),
-            _d(wk.actual_start_date), _d(wk.practical_completion_date),
-            _d(wk.forecast_practical_completion_date), _d(wk.handover_date),
-            str(wk.contractor) if wk.contractor_id else '',
-            ('Yes' if wk.costs_finalised else 'No'),
-        ])
+    w.writerow(headers)
+    for row in rows:
+        w.writerow(['' if v is None else (v.isoformat() if hasattr(v, 'isoformat') else v)
+                    for v in row])
     return response
+
+
+@login_required
+def reports_workbook_export(request):
+    """Combined multi-sheet .xlsx: Work Items + one sheet per Analytics category
+    + Cashflow (Monthly). One file to share for mass analysis.
+
+    GET (all optional): region (analytics scope), start=YYYY-MM & months (cashflow
+    range), council (work-items scope).
+    """
+    from apps.core.services import exports
+
+    region = request.GET.get('region', '').strip() or None
+    council = request.GET.get('council', '').strip() or None
+    start = request.GET.get('start', '').strip() or None
+    try:
+        months = int(request.GET.get('months', '24'))
+    except (TypeError, ValueError):
+        months = 24
+    if months not in (12, 24, 36):
+        months = 24
+
+    sheets = [exports.work_items_rows(council=council)]
+    sheets = [('Work Items', sheets[0][0], sheets[0][1])]
+    sheets += exports.analytics_sheets(region=region)
+    sheets.append(exports.cashflow_monthly_sheet(start=start, months=months))
+
+    about = {'Scope (analytics region)': region or 'All regions',
+             'Cashflow range start': start or 'current month',
+             'Cashflow months': months}
+    wb = exports.build_workbook(sheets, about=about)
+    return exports.workbook_response(
+        wb, f'ricd_reports_{datetime.date.today().isoformat()}.xlsx')
