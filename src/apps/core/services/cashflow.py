@@ -46,6 +46,84 @@ def _pay_entry(p, share, kind, d):
     }
 
 
+def _split_amount(project, amount):
+    """Split a Decimal amount across programs by the project's APPROVED BFA
+    ratios (mirrors Payment.compute_program_split); fall back to project.program."""
+    if project is None or amount is None or amount <= 0:
+        return {}
+    ratios = project.bfa_program_ratios(approved_only=True)
+    if not ratios:
+        return {project.program_id: amount} if project.program_id else {}
+    out = {}
+    running = _zero()
+    ordered = sorted(ratios.items(), key=lambda kv: -kv[1])
+    for i, (pid, ratio) in enumerate(ordered):
+        if i == len(ordered) - 1:
+            out[pid] = amount - running
+        else:
+            share = (amount * ratio).quantize(Decimal('0.01'))
+            out[pid] = share
+            running += share
+    return out
+
+
+def _iter_workstep_cashflow(program=None, councils=None):
+    """Yield (program_id, share, date, is_released, work, step) for each active
+    WorkStep of Capital Works (cashflow_method='WORKSTEP') works.
+
+    A step's value = expected_cost_percentage × work.total_effective_cost, placed
+    at its actual_completion_date (released) or forecast_completion_date
+    (forecast), and split per program via approved BFA ratios. Capital Grants
+    (MILESTONE) works are payment-driven and intentionally excluded here.
+    """
+    from apps.core.models import Work
+    works = (Work.objects
+             .filter(cashflow_method='WORKSTEP', project__isnull=False)
+             .select_related('project__council', 'project__program')
+             .prefetch_related('steps'))
+    if councils is not None:
+        works = works.filter(project__council__in=councils)
+    for w in works:
+        total = w.total_effective_cost or _zero()
+        if total <= 0:
+            continue
+        for step in w.steps.all():
+            if not step.is_active:
+                continue
+            pct = step.expected_cost_percentage or _zero()
+            if pct <= 0:
+                continue
+            date = step.actual_completion_date or step.forecast_completion_date
+            if date is None:
+                continue
+            amount = (total * pct / Decimal('100')).quantize(Decimal('0.01'))
+            if amount <= 0:
+                continue
+            is_released = step.actual_completion_date is not None
+            for pid, share in _split_amount(w.project, amount).items():
+                if program is not None and pid != program.pk:
+                    continue
+                if share is None or share <= 0:
+                    continue
+                yield pid, share, date, is_released, w, step
+
+
+def _workstep_entry(work, step, share, kind, d):
+    """A serialisable row for a monthly drill-down cell (workstep claim)."""
+    return {
+        'ref': f"WS·{work.pk}·{step.order}",
+        'project': work.project.name if work.project_id else '',
+        'project_id': work.project_id,
+        'council': (work.project.council.name
+                    if (work.project_id and work.project.council_id) else ''),
+        'amount': float(share),
+        'status': ('Completed' if kind == 'released' else 'Forecast'),
+        'kind': kind,
+        'date': d.strftime('%d %b %Y'),
+        'type': f"WorkStep · {step.step_name}",
+    }
+
+
 def build_program_monthly_cashflow(program=None, councils=None, start=None, months=24,
                                    hide_contingency=False):
     """Per-Program x per-calendar-MONTH cashflow (for the Monthly Cashflow page).
@@ -143,6 +221,20 @@ def build_program_monthly_cashflow(program=None, councils=None, start=None, mont
                 c = _cell(prog_id, mkey)
                 c['forecast'] += share
                 c['payments'].append(_pay_entry(p, share, 'forecast', fdate))
+
+    # Capital Works (WORKSTEP) — progressive cashflow from worksteps.
+    for pid, share, date, is_released, w, step in _iter_workstep_cashflow(program, councils):
+        mkey = _month_key(date)
+        if mkey not in month_set:
+            continue
+        _rec(pid)
+        c = _cell(pid, mkey)
+        if is_released:
+            c['released'] = (c['released'] or _zero()) + share
+            c['payments'].append(_workstep_entry(w, step, share, 'released', date))
+        else:
+            c['forecast'] += share
+            c['payments'].append(_workstep_entry(w, step, share, 'forecast', date))
 
     # Per-FY ProgramBudget context (no monthly budget exists).
     pb_qs = ProgramBudget.objects.select_related('program')
@@ -290,6 +382,18 @@ def build_program_cashflow(program=None, councils=None, hide_contingency=False):
                     if program is not None and prog_id != program.pk:
                         continue
                     released_by[(prog_id, released_fy)] += share
+
+    # 2b) Capital Works (WORKSTEP) — progressive forecast/released from worksteps.
+    # Completed steps -> released; not-yet-completed -> forecast (committed).
+    for pid, share, date, is_released, _w, _step in _iter_workstep_cashflow(program, councils):
+        fy = date_to_financial_year(date)
+        if not fy:
+            continue
+        fy_set.add(fy)
+        _record_program(pid)
+        if is_released:
+            released_by[(pid, fy)] += share
+        forecast_by[(pid, fy)] += share
 
     # 3) Undated projects bucket
     undated_qs = Project.objects.select_related('program', 'council').filter(

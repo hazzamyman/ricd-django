@@ -196,7 +196,7 @@
       <span><b>Scope:</b> {% if selected_program_id %}1 program{% else %}{{ data.program_count }} program{{ data.program_count|pluralize }}{% endif %}</span>
       <span id="rangeMeta"><b>Range:</b> —</span>
       <span>As of <b>{{ data.as_of }}</b></span>
-      <span><b>Source:</b> Payment.forecast_release_date / release_date</span>
+      <span><b>Source:</b> Capital Grants → payment milestones · Capital Works → workstep completion</span>
     </div>
   </div>
   <div class="actions">
@@ -259,8 +259,9 @@
 <div class="note blue">
   <i class="bi bi-info-circle-fill"></i>
   <div>
-    <b>Approved payments only.</b> This grid plots payments by their forecast or actual release month.
-    <b>Programmed (unapproved) projects</b> — which carry a financial year but no payment month — are <b>excluded</b> here;
+    <b>Two cashflow methods.</b> <b>Capital Grants</b> are plotted by their payment milestone (forecast / actual release month);
+    <b>Capital Works</b> are plotted progressively by each workstep — forecast on the step's forecast-completion month, released on its
+    actual-completion month. <b>Programmed (unapproved) projects</b> with no payment or workstep date are <b>excluded</b> here;
     view them on the <a href="{% url 'ui:cashflow' %}">FY Cashflow page</a>. Per-FY <b>ProgramBudget</b> is shown in the tinted
     <b>FY&nbsp;Σ</b> columns for context — there is no monthly budget figure.
   </div>
