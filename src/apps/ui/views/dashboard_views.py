@@ -146,7 +146,6 @@ def cashflow_monthly_view(request):
     excluded — they have a FY but no payment month. ProgramBudget is surfaced as
     per-FY context only (there is no monthly budget figure).
     """
-    import json
     from apps.core.services.cashflow import build_program_monthly_cashflow
 
     program_id = request.GET.get('program', '').strip()
@@ -182,7 +181,6 @@ def cashflow_monthly_view(request):
     )
 
     return render(request, 'dashboard/cashflow_monthly.html', {
-        'data_json': json.dumps(data),
         'data': data,
         'programs': Program.objects.filter(is_active=True).order_by('name'),
         'councils': Council.objects.order_by('name'),
@@ -207,14 +205,13 @@ def aggregate_outputs_view(request):
     funding (from BriefFinancialApprovalItem — what program funded what outputs),
     paid-to-council, DA buckets, and an output-mix breakdown.
     """
-    import json
     from apps.core.services.analytics import build_aggregate_outputs
 
     region = request.GET.get('region', '').strip() or None
     data = build_aggregate_outputs(region=region)
 
     return render(request, 'dashboard/analytics.html', {
-        'data_json': json.dumps(data),
+        'data': data,
         'regions': data['regions'],
         'selected_region': region or '',
         'active_nav': 'aggregate',

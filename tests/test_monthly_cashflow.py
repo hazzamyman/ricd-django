@@ -104,3 +104,6 @@ def test_monthly_view_renders(admin_client, funding_schedule, project):
     assert resp.status_code == 200
     assert b'Monthly Cashflow' in resp.content
     assert b'monthly-data' in resp.content  # json_script payload present
+    # Must embed a JSON object, not a re-encoded string (double-encode guard).
+    assert b'"current_month"' in resp.content
+    assert b'\\"current_month\\"' not in resp.content

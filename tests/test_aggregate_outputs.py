@@ -90,3 +90,7 @@ def test_analytics_view_renders(admin_client, project, work_type):
     assert resp.status_code == 200
     assert b'Aggregate Outputs' in resp.content
     assert b'analytics-data' in resp.content
+    # json_script must embed a JSON *object* (not a re-encoded string) so the
+    # client JSON.parse yields the data, not a string. Guards the double-encode bug.
+    assert b'"cat_label"' in resp.content
+    assert b'\\"cat_label\\"' not in resp.content
