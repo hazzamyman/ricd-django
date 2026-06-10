@@ -23,6 +23,13 @@
 
 <form method="get" class="mb-3 d-flex gap-2 align-items-end flex-wrap">
   <div>
+    <label class="form-label small text-muted">Basis</label>
+    <select name="basis" onchange="this.form.submit()" class="form-select form-select-sm" style="min-width:170px;" title="Accrual = expenditure (Capital Works by workstep); Cash = milestone payments to council">
+      <option value="accrual" {% if selected_basis != 'cash' %}selected{% endif %}>Accrual (expenditure)</option>
+      <option value="cash" {% if selected_basis == 'cash' %}selected{% endif %}>Cash (payments)</option>
+    </select>
+  </div>
+  <div>
     <label class="form-label small text-muted">Program</label>
     <select name="program" onchange="this.form.submit()" class="form-select form-select-sm" style="min-width:240px;">
       <option value="">All programs</option>

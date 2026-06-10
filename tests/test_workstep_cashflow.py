@@ -6,6 +6,9 @@ from decimal import Decimal
 
 def _workstep_work(project, work_type):
     from apps.core.models import Work
+    # Classification is at the project level now.
+    project.cashflow_method = 'WORKSTEP'
+    project.save()
     return Work.objects.create(
         project=project, work_type=work_type, quantity=1,
         is_notional_cost=False, actual_cost=Decimal('1000000'),

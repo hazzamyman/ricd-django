@@ -3778,6 +3778,60 @@ class SiteSettingsView(LoginRequiredMixin, View):
         return redirect('ui:site_settings')
 
 
+class CashflowRulesView(LoginRequiredMixin, View):
+    """Maintenance: stipulate how cashflow accrual is forecast per cashflow method.
+
+    Cash basis is always milestone payments (shown read-only). The accrual basis is
+    editable per method (Capital Grant / Capital Works).
+    """
+    template_name = 'maintenance/cashflow_rules.html'
+
+    def _check_permission(self, user):
+        role = getattr(getattr(user, 'profile', None), 'officer_role', None)
+        return user.is_superuser or role in {'MANAGER'}
+
+    def _rules(self):
+        from apps.core.models import CashflowMethodRule
+        return [CashflowMethodRule.get('MILESTONE'), CashflowMethodRule.get('WORKSTEP')]
+
+    def get(self, request):
+        if not self._check_permission(request.user):
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+        from apps.core.models import CashflowMethodRule
+        return render(request, self.template_name, {
+            'rules': self._rules(),
+            'accrual_sources': CashflowMethodRule.AccrualSource.choices,
+            'workstep_dates': CashflowMethodRule.WorkstepDate.choices,
+            'cost_bases': CashflowMethodRule.CostBasis.choices,
+            'active_nav': 'maintenance',
+        })
+
+    def post(self, request):
+        if not self._check_permission(request.user):
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+        from apps.core.models import CashflowMethodRule
+        valid_src = {c[0] for c in CashflowMethodRule.AccrualSource.choices}
+        valid_date = {c[0] for c in CashflowMethodRule.WorkstepDate.choices}
+        valid_cost = {c[0] for c in CashflowMethodRule.CostBasis.choices}
+        for rule in self._rules():
+            p = rule.method
+            src = request.POST.get(f'{p}_accrual_source')
+            wd = request.POST.get(f'{p}_workstep_date')
+            cb = request.POST.get(f'{p}_cost_basis')
+            if src in valid_src:
+                rule.accrual_source = src
+            if wd in valid_date:
+                rule.workstep_date = wd
+            if cb in valid_cost:
+                rule.cost_basis = cb
+            rule.notes = request.POST.get(f'{p}_notes', '').strip()
+            rule.save()
+        messages.success(request, 'Cashflow forecasting rules updated.')
+        return redirect('ui:cashflow_rules')
+
+
 class EmailTemplateListView(WriteRequiredMixin, ListView):
     model = EmailTemplate
     template_name = 'maintenance/email_templates.html'

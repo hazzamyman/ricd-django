@@ -67,25 +67,46 @@ def _split_amount(project, amount):
     return out
 
 
-def _iter_workstep_cashflow(program=None, councils=None):
-    """Yield (program_id, share, date, is_released, work, step) for each active
-    WorkStep of Capital Works (cashflow_method='WORKSTEP') works.
+def _cashflow_rules():
+    """Return {method: CashflowMethodRule} for both methods (seeded if missing)."""
+    from apps.core.models import CashflowMethodRule
+    return {m: CashflowMethodRule.get(m) for m in ('MILESTONE', 'WORKSTEP')}
 
-    A step's value = expected_cost_percentage × work.total_effective_cost, placed
-    at its actual_completion_date (released) or forecast_completion_date
-    (forecast), and split per program via approved BFA ratios. Capital Grants
-    (MILESTONE) works are payment-driven and intentionally excluded here.
+
+def _project_uses_worksteps(method, rules):
+    """True if a project of this cashflow_method accrues via worksteps."""
+    rule = rules.get(method)
+    return bool(rule and rule.accrual_source == 'WORKSTEP')
+
+
+def _iter_workstep_cashflow(rules, program=None, councils=None):
+    """Yield (program_id, share, date, is_released, work, step) for active worksteps
+    of projects whose cashflow_method accrues via worksteps (per `rules`).
+
+    Value = expected_cost_percentage × work value, where the value base (effective
+    vs estimated) and the forecast date (forecast completion vs start) come from
+    each project's CashflowMethodRule. Actuals always use actual_completion_date.
+    Split per program via approved BFA ratios.
     """
     from apps.core.models import Work
+    methods = [m for m in ('MILESTONE', 'WORKSTEP') if _project_uses_worksteps(m, rules)]
+    if not methods:
+        return
     works = (Work.objects
-             .filter(cashflow_method='WORKSTEP', project__isnull=False)
+             .filter(project__cashflow_method__in=methods, project__isnull=False)
              .select_related('project__council', 'project__program')
              .prefetch_related('steps'))
     if councils is not None:
         works = works.filter(project__council__in=councils)
     for w in works:
-        total = w.total_effective_cost or _zero()
-        if total <= 0:
+        rule = rules.get(w.project.cashflow_method)
+        if rule is None:
+            continue
+        if rule.cost_basis == 'ESTIMATED':
+            base = (w.estimated_cost or _zero()) * (w.quantity or 0)
+        else:
+            base = w.total_effective_cost or _zero()
+        if base <= 0:
             continue
         for step in w.steps.all():
             if not step.is_active:
@@ -93,13 +114,17 @@ def _iter_workstep_cashflow(program=None, councils=None):
             pct = step.expected_cost_percentage or _zero()
             if pct <= 0:
                 continue
-            date = step.actual_completion_date or step.forecast_completion_date
+            if step.actual_completion_date:
+                date, is_released = step.actual_completion_date, True
+            else:
+                date = (step.forecast_completion_date if rule.workstep_date == 'FCOMP'
+                        else step.forecast_start_date)
+                is_released = False
             if date is None:
                 continue
-            amount = (total * pct / Decimal('100')).quantize(Decimal('0.01'))
+            amount = (base * pct / Decimal('100')).quantize(Decimal('0.01'))
             if amount <= 0:
                 continue
-            is_released = step.actual_completion_date is not None
             for pid, share in _split_amount(w.project, amount).items():
                 if program is not None and pid != program.pk:
                     continue
@@ -125,7 +150,7 @@ def _workstep_entry(work, step, share, kind, d):
 
 
 def build_program_monthly_cashflow(program=None, councils=None, start=None, months=24,
-                                   hide_contingency=False):
+                                   hide_contingency=False, basis='accrual'):
     """Per-Program x per-calendar-MONTH cashflow (for the Monthly Cashflow page).
 
     Forecast  = non-RELEASED, non-rejected Payment.amount split per program, by the
@@ -187,8 +212,15 @@ def build_program_monthly_cashflow(program=None, councils=None, start=None, mont
             except _Program.DoesNotExist:
                 pass
 
+    rules = _cashflow_rules()
+    ws_methods = {m for m in ('MILESTONE', 'WORKSTEP') if _project_uses_worksteps(m, rules)}
+
     for p in payments:
         if p.project is None:
+            continue
+        # Accrual basis: projects that accrue via worksteps are driven by their
+        # worksteps below, so skip their (cash) payment rows here.
+        if basis == 'accrual' and p.project.cashflow_method in ws_methods:
             continue
         amount = p.calculated_amount or p.amount or _zero()
         if amount <= 0:
@@ -222,19 +254,20 @@ def build_program_monthly_cashflow(program=None, councils=None, start=None, mont
                 c['forecast'] += share
                 c['payments'].append(_pay_entry(p, share, 'forecast', fdate))
 
-    # Capital Works (WORKSTEP) — progressive cashflow from worksteps.
-    for pid, share, date, is_released, w, step in _iter_workstep_cashflow(program, councils):
-        mkey = _month_key(date)
-        if mkey not in month_set:
-            continue
-        _rec(pid)
-        c = _cell(pid, mkey)
-        if is_released:
-            c['released'] = (c['released'] or _zero()) + share
-            c['payments'].append(_workstep_entry(w, step, share, 'released', date))
-        else:
-            c['forecast'] += share
-            c['payments'].append(_workstep_entry(w, step, share, 'forecast', date))
+    # Capital Works — progressive accrual from worksteps (accrual basis only).
+    if basis == 'accrual':
+        for pid, share, date, is_released, w, step in _iter_workstep_cashflow(rules, program, councils):
+            mkey = _month_key(date)
+            if mkey not in month_set:
+                continue
+            _rec(pid)
+            c = _cell(pid, mkey)
+            if is_released:
+                c['released'] = (c['released'] or _zero()) + share
+                c['payments'].append(_workstep_entry(w, step, share, 'released', date))
+            else:
+                c['forecast'] += share
+                c['payments'].append(_workstep_entry(w, step, share, 'forecast', date))
 
     # Per-FY ProgramBudget context (no monthly budget exists).
     pb_qs = ProgramBudget.objects.select_related('program')
@@ -281,7 +314,7 @@ def _fy_label(fy_code):
     return f"{a}-{b[-2:]}"
 
 
-def build_program_cashflow(program=None, councils=None, hide_contingency=False):
+def build_program_cashflow(program=None, councils=None, hide_contingency=False, basis='accrual'):
     """Return a dict describing the cashflow matrix.
 
     Args:
@@ -339,8 +372,14 @@ def build_program_cashflow(program=None, councils=None, hide_contingency=False):
             except _Program.DoesNotExist:
                 pass
 
+    rules = _cashflow_rules()
+    ws_methods = {m for m in ('MILESTONE', 'WORKSTEP') if _project_uses_worksteps(m, rules)}
+
     for p in payments:
         if p.project is None:
+            continue
+        # Accrual basis: worksteps drive projects that accrue that way; skip their payments.
+        if basis == 'accrual' and p.project.cashflow_method in ws_methods:
             continue
         amount = (p.amount or _zero())
         if amount <= 0:
@@ -383,17 +422,19 @@ def build_program_cashflow(program=None, councils=None, hide_contingency=False):
                         continue
                     released_by[(prog_id, released_fy)] += share
 
-    # 2b) Capital Works (WORKSTEP) — progressive forecast/released from worksteps.
-    # Completed steps -> released; not-yet-completed -> forecast (committed).
-    for pid, share, date, is_released, _w, _step in _iter_workstep_cashflow(program, councils):
-        fy = date_to_financial_year(date)
-        if not fy:
-            continue
-        fy_set.add(fy)
-        _record_program(pid)
-        if is_released:
-            released_by[(pid, fy)] += share
-        forecast_by[(pid, fy)] += share
+    # 2b) Capital Works — progressive accrual from worksteps (accrual basis only).
+    # Completed steps -> released; all steps -> forecast (committed), matching how
+    # the FY matrix treats payments.
+    if basis == 'accrual':
+        for pid, share, date, is_released, _w, _step in _iter_workstep_cashflow(rules, program, councils):
+            fy = date_to_financial_year(date)
+            if not fy:
+                continue
+            fy_set.add(fy)
+            _record_program(pid)
+            if is_released:
+                released_by[(pid, fy)] += share
+            forecast_by[(pid, fy)] += share
 
     # 3) Undated projects bucket
     undated_qs = Project.objects.select_related('program', 'council').filter(

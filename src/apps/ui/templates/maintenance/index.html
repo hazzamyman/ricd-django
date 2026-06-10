@@ -349,6 +349,25 @@
   </div>
   {% endif %}
 
+  {# Cashflow forecasting rules #}
+  {% if is_manager %}
+  <div class="col-sm-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="ricd-section-title mb-1">
+          <h2><i class="bi bi-graph-up me-1 text-muted"></i>Cashflow Forecasting</h2>
+        </div>
+        <div class="text-muted mb-3" style="font-size:12px">
+          How Capital Grant vs Capital Works projects forecast/accrue cash &amp; expenditure.
+        </div>
+        <div class="d-flex gap-2">
+          <a href="{% url 'ui:cashflow_rules' %}" class="btn btn-sm btn-primary">Configure</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
 </div>
 
 {# Feature toggles #}

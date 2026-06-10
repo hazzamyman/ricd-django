@@ -102,7 +102,9 @@ def cashflow_view(request):
 
     role = getattr(getattr(request.user, 'profile', None), 'officer_role', None)
     hide_contingency = role in ('COUNCIL_USER', 'COUNCIL_MANAGER')
-    data = build_program_cashflow(program=program, councils=councils, hide_contingency=hide_contingency)
+    basis = 'cash' if request.GET.get('basis') == 'cash' else 'accrual'
+    data = build_program_cashflow(program=program, councils=councils,
+                                  hide_contingency=hide_contingency, basis=basis)
 
     # Notice / Expense-Claim pathway runs alongside the schedule-based matrix:
     # these disbursements are ExpenseClaims against a FundingNotice cap, NOT
@@ -134,6 +136,7 @@ def cashflow_view(request):
         'councils': Council.objects.order_by('name'),
         'selected_program_id': program_id,
         'selected_council_id': council_id,
+        'selected_basis': basis,
     })
 
 
@@ -175,9 +178,10 @@ def cashflow_monthly_view(request):
 
     role = getattr(getattr(request.user, 'profile', None), 'officer_role', None)
     hide_contingency = role in ('COUNCIL_USER', 'COUNCIL_MANAGER')
+    basis = 'cash' if request.GET.get('basis') == 'cash' else 'accrual'
     data = build_program_monthly_cashflow(
         program=program, councils=councils, start=start, months=months,
-        hide_contingency=hide_contingency,
+        hide_contingency=hide_contingency, basis=basis,
     )
 
     return render(request, 'dashboard/cashflow_monthly.html', {
@@ -188,6 +192,7 @@ def cashflow_monthly_view(request):
         'selected_council_id': council_id,
         'selected_start': data['start'],
         'selected_months': months,
+        'selected_basis': basis,
         'active_nav': 'cashflow_monthly',
     })
 
