@@ -179,6 +179,12 @@ class TestProjectCRUD:
         assert response.status_code == 200, \
             f"GET /ui/projects/{project.pk}/ returned {response.status_code}"
 
+    def test_land_project_detail_get(self, auth_client, land_project):
+        # Land projects render projects/land_detail.html (was crashing).
+        response = auth_client.get(f'/projects/{land_project.pk}/')
+        assert response.status_code == 200, \
+            f"GET land /ui/projects/{land_project.pk}/ returned {response.status_code}"
+
     def test_project_edit_get(self, auth_client, project):
         response = auth_client.get(f'/projects/{project.pk}/edit/')
         assert response.status_code == 200, \

@@ -284,18 +284,14 @@ table.t-works .num-cell{text-align:right;font-variant-numeric:tabular-nums}
         {% if lpc_amber > 0 %}<span class="tally"><span class="dot a"></span> {{ lpc_amber }} amber</span>{% endif %}
         {% if lpc_red > 0 %}<span class="tally"><span class="dot r"></span> {{ lpc_red }} red</span>{% endif %}
         {% if is_fnc %}
-          <a href="{% url 'ui:land_pre_conditions' project.pk %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-pencil"></i> Edit pre-conditions</a>
+          <a href="{% url 'ui:land_pre_condition_edit' project.pk %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-pencil"></i> Edit pre-conditions</a>
         {% endif %}
       </div>
     </div>
 
     <div class="precond-grid">
       {% for lpc in land_pre_conditions %}
-        {% if lpc.status == 'GRN' %}{% with tile_cls='tl-green' %}
-        {% elif lpc.status == 'AMB' %}{% with tile_cls='tl-amber' %}
-        {% else %}{% with tile_cls='tl-red' %}
-        {% endif %}
-        <div class="pc-tile {{ tile_cls }}">
+        <div class="pc-tile {% if lpc.status == 'GRN' %}tl-green{% elif lpc.status == 'AMB' %}tl-amber{% else %}tl-red{% endif %}">
           <div class="top-row">
             <span class="nm">{{ lpc.get_category_display }}</span>
             {% if is_fnc %}<button class="edit-btn" title="Edit"><i class="bi bi-pencil"></i></button>{% endif %}
@@ -327,11 +323,10 @@ table.t-works .num-cell{text-align:right;font-variant-numeric:tabular-nums}
             <div class="pc-notes">{{ lpc.notes }}</div>
           {% endif %}
         </div>
-        {% endwith %}
       {% empty %}
         <div style="grid-column:1/-1;padding:24px 20px;text-align:center;color:var(--muted);font-size:13px;">
           No pre-condition records yet.
-          {% if is_fnc %}<a href="{% url 'ui:land_pre_conditions' project.pk %}" style="margin-left:8px;">Set up pre-conditions →</a>{% endif %}
+          {% if is_fnc %}<a href="{% url 'ui:land_pre_condition_edit' project.pk %}" style="margin-left:8px;">Set up pre-conditions →</a>{% endif %}
         </div>
       {% endfor %}
     </div>
@@ -755,7 +750,7 @@ table.t-works .num-cell{text-align:right;font-variant-numeric:tabular-nums}
 
 {# ===== Comments tab ===== #}
 <div class="tab-pane fade {% if active_tab == 'comments' %}show active{% endif %}" id="tab-comments" role="tabpanel">
-  {% include "partials/comments.html" with object=project %}
+  {% include "partials/_comments.html" %}
 </div>
 
 </div>{# /tab-content #}
