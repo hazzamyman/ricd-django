@@ -2319,6 +2319,17 @@ class WorkCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
             form.fields['contractor'].help_text = (
                 "If the Council will NOT be the principal contractor, add the contractor here."
             )
+        if 'address' in form.fields:
+            from apps.core.models import Address
+            council_id = Project.objects.filter(
+                pk=self.kwargs['project_pk']
+            ).values_list('council_id', flat=True).first()
+            if council_id:
+                form.fields['address'].queryset = (
+                    Address.objects.filter(project__council_id=council_id)
+                    .select_related('project', 'suburb')
+                )
+            form.fields['address'].help_text = "Only addresses under this council's projects."
         return form
 
     def get_success_url(self):
@@ -2450,6 +2461,15 @@ class WorkUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
             form.fields['contractor'].help_text = (
                 "If the Council will NOT be the principal contractor, add the contractor here."
             )
+        if 'address' in form.fields:
+            from apps.core.models import Address
+            council_id = self.object.project.council_id if (self.object and self.object.project_id) else None
+            if council_id:
+                form.fields['address'].queryset = (
+                    Address.objects.filter(project__council_id=council_id)
+                    .select_related('project', 'suburb')
+                )
+            form.fields['address'].help_text = "Only addresses under this council's projects."
         return form
 
     def get_success_url(self):
