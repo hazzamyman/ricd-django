@@ -216,6 +216,10 @@ urlpatterns = [
 
     # Land Pre-Conditions (traffic-light flags for land development projects)
     path('projects/<int:project_pk>/pre-conditions/', views.crud_views.LandPreConditionEditView.as_view(), name='land_pre_condition_edit'),
+    path('projects/<int:project_pk>/link-child-dwellings/', views.land_link_views.LinkChildDwellingsView.as_view(), name='project_link_child_dwellings'),
+    path('projects/<int:project_pk>/link-land-parcels/', views.land_link_views.LinkLandParcelsView.as_view(), name='project_link_land_parcels'),
+    path('projects/<int:project_pk>/link-da/', views.land_link_views.LinkDAView.as_view(), name='project_link_da'),
+    path('projects/<int:project_pk>/infrastructure/', views.land_link_views.ProjectInfraUpdateView.as_view(), name='project_infrastructure_edit'),
 
     # Land Tenures CRUD
     path('land-tenures/', views.land_crud_views.LandTenureListView.as_view(), name='land_tenure_list'),
