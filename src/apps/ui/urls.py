@@ -262,6 +262,7 @@ urlpatterns = [
 
     # Addresses & Works combined page
     path('projects/<int:pk>/addresses-works/', views.crud_views.ProjectAddressesWorksView.as_view(), name='project_addresses_works'),
+    path('projects/<int:pk>/addresses-works/edit/', views.works_editor_views.AddressesWorksEditView.as_view(), name='project_addresses_works_edit'),
 
     # Addresses (nested under project — issue #18)
     path('projects/<int:project_pk>/addresses/', views.crud_views.AddressListView.as_view(), name='address_list'),

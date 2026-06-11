@@ -150,7 +150,10 @@
   </div>
   <div class="actions">
     {% if is_fnc %}
-    <a href="{% url 'ui:work_create' project.pk %}" class="btn btn-primary btn-sm">
+    <a href="{% url 'ui:project_addresses_works_edit' project.pk %}" class="btn btn-primary btn-sm">
+      <i class="bi bi-grid-1x2"></i> Manage (edit all)
+    </a>
+    <a href="{% url 'ui:work_create' project.pk %}" class="btn btn-outline-secondary btn-sm">
       <i class="bi bi-plus-lg"></i> Add Work
     </a>
     <a href="{% url 'ui:address_create' project.pk %}" class="btn btn-outline-secondary btn-sm">
