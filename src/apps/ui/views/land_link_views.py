@@ -6,12 +6,15 @@ Wires the previously-stubbed buttons on the land project detail page:
   * Link development application    (Project.development_application FK)
   * Edit infrastructure readiness   (Project.infra_* text fields)
 
-Every picker only offers records from the SAME council as the project.
+Every picker only offers records from the SAME council as the project. The
+multi-select pickers support client-side search + status filtering (completed
+projects are hidden by default but toggleable).
 """
 from django import forms
 from django.contrib import messages
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.views import View
 from django.views.generic import FormView, UpdateView
 
 from apps.core.mixins import WriteRequiredMixin
@@ -24,95 +27,106 @@ def _detail_url(project):
     return reverse('ui:project_detail', kwargs={'pk': project.pk})
 
 
-class _ProjectLinkView(WriteRequiredMixin, FormView):
-    """Base for the council-scoped link forms (rendered via the generic form template)."""
-    template_name = 'crud/form.html'
+# ── Filterable checkbox pickers (child dwellings, land parcels) ───────
+
+class _PickerView(WriteRequiredMixin, View):
+    """Council-scoped multi-select with client-side search + status filter."""
+    template_name = 'projects/link_picker.html'
+    field_name = 'items'
     title = 'Link'
+    subtitle = ''
+    success_message = 'Updated.'
 
     def dispatch(self, request, *args, **kwargs):
         self.project = get_object_or_404(Project, pk=kwargs['project_pk'])
         return super().dispatch(request, *args, **kwargs)
 
-    def get_success_url(self):
-        return _detail_url(self.project)
+    # --- subclass hooks ---
+    def candidates(self):
+        raise NotImplementedError
 
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        ctx['title'] = self.title
-        ctx['back_url'] = _detail_url(self.project)
-        return ctx
+    def current_ids(self):
+        raise NotImplementedError
+
+    def item(self, obj, checked):
+        raise NotImplementedError
+
+    def statuses(self):
+        return []
+
+    def apply(self, selected_ids):
+        raise NotImplementedError
+
+    # --- request handling ---
+    def get(self, request, *args, **kwargs):
+        current = set(self.current_ids())
+        items = [self.item(o, o.pk in current) for o in self.candidates()]
+        return render(request, self.template_name, {
+            'title': self.title, 'subtitle': self.subtitle,
+            'back_url': _detail_url(self.project), 'field_name': self.field_name,
+            'items': items, 'statuses': self.statuses(),
+        })
+
+    def post(self, request, *args, **kwargs):
+        candidate_ids = {o.pk for o in self.candidates()}
+        selected = {int(x) for x in request.POST.getlist(self.field_name) if x.isdigit()}
+        selected &= candidate_ids  # never trust a pk outside the council-scoped set
+        self.apply(selected)
+        messages.success(request, self.success_message)
+        return redirect(_detail_url(self.project))
 
 
-# ── Child dwellings ──────────────────────────────────────────────────
-
-class _ChildDwellingsForm(forms.Form):
-    children = forms.ModelMultipleChoiceField(
-        queryset=Project.objects.none(), required=False,
-        widget=forms.CheckboxSelectMultiple,
-        label="Dwelling projects in this council",
-        help_text="Only dwelling projects under the same council are shown.",
-    )
-
-
-class LinkChildDwellingsView(_ProjectLinkView):
-    form_class = _ChildDwellingsForm
+class LinkChildDwellingsView(_PickerView):
     title = 'Link child dwelling projects'
+    subtitle = 'Only dwelling projects under the same council are shown.'
+    field_name = 'children'
+    success_message = 'Child dwelling projects updated.'
 
-    def _candidates(self):
+    def candidates(self):
         return (Project.objects
                 .filter(council=self.project.council,
                         project_type=Project.Type.DWELLING, is_archived=False)
                 .exclude(pk=self.project.pk).order_by('name'))
 
-    def get_form(self, form_class=None):
-        form = super().get_form(form_class)
-        form.fields['children'].queryset = self._candidates()
-        return form
+    def current_ids(self):
+        return self.project.child_dwellings.values_list('pk', flat=True)
 
-    def get_initial(self):
-        return {'children': list(self.project.child_dwellings.values_list('pk', flat=True))}
+    def item(self, obj, checked):
+        return {'pk': obj.pk, 'label': obj.name, 'status': obj.state,
+                'status_display': obj.get_state_display(), 'checked': checked}
 
-    def form_valid(self, form):
-        sel_ids = set(form.cleaned_data['children'].values_list('pk', flat=True))
-        # Unlink children that were removed; link the selected candidates.
-        self.project.child_dwellings.exclude(pk__in=sel_ids).update(parent_land_project=None)
-        self._candidates().filter(pk__in=sel_ids).update(parent_land_project=self.project)
-        messages.success(self.request, 'Child dwelling projects updated.')
-        return super().form_valid(form)
+    def statuses(self):
+        labels = dict(Project.State.choices)
+        present = list(dict.fromkeys(self.candidates().values_list('state', flat=True)))
+        return [{'code': s, 'label': labels.get(s, s),
+                 'default_on': s != Project.State.COMPLETED}
+                for s in present if s]
 
-
-# ── Land parcels ─────────────────────────────────────────────────────
-
-class _LandParcelsForm(forms.Form):
-    parcels = forms.ModelMultipleChoiceField(
-        queryset=LandTenure.objects.none(), required=False,
-        widget=forms.CheckboxSelectMultiple,
-        label="Land parcels (lots / plans) in this council",
-        help_text="Only land parcels registered under the same council are shown.",
-    )
+    def apply(self, selected_ids):
+        self.project.child_dwellings.exclude(pk__in=selected_ids).update(parent_land_project=None)
+        self.candidates().filter(pk__in=selected_ids).update(parent_land_project=self.project)
 
 
-class LinkLandParcelsView(_ProjectLinkView):
-    form_class = _LandParcelsForm
+class LinkLandParcelsView(_PickerView):
     title = 'Link land parcels'
+    subtitle = 'Only land parcels registered under the same council are shown.'
+    field_name = 'parcels'
+    success_message = 'Land parcels updated.'
 
-    def get_form(self, form_class=None):
-        form = super().get_form(form_class)
-        form.fields['parcels'].queryset = LandTenure.objects.filter(
-            council=self.project.council
-        ).order_by('lot_number', 'plan_number')
-        return form
+    def candidates(self):
+        return LandTenure.objects.filter(council=self.project.council).order_by('lot_number', 'plan_number')
 
-    def get_initial(self):
-        return {'parcels': list(self.project.land_parcels.values_list('pk', flat=True))}
+    def current_ids(self):
+        return self.project.land_parcels.values_list('pk', flat=True)
 
-    def form_valid(self, form):
-        self.project.land_parcels.set(form.cleaned_data['parcels'])
-        messages.success(self.request, 'Land parcels updated.')
-        return super().form_valid(form)
+    def item(self, obj, checked):
+        return {'pk': obj.pk, 'label': str(obj), 'status': '', 'status_display': '', 'checked': checked}
+
+    def apply(self, selected_ids):
+        self.project.land_parcels.set(LandTenure.objects.filter(pk__in=selected_ids))
 
 
-# ── Development application ───────────────────────────────────────────
+# ── Development application (single select) ──────────────────────────
 
 class _LinkDAForm(forms.Form):
     development_application = forms.ModelChoiceField(
@@ -123,9 +137,14 @@ class _LinkDAForm(forms.Form):
     )
 
 
-class LinkDAView(_ProjectLinkView):
+class LinkDAView(WriteRequiredMixin, FormView):
+    template_name = 'crud/form.html'
     form_class = _LinkDAForm
     title = 'Link development application'
+
+    def dispatch(self, request, *args, **kwargs):
+        self.project = get_object_or_404(Project, pk=kwargs['project_pk'])
+        return super().dispatch(request, *args, **kwargs)
 
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
@@ -142,7 +161,13 @@ class LinkDAView(_ProjectLinkView):
         self.project.development_application = form.cleaned_data['development_application']
         self.project.save(update_fields=['development_application'])
         messages.success(self.request, 'Development application updated.')
-        return super().form_valid(form)
+        return redirect(_detail_url(self.project))
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = self.title
+        ctx['back_url'] = _detail_url(self.project)
+        return ctx
 
 
 # ── Infrastructure readiness ─────────────────────────────────────────
