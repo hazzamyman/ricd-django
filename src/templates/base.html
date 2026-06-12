@@ -409,6 +409,9 @@
   </a>
 
   <div class="group-title">Governance</div>
+  <a href="{% url 'ui:development_application_list' %}" class="nav-item {% if active_nav == 'development_applications' %}active{% endif %}">
+    <i class="bi bi-clipboard2-check"></i> Development Apps
+  </a>
   <a href="{% url 'ui:variations_list' %}" class="nav-item {% if active_nav == 'variations' %}active{% endif %}">
     <i class="bi bi-file-diff"></i> Variations
   </a>

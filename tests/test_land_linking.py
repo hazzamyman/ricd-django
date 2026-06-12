@@ -45,6 +45,41 @@ def test_link_da(admin_client, land_project, development_application):
 
 
 @pytest.mark.django_db
+def test_create_da_from_project_auto_links(admin_client, land_project):
+    from apps.core.models import DevelopmentApplication
+    url = reverse('ui:development_application_create') + f'?project={land_project.pk}'
+    resp = admin_client.post(url, {
+        'council': land_project.council_id, 'application_type': 'DA',
+        'application_reference': 'DA-NEW-1', 'status': 'PREP',
+        'lodged_date': '', 'decision_date': '', 'lapsing_date': '',
+        'decision_notice_link': '', 'conditions': '', 'notes': '',
+    })
+    assert resp.status_code == 302
+    assert resp.headers['Location'] == reverse('ui:project_detail', kwargs={'pk': land_project.pk})
+    da = DevelopmentApplication.objects.get(application_reference='DA-NEW-1')
+    land_project.refresh_from_db()
+    assert land_project.development_application_id == da.pk
+
+
+@pytest.mark.django_db
+def test_da_list_council_scoped(client, land_project, development_application):
+    from django.contrib.auth.models import User
+    from apps.core.models import Council, DevelopmentApplication, Profile
+    other_council = Council.objects.create(name='Far Council', region='Far')
+    DevelopmentApplication.objects.create(
+        council=other_council, application_type='DA',
+        application_reference='DA-OTHER-99', status='PREP')
+
+    u = User.objects.create_user('council_da_user', password='x')
+    Profile.objects.update_or_create(user=u, defaults={
+        'officer_role': 'COUNCIL_USER', 'council': development_application.council})
+    client.force_login(u)
+    body = client.get(reverse('ui:development_application_list')).content.decode()
+    assert development_application.application_reference in body
+    assert 'DA-OTHER-99' not in body
+
+
+@pytest.mark.django_db
 def test_infrastructure_edit(admin_client, land_project):
     url = reverse('ui:project_infrastructure_edit', kwargs={'project_pk': land_project.pk})
     admin_client.post(url, {

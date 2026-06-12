@@ -415,7 +415,10 @@ table.t-works .num-cell{text-align:right;font-variant-numeric:tabular-nums}
           <div style="text-align:right;">
             <div style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Council</div>
             <div style="font-size:12.5px;font-weight:600;color:var(--ink);margin-top:2px;">{{ project.council }}</div>
-            {% if is_fnc %}<a href="{% url 'ui:project_link_da' project.pk %}" style="font-size:11.5px;">Change</a>{% endif %}
+            {% if is_fnc %}
+              <a href="{% url 'ui:development_application_detail' da.pk %}" style="font-size:11.5px;">Open</a>
+              · <a href="{% url 'ui:project_link_da' project.pk %}" style="font-size:11.5px;">Change</a>
+            {% endif %}
           </div>
         </div>
 
@@ -453,7 +456,10 @@ table.t-works .num-cell{text-align:right;font-variant-numeric:tabular-nums}
       {% else %}
       <div style="padding:20px 18px;font-size:13px;color:var(--muted-2);font-style:italic;">
         No development application linked.
-        {% if is_fnc %}<a href="{% url 'ui:project_link_da' project.pk %}" style="margin-left:8px;font-style:normal;">Link DA →</a>{% endif %}
+        {% if is_fnc %}
+          <a href="{% url 'ui:development_application_create' %}?project={{ project.pk }}" style="margin-left:8px;font-style:normal;font-weight:600;">Create DA →</a>
+          <a href="{% url 'ui:project_link_da' project.pk %}" style="margin-left:12px;font-style:normal;">Link existing DA →</a>
+        {% endif %}
       </div>
       {% endif %}
     </div>
