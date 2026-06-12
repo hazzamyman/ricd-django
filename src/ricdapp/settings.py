@@ -1,7 +1,14 @@
 import os
 from pathlib import Path
 
+from ricdapp.env import load_env_file
+
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load .env files (real environment variables always take precedence).
+# Looked up in src/ first, then the repo root — see .env.example for the template.
+load_env_file(BASE_DIR / '.env')
+load_env_file(BASE_DIR.parent / '.env')
 
 INSECURE_DEFAULT_SECRET = 'dev-only-insecure-key-change-in-production'
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', INSECURE_DEFAULT_SECRET)
