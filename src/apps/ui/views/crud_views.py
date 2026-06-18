@@ -152,7 +152,7 @@ class WidgetUpgradeMixin:
                 field.widget = djforms.DateInput(attrs={'type': 'date'})
             elif isinstance(field, (djforms.DecimalField, djforms.FloatField)):
                 attrs = dict(field.widget.attrs)
-                attrs.setdefault('step', '0.01')
+                attrs.setdefault('step', 'any')
                 attrs.setdefault('inputmode', 'decimal')
                 field.widget.attrs = attrs
             w = field.widget
