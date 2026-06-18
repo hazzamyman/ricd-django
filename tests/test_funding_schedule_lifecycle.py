@@ -46,7 +46,7 @@ def approved_bfa(project):
     from tests.fixtures import make_bfa
     return make_bfa(
         project, Decimal("1000000.00"),
-        delegate_level="MGR", status="APPROVED", approved_by=user,
+        status="APPROVED", approved_by=user,
     )
 
 

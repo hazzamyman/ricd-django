@@ -62,7 +62,6 @@ def _make_bfa(project, status='PENDING'):
     from tests.fixtures import make_bfa
     return make_bfa(
         project, Decimal('500000'),
-        delegate_level=BriefFinancialApproval.DelegateLevel.MANAGER,
         status=status,
     )
 

@@ -21,6 +21,7 @@ from .funding_models import (
     PaymentRule,
     PaymentRuleMilestone,
     FundingAgreement,
+    DelegatePosition,
     BriefFinancialApproval,
     BriefFinancialApprovalItem,
     PaymentAllocation,
@@ -97,7 +98,7 @@ __all__ = [
     # Land Infrastructure
     'LandTenure', 'DevelopmentApplication', 'LandPreCondition',
     # Funding & Payment
-    'PaymentRule', 'PaymentRuleMilestone', 'FundingAgreement', 'BriefFinancialApproval', 'BriefFinancialApprovalItem', 'PaymentAllocation',
+    'PaymentRule', 'PaymentRuleMilestone', 'FundingAgreement', 'DelegatePosition', 'BriefFinancialApproval', 'BriefFinancialApprovalItem', 'PaymentAllocation',
     'FundingNotice', 'ExpenseClaim', 'ExpenseClaimAttachment', 'Delegation',
     'FundingSchedule', 'ProjectStateLog', 'WorkFunding',
     'Approval', 'WorkflowAction', 'AuditLog', 'Payment',

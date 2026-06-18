@@ -6,8 +6,15 @@ from decimal import Decimal
 from django.test import Client
 from django.contrib.auth.models import User
 from apps.core.models import (
-    BriefFinancialApproval, BriefFinancialApprovalItem, Profile,
+    BriefFinancialApproval, BriefFinancialApprovalItem, Profile, DelegatePosition,
 )
+
+
+@pytest.fixture
+def director_position():
+    # 'Director' is seeded by migration 0051 — reuse it rather than duplicate.
+    return DelegatePosition.objects.get_or_create(
+        title='Director', defaults={'max_approval_amount': Decimal('1000000'), 'order': 2})[0]
 
 
 @pytest.fixture
@@ -24,7 +31,6 @@ def bfa(project):
     """BFA header with one item row for `project`."""
     bfa = BriefFinancialApproval.objects.create(
         mincor_reference='MINCOR-TEST',
-        delegate_level=BriefFinancialApproval.DelegateLevel.MANAGER,
         status=BriefFinancialApproval.Status.PENDING,
     )
     BriefFinancialApprovalItem.objects.create(
@@ -68,13 +74,13 @@ class TestBFACreate:
         client, _ = auth_client
         assert client.get('/bfa/create/').status_code == 200
 
-    def test_create_post_with_one_item(self, auth_client, council, project):
+    def test_create_post_with_one_item(self, auth_client, council, project, director_position):
         client, _ = auth_client
         before = BriefFinancialApproval.objects.count()
         response = client.post('/bfa/create/', {
             'mincor_reference': 'MINCOR-001',
             'document_uri': 'https://example.com/brief.pdf',
-            'delegate_level': 'DIR',
+            'delegate_position': director_position.pk,
             'comments': 'Test approval',
             'items-TOTAL_FORMS': '1',
             'items-INITIAL_FORMS': '0',
@@ -92,6 +98,7 @@ class TestBFACreate:
         assert bfa is not None
         assert bfa.project_count == 1
         assert bfa.funding_amount == Decimal('750000')
+        assert bfa.delegate_position == director_position
 
 
 @pytest.mark.django_db
@@ -121,13 +128,13 @@ class TestBFAEdit:
         client, _ = auth_client
         assert client.get(f'/bfa/{bfa.pk}/edit/').status_code == 200
 
-    def test_edit_post_updates_object(self, auth_client, bfa, project):
+    def test_edit_post_updates_object(self, auth_client, bfa, project, director_position):
         client, _ = auth_client
         item = bfa.items.first()
         client.post(f'/bfa/{bfa.pk}/edit/', {
             'mincor_reference': 'MINCOR-UPDATED',
             'document_uri': '',
-            'delegate_level': 'DIR',
+            'delegate_position': director_position.pk,
             'comments': '',
             'items-TOTAL_FORMS': '1',
             'items-INITIAL_FORMS': '1',
@@ -143,7 +150,7 @@ class TestBFAEdit:
         })
         bfa.refresh_from_db()
         assert bfa.mincor_reference == 'MINCOR-UPDATED'
-        assert bfa.delegate_level == 'DIR'
+        assert bfa.delegate_position == director_position
         assert bfa.funding_amount == Decimal('600000')
 
 

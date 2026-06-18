@@ -118,8 +118,8 @@ class BriefFinancialApprovalItemInline(admin.TabularInline):
 
 @admin.register(BriefFinancialApproval)
 class BriefFinancialApprovalAdmin(admin.ModelAdmin):
-    list_display = ('mincor_reference', 'project_count_col', 'total_amount_col', 'status', 'delegate_level')
-    list_filter = ('status', 'delegate_level')
+    list_display = ('mincor_reference', 'project_count_col', 'total_amount_col', 'status', 'delegate_position')
+    list_filter = ('status', 'delegate_position')
     search_fields = ('mincor_reference', 'document_uri')
     inlines = [BriefFinancialApprovalItemInline]
 

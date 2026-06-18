@@ -32,7 +32,7 @@ from apps.core.models import (
     FundingAgreement, FundingNotice, ExpenseClaim, WorkFunding,
     StateElectorate, FederalElectorate, QhigiRegion,
     SiteSettings, PaymentMilestoneSchedule, PaymentMilestoneRule, Contractor,
-    EmailTemplate, SentNotification,
+    EmailTemplate, SentNotification, DelegatePosition,
 )
 
 COUNCIL_ROLES = frozenset({'COUNCIL_USER', 'COUNCIL_MANAGER'})
@@ -1884,6 +1884,20 @@ class ExpenseClaimRejectView(FNCOnlyMixin, View):
 # BriefFinancialApproval  (nested under project)
 # ---------------------------------------------------------------------------
 
+def _scope_delegate_position(form):
+    """Limit the delegate_position dropdown to active positions (keep the
+    current value if an inactive one is already set on an edit)."""
+    field = form.fields.get('delegate_position')
+    if not field:
+        return
+    from apps.core.models import DelegatePosition
+    qs = DelegatePosition.objects.filter(is_active=True)
+    current = getattr(form.instance, 'delegate_position_id', None)
+    if current:
+        qs = qs | DelegatePosition.objects.filter(pk=current)
+    field.queryset = qs.distinct()
+
+
 def _bfa_item_formset_factory():
     """Inline formset for BFA -> items.
 
@@ -1933,8 +1947,13 @@ class BriefFinancialApprovalListView(InternalOnlyMixin, ListView):
 class BriefFinancialApprovalCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = BriefFinancialApproval
     template_name = 'brief_financial_approvals/form.html'
-    fields = ['mincor_reference', 'document_uri', 'human_rights_assessment_uri', 'delegate_level', 'comments']
+    fields = ['mincor_reference', 'document_uri', 'human_rights_assessment_uri', 'delegate_position', 'comments']
     success_url = reverse_lazy('ui:bfa_global_list')
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        _scope_delegate_position(form)
+        return form
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -1943,7 +1962,7 @@ class BriefFinancialApprovalCreateView(WriteRequiredMixin, WidgetUpgradeMixin, C
             ctx['items_formset'] = FormSet(self.request.POST, instance=self.object)
         else:
             ctx['items_formset'] = FormSet(instance=self.object)
-        ctx['title'] = 'Create Brief Financial Approval'
+        ctx['title'] = 'Create Funding Approval'
         ctx['back_url'] = reverse_lazy('ui:bfa_global_list')
         return ctx
 
@@ -1976,7 +1995,12 @@ class BriefFinancialApprovalDetailView(InternalOnlyMixin, NoticesMixin, DetailVi
 class BriefFinancialApprovalUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = BriefFinancialApproval
     template_name = 'brief_financial_approvals/form.html'
-    fields = ['mincor_reference', 'document_uri', 'human_rights_assessment_uri', 'delegate_level', 'comments']
+    fields = ['mincor_reference', 'document_uri', 'human_rights_assessment_uri', 'delegate_position', 'comments']
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        _scope_delegate_position(form)
+        return form
 
     def get_success_url(self):
         return reverse_lazy('ui:bfa_detail', kwargs={'pk': self.object.pk})
@@ -1988,7 +2012,7 @@ class BriefFinancialApprovalUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, U
             ctx['items_formset'] = FormSet(self.request.POST, instance=self.object)
         else:
             ctx['items_formset'] = FormSet(instance=self.object)
-        ctx['title'] = f'Edit Brief Financial Approval #{self.object.pk}'
+        ctx['title'] = f'Edit Funding Approval #{self.object.pk}'
         ctx['back_url'] = reverse_lazy('ui:bfa_detail', kwargs={'pk': self.object.pk})
         return ctx
 
@@ -3850,6 +3874,80 @@ class CashflowRulesView(LoginRequiredMixin, View):
             rule.save()
         messages.success(request, 'Cashflow forecasting rules updated.')
         return redirect('ui:cashflow_rules')
+
+
+# ---------------------------------------------------------------------------
+# Delegate positions (maintenance) — financial delegation thresholds for
+# Funding Approvals. Replaces the old hardcoded delegate-level choices.
+# ---------------------------------------------------------------------------
+
+class DelegatePositionListView(WriteRequiredMixin, ListView):
+    model = DelegatePosition
+    template_name = 'maintenance/delegate_positions.html'
+    context_object_name = 'positions'
+    extra_context = {'active_nav': 'maintenance'}
+
+
+class DelegatePositionCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
+    model = DelegatePosition
+    template_name = 'crud/form.html'
+    fields = ['title', 'max_approval_amount', 'is_active', 'order', 'notes']
+    success_url = reverse_lazy('ui:delegate_position_list')
+    extra_context = {'active_nav': 'maintenance'}
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Add Delegate Position'
+        ctx['back_url'] = reverse_lazy('ui:delegate_position_list')
+        return ctx
+
+
+class DelegatePositionUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
+    model = DelegatePosition
+    template_name = 'crud/form.html'
+    fields = ['title', 'max_approval_amount', 'is_active', 'order', 'notes']
+    success_url = reverse_lazy('ui:delegate_position_list')
+    extra_context = {'active_nav': 'maintenance'}
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit Delegate Position: {self.object.title}'
+        ctx['back_url'] = reverse_lazy('ui:delegate_position_list')
+        return ctx
+
+
+class DelegatePositionDeleteView(WriteRequiredMixin, DeleteView):
+    model = DelegatePosition
+    template_name = 'crud/confirm_delete.html'
+    success_url = reverse_lazy('ui:delegate_position_list')
+    extra_context = {'active_nav': 'maintenance'}
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['back_url'] = reverse_lazy('ui:delegate_position_list')
+        return ctx
+
+
+class ProjectWorksTotalView(InternalOnlyMixin, View):
+    """JSON: a project's estimated works total (sum of estimated_cost x quantity),
+    a 10% contingency, and the grand total. Powers the Funding Approval form's
+    auto-fill when a project is selected."""
+
+    def get(self, request, project_pk):
+        from decimal import Decimal
+        from django.db.models import Sum, F
+        from django.http import JsonResponse
+        from apps.core.models import Work
+        works_total = Work.objects.filter(project_id=project_pk).aggregate(
+            total=Sum(F('estimated_cost') * F('quantity'))
+        )['total'] or Decimal('0')
+        contingency = (works_total * Decimal('0.10')).quantize(Decimal('0.01'))
+        return JsonResponse({
+            'project_pk': project_pk,
+            'works_total': str(works_total),
+            'contingency': str(contingency),
+            'total': str(works_total + contingency),
+        })
 
 
 class EmailTemplateListView(WriteRequiredMixin, ListView):

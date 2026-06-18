@@ -3,7 +3,7 @@
 {% block title %}{{ title }} — RICD{% endblock %}
 {% block breadcrumbs %}
   <span class="sep">/</span>
-  <a href="{% url 'ui:bfa_global_list' %}">Brief Financial Approvals</a>
+  <a href="{% url 'ui:bfa_global_list' %}">Funding Approvals</a>
   <span class="sep">/</span>
   <span class="current">{{ title }}</span>
 {% endblock %}
@@ -11,7 +11,7 @@
 <div class="pg-head">
   <div>
     <h1>{{ title }}</h1>
-    <div class="meta">Header attributes (MINCOR reference, council, delegate level) plus per-project funding rows.</div>
+    <div class="meta">Header attributes (MINCOR reference, delegate position) plus per-project funding rows.</div>
   </div>
 </div>
 
@@ -44,7 +44,9 @@
       <strong>Program defaults to the project's program;</strong> change it only to capture
       co-funding from a different program (e.g. Commonwealth + Department). You can
       add multiple rows for the same project with different programs to split funding.
-      Contingency defaults to 10% if blank. Total = funding + contingency.
+      <strong>Pick a project and its funding amount auto-fills from the sum of its works</strong>
+      (estimated cost × quantity); contingency defaults to 10%. You can override either.
+      Total = funding + contingency.
     </p>
 
     {{ items_formset.management_form }}
@@ -96,4 +98,46 @@
     <a href="{{ back_url }}" class="btn btn-outline-secondary">Cancel</a>
   </div>
 </form>
+
+<script>
+// Auto-fill a row's funding amount + 10% contingency from the chosen project's
+// works total. URL has a placeholder pk (0) we swap for the selected project.
+(function () {
+  const urlTemplate = "{% url 'ui:project_works_total' project_pk=0 %}";
+  const num = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+
+  function rowInputs(projectSelect) {
+    // id looks like id_items-0-project -> prefix "id_items-0-"
+    const prefix = projectSelect.id.replace(/project$/, '');
+    return {
+      funding: document.getElementById(prefix + 'funding_amount'),
+      contingency: document.getElementById(prefix + 'contingency_amount'),
+    };
+  }
+
+  async function onProjectChange(ev) {
+    const sel = ev.target;
+    const pk = sel.value;
+    const { funding, contingency } = rowInputs(sel);
+    if (!pk || !funding) return;
+    // Don't clobber a value the user has already typed.
+    if (num(funding.value) > 0) return;
+    try {
+      const resp = await fetch(urlTemplate.replace('/projects/0/', '/projects/' + pk + '/'));
+      if (!resp.ok) return;
+      const data = await resp.json();
+      if (num(data.works_total) > 0) {
+        funding.value = data.works_total;
+        if (contingency && num(contingency.value) === 0) {
+          contingency.value = data.contingency;
+        }
+      }
+    } catch (e) { /* network/JSON error — leave fields for manual entry */ }
+  }
+
+  document.querySelectorAll('select[id^="id_items-"][id$="-project"]').forEach(sel => {
+    sel.addEventListener('change', onProjectChange);
+  });
+})();
+</script>
 {% endblock %}

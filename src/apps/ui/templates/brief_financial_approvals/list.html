@@ -1,30 +1,30 @@
 {% extends "base.html" %}
 {% load money %}
-{% block title %}Brief Financial Approvals{% if project %} — {{ project.name }}{% endif %} — RICD{% endblock %}
+{% block title %}Funding Approvals{% if project %} — {{ project.name }}{% endif %} — RICD{% endblock %}
 {% block breadcrumbs %}
   <span class="sep">/</span>
   {% if project %}
     <a href="{% url 'ui:project_detail' project.pk %}">{{ project.name }}</a>
     <span class="sep">/</span>
-    <span class="current">BFAs</span>
+    <span class="current">Funding Approvals</span>
   {% else %}
-    <span class="current">Brief Financial Approvals</span>
+    <span class="current">Funding Approvals</span>
   {% endif %}
 {% endblock %}
 {% block content %}
 <div class="pg-head">
   <div>
-    <h1>Brief Financial Approvals{% if project %} — {{ project.name }}{% endif %}</h1>
+    <h1>Funding Approvals{% if project %} — {{ project.name }}{% endif %}</h1>
     <div class="meta">
       {% if project %}
-        BFAs that include this project (BFAs are grouped under a MINCOR ref and may cover multiple projects).
+        Funding approvals that include this project (grouped under a MINCOR ref, may cover multiple projects).
       {% else %}
-        One BFA per MINCOR reference. Each BFA may cover multiple projects across rows.
+        One funding approval per MINCOR reference. Each may cover multiple projects across rows.
       {% endif %}
     </div>
   </div>
   <div class="actions">
-    <a href="{% url 'ui:bfa_create_global' %}" class="btn btn-primary btn-sm">+ New BFA</a>
+    <a href="{% url 'ui:bfa_create_global' %}" class="btn btn-primary btn-sm">+ New Funding Approval</a>
   </div>
 </div>
 
@@ -58,7 +58,7 @@
         <td class="text-end">{{ bfa.contingency_amount|money }}</td>
         <td class="text-end fw-bold">{{ bfa.total_amount|money }}</td>
         {% endif %}
-        <td>{{ bfa.get_delegate_level_display }}</td>
+        <td>{{ bfa.delegate_position.title|default:"—" }}</td>
         <td>
           {% if bfa.status == 'APPROVED' %}
             <span class="badge bg-success">Approved</span>
@@ -79,7 +79,7 @@
 </div></div>
 {% else %}
 <div class="empty">
-  <p class="text-muted mb-2">No brief financial approvals yet.</p>
+  <p class="text-muted mb-2">No funding approvals yet.</p>
   <a href="{% url 'ui:bfa_create_global' %}" class="btn btn-primary btn-sm">+ Create the first one</a>
 </div>
 {% endif %}
