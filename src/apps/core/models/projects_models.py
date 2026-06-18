@@ -10,6 +10,10 @@ class Project(models.Model):
         DWELLING = 'DWELLING', 'Dwelling'
         LAND = 'LAND', 'Land'
 
+    class CashflowMethod(models.TextChoices):
+        MILESTONE = 'MILESTONE', 'Capital Grants (Payment Milestone)'
+        WORKSTEP = 'WORKSTEP', 'Capital Works (WorkStep Progressive)'
+
     class State(models.TextChoices):
         PROSPECTIVE = 'PROS', 'Prospective'
         PROGRAMMED = 'PROG', 'Programmed'
@@ -40,6 +44,12 @@ class Project(models.Model):
                   "(use effective_lead_officer for resolved value).",
     )
     project_type = models.CharField(max_length=10, choices=Type.choices, default=Type.DWELLING, db_index=True)
+    cashflow_method = models.CharField(
+        max_length=10, choices=CashflowMethod.choices,
+        default=CashflowMethod.MILESTONE, db_index=True,
+        help_text="How this project's cashflow is forecast/accrued: Capital Grants "
+                  "by payment milestone; Capital Works progressively by workstep.",
+    )
     name = models.CharField(max_length=255, db_index=True)
     funding_schedule = models.ForeignKey(
         'FundingSchedule',
@@ -72,6 +82,22 @@ class Project(models.Model):
         db_index=True
     )
     status_flag = models.CharField(max_length=2, choices=StatusFlag.choices, default=StatusFlag.ON_TRACK, db_index=True)
+
+    # Archive (reversible) — for projects that started but were cancelled / never
+    # finished. Archived projects are retained but hidden from active lists.
+    is_archived = models.BooleanField(default=False, db_index=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
+    archived_reason = models.CharField(max_length=255, blank=True)
+
+    # State-builder (QBUILD) delivery: RICD appoints QBUILD when a Council can't
+    # deliver. These projects have a BFA but NO Council funding schedule; FNC pays
+    # QBUILD directly and runs the Monthly Tracker. Council is not expected to
+    # report (no stage/quarterly/monthly obligations).
+    qbuild_delivered = models.BooleanField(
+        default=False, db_index=True,
+        help_text="QBUILD (State builder) delivers this project — no Council funding "
+                  "schedule or Council reporting; FNC pays QBUILD directly.",
+    )
 
     land_parcels = models.ManyToManyField('LandTenure', related_name='projects', blank=True)
     

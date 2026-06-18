@@ -284,21 +284,17 @@ table.t-works .num-cell{text-align:right;font-variant-numeric:tabular-nums}
         {% if lpc_amber > 0 %}<span class="tally"><span class="dot a"></span> {{ lpc_amber }} amber</span>{% endif %}
         {% if lpc_red > 0 %}<span class="tally"><span class="dot r"></span> {{ lpc_red }} red</span>{% endif %}
         {% if is_fnc %}
-          <a href="{% url 'ui:land_pre_conditions' project.pk %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-pencil"></i> Edit pre-conditions</a>
+          <a href="{% url 'ui:land_pre_condition_edit' project.pk %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-pencil"></i> Edit pre-conditions</a>
         {% endif %}
       </div>
     </div>
 
     <div class="precond-grid">
       {% for lpc in land_pre_conditions %}
-        {% if lpc.status == 'GRN' %}{% with tile_cls='tl-green' %}
-        {% elif lpc.status == 'AMB' %}{% with tile_cls='tl-amber' %}
-        {% else %}{% with tile_cls='tl-red' %}
-        {% endif %}
-        <div class="pc-tile {{ tile_cls }}">
+        <div class="pc-tile {% if lpc.status == 'GRN' %}tl-green{% elif lpc.status == 'AMB' %}tl-amber{% else %}tl-red{% endif %}">
           <div class="top-row">
             <span class="nm">{{ lpc.get_category_display }}</span>
-            {% if is_fnc %}<button class="edit-btn" title="Edit"><i class="bi bi-pencil"></i></button>{% endif %}
+            {% if is_fnc %}<a class="edit-btn" href="{% url 'ui:land_pre_condition_edit' project.pk %}" title="Edit pre-conditions"><i class="bi bi-pencil"></i></a>{% endif %}
           </div>
           {% if lpc.status == 'GRN' %}
             <div class="tl-circle"><i class="bi bi-check-lg"></i></div>
@@ -327,11 +323,10 @@ table.t-works .num-cell{text-align:right;font-variant-numeric:tabular-nums}
             <div class="pc-notes">{{ lpc.notes }}</div>
           {% endif %}
         </div>
-        {% endwith %}
       {% empty %}
         <div style="grid-column:1/-1;padding:24px 20px;text-align:center;color:var(--muted);font-size:13px;">
           No pre-condition records yet.
-          {% if is_fnc %}<a href="{% url 'ui:land_pre_conditions' project.pk %}" style="margin-left:8px;">Set up pre-conditions →</a>{% endif %}
+          {% if is_fnc %}<a href="{% url 'ui:land_pre_condition_edit' project.pk %}" style="margin-left:8px;">Set up pre-conditions →</a>{% endif %}
         </div>
       {% endfor %}
     </div>
@@ -349,7 +344,7 @@ table.t-works .num-cell{text-align:right;font-variant-numeric:tabular-nums}
           <span class="count">{{ land_parcels|length }} parcel{{ land_parcels|length|pluralize }}</span>
         </h2>
         <div class="right">
-          {% if is_fnc %}<button class="btn btn-outline-secondary btn-sm"><i class="bi bi-plus-lg"></i> Link parcel</button>{% endif %}
+          {% if is_fnc %}<a href="{% url 'ui:project_link_land_parcels' project.pk %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-plus-lg"></i> Link parcel</a>{% endif %}
         </div>
       </div>
       {% if land_parcels %}
@@ -420,6 +415,10 @@ table.t-works .num-cell{text-align:right;font-variant-numeric:tabular-nums}
           <div style="text-align:right;">
             <div style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Council</div>
             <div style="font-size:12.5px;font-weight:600;color:var(--ink);margin-top:2px;">{{ project.council }}</div>
+            {% if is_fnc %}
+              <a href="{% url 'ui:development_application_detail' da.pk %}" style="font-size:11.5px;">Open</a>
+              · <a href="{% url 'ui:project_link_da' project.pk %}" style="font-size:11.5px;">Change</a>
+            {% endif %}
           </div>
         </div>
 
@@ -457,7 +456,10 @@ table.t-works .num-cell{text-align:right;font-variant-numeric:tabular-nums}
       {% else %}
       <div style="padding:20px 18px;font-size:13px;color:var(--muted-2);font-style:italic;">
         No development application linked.
-        {% if is_fnc %}<a href="#" style="margin-left:8px;font-style:normal;">Link DA →</a>{% endif %}
+        {% if is_fnc %}
+          <a href="{% url 'ui:development_application_create' %}?project={{ project.pk }}" style="margin-left:8px;font-style:normal;font-weight:600;">Create DA →</a>
+          <a href="{% url 'ui:project_link_da' project.pk %}" style="margin-left:12px;font-style:normal;">Link existing DA →</a>
+        {% endif %}
       </div>
       {% endif %}
     </div>
@@ -468,6 +470,9 @@ table.t-works .num-cell{text-align:right;font-variant-numeric:tabular-nums}
   <div class="lcard">
     <div class="sec-h">
       <h2><i class="bi bi-diagram-3" style="color:var(--brand);"></i>Infrastructure Readiness</h2>
+      <div class="right">
+        {% if is_fnc %}<a href="{% url 'ui:project_infrastructure_edit' project.pk %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-pencil"></i> Edit</a>{% endif %}
+      </div>
     </div>
     <div class="infra-grid">
       <div class="infra-cell water">
@@ -514,7 +519,7 @@ table.t-works .num-cell{text-align:right;font-variant-numeric:tabular-nums}
         <span class="count">{{ child_dwellings|length }} linked</span>
       </h2>
       <div class="right">
-        {% if is_fnc %}<button class="btn btn-outline-secondary btn-sm"><i class="bi bi-link-45deg"></i> Link dwelling project</button>{% endif %}
+        {% if is_fnc %}<a href="{% url 'ui:project_link_child_dwellings' project.pk %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-link-45deg"></i> Link dwelling project</a>{% endif %}
       </div>
     </div>
     {% if child_dwellings %}
@@ -755,7 +760,7 @@ table.t-works .num-cell{text-align:right;font-variant-numeric:tabular-nums}
 
 {# ===== Comments tab ===== #}
 <div class="tab-pane fade {% if active_tab == 'comments' %}show active{% endif %}" id="tab-comments" role="tabpanel">
-  {% include "partials/comments.html" with object=project %}
+  {% include "partials/_comments.html" %}
 </div>
 
 </div>{# /tab-content #}

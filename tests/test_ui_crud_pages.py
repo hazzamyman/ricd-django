@@ -167,6 +167,7 @@ class TestProjectCRUD:
             'council': council.pk,
             'program': program.pk,
             'project_type': 'DWELLING',
+            'cashflow_method': 'MILESTONE',
             'state': 'PROG',
         })
         assert response.status_code in (200, 302), \
@@ -177,6 +178,12 @@ class TestProjectCRUD:
         response = auth_client.get(f'/projects/{project.pk}/')
         assert response.status_code == 200, \
             f"GET /ui/projects/{project.pk}/ returned {response.status_code}"
+
+    def test_land_project_detail_get(self, auth_client, land_project):
+        # Land projects render projects/land_detail.html (was crashing).
+        response = auth_client.get(f'/projects/{land_project.pk}/')
+        assert response.status_code == 200, \
+            f"GET land /ui/projects/{land_project.pk}/ returned {response.status_code}"
 
     def test_project_edit_get(self, auth_client, project):
         response = auth_client.get(f'/projects/{project.pk}/edit/')
@@ -189,6 +196,7 @@ class TestProjectCRUD:
             'council': council.pk,
             'program': program.pk,
             'project_type': 'DWELLING',
+            'cashflow_method': 'WORKSTEP',
             'state': 'PROG',
             'financial_year': '2025-2026',
         })
@@ -196,6 +204,7 @@ class TestProjectCRUD:
             f"POST /ui/projects/{project.pk}/edit/ returned {response.status_code}"
         project.refresh_from_db()
         assert project.name == 'Updated Project'
+        assert project.cashflow_method == 'WORKSTEP'
 
     def test_project_delete_get(self, auth_client, project):
         response = auth_client.get(f'/projects/{project.pk}/delete/')

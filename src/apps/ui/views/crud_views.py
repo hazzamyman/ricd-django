@@ -31,7 +31,8 @@ from apps.core.models import (
     Variation, VariationItem, Payment, StageReport, QuarterlyReport,
     FundingAgreement, FundingNotice, ExpenseClaim, WorkFunding,
     StateElectorate, FederalElectorate, QhigiRegion,
-    SiteSettings, PaymentMilestoneSchedule, PaymentMilestoneRule,
+    SiteSettings, PaymentMilestoneSchedule, PaymentMilestoneRule, Contractor,
+    EmailTemplate, SentNotification,
 )
 
 COUNCIL_ROLES = frozenset({'COUNCIL_USER', 'COUNCIL_MANAGER'})
@@ -358,7 +359,7 @@ class CouncilDetailView(LoginRequiredMixin, NoticesMixin, DetailView):
 class CouncilContactCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = CouncilContact
     template_name = 'crud/form.html'
-    fields = ['role', 'name', 'email', 'phone']
+    fields = ['role', 'name', 'email', 'phone', 'receives_notifications']
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -378,7 +379,7 @@ class CouncilContactCreateView(LoginRequiredMixin, WidgetUpgradeMixin, CreateVie
 class CouncilContactUpdateView(LoginRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = CouncilContact
     template_name = 'crud/form.html'
-    fields = ['role', 'name', 'email', 'phone']
+    fields = ['role', 'name', 'email', 'phone', 'receives_notifications']
 
     def get_success_url(self):
         return reverse_lazy('ui:council_detail', kwargs={'pk': self.object.council_id})
@@ -575,9 +576,9 @@ _WORK_ADVANCED_FIELDS = [
 class ProjectCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = Project
     template_name = 'crud/form.html'
-    fields = ['name', 'council', 'program', 'project_type', 'financial_year',
+    fields = ['name', 'council', 'program', 'project_type', 'cashflow_method', 'financial_year',
               'financial_year_completed', 'lead_officer',
-              'state', 'dwelling_status',
+              'state', 'dwelling_status', 'qbuild_delivered',
               'stage1_item_group', 'stage2_item_group', 'quarterly_report_item_group',
               'sap_ion', 'cli_no', 'initial_caa_date']
     success_url = reverse_lazy('ui:projects_list')
@@ -742,9 +743,9 @@ class ProjectDetailView(CouncilScopedMixin, CouncilOrFNCMixin, CommentsMixin, No
 class ProjectUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = Project
     template_name = 'crud/form.html'
-    fields = ['name', 'council', 'program', 'project_type', 'financial_year',
+    fields = ['name', 'council', 'program', 'project_type', 'cashflow_method', 'financial_year',
               'financial_year_completed', 'lead_officer',
-              'state', 'dwelling_status',
+              'state', 'dwelling_status', 'qbuild_delivered',
               'stage1_item_group', 'stage2_item_group', 'quarterly_report_item_group',
               'sap_ion', 'cli_no', 'initial_caa_date']
     success_url = reverse_lazy('ui:projects_list')
@@ -761,6 +762,10 @@ class ProjectUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
 
 
 class ProjectDeleteView(WriteRequiredMixin, DeleteView):
+    # Deleting a project is destructive — it cascades to works, addresses,
+    # payments, funding allocations etc. Restrict to RICD Managers and
+    # superusers only (regular officers and council/read-only roles cannot).
+    required_roles = MANAGER_ROLES
     model = Project
     template_name = 'crud/confirm_delete.html'
     success_url = reverse_lazy('ui:projects_list')
@@ -769,6 +774,86 @@ class ProjectDeleteView(WriteRequiredMixin, DeleteView):
         ctx = super().get_context_data(**kwargs)
         ctx['back_url'] = reverse_lazy('ui:projects_list')
         return ctx
+
+
+class ProjectArchiveView(WriteRequiredMixin, View):
+    """Reversible archive — for projects that were cancelled / never finished.
+    Keeps the record but hides it from active lists. FNC staff only."""
+    def post(self, request, pk):
+        project = get_object_or_404(Project, pk=pk)
+        project.is_archived = True
+        project.archived_at = timezone.now()
+        project.archived_reason = (request.POST.get('reason') or '').strip()[:255]
+        project.save(update_fields=['is_archived', 'archived_at', 'archived_reason', 'updated_at'])
+        messages.success(request, f"Project '{project.name}' archived.")
+        return redirect('ui:project_detail', pk=pk)
+
+
+class ProjectUnarchiveView(WriteRequiredMixin, View):
+    def post(self, request, pk):
+        project = get_object_or_404(Project, pk=pk)
+        project.is_archived = False
+        project.archived_at = None
+        project.archived_reason = ''
+        project.save(update_fields=['is_archived', 'archived_at', 'archived_reason', 'updated_at'])
+        messages.success(request, f"Project '{project.name}' restored from archive.")
+        return redirect('ui:project_detail', pk=pk)
+
+
+class ProjectTransferWorksView(WriteRequiredMixin, View):
+    """Move works from this project to another project of the SAME council.
+    Moving a work also moves its address (and any sibling works at that address)
+    so an address never spans two projects. FNC staff only."""
+    template_name = 'projects/transfer_works.html'
+
+    def _targets(self, source):
+        return (Project.objects.filter(council=source.council, is_archived=False)
+                .exclude(pk=source.pk).order_by('name'))
+
+    def get(self, request, pk):
+        source = get_object_or_404(Project, pk=pk)
+        return render(request, self.template_name, {
+            'source': source,
+            'works': source.works.select_related('work_type', 'address').order_by('id'),
+            'targets': self._targets(source),
+        })
+
+    def post(self, request, pk):
+        source = get_object_or_404(Project, pk=pk)
+        target = (Project.objects.filter(
+            pk=request.POST.get('target_project'), council=source.council
+        ).exclude(pk=source.pk).first())
+        work_ids = request.POST.getlist('works')
+        if not target:
+            messages.error(request, 'Choose a valid target project in the same council.')
+            return redirect('ui:project_transfer_works', pk=pk)
+        if not work_ids:
+            messages.error(request, 'Select at least one work to move.')
+            return redirect('ui:project_transfer_works', pk=pk)
+
+        moved = set()
+
+        def _move(w):
+            if w.pk in moved:
+                return
+            w.project = target
+            w.save(update_fields=['project', 'updated_at'])
+            moved.add(w.pk)
+
+        for w in Work.objects.filter(pk__in=work_ids, project=source).select_related('address'):
+            _move(w)
+            if w.address_id:
+                if w.address.project_id != target.pk:
+                    Address.objects.filter(pk=w.address_id).update(project=target)
+                for sib in Work.objects.filter(address_id=w.address_id):
+                    _move(sib)
+
+        messages.success(
+            request,
+            f"Moved {len(moved)} work{'' if len(moved) == 1 else 's'} to '{target.name}'. "
+            "Any addresses (and their works) moved with them."
+        )
+        return redirect(f"{reverse('ui:project_detail', kwargs={'pk': pk})}?tab=works")
 
 
 class ProjectSetCompletionDatesView(WriteRequiredMixin, View):
@@ -1070,7 +1155,43 @@ class FundingScheduleDetailView(CouncilScopedMixin, CouncilOrFNCMixin, CommentsM
             )
         else:
             ctx['rollup_child_comments'] = Comment.objects.none()
+
+        # Funding sufficiency (allocations vs approved BFA funding, contingency excluded)
+        ctx['funding_has_bfa'] = fs.has_approved_bfa()
+        ctx['funding_available'] = fs.approved_bfa_funding_only_for_children
+        ctx['funding_allocated'] = fs.total_allocated()
+        ctx['funding_shortfall'] = fs.funding_shortfall()
+        ctx['funding_sufficient'] = fs.is_funding_sufficient()
+        ctx['generated_payment_count'] = fs.payments.count()
         return ctx
+
+
+class FundingScheduleGenerateInstalmentsView(WriteRequiredMixin, View):
+    """Generate per-project sub-payment instalment records for the schedule."""
+
+    def post(self, request, pk):
+        fs = get_object_or_404(FundingSchedule, pk=pk)
+        if fs.funding_shortfall() is not None and fs.funding_shortfall() < 0:
+            messages.error(
+                request,
+                "Allocations exceed the approved BFA funding for this schedule — "
+                "resolve the shortfall before generating instalments."
+            )
+            return redirect('ui:funding_schedule_detail', pk=pk)
+        created, total = fs.generate_project_instalments()
+        if created:
+            messages.success(
+                request,
+                f"Generated {created} per-project instalment payment{'' if created == 1 else 's'} "
+                f"(total ${total:,.2f}). Dates follow each project's payment milestone schedule."
+            )
+        else:
+            messages.info(
+                request,
+                "No instalments generated — check the schedule has a payment rule with "
+                "milestones and projects with WorkFunding allocations (existing payments are kept)."
+            )
+        return redirect('ui:funding_schedule_detail', pk=pk)
 
 
 class FundingScheduleContractReportView(CouncilScopedMixin, CouncilOrFNCMixin, NoticesMixin, DetailView):
@@ -1280,7 +1401,7 @@ class PaymentListView(CouncilScopedMixin, CouncilOrFNCMixin, ListView):
 class PaymentCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
     model = Payment
     template_name = 'crud/form.html'
-    fields = ['project', 'funding_schedule', 'payment_type', 'calculation_type',
+    fields = ['project', 'funding_schedule', 'work', 'payment_type', 'calculation_type',
               'payment_split', 'percentage', 'amount', 'forecast_anchor',
               'forecast_release_date', 'status']
 
@@ -1289,6 +1410,12 @@ class PaymentCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
 
     def get_initial(self):
         return {'project': self.kwargs['project_pk']}
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        if 'work' in form.fields:
+            form.fields['work'].queryset = Work.objects.filter(project_id=self.kwargs['project_pk'])
+        return form
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -1324,12 +1451,18 @@ class PaymentDetailView(CouncilScopedMixin, CouncilOrFNCMixin, NoticesMixin, Det
 class PaymentUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
     model = Payment
     template_name = 'crud/form.html'
-    fields = ['project', 'funding_schedule', 'payment_type', 'calculation_type',
+    fields = ['project', 'funding_schedule', 'work', 'payment_type', 'calculation_type',
               'payment_split', 'percentage', 'amount', 'forecast_anchor',
               'forecast_release_date', 'status']
 
     def get_success_url(self):
         return reverse_lazy('ui:payment_list', kwargs={'project_pk': self.kwargs['project_pk']})
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        if 'work' in form.fields:
+            form.fields['work'].queryset = Work.objects.filter(project_id=self.kwargs['project_pk'])
+        return form
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -2147,6 +2280,7 @@ class WorkCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
     template_name = 'crud/form.html'
     fields = ['work_type', 'work_type_other', 'bedrooms', 'quantity',
               'estimated_cost', 'status', 'is_notional_cost', 'actual_cost', 'address',
+              'contractor',
               'forecast_practical_completion_date', 'practical_completion_date',
               'forecast_handover_date', 'handover_date',
               'floor_number', 'livable_housing_level', 'usage_type',
@@ -2167,6 +2301,35 @@ class WorkCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
                 add_url=reverse('ui:work_type_create'), add_label='Add work type',
                 choices=form.fields['work_type'].choices,
             )
+        if 'contractor' in form.fields:
+            council_id = Project.objects.filter(
+                pk=self.kwargs['project_pk']
+            ).values_list('council_id', flat=True).first()
+            if council_id:
+                form.fields['contractor'].queryset = Contractor.objects.filter(
+                    council_id=council_id, is_active=True
+                )
+            add_url = reverse('ui:contractor_quick_add')
+            if council_id:
+                add_url += f'?council={council_id}'
+            form.fields['contractor'].widget = PopupAddSelect(
+                add_url=add_url, add_label='Add contractor',
+                choices=form.fields['contractor'].choices,
+            )
+            form.fields['contractor'].help_text = (
+                "If the Council will NOT be the principal contractor, add the contractor here."
+            )
+        if 'address' in form.fields:
+            from apps.core.models import Address
+            council_id = Project.objects.filter(
+                pk=self.kwargs['project_pk']
+            ).values_list('council_id', flat=True).first()
+            if council_id:
+                form.fields['address'].queryset = (
+                    Address.objects.filter(project__council_id=council_id)
+                    .select_related('project', 'suburb')
+                )
+            form.fields['address'].help_text = "Only addresses under this council's projects."
         return form
 
     def get_success_url(self):
@@ -2282,6 +2445,31 @@ class WorkUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
                 add_url=reverse('ui:work_type_create'), add_label='Add work type',
                 choices=form.fields['work_type'].choices,
             )
+        if 'contractor' in form.fields:
+            council_id = self.object.project.council_id if self.object and self.object.project_id else None
+            if council_id:
+                form.fields['contractor'].queryset = Contractor.objects.filter(
+                    council_id=council_id, is_active=True
+                )
+            add_url = reverse('ui:contractor_quick_add')
+            if council_id:
+                add_url += f'?council={council_id}'
+            form.fields['contractor'].widget = PopupAddSelect(
+                add_url=add_url, add_label='Add contractor',
+                choices=form.fields['contractor'].choices,
+            )
+            form.fields['contractor'].help_text = (
+                "If the Council will NOT be the principal contractor, add the contractor here."
+            )
+        if 'address' in form.fields:
+            from apps.core.models import Address
+            council_id = self.object.project.council_id if (self.object and self.object.project_id) else None
+            if council_id:
+                form.fields['address'].queryset = (
+                    Address.objects.filter(project__council_id=council_id)
+                    .select_related('project', 'suburb')
+                )
+            form.fields['address'].help_text = "Only addresses under this council's projects."
         return form
 
     def get_success_url(self):
@@ -2293,6 +2481,48 @@ class WorkUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
         ctx['back_url'] = _safe_next(self.request, reverse_lazy('ui:work_list', kwargs={'project_pk': self.object.project_id}))
         ctx['advanced_fields'] = _WORK_ADVANCED_FIELDS
         ctx['advanced_has_errors'] = any(ctx['form'].has_error(f) for f in _WORK_ADVANCED_FIELDS)
+        return ctx
+
+
+class ContractorQuickAddView(PopupAwareCreateMixin, WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
+    """Inline (popup) quick-add of a contractor from a Work form, so staff don't
+    have to leave to create one. Only the contractor name is required; the
+    council is taken from the work's project via the ?council= query param."""
+    model = Contractor
+    template_name = 'crud/form.html'
+    fields = ['company_name', 'abn', 'licence_number', 'email', 'phone',
+              'address', 'trade_type', 'notes']
+
+    def _council_id(self):
+        return self.request.GET.get('council') or self.request.POST.get('council')
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        # Only the name is mandatory.
+        for name, field in form.fields.items():
+            field.required = (name == 'company_name')
+        form.fields['company_name'].label = 'Name'
+        if 'licence_number' in form.fields:
+            form.fields['licence_number'].label = 'QBCC licence number'
+        if 'phone' in form.fields:
+            form.fields['phone'].label = 'Phone'
+        return form
+
+    def form_valid(self, form):
+        cid = self._council_id()
+        if cid:
+            form.instance.council_id = cid
+        if not form.instance.trade_type:
+            form.instance.trade_type = Contractor.TradeType.OTHER
+        if not form.instance.council_id:
+            from django.contrib import messages as _m
+            _m.error(self.request, 'Could not determine the council for this contractor.')
+            return self.form_invalid(form)
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Add contractor'
         return ctx
 
 
@@ -2576,6 +2806,19 @@ class PaymentReleaseView(LoginRequiredMixin, RoleRequiredMixin, View):
         payment.status = Payment.Status.RELEASED
         payment.save()
         messages.success(request, 'Payment released.')
+        return redirect('ui:payment_detail', project_pk=project_pk, pk=pk)
+
+
+class PaymentReconcileView(LoginRequiredMixin, RoleRequiredMixin, View):
+    required_roles = MANAGER_ROLES
+    def post(self, request, project_pk, pk):
+        payment = get_object_or_404(Payment, pk=pk, project_id=project_pk)
+        if payment.status != Payment.Status.RELEASED:
+            messages.error(request, 'Only released payments can be reconciled.')
+            return redirect('ui:payment_detail', project_pk=project_pk, pk=pk)
+        payment.status = Payment.Status.RECONCILED
+        payment.save()  # save() stamps reconciled_date
+        messages.success(request, 'Payment reconciled (acquitted).')
         return redirect('ui:payment_detail', project_pk=project_pk, pk=pk)
 
 
@@ -3543,13 +3786,157 @@ class SiteSettingsView(LoginRequiredMixin, View):
             raise PermissionDenied
         settings_obj = SiteSettings.get()
         reports_email = request.POST.get('reports_email', '').strip()
+        from_email = request.POST.get('notifications_from_email', '').strip()
         if reports_email:
             settings_obj.reports_email = reports_email
+            if from_email:
+                settings_obj.notifications_from_email = from_email
             settings_obj.save()
             messages.success(request, 'Site settings updated.')
         else:
             messages.error(request, 'A valid email address is required.')
-        return redirect('site_settings')
+        return redirect('ui:site_settings')
+
+
+class CashflowRulesView(LoginRequiredMixin, View):
+    """Maintenance: stipulate how cashflow accrual is forecast per cashflow method.
+
+    Cash basis is always milestone payments (shown read-only). The accrual basis is
+    editable per method (Capital Grant / Capital Works).
+    """
+    template_name = 'maintenance/cashflow_rules.html'
+
+    def _check_permission(self, user):
+        role = getattr(getattr(user, 'profile', None), 'officer_role', None)
+        return user.is_superuser or role in {'MANAGER'}
+
+    def _rules(self):
+        from apps.core.models import CashflowMethodRule
+        return [CashflowMethodRule.get('MILESTONE'), CashflowMethodRule.get('WORKSTEP')]
+
+    def get(self, request):
+        if not self._check_permission(request.user):
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+        from apps.core.models import CashflowMethodRule
+        return render(request, self.template_name, {
+            'rules': self._rules(),
+            'accrual_sources': CashflowMethodRule.AccrualSource.choices,
+            'workstep_dates': CashflowMethodRule.WorkstepDate.choices,
+            'cost_bases': CashflowMethodRule.CostBasis.choices,
+            'active_nav': 'maintenance',
+        })
+
+    def post(self, request):
+        if not self._check_permission(request.user):
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+        from apps.core.models import CashflowMethodRule
+        valid_src = {c[0] for c in CashflowMethodRule.AccrualSource.choices}
+        valid_date = {c[0] for c in CashflowMethodRule.WorkstepDate.choices}
+        valid_cost = {c[0] for c in CashflowMethodRule.CostBasis.choices}
+        for rule in self._rules():
+            p = rule.method
+            src = request.POST.get(f'{p}_accrual_source')
+            wd = request.POST.get(f'{p}_workstep_date')
+            cb = request.POST.get(f'{p}_cost_basis')
+            if src in valid_src:
+                rule.accrual_source = src
+            if wd in valid_date:
+                rule.workstep_date = wd
+            if cb in valid_cost:
+                rule.cost_basis = cb
+            rule.notes = request.POST.get(f'{p}_notes', '').strip()
+            rule.save()
+        messages.success(request, 'Cashflow forecasting rules updated.')
+        return redirect('ui:cashflow_rules')
+
+
+class EmailTemplateListView(WriteRequiredMixin, ListView):
+    model = EmailTemplate
+    template_name = 'maintenance/email_templates.html'
+    context_object_name = 'templates'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['active_nav'] = 'maintenance'
+        return ctx
+
+
+class EmailTemplateUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
+    model = EmailTemplate
+    template_name = 'maintenance/email_template_form.html'
+    fields = ['subject', 'body', 'is_active']
+
+    def get_success_url(self):
+        return reverse_lazy('ui:email_template_list')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        from apps.core.services.notifications import EVENT_PLACEHOLDERS
+        ctx['placeholders'] = EVENT_PLACEHOLDERS.get(self.object.event, [])
+        ctx['event_label'] = self.object.get_event_display()
+        ctx['active_nav'] = 'maintenance'
+        return ctx
+
+
+class NotificationLogView(WriteRequiredMixin, ListView):
+    model = SentNotification
+    template_name = 'maintenance/notification_log.html'
+    context_object_name = 'notifications'
+    paginate_by = 50
+
+    def get_queryset(self):
+        return SentNotification.objects.select_related('council', 'project').all()
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['active_nav'] = 'maintenance'
+        return ctx
+
+
+class EmailSettingsView(LoginRequiredMixin, View):
+    """Superuser-only runtime email/SMTP config: master on/off, log-vs-SMTP mode,
+    host/port/TLS/credentials (password masked), from-address, and a test send."""
+    template_name = 'maintenance/email_settings.html'
+
+    def _check(self, user):
+        if not user.is_superuser:
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+
+    def get(self, request):
+        self._check(request.user)
+        return render(request, self.template_name,
+                      {'s': SiteSettings.get(), 'active_nav': 'maintenance'})
+
+    def post(self, request):
+        self._check(request.user)
+        s = SiteSettings.get()
+        if request.POST.get('action') == 'test':
+            from apps.core.services.notifications import send_test_email
+            ok, msg = send_test_email((request.user.email or '').strip())
+            (messages.success if ok else messages.error)(request, msg)
+            return redirect('ui:email_settings')
+        s.notifications_enabled = request.POST.get('notifications_enabled') == 'on'
+        s.email_send_mode = request.POST.get('email_send_mode') or SiteSettings.EmailSendMode.LOG
+        s.email_host = request.POST.get('email_host', '').strip()
+        try:
+            s.email_port = int(request.POST.get('email_port') or 587)
+        except (TypeError, ValueError):
+            s.email_port = 587
+        s.email_use_tls = request.POST.get('email_use_tls') == 'on'
+        s.email_use_ssl = request.POST.get('email_use_ssl') == 'on'
+        s.email_host_user = request.POST.get('email_host_user', '').strip()
+        from_email = request.POST.get('notifications_from_email', '').strip()
+        if from_email:
+            s.notifications_from_email = from_email
+        pw = request.POST.get('email_host_password', '')
+        if pw:  # masked field — only overwrite when a new value is typed
+            s.email_host_password = pw
+        s.save()
+        messages.success(request, 'Email settings saved.')
+        return redirect('ui:email_settings')
 
 
 # ============================================================================

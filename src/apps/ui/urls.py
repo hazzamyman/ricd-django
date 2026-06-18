@@ -7,13 +7,20 @@ urlpatterns = [
     # Dashboard views
     path('dashboard/', views.dashboard_views.dashboard_view, name='dashboard'),
     path('cashflow/', views.dashboard_views.cashflow_view, name='cashflow'),
+    path('cashflow/monthly/', views.dashboard_views.cashflow_monthly_view, name='cashflow_monthly'),
     path('aggregate/', views.dashboard_views.aggregate_outputs_view, name='aggregate_outputs'),
     path('dashboard/projects/', views.dashboard_views.projects_board_view, name='projects_board'),
     path('dashboard/traceability/', views.dashboard_views.traceability_view, name='traceability'),
+    path('help/', views.dashboard_views.help_view, name='help'),
 
     # Maintenance
     path('maintenance/', views.crud_views.MaintenanceView.as_view(), name='maintenance'),
     path('maintenance/site-settings/', views.crud_views.SiteSettingsView.as_view(), name='site_settings'),
+    path('maintenance/cashflow-rules/', views.crud_views.CashflowRulesView.as_view(), name='cashflow_rules'),
+    path('maintenance/email-templates/', views.crud_views.EmailTemplateListView.as_view(), name='email_template_list'),
+    path('maintenance/email-templates/<int:pk>/edit/', views.crud_views.EmailTemplateUpdateView.as_view(), name='email_template_edit'),
+    path('maintenance/notifications-log/', views.crud_views.NotificationLogView.as_view(), name='notification_log'),
+    path('maintenance/email-settings/', views.crud_views.EmailSettingsView.as_view(), name='email_settings'),
 
     # Planning views
     path('planning/', views.planning_views.planning_list, name='planning_list'),
@@ -24,6 +31,10 @@ urlpatterns = [
     path('projects/<int:pk>/', views.crud_views.ProjectDetailView.as_view(), name='project_detail'),
     path('projects/<int:pk>/edit/', views.crud_views.ProjectUpdateView.as_view(), name='project_edit'),
     path('projects/<int:pk>/delete/', views.crud_views.ProjectDeleteView.as_view(), name='project_delete'),
+    path('projects/<int:pk>/archive/', views.crud_views.ProjectArchiveView.as_view(), name='project_archive'),
+    path('projects/<int:pk>/unarchive/', views.crud_views.ProjectUnarchiveView.as_view(), name='project_unarchive'),
+    path('projects/<int:pk>/transfer-works/', views.crud_views.ProjectTransferWorksView.as_view(), name='project_transfer_works'),
+    path('contractors/quick-add/', views.crud_views.ContractorQuickAddView.as_view(), name='contractor_quick_add'),
     path('projects/<int:pk>/set-completion-dates/', views.crud_views.ProjectSetCompletionDatesView.as_view(), name='project_set_completion_dates'),
 
     # Payments (nested under project)
@@ -35,6 +46,7 @@ urlpatterns = [
     path('projects/<int:project_pk>/payments/<int:pk>/recommend/', views.crud_views.PaymentRecommendView.as_view(), name='payment_recommend'),
     path('projects/<int:project_pk>/payments/<int:pk>/approve/', views.crud_views.PaymentApproveView.as_view(), name='payment_approve'),
     path('projects/<int:project_pk>/payments/<int:pk>/release/', views.crud_views.PaymentReleaseView.as_view(), name='payment_release'),
+    path('projects/<int:project_pk>/payments/<int:pk>/reconcile/', views.crud_views.PaymentReconcileView.as_view(), name='payment_reconcile'),
     path('projects/<int:project_pk>/payments/<int:pk>/reject/', views.crud_views.PaymentRejectView.as_view(), name='payment_reject'),
 
     # Stage Reports (nested under project)
@@ -141,6 +153,7 @@ urlpatterns = [
     path('funding-schedules/<int:pk>/complete/', views.crud_views.FundingScheduleCompleteView.as_view(), name='funding_schedule_complete'),
     path('funding-schedules/<int:pk>/supersede/', views.crud_views.FundingScheduleSupersededView.as_view(), name='funding_schedule_supersede'),
     path('funding-schedules/<int:pk>/cancel/', views.crud_views.FundingScheduleCancelView.as_view(), name='funding_schedule_cancel'),
+    path('funding-schedules/<int:pk>/generate-instalments/', views.crud_views.FundingScheduleGenerateInstalmentsView.as_view(), name='funding_schedule_generate_instalments'),
 
     # Funding Notices CRUD + close action
     path('funding-notices/', views.crud_views.FundingNoticeListView.as_view(), name='funding_notice_list'),
@@ -203,6 +216,10 @@ urlpatterns = [
 
     # Land Pre-Conditions (traffic-light flags for land development projects)
     path('projects/<int:project_pk>/pre-conditions/', views.crud_views.LandPreConditionEditView.as_view(), name='land_pre_condition_edit'),
+    path('projects/<int:project_pk>/link-child-dwellings/', views.land_link_views.LinkChildDwellingsView.as_view(), name='project_link_child_dwellings'),
+    path('projects/<int:project_pk>/link-land-parcels/', views.land_link_views.LinkLandParcelsView.as_view(), name='project_link_land_parcels'),
+    path('projects/<int:project_pk>/link-da/', views.land_link_views.LinkDAView.as_view(), name='project_link_da'),
+    path('projects/<int:project_pk>/infrastructure/', views.land_link_views.ProjectInfraUpdateView.as_view(), name='project_infrastructure_edit'),
 
     # Land Tenures CRUD
     path('land-tenures/', views.land_crud_views.LandTenureListView.as_view(), name='land_tenure_list'),
@@ -245,6 +262,7 @@ urlpatterns = [
 
     # Addresses & Works combined page
     path('projects/<int:pk>/addresses-works/', views.crud_views.ProjectAddressesWorksView.as_view(), name='project_addresses_works'),
+    path('projects/<int:pk>/addresses-works/edit/', views.works_editor_views.AddressesWorksEditView.as_view(), name='project_addresses_works_edit'),
 
     # Addresses (nested under project — issue #18)
     path('projects/<int:project_pk>/addresses/', views.crud_views.AddressListView.as_view(), name='address_list'),
@@ -355,6 +373,8 @@ urlpatterns = [
     path('reports/eom-reconciliation/export.csv', views.reports_views.eom_reconciliation_export, name='eom_reconciliation_export'),
     path('reports/construction-creation-list/', views.reports_views.construction_creation_list_view, name='construction_creation_list'),
     path('reports/construction-creation-list/export.csv', views.reports_views.construction_creation_list_export, name='construction_creation_list_export'),
+    path('reports/work-items/export.csv', views.reports_views.work_items_export, name='work_items_export'),
+    path('reports/workbook.xlsx', views.reports_views.reports_workbook_export, name='reports_workbook_export'),
     path('land-infra/', views.land_infra_views.land_projects_list_view, name='land_projects_list'),
     path('documents/', views.documents_views.documents_list_view, name='documents_list'),
 ]

@@ -1,0 +1,345 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RICD — Help &amp; User Guide</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    :root{
+      --brand:#2563eb; --brand-dark:#1e40af; --ink:#111827; --muted:#6b7280;
+      --line:#e5e7eb; --bg:#f8fafc; --panel:#ffffff; --amber:#b45309; --amber-bg:#fffbeb;
+      --green:#047857; --green-bg:#ecfdf5; --red:#b91c1c;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+         color:var(--ink);background:var(--bg);line-height:1.55;font-size:15px}
+    a{color:var(--brand);text-decoration:none}
+    a:hover{text-decoration:underline}
+    .wrap{max-width:1180px;margin:0 auto;padding:0 20px;display:flex;gap:28px;align-items:flex-start}
+    /* Top banner */
+    header.top{background:linear-gradient(120deg,var(--brand-dark),var(--brand));color:#fff;padding:28px 0}
+    header.top .wrap{display:block}
+    header.top h1{margin:0 0 4px;font-size:26px;letter-spacing:-.01em}
+    header.top p{margin:0;opacity:.92;font-size:14px}
+    .role-banner{margin-top:14px;display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.15);
+                 border:1px solid rgba(255,255,255,.25);padding:6px 12px;border-radius:999px;font-size:13px}
+    /* Layout */
+    nav.toc{position:sticky;top:18px;flex:0 0 230px;background:var(--panel);border:1px solid var(--line);
+            border-radius:12px;padding:14px 12px;font-size:13.5px;max-height:calc(100vh - 36px);overflow:auto}
+    nav.toc h4{margin:6px 8px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+    nav.toc a{display:block;padding:5px 8px;border-radius:7px;color:var(--ink)}
+    nav.toc a:hover{background:var(--bg);text-decoration:none}
+    main{flex:1 1 auto;min-width:0;padding:24px 0 60px}
+    section{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin-bottom:18px}
+    section h2{margin:0 0 12px;font-size:19px;display:flex;align-items:center;gap:9px}
+    section h2 .bi{color:var(--brand)}
+    section h3{margin:18px 0 7px;font-size:15.5px}
+    p{margin:0 0 10px}
+    ul,ol{margin:0 0 10px;padding-left:20px}
+    li{margin:3px 0}
+    code{background:#f1f5f9;padding:1px 6px;border-radius:5px;font-size:13px;
+         font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    table{width:100%;border-collapse:collapse;margin:8px 0 12px;font-size:13.5px}
+    th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+    th{background:var(--bg);font-weight:600}
+    .tag{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap}
+    .tag.fnc{background:#eff6ff;color:var(--brand-dark);border:1px solid #bfdbfe}
+    .tag.council{background:#ecfeff;color:#0e7490;border:1px solid #a5f3fc}
+    .tag.ro{background:#f5f3ff;color:#6d28d9;border:1px solid #ddd6fe}
+    .note{background:var(--bg);border-left:3px solid var(--brand);border-radius:0 8px 8px 0;padding:10px 14px;margin:10px 0}
+    .warn{background:var(--amber-bg);border-left:3px solid var(--amber);border-radius:0 8px 8px 0;padding:10px 14px;margin:10px 0;color:#7c4a02}
+    .ok{background:var(--green-bg);border-left:3px solid var(--green);border-radius:0 8px 8px 0;padding:10px 14px;margin:10px 0;color:#065f46}
+    .lead{font-size:15.5px;color:#374151}
+    .backbar{margin:0 0 16px}
+    .backbar a{font-weight:500}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    @media(max-width:880px){.wrap{flex-direction:column}nav.toc{position:static;width:100%;flex-basis:auto}.grid2{grid-template-columns:1fr}}
+    @media print{nav.toc,.backbar,header.top .role-banner{display:none}body{background:#fff}section{break-inside:avoid;border:none;padding:0 0 8px}}
+  </style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <h1><i class="bi bi-question-circle"></i> RICD — Help &amp; User Guide</h1>
+    <p>Remote Indigenous Capital Delivery — what the system does, who can do what, and how the key workflows fit together.</p>
+    {% if user.is_authenticated %}
+      <div class="role-banner">
+        <i class="bi bi-person-badge"></i>
+        Signed in as <strong>{{ user.get_full_name|default:user.username }}</strong>
+        {% if user_role_display %}— role: <strong>{{ user_role_display }}</strong>{% endif %}
+        {% if is_council %}(council view){% elif is_manager %}(FNC manager){% elif is_fnc %}(FNC staff){% endif %}
+      </div>
+    {% endif %}
+  </div>
+</header>
+
+<div class="wrap">
+
+  <nav class="toc">
+    <h4>Contents</h4>
+    <a href="#overview">1. What RICD is</a>
+    <a href="#roles">2. Roles &amp; permissions</a>
+    <a href="#confidential">3. What councils can &amp; can't see</a>
+    <a href="#features">4. Features by area</a>
+    <a href="#lifecycle">5. The funding lifecycle</a>
+    <a href="#cashflow">6. Cashflow &amp; payment timing</a>
+    <a href="#tracker">7. Monthly tracker automation</a>
+    <a href="#model">8. The data model</a>
+    <a href="#limits">9. Limitations &amp; notes</a>
+  </nav>
+
+  <main>
+    <div class="backbar">
+      <a href="javascript:window.close()"><i class="bi bi-x-circle"></i> Close</a>
+      &nbsp;·&nbsp;
+      <a href="{% url 'ui:dashboard' %}"><i class="bi bi-box-arrow-up-right"></i> Back to the app</a>
+      &nbsp;·&nbsp;
+      <a href="javascript:window.print()"><i class="bi bi-printer"></i> Print / save as PDF</a>
+    </div>
+
+    <section id="overview">
+      <h2><i class="bi bi-info-circle"></i> 1. What RICD is</h2>
+      <p class="lead">RICD tracks Queensland First Nations capital housing delivery end to end — from the
+        funding agreement with a council, through approvals and payments, to construction progress and acquittal.</p>
+      <p>It replaces spreadsheets with a single source of truth that links the money to the bricks: every dollar
+        committed is traceable to a council, a program, a project and the individual works (dwellings, lots,
+        infrastructure) it pays for. The system covers four broad jobs:</p>
+      <ul>
+        <li><strong>Plan &amp; fund</strong> — record funding agreements, financial approvals, schedules and payment rules.</li>
+        <li><strong>Deliver</strong> — capture projects, their works/addresses, and construction progress.</li>
+        <li><strong>Forecast &amp; pay</strong> — project cashflow per program and financial year, and release payments against milestones.</li>
+        <li><strong>Report &amp; govern</strong> — monthly trackers, quarterly and stage reports, variations, approvals, and a full audit trail.</li>
+      </ul>
+    </section>
+
+    <section id="roles">
+      <h2><i class="bi bi-people"></i> 2. Roles &amp; permissions</h2>
+      <p>Access is controlled by your <em>role</em>. There are five:</p>
+      <table>
+        <thead><tr><th>Role</th><th>Who</th><th>Can do</th></tr></thead>
+        <tbody>
+          <tr><td><span class="tag fnc">Officer</span></td><td>FNC frontline staff</td>
+              <td>Full create/edit/delete on all records, across all councils.</td></tr>
+          <tr><td><span class="tag fnc">Manager</span></td><td>FNC senior staff</td>
+              <td>Same access as Officer (trust-based), plus runtime config (site settings, maintenance) and the approver of record for reports/payments.</td></tr>
+          <tr><td><span class="tag council">Council User</span></td><td>Council staff</td>
+              <td>View and work with <strong>their own council's</strong> records only; submit reports and expense claims. No editing of funding internals.</td></tr>
+          <tr><td><span class="tag council">Council Manager</span></td><td>Senior council staff</td>
+              <td>Same scope as Council User (own council only).</td></tr>
+          <tr><td><span class="tag ro">Read Only</span></td><td>Internal audit / finance / executives</td>
+              <td>Read everything across all councils; cannot change anything.</td></tr>
+        </tbody>
+      </table>
+      <div class="note">
+        <strong>Council scoping:</strong> Council User and Council Manager only ever see records belonging to their
+        own council — projects, schedules, payments and reports are filtered automatically. Trying to open another
+        council's record returns "permission denied".
+      </div>
+      <p><strong>Who can write?</strong> Only Officer and Manager can create/edit/delete the core funding and project
+        records. Council roles are limited to submitting their own reports/claims; Read-Only roles can write nothing.</p>
+    </section>
+
+    <section id="confidential">
+      <h2><i class="bi bi-shield-lock"></i> 3. What councils can &amp; can't see</h2>
+      <p>Some financial internals are deliberately hidden from councils:</p>
+      <ul>
+        <li><strong>Brief Financial Approvals (BFA)</strong> are <em>internal-only</em>. Councils never see the BFA itself —
+          including the <strong>contingency hold-back</strong>, delegate levels, and cost-centre details.</li>
+        <li>Councils learn only <strong>whether</strong> funding was approved for their projects/funding schedules, via their
+          own project and schedule pages — never the underlying approval breakdown.</li>
+        <li>The <strong>contingency</strong> amount FNC holds against a project is masked in council-facing cashflow views;
+          it is released only if needed and is visible to the FNC team alone.</li>
+      </ul>
+      <div class="warn">
+        If you are a council user and a figure looks "missing" compared with what FNC quotes, that is by design —
+        the approved funding you see excludes FNC's internal contingency.
+      </div>
+    </section>
+
+    <section id="features">
+      <h2><i class="bi bi-grid"></i> 4. Features by area</h2>
+      <p>The left-hand menu groups the system into five areas.</p>
+
+      <h3>Portfolio</h3>
+      <ul>
+        <li><strong>Dashboard</strong> — portfolio totals, project status (on-track / late / overdue), budget, filters by council/program/status.</li>
+        <li><strong>Projects</strong> — each project's overview, its child <em>addresses &amp; works</em> (dwellings, lots, infrastructure) with costs, funding, payments, reports and documents in tabs.</li>
+        <li><strong>Cashflow</strong> — forecast of committed vs released spend per program per financial year (see §6).</li>
+        <li><strong>Analytics</strong> — aggregate outputs: how many dwellings by type and bedroom count, residential lots, and their costs, totalled by category, council and program.</li>
+      </ul>
+
+      <h3>Funding</h3>
+      <ul>
+        <li><strong>Funding Agreements</strong> — the legal umbrella with a council.</li>
+        <li><strong>Funding Schedules</strong> — the per-project funding instrument with a lifecycle (draft → ready → executed → active → superseded) and key dates that cascade to the project.</li>
+        <li><strong>Payment Rules</strong> — immutable, versioned rules defining how a schedule's payments split (e.g. 30/60/10).</li>
+        <li><strong>BFA</strong> <span class="tag fnc">FNC only</span> — Brief Financial Approvals: the pre-condition that releases funding, including per-program splits and contingency.</li>
+        <li><strong>Funding Notices &amp; Expense Claims</strong> — the capped-payment pathway; councils can submit claims against a notice.</li>
+      </ul>
+
+      <h3>Reports</h3>
+      <ul>
+        <li><strong>Monthly Trackers</strong> — per-work construction progress grid; entering dates here drives forecasting and (now) payment timing.</li>
+        <li><strong>Quarterly Reports</strong> — FS → project → works hierarchy with expenditure and declarations, submitted to the State.</li>
+        <li><strong>Stage Reports</strong> — Stage 1 / Stage 2 contract checklists that gate the next payment.</li>
+      </ul>
+
+      <h3>Governance</h3>
+      <ul>
+        <li><strong>Variations</strong> — deeds that change schedules/funding, with their own approval and execution states.</li>
+        <li><strong>Approvals</strong> — delegation-based sign-off (amount thresholds determine who must approve a payment).</li>
+        <li><strong>Notices</strong> — in-app notifications/announcements.</li>
+      </ul>
+
+      <h3>Administration <span class="tag fnc">FNC / staff</span></h3>
+      <ul>
+        <li><strong>Councils, Programs, Work Types</strong> — reference data.</li>
+        <li><strong>Maintenance</strong> — lookup tables, notional costs, work step definitions &amp; groups, stage item groups,
+          <strong>Payment Milestone Schedules</strong> (see §6), electorates/regions, construction methods, and site settings (e.g. the reports email).</li>
+        <li><strong>Audit Log</strong> — every change to a financial record is logged automatically (who, what, when, before/after).</li>
+      </ul>
+    </section>
+
+    <section id="lifecycle">
+      <h2><i class="bi bi-diagram-3"></i> 5. The funding lifecycle</h2>
+      <p>The money flows through a defined chain, each step gating the next:</p>
+      <ol>
+        <li><strong>Funding Agreement</strong> signed with a council (the legal umbrella).</li>
+        <li><strong>Brief Financial Approval (BFA)</strong> approved internally — sets the approved amount and contingency, split per program.</li>
+        <li><strong>Funding Schedule</strong> created for the project (requires an approved BFA) and executed.</li>
+        <li><strong>Payments</strong> raised against the schedule's payment rule (e.g. 30/60/10). The first approved payment moves the schedule to <em>Active</em>.</li>
+        <li><strong>Reports</strong> (Stage 1 / Stage 2) approved unlock the next payment.</li>
+        <li><strong>Release &amp; reconcile</strong> — released payments are snapshotted against program allocations for
+          traceability, then marked <code>RECONCILED</code> once acquitted.</li>
+      </ol>
+      <p>Use <strong>Dashboard → Traceability</strong> to "follow the money" from a council down through agreements, schedules, allocations and payments.</p>
+    </section>
+
+    <section id="cashflow">
+      <h2><i class="bi bi-graph-up"></i> 6. Cashflow &amp; payment timing</h2>
+      <p>The <strong>Cashflow</strong> page compares, for each program and financial year:
+        the <em>budgeted</em> amount, the <em>forecast committed</em> (payments with a forecast release date), and the
+        <em>released</em> (actual) amount. Over-committed cells are flagged; payments without a forecast date appear in an
+        <strong>Undated Payments</strong> panel so you can schedule them.</p>
+
+      <h3>How a payment's forecast date is set</h3>
+      <p>Every payment is either:</p>
+      <ul>
+        <li><strong>Manual</strong> — you type the forecast release date yourself, or</li>
+        <li><strong>Scheduled</strong> — the date is derived automatically from a <strong>Payment Milestone Schedule</strong>.</li>
+      </ul>
+      <p>A Payment Milestone Schedule (Maintenance → Payment Milestone Schedules) is attached to a <strong>Work Step Group</strong>
+        and holds one rule per payment. Each rule anchors a payment to a milestone plus an offset in days:</p>
+      <table>
+        <thead><tr><th>Payment</th><th>Anchored to</th><th>Offset</th></tr></thead>
+        <tbody>
+          <tr><td>First (30%)</td><td>Project start date</td><td>+14 days</td></tr>
+          <tr><td>Second (60%)</td><td>"Site establishment" work step</td><td>+14 days</td></tr>
+          <tr><td>Third (10%)</td><td>"Final internal clean for handover" work step</td><td>+14 days</td></tr>
+        </tbody>
+      </table>
+      <p>This <strong>Standard 30/60/10</strong> schedule is the default and covers most projects. A rule can anchor to the
+        project start, a <em>named work step</em>, or forecast practical completion.</p>
+      <div class="ok">
+        <strong>Outliers:</strong> need different timing for some works? <em>Clone</em> the Work Step Group (its payment
+        schedule is copied too), rename it, adjust the rules, and apply it to those works — or move the works to a separate
+        project. No code change, and the payment dates follow.
+      </div>
+      <p>When you edit a schedule or rule, existing scheduled payments are re-derived immediately.</p>
+
+      <h3>Reconciliation &amp; the notice pathway</h3>
+      <ul>
+        <li>A payment moves <code>PENDING → RECOMMENDED → APPROVED → RELEASED → RECONCILED</code>. Use the
+          <strong>Reconcile</strong> button on a released payment to mark it acquitted (the reconciled date is stamped automatically).</li>
+        <li>A payment can optionally name the <strong>specific work (dwelling/lot) it funds</strong>, so finance can trace a
+          payment down to the physical output.</li>
+        <li>The cashflow page also shows a <strong>Notice / Expense-Claim pathway</strong> panel. That capped, claim-based
+          stream is funded via Funding Notices + Expense Claims, <em>not</em> Payment rows, so it sits beside the matrix
+          rather than inside it.</li>
+      </ul>
+    </section>
+
+    <section id="tracker">
+      <h2><i class="bi bi-calendar-week"></i> 7. Monthly tracker automation</h2>
+      <p>The whole point of milestone scheduling: <strong>staff update progress in one place</strong>.</p>
+      <ul>
+        <li>You record a work step's actual/forecast completion in the <strong>Monthly Tracker</strong>.</li>
+        <li>That updates the canonical work step, which re-runs the project's construction forecast.</li>
+        <li>Any <em>scheduled</em> payment anchored to an affected milestone has its forecast release date rolled
+          automatically — so if site establishment slips 30 days, the second payment's forecast moves 30 days too.</li>
+      </ul>
+      <div class="note">
+        You no longer maintain the Monthly Tracker <em>and</em> separately edit payment dates for cashflow — update the
+        tracker only, and the forecast follows.
+      </div>
+    </section>
+
+    <section id="model">
+      <h2><i class="bi bi-diagram-2"></i> 8. The data model</h2>
+      <p>The main entities and how they relate:</p>
+      <div class="grid2">
+        <div>
+          <h3>Organisation &amp; reference</h3>
+          <ul>
+            <li><strong>Council</strong> — a local government / housing provider.</li>
+            <li><strong>Program</strong> — a funding program (with per-FY budgets).</li>
+            <li><strong>Work Type</strong> — house, duplex, lot, infrastructure… (with notional costs).</li>
+            <li><strong>Work Step Definition / Group</strong> — the named construction steps and reusable templates.</li>
+          </ul>
+          <h3>Delivery</h3>
+          <ul>
+            <li><strong>Project</strong> — belongs to a council + program; has a state lifecycle.</li>
+            <li><strong>Address / Work</strong> — the physical things funded (dwellings, lots), each with a work type, quantity, cost and steps.</li>
+            <li><strong>Work Step</strong> — a step instance on a work, with forecast/actual dates (the Monthly Tracker columns).</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Funding &amp; money</h3>
+          <ul>
+            <li><strong>Funding Agreement</strong> → <strong>Brief Financial Approval</strong> (+ items, contingency) → <strong>Funding Schedule</strong>.</li>
+            <li><strong>Payment Rule</strong> — versioned split definition used by a schedule.</li>
+            <li><strong>Payment</strong> — raised on a schedule; Manual or Scheduled forecast; allocated per program on release.</li>
+            <li><strong>Payment Milestone Schedule / Rule</strong> — when scheduled payments are forecast to release.</li>
+            <li><strong>Funding Notice / Expense Claim</strong> — capped claim pathway.</li>
+          </ul>
+          <h3>Governance</h3>
+          <ul>
+            <li><strong>Variation</strong> (+ items) — changes to schedules/funding.</li>
+            <li><strong>Approval</strong> — delegation-based sign-off.</li>
+            <li><strong>Report</strong> — Monthly Tracker, Quarterly, Stage reports.</li>
+            <li><strong>Workflow Action / Audit Log</strong> — immutable record of every state change.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="limits">
+      <h2><i class="bi bi-exclamation-triangle"></i> 9. Limitations &amp; things to know</h2>
+      <ul>
+        <li><strong>Payments link to a project + funding schedule, and optionally to one specific work.</strong> Use the
+          "Funds work" field to trace a payment to a dwelling/lot. Scheduled timing still resolves the milestone across all
+          the project's works (latest date wins for "site establishment" / completion), so keep a project's works on one
+          work-step group for predictable timing; use a cloned group or a separate project for outliers.</li>
+        <li><strong>Scheduled payment dates need their milestone to exist.</strong> If a project's works have no
+          "Site establishment" step yet, that payment stays undated until the step (or its date) is recorded.</li>
+        <li><strong>Manual always wins.</strong> Setting a payment to Manual, or typing a date, opts it out of automatic rolling.</li>
+        <li><strong>Released payments are locked.</strong> Their program allocation is snapshotted at release and never retro-adjusted by later BFA changes.</li>
+        <li><strong>Costs are actual where entered, otherwise notional</strong> (estimated from per-work-type rates) — the Analytics page notes this.</li>
+        <li><strong>Audit logging is automatic</strong> for financial records and cannot be edited.</li>
+      </ul>
+      <div class="note">
+        Found something that looks wrong, or want a feature? Note the page URL and what you expected, and pass it to the
+        FNC system owner — most behaviour is configuration (Maintenance), not code.
+      </div>
+    </section>
+
+    <div class="backbar">
+      <a href="{% url 'ui:dashboard' %}"><i class="bi bi-box-arrow-up-right"></i> Back to the app</a>
+    </div>
+  </main>
+</div>
+
+</body>
+</html>

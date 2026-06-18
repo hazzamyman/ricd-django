@@ -102,14 +102,98 @@ def cashflow_view(request):
 
     role = getattr(getattr(request.user, 'profile', None), 'officer_role', None)
     hide_contingency = role in ('COUNCIL_USER', 'COUNCIL_MANAGER')
-    data = build_program_cashflow(program=program, councils=councils, hide_contingency=hide_contingency)
+    basis = 'cash' if request.GET.get('basis') == 'cash' else 'accrual'
+    data = build_program_cashflow(program=program, councils=councils,
+                                  hide_contingency=hide_contingency, basis=basis)
+
+    # Notice / Expense-Claim pathway runs alongside the schedule-based matrix:
+    # these disbursements are ExpenseClaims against a FundingNotice cap, NOT
+    # Payment rows, so they don't appear in the matrix above. Summarise them so
+    # the cashflow page acknowledges this funding stream (same program/council
+    # filters as the matrix).
+    from decimal import Decimal
+    from apps.core.models import FundingNotice
+    notices = FundingNotice.objects.select_related('project')
+    if program:
+        notices = notices.filter(project__program=program)
+    if councils:
+        notices = notices.filter(project__council_id__in=councils)
+    notice_list = list(notices)
+    notice_capped = sum((n.capped_amount or Decimal('0')) for n in notice_list)
+    notice_approved = sum((n.approved_claims_total or Decimal('0')) for n in notice_list)
+    notice_summary = {
+        'count': len(notice_list),
+        'capped': notice_capped,
+        'approved': notice_approved,
+        'remaining': notice_capped - notice_approved,
+        'open': sum(1 for n in notice_list if n.status == 'OPEN'),
+    }
 
     return render(request, 'dashboard/cashflow.html', {
+        'data': data,
+        'notice_summary': notice_summary,
+        'programs': Program.objects.filter(is_active=True).order_by('name'),
+        'councils': Council.objects.order_by('name'),
+        'selected_program_id': program_id,
+        'selected_council_id': council_id,
+        'selected_basis': basis,
+    })
+
+
+@login_required
+def cashflow_monthly_view(request):
+    """Monthly cashflow — per-Program x per-calendar-MONTH grid.
+
+    Plots approved payments by their forecast/actual release month (a separate
+    breakdown from the FY cashflow page). Programmed (unapproved) projects are
+    excluded — they have a FY but no payment month. ProgramBudget is surfaced as
+    per-FY context only (there is no monthly budget figure).
+    """
+    from apps.core.services.cashflow import build_program_monthly_cashflow
+
+    program_id = request.GET.get('program', '').strip()
+    council_id = request.GET.get('council', '').strip()
+    start = request.GET.get('start', '').strip() or None
+
+    try:
+        months = int(request.GET.get('months', '24'))
+    except (TypeError, ValueError):
+        months = 24
+    if months not in (12, 24, 36):
+        months = 24
+
+    program = None
+    if program_id:
+        try:
+            program = Program.objects.get(pk=int(program_id))
+        except (Program.DoesNotExist, ValueError):
+            program = None
+
+    councils = None
+    if council_id:
+        try:
+            councils = [int(council_id)]
+        except ValueError:
+            councils = None
+
+    role = getattr(getattr(request.user, 'profile', None), 'officer_role', None)
+    hide_contingency = role in ('COUNCIL_USER', 'COUNCIL_MANAGER')
+    basis = 'cash' if request.GET.get('basis') == 'cash' else 'accrual'
+    data = build_program_monthly_cashflow(
+        program=program, councils=councils, start=start, months=months,
+        hide_contingency=hide_contingency, basis=basis,
+    )
+
+    return render(request, 'dashboard/cashflow_monthly.html', {
         'data': data,
         'programs': Program.objects.filter(is_active=True).order_by('name'),
         'councils': Council.objects.order_by('name'),
         'selected_program_id': program_id,
         'selected_council_id': council_id,
+        'selected_start': data['start'],
+        'selected_months': months,
+        'selected_basis': basis,
+        'active_nav': 'cashflow_monthly',
     })
 
 
@@ -119,91 +203,23 @@ def cashflow_view(request):
 
 @login_required
 def aggregate_outputs_view(request):
-    """Work-level output report: what we are actually funding — dwellings by
-    type and bedroom count, residential allotments, and their costs (actual
-    where entered, otherwise estimated from notional rates)."""
-    from collections import defaultdict
-    from decimal import Decimal
-    from apps.core.models import Work
+    """Analytics — Aggregate Outputs.
 
-    works = (
-        Work.objects.exclude(project__state=Project.State.COMPLETED)
-        .select_related('work_type', 'project__council', 'project__program')
-    )
+    Per output category (Overall + Land/Dwellings/Extensions/Demolition/Other),
+    broken down by LGA: pipeline unit counts, dynamic per-Program approved
+    funding (from BriefFinancialApprovalItem — what program funded what outputs),
+    paid-to-council, DA buckets, and an output-mix breakdown.
+    """
+    from apps.core.services.analytics import build_aggregate_outputs
 
-    def _bucket():
-        return {'units': 0, 'bedrooms': 0, 'cost': Decimal('0'), 'projects': set()}
+    region = request.GET.get('region', '').strip() or None
+    data = build_aggregate_outputs(region=region)
 
-    by_work_type = {}
-    by_bedrooms = defaultdict(_bucket)
-    by_category = defaultdict(_bucket)
-    by_council = defaultdict(_bucket)
-    by_program = defaultdict(_bucket)
-    totals = _bucket()
-
-    for w in works:
-        qty = w.quantity or 0
-        cost = w.total_effective_cost or Decimal('0')
-        beds = (w.bedrooms or 0) * qty
-        has_bedrooms = bool(w.work_type and w.work_type.has_bedrooms)
-        name = w.work_type.name if w.work_type else (w.work_type_other or 'Other')
-        category = w.work_type.get_category_display() if w.work_type else 'Other'
-
-        wt_key = (category, name)
-        row = by_work_type.setdefault(wt_key, {
-            'name': name, 'category': category,
-            'short_code': w.work_type.short_code if w.work_type else '',
-            'has_bedrooms': has_bedrooms, **_bucket(),
-        })
-        for tgt in (row, by_category[category], by_council[w.project.council.name if w.project.council else '—'],
-                    by_program[w.project.program.name if w.project.program else '—'], totals):
-            tgt['units'] += qty
-            tgt['bedrooms'] += beds
-            tgt['cost'] += cost
-            tgt['projects'].add(w.project_id)
-
-        if has_bedrooms and w.bedrooms:
-            b = by_bedrooms[w.bedrooms]
-            b['units'] += qty
-            b['cost'] += cost
-            b['projects'].add(w.project_id)
-
-    def _finalise(bucket, **extra):
-        units = bucket['units']
-        return {
-            **extra,
-            'units': units,
-            'bedrooms': bucket['bedrooms'],
-            'cost': bucket['cost'],
-            'avg_cost': (bucket['cost'] / units) if units else Decimal('0'),
-            'project_count': len(bucket['projects']),
-        }
-
-    work_type_rows = [
-        _finalise(r, name=r['name'], category=r['category'],
-                  short_code=r['short_code'], has_bedrooms=r['has_bedrooms'])
-        for r in sorted(by_work_type.values(), key=lambda x: (x['category'], x['name']))
-    ]
-    bedroom_rows = [
-        _finalise(v, bedrooms_label=b) for b, v in sorted(by_bedrooms.items())
-    ]
-    category_rows = [
-        _finalise(v, category=c) for c, v in sorted(by_category.items())
-    ]
-    council_rows = [
-        _finalise(v, council=c) for c, v in sorted(by_council.items())
-    ]
-    program_rows = [
-        _finalise(v, program=p) for p, v in sorted(by_program.items())
-    ]
-
-    return render(request, 'dashboard/aggregate.html', {
-        'work_type_rows': work_type_rows,
-        'bedroom_rows': bedroom_rows,
-        'category_rows': category_rows,
-        'council_rows': council_rows,
-        'program_rows': program_rows,
-        'totals': _finalise(totals),
+    return render(request, 'dashboard/analytics.html', {
+        'data': data,
+        'regions': data['regions'],
+        'selected_region': region or '',
+        'active_nav': 'aggregate',
     })
 
 
@@ -365,3 +381,17 @@ def traceability_view(request):
         'grand_remaining': grand_total - grand_paid,
         'grand_pct': grand_pct,
     })
+
+
+# ---------------------------------------------------------------------------
+# In-app Help / documentation (standalone page, opened in a new tab)
+# ---------------------------------------------------------------------------
+
+@login_required
+def help_view(request):
+    """Standalone user guide — features, roles, workflows, domain model.
+
+    Rendered without the app chrome so it reads cleanly in a new tab/popup and
+    prints well. Role context (is_fnc/is_council/...) is supplied globally by the
+    context processor, so the page can tailor what it shows to the viewer."""
+    return render(request, 'help/index.html')

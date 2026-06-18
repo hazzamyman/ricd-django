@@ -38,7 +38,8 @@
           <div class="d-flex flex-wrap gap-1 mt-2">
             {% for t in targets %}
             <span class="badge bg-light text-dark border" style="font-size:11px;font-weight:400">
-              {{ t.content_type.model }} #{{ t.object_id }}
+              <span class="text-muted text-uppercase" style="font-size:9px;letter-spacing:.04em;">{{ t.content_type.name }}</span>
+              {{ t.content_object|default:"(deleted)" }}
               {% if notice.author == user or user.is_superuser %}
               <form method="post" action="{% url 'ui:notice_remove_target' notice.pk %}" class="d-inline">
                 {% csrf_token %}

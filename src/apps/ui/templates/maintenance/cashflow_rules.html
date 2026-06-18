@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Cashflow Forecasting Rules{% endblock %}
+{% block breadcrumbs %}
+  <span class="sep">/</span><a href="{% url 'ui:maintenance' %}">Maintenance</a>
+  <span class="sep">/</span><span class="current">Cashflow Forecasting</span>
+{% endblock %}
+
+{% block content %}
+<div class="pg-head">
+  <div>
+    <h1>Cashflow Forecasting Rules</h1>
+    <div class="meta">
+      Stipulate how each cashflow method forecasts and accrues expenditure. The
+      <b>Cash</b> basis is always milestone payments for every project; the <b>Accrual</b>
+      basis is configured per method below. The cashflow pages default to <b>Accrual</b>.
+    </div>
+  </div>
+</div>
+
+<div class="alert alert-info" style="font-size:13px;">
+  <b>How it works.</b> A project's <b>Cashflow Method</b> (set on the project) selects which rule
+  applies. On the <b>Cash</b> basis the cashflow shows milestone payments to council for all projects.
+  On the <b>Accrual</b> basis, each project follows its method's accrual source — payments (so it
+  matches cash) or worksteps (expenditure as each workstep is forecast/completed).
+</div>
+
+<form method="post">
+  {% csrf_token %}
+  {% for rule in rules %}
+  <div class="card mb-3">
+    <div class="card-body">
+      <h2 style="font-size:15px;font-weight:700;margin-bottom:12px;">{{ rule.get_method_display }}</h2>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Cash basis (fixed)</label>
+          <input type="text" class="form-control" value="Milestone payments" disabled>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Accrual source</label>
+          <select name="{{ rule.method }}_accrual_source" class="form-select">
+            {% for v, l in accrual_sources %}
+              <option value="{{ v }}" {% if rule.accrual_source == v %}selected{% endif %}>{{ l }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Workstep date <span class="text-muted">(when accrual = worksteps)</span></label>
+          <select name="{{ rule.method }}_workstep_date" class="form-select">
+            {% for v, l in workstep_dates %}
+              <option value="{{ v }}" {% if rule.workstep_date == v %}selected{% endif %}>{{ l }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Cost basis <span class="text-muted">(when accrual = worksteps)</span></label>
+          <select name="{{ rule.method }}_cost_basis" class="form-select">
+            {% for v, l in cost_bases %}
+              <option value="{{ v }}" {% if rule.cost_basis == v %}selected{% endif %}>{{ l }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Notes</label>
+          <textarea name="{{ rule.method }}_notes" class="form-control" rows="2">{{ rule.notes }}</textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+  <button type="submit" class="btn btn-primary">Save rules</button>
+  <a href="{% url 'ui:maintenance' %}" class="btn btn-outline-secondary">Cancel</a>
+</form>
+
+<div class="card mt-4">
+  <div class="card-body" style="font-size:12.5px;color:#475569;">
+    <h3 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#334155;">Definitions</h3>
+    <p style="margin:8px 0 4px;"><b>Cash (payments)</b> — milestone <code>Payment</code> rows by their forecast / actual release date. Money leaving us to council.</p>
+    <p style="margin:0 0 4px;"><b>Accrual (expenditure)</b> — when value is delivered. <b>Payment milestones</b>: accrues with the payment (Capital Grants). <b>WorkStep progressive</b>: each workstep's share of the work value, forecast on its workstep date and released on its actual completion (Capital Works).</p>
+    <p style="margin:0;"><b>Workstep value</b> = step cost % × work value (effective = actual-where-entered-else-estimated, or estimated only), split across programs by the project's approved BFA ratios.</p>
+  </div>
+</div>
+{% endblock %}

@@ -354,3 +354,74 @@ def construction_creation_list_export(request):
             w.handover_date.isoformat() if w.handover_date else '',
         ])
     return response
+
+
+# ────────────────────────────────────────────────────────────────────
+# All Work Items — flat "dump everything" export for mass analysis
+# ────────────────────────────────────────────────────────────────────
+
+@login_required
+def work_items_export(request):
+    """One row per Work item across all projects, for mass analysis.
+
+    Each work item with its LGA, project, program, status, costs, the parent
+    project's approved budget (BFA) and amount expended (released), step
+    completion, and key actual/forecast dates.
+
+    GET:
+      format=xlsx          — return a formatted .xlsx (default: CSV)
+      council              — Council pk
+      include_archived=1   — include archived projects (default: exclude)
+    """
+    from apps.core.services import exports
+
+    council = request.GET.get('council', '').strip() or None
+    include_archived = request.GET.get('include_archived') == '1'
+    headers, rows = exports.work_items_rows(council=council, include_archived=include_archived)
+    today = datetime.date.today().isoformat()
+
+    if request.GET.get('format') == 'xlsx':
+        wb = exports.build_workbook([('Work Items', headers, rows)])
+        return exports.workbook_response(wb, f'work_items_{today}.xlsx')
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="work_items_{today}.csv"'
+    w = csv.writer(response)
+    w.writerow(headers)
+    for row in rows:
+        w.writerow(['' if v is None else (v.isoformat() if hasattr(v, 'isoformat') else v)
+                    for v in row])
+    return response
+
+
+@login_required
+def reports_workbook_export(request):
+    """Combined multi-sheet .xlsx: Work Items + one sheet per Analytics category
+    + Cashflow (Monthly). One file to share for mass analysis.
+
+    GET (all optional): region (analytics scope), start=YYYY-MM & months (cashflow
+    range), council (work-items scope).
+    """
+    from apps.core.services import exports
+
+    region = request.GET.get('region', '').strip() or None
+    council = request.GET.get('council', '').strip() or None
+    start = request.GET.get('start', '').strip() or None
+    try:
+        months = int(request.GET.get('months', '24'))
+    except (TypeError, ValueError):
+        months = 24
+    if months not in (12, 24, 36):
+        months = 24
+
+    sheets = [exports.work_items_rows(council=council)]
+    sheets = [('Work Items', sheets[0][0], sheets[0][1])]
+    sheets += exports.analytics_sheets(region=region)
+    sheets.append(exports.cashflow_monthly_sheet(start=start, months=months))
+
+    about = {'Scope (analytics region)': region or 'All regions',
+             'Cashflow range start': start or 'current month',
+             'Cashflow months': months}
+    wb = exports.build_workbook(sheets, about=about)
+    return exports.workbook_response(
+        wb, f'ricd_reports_{datetime.date.today().isoformat()}.xlsx')

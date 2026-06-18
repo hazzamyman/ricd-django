@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Email &amp; Sending Settings — RICD{% endblock %}
+{% block breadcrumbs %}
+  <span class="sep">/</span><a href="{% url 'ui:maintenance' %}">Maintenance</a>
+  <span class="sep">/</span><span class="current">Email &amp; Sending</span>
+{% endblock %}
+
+{% block content %}
+<div class="pg-head">
+  <div>
+    <h1>Email &amp; sending settings</h1>
+    <div class="meta">Superuser only. Controls whether automated emails are actually sent and the mail server used.</div>
+  </div>
+  <div class="actions">
+    <a href="{% url 'ui:email_template_list' %}" class="btn btn-outline-secondary btn-sm">Templates</a>
+    <a href="{% url 'ui:notification_log' %}" class="btn btn-outline-secondary btn-sm">Sent log</a>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-7">
+    <form method="post">
+      {% csrf_token %}
+      <div class="card mb-3"><div class="card-body">
+        <h6 class="text-muted mb-3">On / off &amp; mode</h6>
+        <div class="form-check mb-2">
+          <input type="checkbox" class="form-check-input" id="notifications_enabled" name="notifications_enabled" {% if s.notifications_enabled %}checked{% endif %}>
+          <label class="form-check-label" for="notifications_enabled"><b>Automated emails enabled</b> (master switch)</label>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Sending mode</label>
+          <select name="email_send_mode" class="form-select" style="max-width:340px;">
+            {% for value, label in s.EmailSendMode.choices %}
+              <option value="{{ value }}" {% if s.email_send_mode == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <div class="form-text text-muted">Start in <b>Log only</b> — emails are generated and recorded in the log but not sent. Switch to <b>SMTP</b> once the mail server below is set.</div>
+        </div>
+        <div class="mb-1">
+          <label class="form-label">"From" address</label>
+          <input type="email" class="form-control" name="notifications_from_email" value="{{ s.notifications_from_email }}" style="max-width:340px;">
+        </div>
+      </div></div>
+
+      <div class="card mb-3"><div class="card-body">
+        <h6 class="text-muted mb-3">SMTP mail server</h6>
+        <div class="row g-2">
+          <div class="col-sm-8"><label class="form-label">Host</label>
+            <input type="text" class="form-control" name="email_host" value="{{ s.email_host }}" placeholder="smtp.example.gov.au"></div>
+          <div class="col-sm-4"><label class="form-label">Port</label>
+            <input type="number" class="form-control" name="email_port" value="{{ s.email_port }}"></div>
+        </div>
+        <div class="d-flex gap-4 mt-2">
+          <div class="form-check"><input type="checkbox" class="form-check-input" id="email_use_tls" name="email_use_tls" {% if s.email_use_tls %}checked{% endif %}><label class="form-check-label" for="email_use_tls">Use TLS</label></div>
+          <div class="form-check"><input type="checkbox" class="form-check-input" id="email_use_ssl" name="email_use_ssl" {% if s.email_use_ssl %}checked{% endif %}><label class="form-check-label" for="email_use_ssl">Use SSL</label></div>
+        </div>
+        <div class="row g-2 mt-1">
+          <div class="col-sm-6"><label class="form-label">Username <span class="text-muted">(optional)</span></label>
+            <input type="text" class="form-control" name="email_host_user" value="{{ s.email_host_user }}" autocomplete="off"></div>
+          <div class="col-sm-6"><label class="form-label">Password <span class="text-muted">(optional)</span></label>
+            <input type="password" class="form-control" name="email_host_password" value="" placeholder="{% if s.email_host_password %}•••••••• (unchanged){% else %}leave blank for unauthenticated relay{% endif %}" autocomplete="new-password"></div>
+        </div>
+        <div class="form-text text-muted mt-1">
+          The password is stored in the app (masked here). Leave it blank to keep the current value, or for an unauthenticated departmental relay.
+        </div>
+      </div></div>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="submit" name="action" value="test" class="btn btn-outline-secondary">Send a test email to me ({{ request.user.email|default:"no email on your account" }})</button>
+        <a href="{% url 'ui:maintenance' %}" class="btn btn-outline-secondary">Back</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card"><div class="card-body">
+      <h6 class="text-muted">How this works</h6>
+      <ul class="small text-muted mb-0">
+        <li><b>Master switch off</b> → no automated emails at all.</li>
+        <li><b>Log only</b> → emails are generated with placeholders filled and recorded in the Sent log, but nothing leaves the system. Safe for testing.</li>
+        <li><b>SMTP</b> → emails are actually sent via the server above.</li>
+        <li>Use <b>Send a test email</b> to confirm the server works before relying on it.</li>
+        <li>Who receives a council's notices = the Council Contacts ticked "receives automated notices".</li>
+      </ul>
+    </div></div>
+  </div>
+</div>
+{% endblock %}

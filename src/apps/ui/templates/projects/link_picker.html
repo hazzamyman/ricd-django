@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — RICD{% endblock %}
+{% block content %}
+<div class="pg-head">
+  <div>
+    <h1>{{ title }}</h1>
+    {% if subtitle %}<div class="meta">{{ subtitle }}</div>{% endif %}
+  </div>
+</div>
+
+<form method="post">
+  {% csrf_token %}
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="d-flex gap-2 flex-wrap align-items-center mb-3">
+        <input type="search" id="pkSearch" class="form-control form-control-sm" style="max-width:300px;" placeholder="Search…" autocomplete="off">
+        {% if statuses %}
+        <span class="text-muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:600;">Status</span>
+        <div id="pkChips" class="d-flex gap-1 flex-wrap">
+          {% for s in statuses %}
+          <button type="button" class="btn btn-sm pk-chip {% if s.default_on %}btn-primary{% else %}btn-outline-secondary{% endif %}" data-status="{{ s.code }}">{{ s.label }}</button>
+          {% endfor %}
+        </div>
+        {% endif %}
+        <span class="text-muted ms-auto" style="font-size:12px;" id="pkCount"></span>
+      </div>
+
+      <div id="pkList" style="max-height:440px;overflow:auto;border:1px solid var(--line);border-radius:6px;">
+        {% for it in items %}
+        <label class="pk-row d-flex align-items-center gap-2" data-text="{{ it.label|lower }}" data-status="{{ it.status }}"
+               style="padding:8px 12px;border-bottom:1px solid var(--line-soft);cursor:pointer;margin:0;">
+          <input type="checkbox" name="{{ field_name }}" value="{{ it.pk }}" {% if it.checked %}checked{% endif %} class="form-check-input mt-0">
+          <span style="flex:1;font-size:13px;">{{ it.label }}</span>
+          {% if it.status_display %}<span class="badge bg-light text-dark border" style="font-size:10.5px;">{{ it.status_display }}</span>{% endif %}
+        </label>
+        {% empty %}
+        <div class="text-muted p-3" style="font-size:13px;">No records available for this council.</div>
+        {% endfor %}
+      </div>
+      <div class="text-muted mt-2" style="font-size:11.5px;">Tip: hidden-but-ticked items stay linked — filters only change what you see.</div>
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn-primary">Save</button>
+  <a href="{{ back_url }}" class="btn btn-outline-secondary">Cancel</a>
+</form>
+
+<script>
+(function(){
+  const search = document.getElementById('pkSearch');
+  const list = document.getElementById('pkList');
+  const count = document.getElementById('pkCount');
+  const chips = Array.prototype.slice.call(document.querySelectorAll('.pk-chip'));
+  const rows = Array.prototype.slice.call(list.querySelectorAll('.pk-row'));
+
+  function activeStatuses(){
+    const set = new Set();
+    chips.forEach(c => { if (c.classList.contains('btn-primary')) set.add(c.dataset.status); });
+    return set;
+  }
+  function apply(){
+    const q = (search.value || '').toLowerCase().trim();
+    const act = activeStatuses();
+    const hasChips = chips.length > 0;
+    let shown = 0;
+    rows.forEach(row => {
+      const txt = row.dataset.text || '';
+      const st = row.dataset.status || '';
+      const okText = !q || txt.indexOf(q) !== -1;
+      const okStatus = !hasChips || !st || act.has(st);
+      const show = okText && okStatus;
+      row.style.display = show ? '' : 'none';
+      if (show) shown++;
+    });
+    if (count) count.textContent = shown + ' shown';
+  }
+  if (search) search.addEventListener('input', apply);
+  chips.forEach(c => c.addEventListener('click', () => {
+    c.classList.toggle('btn-primary');
+    c.classList.toggle('btn-outline-secondary');
+    apply();
+  }));
+  apply();
+})();
+</script>
+{% endblock %}

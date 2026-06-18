@@ -27,6 +27,285 @@ def _zero():
     return Decimal('0')
 
 
+def _month_key(d):
+    return f"{d.year}-{d.month:02d}"
+
+
+def _pay_entry(p, share, kind, d):
+    """A serialisable payment row for a monthly drill-down cell."""
+    return {
+        'ref': p.reference or f"PMT-{p.pk}",
+        'project': p.project.name if p.project_id else '',
+        'project_id': p.project_id,
+        'council': p.project.council.name if (p.project_id and p.project.council_id) else '',
+        'amount': float(share),
+        'status': p.get_status_display(),
+        'kind': kind,
+        'date': d.strftime('%d %b %Y'),
+        'type': p.get_payment_type_display(),
+    }
+
+
+def _split_amount(project, amount):
+    """Split a Decimal amount across programs by the project's APPROVED BFA
+    ratios (mirrors Payment.compute_program_split); fall back to project.program."""
+    if project is None or amount is None or amount <= 0:
+        return {}
+    ratios = project.bfa_program_ratios(approved_only=True)
+    if not ratios:
+        return {project.program_id: amount} if project.program_id else {}
+    out = {}
+    running = _zero()
+    ordered = sorted(ratios.items(), key=lambda kv: -kv[1])
+    for i, (pid, ratio) in enumerate(ordered):
+        if i == len(ordered) - 1:
+            out[pid] = amount - running
+        else:
+            share = (amount * ratio).quantize(Decimal('0.01'))
+            out[pid] = share
+            running += share
+    return out
+
+
+def _cashflow_rules():
+    """Return {method: CashflowMethodRule} for both methods (seeded if missing)."""
+    from apps.core.models import CashflowMethodRule
+    return {m: CashflowMethodRule.get(m) for m in ('MILESTONE', 'WORKSTEP')}
+
+
+def _project_uses_worksteps(method, rules):
+    """True if a project of this cashflow_method accrues via worksteps."""
+    rule = rules.get(method)
+    return bool(rule and rule.accrual_source == 'WORKSTEP')
+
+
+def _iter_workstep_cashflow(rules, program=None, councils=None):
+    """Yield (program_id, share, date, is_released, work, step) for active worksteps
+    of projects whose cashflow_method accrues via worksteps (per `rules`).
+
+    Value = expected_cost_percentage × work value, where the value base (effective
+    vs estimated) and the forecast date (forecast completion vs start) come from
+    each project's CashflowMethodRule. Actuals always use actual_completion_date.
+    Split per program via approved BFA ratios.
+    """
+    from apps.core.models import Work
+    methods = [m for m in ('MILESTONE', 'WORKSTEP') if _project_uses_worksteps(m, rules)]
+    if not methods:
+        return
+    works = (Work.objects
+             .filter(project__cashflow_method__in=methods, project__isnull=False)
+             .select_related('project__council', 'project__program')
+             .prefetch_related('steps'))
+    if councils is not None:
+        works = works.filter(project__council__in=councils)
+    for w in works:
+        rule = rules.get(w.project.cashflow_method)
+        if rule is None:
+            continue
+        if rule.cost_basis == 'ESTIMATED':
+            base = (w.estimated_cost or _zero()) * (w.quantity or 0)
+        else:
+            base = w.total_effective_cost or _zero()
+        if base <= 0:
+            continue
+        for step in w.steps.all():
+            if not step.is_active:
+                continue
+            pct = step.expected_cost_percentage or _zero()
+            if pct <= 0:
+                continue
+            if step.actual_completion_date:
+                date, is_released = step.actual_completion_date, True
+            else:
+                date = (step.forecast_completion_date if rule.workstep_date == 'FCOMP'
+                        else step.forecast_start_date)
+                is_released = False
+            if date is None:
+                continue
+            amount = (base * pct / Decimal('100')).quantize(Decimal('0.01'))
+            if amount <= 0:
+                continue
+            for pid, share in _split_amount(w.project, amount).items():
+                if program is not None and pid != program.pk:
+                    continue
+                if share is None or share <= 0:
+                    continue
+                yield pid, share, date, is_released, w, step
+
+
+def _workstep_entry(work, step, share, kind, d):
+    """A serialisable row for a monthly drill-down cell (workstep claim)."""
+    return {
+        'ref': f"WS·{work.pk}·{step.order}",
+        'project': work.project.name if work.project_id else '',
+        'project_id': work.project_id,
+        'council': (work.project.council.name
+                    if (work.project_id and work.project.council_id) else ''),
+        'amount': float(share),
+        'status': ('Completed' if kind == 'released' else 'Forecast'),
+        'kind': kind,
+        'date': d.strftime('%d %b %Y'),
+        'type': f"WorkStep · {step.step_name}",
+    }
+
+
+def build_program_monthly_cashflow(program=None, councils=None, start=None, months=24,
+                                   hide_contingency=False, basis='accrual'):
+    """Per-Program x per-calendar-MONTH cashflow (for the Monthly Cashflow page).
+
+    Forecast  = non-RELEASED, non-rejected Payment.amount split per program, by the
+                month of forecast_release_date (fallback release_date).
+    Released  = RELEASED payments by release_date month, using the locked
+                PaymentAllocation snapshot (fallback to current ratios).
+    Programmed (unapproved) projects are intentionally EXCLUDED -- they have a FY but
+    no payment month; they live on the FY cashflow page.
+
+    Returns a JSON-serialisable dict for the client renderer:
+      programs[{id,name,cc,gl,src}], cells{"<progId>|YYYY-MM":{forecast,released,payments}},
+      fy_budgets{fy_code: budget}, start, months, current_month, as_of, program_count.
+    """
+    import datetime
+    from apps.core.models import Program as _Program, ProgramBudget
+
+    if start:
+        try:
+            sy, sm = (int(x) for x in str(start).split('-')[:2])
+        except (ValueError, TypeError):
+            t = datetime.date.today(); sy, sm = t.year, t.month
+    else:
+        t = datetime.date.today(); sy, sm = t.year, t.month
+    months = max(1, min(int(months or 24), 60))
+    start = f"{sy}-{sm:02d}"
+
+    month_set = set()
+    y, m = sy, sm
+    for _ in range(months):
+        month_set.add(f"{y}-{m:02d}")
+        m += 1
+        if m > 12:
+            m = 1; y += 1
+
+    payments = (Payment.objects
+                .select_related('project__program', 'project__council')
+                .prefetch_related('allocations__program')
+                .exclude(status='REJECTED'))
+    if program is not None:
+        payments = payments.filter(project__program=program)
+    if councils is not None:
+        payments = payments.filter(project__council__in=councils)
+
+    cells = {}
+    programs_seen = {}
+
+    def _cell(prog_id, mkey):
+        k = f"{prog_id}|{mkey}"
+        c = cells.get(k)
+        if c is None:
+            c = {'forecast': _zero(), 'released': None, 'payments': []}
+            cells[k] = c
+        return c
+
+    def _rec(prog_id):
+        if prog_id and prog_id not in programs_seen:
+            try:
+                programs_seen[prog_id] = _Program.objects.get(pk=prog_id)
+            except _Program.DoesNotExist:
+                pass
+
+    rules = _cashflow_rules()
+    ws_methods = {m for m in ('MILESTONE', 'WORKSTEP') if _project_uses_worksteps(m, rules)}
+
+    for p in payments:
+        if p.project is None:
+            continue
+        # Accrual basis: projects that accrue via worksteps are driven by their
+        # worksteps below, so skip their (cash) payment rows here.
+        if basis == 'accrual' and p.project.cashflow_method in ws_methods:
+            continue
+        amount = p.calculated_amount or p.amount or _zero()
+        if amount <= 0:
+            continue
+        if p.status == 'RELEASED' and p.release_date:
+            mkey = _month_key(p.release_date)
+            if mkey not in month_set:
+                continue
+            allocs = list(p.allocations.all())
+            parts = ([(a.program_id, a.amount) for a in allocs] if allocs
+                     else [(pid, share) for pid, (share, _r) in p.compute_program_split().items()])
+            for prog_id, share in parts:
+                if program is not None and prog_id != program.pk:
+                    continue
+                _rec(prog_id)
+                c = _cell(prog_id, mkey)
+                c['released'] = (c['released'] or _zero()) + share
+                c['payments'].append(_pay_entry(p, share, 'released', p.release_date))
+        else:
+            fdate = p.forecast_release_date or p.release_date
+            if not fdate:
+                continue
+            mkey = _month_key(fdate)
+            if mkey not in month_set:
+                continue
+            for prog_id, (share, _r) in p.compute_program_split().items():
+                if program is not None and prog_id != program.pk:
+                    continue
+                _rec(prog_id)
+                c = _cell(prog_id, mkey)
+                c['forecast'] += share
+                c['payments'].append(_pay_entry(p, share, 'forecast', fdate))
+
+    # Capital Works — progressive accrual from worksteps (accrual basis only).
+    if basis == 'accrual':
+        for pid, share, date, is_released, w, step in _iter_workstep_cashflow(rules, program, councils):
+            mkey = _month_key(date)
+            if mkey not in month_set:
+                continue
+            _rec(pid)
+            c = _cell(pid, mkey)
+            if is_released:
+                c['released'] = (c['released'] or _zero()) + share
+                c['payments'].append(_workstep_entry(w, step, share, 'released', date))
+            else:
+                c['forecast'] += share
+                c['payments'].append(_workstep_entry(w, step, share, 'forecast', date))
+
+    # Per-FY ProgramBudget context (no monthly budget exists).
+    pb_qs = ProgramBudget.objects.select_related('program')
+    if program is not None:
+        pb_qs = pb_qs.filter(program=program)
+    if councils is not None:
+        pb_qs = pb_qs.filter(program__projects__council__in=councils).distinct()
+    fy_budgets = defaultdict(_zero)
+    for b in pb_qs:
+        _rec(b.program_id)
+        fy_budgets[b.financial_year] += (b.allocated or _zero())
+
+    programs = [{
+        'id': str(pid), 'name': pr.name,
+        'cc': getattr(pr, 'cost_centre', '') or '', 'gl': pr.gl_code or '',
+        'src': pr.funding_source_display_name if pr.funding_source else '',
+    } for pid, pr in sorted(programs_seen.items(), key=lambda x: x[1].name)]
+
+    cells_out = {
+        k: {'forecast': float(c['forecast']),
+            'released': (float(c['released']) if c['released'] is not None else None),
+            'payments': c['payments']}
+        for k, c in cells.items()
+    }
+
+    today = datetime.date.today()
+    return {
+        'programs': programs,
+        'cells': cells_out,
+        'fy_budgets': {k: float(v) for k, v in fy_budgets.items()},
+        'start': start,
+        'months': months,
+        'current_month': f"{today.year}-{today.month:02d}",
+        'as_of': today.strftime('%d %b %Y'),
+        'program_count': len(programs),
+    }
+
+
 def _fy_label(fy_code):
     """Convert internal '2025-2026' to display '2025-26'."""
     if not fy_code or '-' not in fy_code:
@@ -35,7 +314,7 @@ def _fy_label(fy_code):
     return f"{a}-{b[-2:]}"
 
 
-def build_program_cashflow(program=None, councils=None, hide_contingency=False):
+def build_program_cashflow(program=None, councils=None, hide_contingency=False, basis='accrual'):
     """Return a dict describing the cashflow matrix.
 
     Args:
@@ -93,8 +372,14 @@ def build_program_cashflow(program=None, councils=None, hide_contingency=False):
             except _Program.DoesNotExist:
                 pass
 
+    rules = _cashflow_rules()
+    ws_methods = {m for m in ('MILESTONE', 'WORKSTEP') if _project_uses_worksteps(m, rules)}
+
     for p in payments:
         if p.project is None:
+            continue
+        # Accrual basis: worksteps drive projects that accrue that way; skip their payments.
+        if basis == 'accrual' and p.project.cashflow_method in ws_methods:
             continue
         amount = (p.amount or _zero())
         if amount <= 0:
@@ -137,6 +422,20 @@ def build_program_cashflow(program=None, councils=None, hide_contingency=False):
                         continue
                     released_by[(prog_id, released_fy)] += share
 
+    # 2b) Capital Works — progressive accrual from worksteps (accrual basis only).
+    # Completed steps -> released; all steps -> forecast (committed), matching how
+    # the FY matrix treats payments.
+    if basis == 'accrual':
+        for pid, share, date, is_released, _w, _step in _iter_workstep_cashflow(rules, program, councils):
+            fy = date_to_financial_year(date)
+            if not fy:
+                continue
+            fy_set.add(fy)
+            _record_program(pid)
+            if is_released:
+                released_by[(pid, fy)] += share
+            forecast_by[(pid, fy)] += share
+
     # 3) Undated projects bucket
     undated_qs = Project.objects.select_related('program', 'council').filter(
         state__in=[Project.State.PROSPECTIVE, Project.State.PROGRAMMED, Project.State.FUNDED]
@@ -175,22 +474,62 @@ def build_program_cashflow(program=None, councils=None, hide_contingency=False):
         if estimated_total > 0 or not items:
             undated_projects.append({'project': proj, 'estimated': estimated_total})
 
+    # 3b) Programmed (NOT approved) projects — forward demand for Treasury.
+    # A project is "programmed" when it has NO approved BFA and no payments yet.
+    # Its estimated cost (works' effective cost) lands in its programmed
+    # financial_year. This is the unapproved layer, kept separate from committed.
+    approved_pids = set(
+        BriefFinancialApprovalItem.objects.filter(bfa__status='APPROVED')
+        .values_list('project_id', flat=True)
+    )
+    paid_pids = set(
+        Payment.objects.exclude(status='REJECTED').values_list('project_id', flat=True)
+    )
+    prog_qs = (
+        Project.objects.select_related('program')
+        .filter(is_archived=False, program__isnull=False)
+        .exclude(state=Project.State.COMPLETED)
+        .prefetch_related('works__work_type')
+    )
+    if program is not None:
+        prog_qs = prog_qs.filter(program=program)
+    if councils is not None:
+        prog_qs = prog_qs.filter(council__in=councils)
+
+    programmed_by = defaultdict(_zero)   # (program_id, fy_code) -> Decimal
+    programmed_projects = []
+    for proj in prog_qs:
+        if proj.pk in approved_pids or proj.pk in paid_pids:
+            continue  # already committed (approved BFA or has payments)
+        fy = (proj.financial_year or '').strip()
+        if not fy:
+            continue  # no programmed year to bucket into
+        est = sum((w.total_effective_cost for w in proj.works.all()), _zero())
+        if est <= 0:
+            continue
+        fy_set.add(fy)
+        _record_program(proj.program_id)
+        programmed_by[(proj.program_id, fy)] += est
+        programmed_projects.append({'project': proj, 'estimated': est, 'fy': fy})
+
     # 4) Assemble rows
     fys = sorted(fy_set) if fy_set else []
     rows = []
     col_totals = defaultdict(lambda: {'budgeted': _zero(), 'forecast': _zero(),
                                        'released': _zero(), 'undated': _zero(),
-                                       'variance': _zero()})
+                                       'programmed': _zero(), 'variance': _zero()})
 
     for prog_id, prog in sorted(programs_seen.items(), key=lambda x: x[1].name):
         cells = []  # ordered list aligned with `fys`
         total_b = _zero()
         total_f = _zero()
         total_r = _zero()
+        total_p = _zero()
         for fy in fys:
             b = budgeted_by[(prog_id, fy)]
             f = forecast_by[(prog_id, fy)]
             r = released_by[(prog_id, fy)]
+            pr = programmed_by[(prog_id, fy)]
             variance = b - f
             pct = (f / b * Decimal('100')) if b else _zero()
             cells.append({
@@ -199,6 +538,8 @@ def build_program_cashflow(program=None, councils=None, hide_contingency=False):
                 'budgeted': b,
                 'forecast': f,
                 'released': r,
+                'programmed': pr,
+                'total_need': f + pr,
                 'variance': variance,
                 'pct': pct,
                 'over': f > b and b > 0,
@@ -206,9 +547,11 @@ def build_program_cashflow(program=None, councils=None, hide_contingency=False):
             total_b += b
             total_f += f
             total_r += r
+            total_p += pr
             col_totals[fy]['budgeted'] += b
             col_totals[fy]['forecast'] += f
             col_totals[fy]['released'] += r
+            col_totals[fy]['programmed'] += pr
             col_totals[fy]['variance'] += variance
 
         undated = undated_by_prog[prog_id]
@@ -216,6 +559,7 @@ def build_program_cashflow(program=None, councils=None, hide_contingency=False):
         col_totals['__all__']['forecast'] += total_f
         col_totals['__all__']['released'] += total_r
         col_totals['__all__']['undated'] += undated
+        col_totals['__all__']['programmed'] += total_p
         col_totals['__all__']['variance'] += (total_b - total_f)
 
         rows.append({
@@ -226,6 +570,8 @@ def build_program_cashflow(program=None, councils=None, hide_contingency=False):
                 'budgeted': total_b,
                 'forecast': total_f,
                 'released': total_r,
+                'programmed': total_p,
+                'total_need': total_f + total_p,
                 'variance': total_b - total_f,
                 'pct': (total_f / total_b * Decimal('100')) if total_b else _zero(),
             },
@@ -238,6 +584,24 @@ def build_program_cashflow(program=None, councils=None, hide_contingency=False):
         for fy in fys
     ]
 
+    # Forward demand by FY: budgeted vs (committed forecast + programmed-unapproved).
+    forward_demand = []
+    for fy in fys:
+        ct = col_totals[fy]
+        total_need = ct['forecast'] + ct['programmed']
+        forward_demand.append({
+            'fy': fy, 'fy_label': _fy_label(fy),
+            'budgeted': ct['budgeted'],
+            'forecast': ct['forecast'],
+            'programmed': ct['programmed'],
+            'total_need': total_need,
+            'gap': ct['budgeted'] - total_need,
+        })
+    programmed_projects.sort(
+        key=lambda x: (x['fy'], x['project'].program.name if x['project'].program_id else '',
+                       x['project'].name)
+    )
+
     return {
         'fys': fys,
         'fy_labels': {fy: _fy_label(fy) for fy in fys},
@@ -248,4 +612,7 @@ def build_program_cashflow(program=None, councils=None, hide_contingency=False):
         'undated_projects': undated_projects,
         'undated_payments': undated_payments,
         'undated_payments_total': sum((u['amount'] for u in undated_payments), _zero()),
+        'forward_demand': forward_demand,
+        'programmed_projects': programmed_projects,
+        'programmed_total': sum((pp['estimated'] for pp in programmed_projects), _zero()),
     }

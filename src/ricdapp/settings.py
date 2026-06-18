@@ -1,7 +1,14 @@
 import os
 from pathlib import Path
 
+from ricdapp.env import load_env_file
+
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load .env files (real environment variables always take precedence).
+# Looked up in src/ first, then the repo root — see .env.example for the template.
+load_env_file(BASE_DIR / '.env')
+load_env_file(BASE_DIR.parent / '.env')
 
 INSECURE_DEFAULT_SECRET = 'dev-only-insecure-key-change-in-production'
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', INSECURE_DEFAULT_SECRET)
@@ -129,6 +136,13 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # RICD-specific
 RICD_REPORTS_EMAIL = 'reports@ricd.qld.gov.au'
+
+# Email — dev uses the console backend (emails print to the runserver console;
+# nothing is sent externally). For production, switch EMAIL_BACKEND to the SMTP
+# backend and configure EMAIL_HOST / EMAIL_HOST_USER / EMAIL_HOST_PASSWORD /
+# EMAIL_PORT / EMAIL_USE_TLS once the department mail relay is available.
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = 'noreply@ricd.qld.gov.au'
 
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'

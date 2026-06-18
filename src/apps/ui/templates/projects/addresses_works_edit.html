@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% block title %}Manage Addresses & Works{% endblock %}
+{% block breadcrumbs %}
+  <span class="sep">/</span><a href="{% url 'ui:projects_list' %}">Projects</a>
+  <span class="sep">/</span><a href="{{ back_url }}">{{ project.name }}</a>
+  <span class="sep">/</span><span class="current">Manage</span>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .awe-card { background:#fff; border:1px solid var(--line); border-radius:8px; margin-bottom:16px; }
+  .awe-addr { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; padding:12px 14px; border-bottom:1px solid var(--line); background:var(--panel-alt); border-radius:8px 8px 0 0; }
+  .awe-field { display:flex; flex-direction:column; gap:3px; }
+  .awe-flabel { font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); }
+  .awe-wtable { font-size:12.5px; margin:0; }
+  .awe-wtable thead th { background:#fff; font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:700; border-bottom:1px solid var(--line); padding:8px 8px; }
+  .awe-wtable td { padding:6px 8px; vertical-align:middle; border-bottom:1px solid var(--line-soft); }
+  .awe-wtable .awe-beds, .awe-wtable .awe-qty { width:70px; }
+  .awe-wtable .awe-cost { width:130px; }
+  .awe-actions { white-space:nowrap; text-align:right; }
+  .awe-card-foot { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; }
+  .awe-subtotal { font-size:12.5px; font-variant-numeric:tabular-nums; }
+  .awe-actionbar { position:sticky; bottom:0; background:#fff; border-top:1px solid var(--line); padding:12px 0; margin-top:8px;
+    display:flex; align-items:center; gap:12px; z-index:5; }
+  .awe-grand { font-size:18px; font-weight:700; font-variant-numeric:tabular-nums; }
+</style>
+{% endblock %}
+
+{% block content %}
+{{ data|json_script:"awe-data" }}
+
+<div class="pg-head">
+  <div>
+    <h1>Manage Addresses &amp; Works</h1>
+    <div class="meta"><b>{{ project.name }}</b> · {{ project.council.name }} · add, edit or remove addresses and their works, then Save all.</div>
+  </div>
+  <div class="actions">
+    <button type="button" class="btn btn-outline-secondary btn-sm" id="aweAddAddr"><i class="bi bi-plus-lg"></i> Add address</button>
+    <a href="{{ back_url }}" class="btn btn-outline-secondary btn-sm">Cancel</a>
+  </div>
+</div>
+
+<form method="post" id="aweForm">
+  {% csrf_token %}
+  <input type="hidden" name="payload" id="awePayload">
+  <div id="aweCards"></div>
+
+  <div class="awe-actionbar">
+    <button type="button" class="btn btn-primary" id="aweSave"><i class="bi bi-check-lg"></i> Save all</button>
+    <button type="button" class="btn btn-outline-secondary btn-sm" id="aweAddAddr2"><i class="bi bi-plus-lg"></i> Add address</button>
+    <div class="ms-auto text-muted" style="font-size:12px;">Total estimated cost</div>
+    <div class="awe-grand" id="aweGrand">$0</div>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function(){
+  const DATA = JSON.parse(document.getElementById('awe-data').textContent);
+  const WORK_TYPES = DATA.work_types, SUBURBS = DATA.suburbs;
+  const STATUSES = DATA.statuses, LEASES = DATA.lease_statuses;
+  const deletedAddresses = [], deletedWorks = [];
+
+  function el(tag, opts){
+    const e = document.createElement(tag);
+    if (opts){
+      if (opts.cls) e.className = opts.cls;
+      if (opts.text != null) e.textContent = opts.text;
+      if (opts.style) e.setAttribute('style', opts.style);
+      if (opts.attrs) for (const k in opts.attrs) e.setAttribute(k, opts.attrs[k]);
+    }
+    for (let i=2;i<arguments.length;i++){ const c=arguments[i]; if(c==null) continue;
+      e.appendChild(typeof c==='object'?c:document.createTextNode(String(c))); }
+    return e;
+  }
+  function money(n){ return '$' + Math.round(n||0).toLocaleString('en-AU'); }
+  function field(label, input){
+    return el('div',{cls:'awe-field'}, el('div',{cls:'awe-flabel', text:label}), input);
+  }
+  function selectFrom(list, cls, current, getVal, getLabel, placeholder){
+    const s = el('select',{cls:cls});
+    if (placeholder) s.appendChild(el('option',{attrs:{value:''}, text:placeholder}));
+    list.forEach(item=>{
+      const v = String(getVal(item));
+      const o = el('option',{attrs:{value:v}, text:getLabel(item)});
+      if (current != null && String(current) === v) o.selected = true;
+      s.appendChild(o);
+    });
+    return s;
+  }
+
+  function buildWorkRow(w){
+    const tr = el('tr',{cls:'awe-wrow'});
+    if (w && w.id) tr.dataset.wid = w.id;
+    const wtSel = selectFrom(WORK_TYPES, 'form-select form-select-sm awe-wt', w?w.work_type:'',
+                             i=>i.id, i=>i.name, '— Work type —');
+    tr.appendChild(el('td',{}, wtSel));
+    const beds = el('input',{cls:'form-control form-control-sm awe-beds', attrs:{type:'number', min:'0', value:(w?w.bedrooms:0)}});
+    tr.appendChild(el('td',{}, beds));
+    const qty = el('input',{cls:'form-control form-control-sm awe-qty', attrs:{type:'number', min:'1', value:(w?w.quantity:1)}});
+    tr.appendChild(el('td',{}, qty));
+    const cost = el('input',{cls:'form-control form-control-sm awe-cost', attrs:{type:'number', min:'0', step:'0.01', value:(w?w.estimated_cost:'0')}});
+    tr.appendChild(el('td',{}, cost));
+    const stSel = el('select',{cls:'form-select form-select-sm awe-status'});
+    STATUSES.forEach(pair=>{ const o=el('option',{attrs:{value:pair[0]}, text:pair[1]}); if(w&&w.status===pair[0]) o.selected=true; stSel.appendChild(o); });
+    tr.appendChild(el('td',{}, stSel));
+    const act = el('td',{cls:'awe-actions'});
+    if (w && w.edit_url) act.appendChild(el('a',{cls:'me-2', attrs:{href:w.edit_url, title:'Full edit (contractor, dates, materials)'}}, el('i',{cls:'bi bi-box-arrow-up-right'})));
+    const del = el('button',{cls:'btn btn-link text-danger p-0', attrs:{type:'button', title:'Remove work'}}, el('i',{cls:'bi bi-trash'}));
+    del.addEventListener('click', ()=>{ if (w && w.id) deletedWorks.push(w.id); tr.remove(); recompute(); });
+    act.appendChild(del);
+    tr.appendChild(act);
+    [qty, cost].forEach(inp=> inp.addEventListener('input', recompute));
+    return tr;
+  }
+
+  function buildCard(a){
+    const card = el('div',{cls:'awe-card'});
+    if (a && a.id) card.dataset.aid = a.id;
+
+    const street = el('input',{cls:'form-control form-control-sm awe-street', attrs:{placeholder:'Street address', value:(a?a.street:'')}});
+    street.style.minWidth = '220px';
+    const lot = el('input',{cls:'form-control form-control-sm awe-lot', attrs:{placeholder:'Lot', value:(a?a.lot:''), size:'8'}});
+    const plan = el('input',{cls:'form-control form-control-sm awe-plan', attrs:{placeholder:'Plan', value:(a?a.plan:''), size:'8'}});
+    const subSel = selectFrom(SUBURBS, 'form-select form-select-sm awe-suburb', a?a.suburb:'', i=>i.id, i=>i.name, '— Suburb —');
+    const leaseSel = el('select',{cls:'form-select form-select-sm awe-lease'});
+    LEASES.forEach(pair=>{ const o=el('option',{attrs:{value:pair[0]}, text:pair[1]}); if(a&&a.lease_status===pair[0]) o.selected=true; leaseSel.appendChild(o); });
+    const delAddr = el('button',{cls:'btn btn-outline-danger btn-sm', attrs:{type:'button', title:'Remove address and its works'}}, el('i',{cls:'bi bi-trash'}), ' Address');
+    delAddr.addEventListener('click', ()=>{
+      if (!confirm('Remove this address and ALL of its works?')) return;
+      if (a && a.id) deletedAddresses.push(a.id);
+      card.remove(); recompute();
+    });
+    const hdr = el('div',{cls:'awe-addr'},
+      field('Street', street), field('Lot', lot), field('Plan', plan),
+      field('Suburb', subSel), field('Lease', leaseSel));
+    const delWrap = el('div',{cls:'awe-field ms-auto'}, el('div',{cls:'awe-flabel', text:' '}), delAddr);
+    hdr.appendChild(delWrap);
+    card.appendChild(hdr);
+
+    const table = el('table',{cls:'table awe-wtable'});
+    const thead = el('thead');
+    const htr = el('tr');
+    ['Work type','Beds','Qty','Est. cost','Status','',''].forEach((h,i)=> htr.appendChild(el('th',{cls:(i>=5?'awe-actions':''), text:h})));
+    thead.appendChild(htr); table.appendChild(thead);
+    const tbody = el('tbody',{cls:'awe-wbody'});
+    ((a && a.works) || []).forEach(w=> tbody.appendChild(buildWorkRow(w)));
+    table.appendChild(tbody);
+    card.appendChild(table);
+
+    const addBtn = el('button',{cls:'btn btn-outline-secondary btn-sm', attrs:{type:'button'}}, el('i',{cls:'bi bi-plus-lg'}), ' Add work');
+    addBtn.addEventListener('click', ()=>{ tbody.appendChild(buildWorkRow(null)); recompute(); });
+    const sub = el('span',{cls:'awe-subtotal text-muted'});
+    card.appendChild(el('div',{cls:'awe-card-foot'}, addBtn, sub));
+    return card;
+  }
+
+  function recompute(){
+    let grand = 0;
+    document.querySelectorAll('.awe-card').forEach(card=>{
+      let s = 0;
+      card.querySelectorAll('.awe-wrow').forEach(tr=>{
+        const c = parseFloat(tr.querySelector('.awe-cost').value || '0');
+        const q = parseInt(tr.querySelector('.awe-qty').value || '1', 10);
+        if (!isNaN(c) && !isNaN(q)) s += c * q;
+      });
+      const subEl = card.querySelector('.awe-subtotal');
+      if (subEl) subEl.textContent = 'Subtotal: ' + money(s);
+      grand += s;
+    });
+    document.getElementById('aweGrand').textContent = money(grand);
+  }
+
+  function serialize(){
+    const addresses = [];
+    document.querySelectorAll('.awe-card').forEach(card=>{
+      const works = [];
+      card.querySelectorAll('.awe-wrow').forEach(tr=>{
+        const wt = tr.querySelector('.awe-wt').value;
+        works.push({
+          id: tr.dataset.wid ? parseInt(tr.dataset.wid, 10) : null,
+          work_type: wt ? parseInt(wt, 10) : null,
+          bedrooms: parseInt(tr.querySelector('.awe-beds').value || '0', 10) || 0,
+          quantity: parseInt(tr.querySelector('.awe-qty').value || '1', 10) || 1,
+          estimated_cost: tr.querySelector('.awe-cost').value || '0',
+          status: tr.querySelector('.awe-status').value,
+        });
+      });
+      const sub = card.querySelector('.awe-suburb').value;
+      addresses.push({
+        id: card.dataset.aid ? parseInt(card.dataset.aid, 10) : null,
+        street: card.querySelector('.awe-street').value.trim(),
+        lot: card.querySelector('.awe-lot').value.trim(),
+        plan: card.querySelector('.awe-plan').value.trim(),
+        suburb: sub ? parseInt(sub, 10) : null,
+        lease_status: card.querySelector('.awe-lease').value,
+        works: works,
+      });
+    });
+    return { addresses: addresses, deleted_addresses: deletedAddresses, deleted_works: deletedWorks };
+  }
+
+  const cards = document.getElementById('aweCards');
+  function addCard(a){ cards.appendChild(buildCard(a)); recompute(); }
+
+  document.getElementById('aweAddAddr').addEventListener('click', ()=> addCard(null));
+  document.getElementById('aweAddAddr2').addEventListener('click', ()=> addCard(null));
+  document.getElementById('aweSave').addEventListener('click', ()=>{
+    document.getElementById('awePayload').value = JSON.stringify(serialize());
+    document.getElementById('aweForm').submit();
+  });
+
+  (DATA.addresses || []).forEach(a=> cards.appendChild(buildCard(a)));
+  if (!(DATA.addresses || []).length) addCard(null);
+  recompute();
+})();
+</script>
+{% endblock %}

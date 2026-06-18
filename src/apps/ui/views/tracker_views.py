@@ -390,7 +390,7 @@ class QuarterlyReportOpenOrCreateView(LoginRequiredMixin, View):
         projects = Project.objects.filter(
             funding_schedule__in=active_fs,
             state__in=[Project.State.COMMENCED, Project.State.UNDER_CONSTRUCTION],
-        ).select_related('quarterly_report_item_group')
+        ).exclude(qbuild_delivered=True).select_related('quarterly_report_item_group')
 
         for project in projects:
             if project.quarterly_report_item_group_id:
@@ -452,7 +452,7 @@ class QuarterlyReportDetailView(LoginRequiredMixin, View):
             projects = Project.objects.filter(
                 funding_schedule=fs,
                 state__in=[Project.State.COMMENCED, Project.State.UNDER_CONSTRUCTION],
-            ).select_related('quarterly_report_item_group').order_by('name')
+            ).exclude(qbuild_delivered=True).select_related('quarterly_report_item_group').order_by('name')
 
             project_sections = []
             for project in projects:

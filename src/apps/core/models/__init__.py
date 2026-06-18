@@ -38,6 +38,7 @@ from .funding_models import (
     InterimFRPAgreement,
 )
 from .payments_models import Payment, PaymentMilestoneSchedule, PaymentMilestoneRule
+from .notifications_models import EmailTemplate, SentNotification
 
 # Variation & Stage models
 from .variations_models import (
@@ -71,6 +72,9 @@ from .addresses_models import (
 # Account & User models
 from .accounts_models import Profile, GroupPermission, SiteSettings
 
+# Cashflow forecasting config
+from .cashflow_models import CashflowMethodRule
+
 # Contract & Document models
 from .contracts_models import Contract, ContractMeeting
 from .documents_models import DocumentType, ProjectDocument
@@ -98,6 +102,7 @@ __all__ = [
     'FundingSchedule', 'ProjectStateLog', 'WorkFunding',
     'Approval', 'WorkflowAction', 'AuditLog', 'Payment',
     'PaymentMilestoneSchedule', 'PaymentMilestoneRule',
+    'EmailTemplate', 'SentNotification',
     'ForwardRPFAgreement', 'InterimFRPAgreement',
     # Variation & Stage
     'VariationType', 'Variation', 'VariationItem', 'VariationFundingSchedule',
@@ -111,7 +116,7 @@ __all__ = [
     'Contractor', 'Suburb', 'Address',
     'StateElectorate', 'FederalElectorate', 'QhigiRegion',
     # Account
-    'Profile', 'GroupPermission', 'SiteSettings',
+    'Profile', 'GroupPermission', 'SiteSettings', 'CashflowMethodRule',
     # Contract & Document
     'Contract', 'ContractMeeting', 'DocumentType', 'ProjectDocument',
     # Defect & Work

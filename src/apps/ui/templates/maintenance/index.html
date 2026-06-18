@@ -188,6 +188,25 @@
     </div>
   </div>
 
+  {# Automated Emails — editable notice templates + sent log #}
+  {% if is_writer %}
+  <div class="col-sm-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="ricd-section-title mb-1">
+          <h2><i class="bi bi-envelope-paper me-1 text-muted"></i>Automated Emails</h2>
+        </div>
+        <div class="text-muted mb-3" style="font-size:12px">Edit the wording of auto-notices (payment released, agreement signed, report decisions, overdue reminders…) with placeholders, and view the log of what was sent.</div>
+        <div class="d-flex gap-2 flex-wrap">
+          <a href="{% url 'ui:email_template_list' %}" class="btn btn-sm btn-outline-secondary">Templates</a>
+          <a href="{% url 'ui:notification_log' %}" class="btn btn-sm btn-outline-secondary">Sent log</a>
+          {% if user.is_superuser %}<a href="{% url 'ui:email_settings' %}" class="btn btn-sm btn-primary">Sending (SMTP)</a>{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   {# Payment Milestone Schedules — when each payment is forecast to release #}
   <div class="col-sm-6 col-xl-4">
     <div class="card h-100">
@@ -324,6 +343,25 @@
         </div>
         <div class="d-flex gap-2">
           <a href="{% url 'ui:site_settings' %}" class="btn btn-sm btn-primary">Edit</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# Cashflow forecasting rules #}
+  {% if is_manager %}
+  <div class="col-sm-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="ricd-section-title mb-1">
+          <h2><i class="bi bi-graph-up me-1 text-muted"></i>Cashflow Forecasting</h2>
+        </div>
+        <div class="text-muted mb-3" style="font-size:12px">
+          How Capital Grant vs Capital Works projects forecast/accrue cash &amp; expenditure.
+        </div>
+        <div class="d-flex gap-2">
+          <a href="{% url 'ui:cashflow_rules' %}" class="btn btn-sm btn-primary">Configure</a>
         </div>
       </div>
     </div>

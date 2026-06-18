@@ -1,0 +1,571 @@
+{% extends "base.html" %}
+{% block title %}Analytics — Aggregate Outputs{% endblock %}
+{% block breadcrumbs %}
+  <span class="sep">/</span>
+  <span class="current">Analytics</span>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  :root {
+    --grp-pipeline:#fbfaf6; --grp-funding:#f3f8fd; --grp-funding-bd:#cfe0f2; --grp-da:#faf6fb;
+  }
+  .num { font-variant-numeric: tabular-nums; }
+
+  .an-tabs { display:flex; gap:0; border-bottom:1px solid var(--line); margin:4px 0 14px 0; overflow-x:auto; }
+  .an-tabs .t { padding:10px 16px 12px; font-size:13.5px; color:#475569; border:0; border-bottom:2px solid transparent;
+    cursor:pointer; display:inline-flex; align-items:center; gap:8px; white-space:nowrap; background:transparent; }
+  .an-tabs .t:hover { color:var(--ink); }
+  .an-tabs .t .ic { color:var(--muted-2); font-size:14px; }
+  .an-tabs .t.active { color:var(--brand); border-bottom-color:var(--brand); font-weight:600; }
+  .an-tabs .t.active .ic { color:var(--brand); }
+
+  .kpi-row { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:14px; }
+  .akpi { background:#fff; border:1px solid var(--line); border-radius:8px; padding:12px 14px; }
+  .akpi .label { font-size:10px; letter-spacing:.07em; text-transform:uppercase; color:var(--muted); font-weight:600; display:flex; align-items:center; gap:5px; }
+  .akpi .label .bi { font-size:12px; color:var(--brand); }
+  .akpi .value { font-size:21px; font-weight:700; color:var(--ink); margin-top:6px; font-variant-numeric:tabular-nums; letter-spacing:-.01em; }
+  .akpi .sub { font-size:11.5px; color:var(--muted); margin-top:3px; }
+  @media (max-width: 1100px){ .kpi-row { grid-template-columns:repeat(2,1fr); } }
+
+  .filterbar { background:#fff; border:1px solid var(--line); border-radius:8px; padding:10px 14px; margin-bottom:12px;
+    display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap; }
+  .filt { display:inline-flex; flex-direction:column; gap:4px; }
+  .filt .lbl { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  .filterbar .spacer { flex:1; }
+
+  .note { display:flex; gap:10px; align-items:flex-start; border-radius:8px; padding:9px 14px; font-size:12.5px;
+    margin-bottom:12px; border:1px solid; line-height:1.5; }
+  .note .bi { font-size:15px; flex-shrink:0; margin-top:1px; }
+  .note.amber { background:var(--st-amber-bg); border-color:var(--st-amber-bd); color:var(--st-amber-fg); }
+  .note b { font-weight:700; }
+
+  .agg-wrap { background:#fff; border:1px solid var(--line); border-radius:8px; overflow:hidden; margin-bottom:18px; }
+  .agg-head { display:flex; align-items:center; gap:12px; padding:13px 18px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .agg-head h2 { font-size:14px; font-weight:700; margin:0; }
+  .agg-head .meta { font-size:12px; color:var(--muted); }
+  .agg-head .meta b { color:#334155; font-weight:600; }
+  .agg-head .spacer { flex:1; }
+  .agg-head .dyn-note { font-size:11.5px; color:var(--brand-700); background:var(--brand-50); border:1px solid var(--brand-100);
+    border-radius:999px; padding:2px 10px; font-weight:600; }
+  .agg-scroll { overflow-x:auto; }
+  table.agg { border-collapse:separate; border-spacing:0; width:100%; min-width:100%; font-size:12px; }
+  table.agg thead th { background:var(--panel-alt); white-space:nowrap; z-index:2; }
+  table.agg thead tr.grp-row th { position:sticky; top:0; z-index:2; font-size:9.5px; font-weight:700; letter-spacing:.07em;
+    text-transform:uppercase; color:var(--muted); padding:7px 10px 4px; text-align:center; border-bottom:0; }
+  table.agg thead tr.grp-row th.g-pipeline { background:var(--grp-pipeline); border-left:1px solid var(--line); }
+  table.agg thead tr.grp-row th.g-funding { background:var(--grp-funding); border-left:1px solid var(--grp-funding-bd); border-right:1px solid var(--grp-funding-bd); }
+  table.agg thead tr.grp-row th.g-da { background:var(--grp-da); border-left:1px solid var(--line); }
+  table.agg thead tr.col-row th { position:sticky; top:27px; z-index:2; font-size:10px; font-weight:700; color:#334155;
+    padding:5px 10px 9px; text-align:right; border-bottom:1px solid var(--line); white-space:nowrap; vertical-align:bottom; }
+  table.agg thead tr.col-row th.l { text-align:left; }
+  table.agg thead tr.col-row th.g-funding { background:var(--grp-funding); }
+  table.agg thead tr.col-row th.fund-start { border-left:1px solid var(--grp-funding-bd); }
+  table.agg thead tr.col-row th.fund-end { border-right:1px solid var(--grp-funding-bd); }
+  table.agg thead tr.col-row th.grp-start { border-left:1px solid var(--line); }
+  table.agg thead tr.col-row th .prg-sub { display:block; font-size:9px; font-weight:500; color:var(--muted); text-transform:none; letter-spacing:0; margin-top:1px; }
+  table.agg th.sticky-l, table.agg td.sticky-l { position:sticky; left:0; z-index:3; background:#fff; box-shadow:1px 0 0 var(--line);
+    text-align:left; min-width:150px; max-width:170px; }
+  table.agg thead th.sticky-l { background:var(--panel-alt); z-index:5; }
+  table.agg tbody td { padding:9px 10px; border-bottom:1px solid var(--line-soft); text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  table.agg tbody td.l { text-align:left; }
+  table.agg tbody tr:hover td { background:rgba(232,240,251,.22); }
+  table.agg tbody tr:hover td.sticky-l { background:#f5f9fe; }
+  table.agg td.grp-start { border-left:1px solid var(--line-soft); }
+  table.agg td.g-funding { background:rgba(243,248,253,.5); }
+  table.agg td.fund-start { border-left:1px solid var(--grp-funding-bd); }
+  table.agg td.fund-end { border-right:1px solid var(--grp-funding-bd); }
+  table.agg td.tot-fund { font-weight:700; }
+  table.agg td.yield { font-weight:700; color:var(--brand-700); }
+  table.agg td.muted0 { color:var(--muted-2); }
+  table.agg td.deficit { color:#991b1b; font-weight:600; }
+  table.agg td.surplus { color:var(--st-green-fg); font-weight:600; }
+  .lga-cell .nm { font-weight:600; color:var(--ink); }
+  .region-tag { font-size:11px; color:var(--muted); }
+  .da-approved { color:var(--st-green-fg); }
+  .da-submitted { color:var(--st-amber-fg); }
+  .da-none { color:var(--muted-2); }
+  table.agg tr.totals td { background:var(--panel-alt); border-top:2px solid var(--line-2); font-weight:700; padding:11px 10px; }
+  table.agg tr.totals td.sticky-l { background:var(--panel-alt); box-shadow:1px 0 0 var(--line-2); text-transform:uppercase; font-size:10.5px; letter-spacing:.05em; }
+  table.agg tr.totals td.g-funding { background:#e9f1fb; }
+  .agg-foot { display:flex; align-items:center; justify-content:space-between; padding:10px 18px; background:var(--panel-alt);
+    border-top:1px solid var(--line); font-size:12px; color:var(--muted); flex-wrap:wrap; gap:8px; }
+  .agg-foot b { color:var(--ink); font-weight:600; }
+  .agg-empty { padding:34px 20px; text-align:center; color:var(--muted); font-size:13px; }
+
+  .defs { background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin-bottom:24px; }
+  .defs h3 { font-size:13px; font-weight:700; margin:0 0 12px; color:#334155; text-transform:uppercase; letter-spacing:.05em; }
+  .defs-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px 28px; }
+  .def { display:flex; gap:10px; align-items:flex-start; font-size:12.5px; line-height:1.45; }
+  .def .term { font-weight:700; color:var(--ink); white-space:nowrap; flex-shrink:0; min-width:150px; }
+  .def .term .sw { display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:6px; vertical-align:middle; }
+  .def .desc { color:#475569; }
+  @media (max-width:900px){ .defs-grid { grid-template-columns:1fr; } }
+
+  .mix-wrap { background:#fff; border:1px solid var(--line); border-radius:8px; overflow:hidden; margin-bottom:18px; }
+  .mix-head { display:flex; align-items:center; gap:12px; padding:13px 18px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .mix-head h2 { font-size:14px; font-weight:700; margin:0; }
+  .mix-head .cap { font-size:12px; color:var(--muted); }
+  .mix-head .cap b { color:#334155; font-weight:600; }
+  .mix-head .spacer { flex:1; }
+  table.mix { border-collapse:separate; border-spacing:0; width:100%; font-size:12.5px; }
+  table.mix thead th { background:var(--panel-alt); font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.05em;
+    padding:8px 12px; border-bottom:1px solid var(--line); text-align:right; white-space:nowrap; }
+  table.mix thead th.l { text-align:left; }
+  table.mix thead th.tot { border-left:1px solid var(--line); }
+  table.mix tbody td { padding:9px 12px; border-bottom:1px solid var(--line-soft); text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  table.mix tbody td.l { text-align:left; }
+  table.mix tbody tr:hover td { background:rgba(232,240,251,.22); }
+  table.mix tbody td.zero { color:var(--muted-2); }
+  table.mix tbody td.tot { border-left:1px solid var(--line-soft); font-weight:700; }
+  table.mix tbody td.barcell { width:170px; }
+  .mix-type { display:flex; align-items:center; gap:9px; }
+  .mix-type .form-dot { width:9px; height:9px; border-radius:2px; flex-shrink:0; }
+  .mix-type .nm { font-weight:600; color:var(--ink); }
+  .mix-bar { display:flex; height:8px; border-radius:999px; overflow:hidden; background:var(--st-grey-bg); min-width:120px; }
+  .mix-bar > span { height:100%; }
+  .s0{background:#cbd5e1}.s1{background:#fcd34d}.s2{background:#93c5fd}.s3{background:#60a5fa}.s4{background:#3b82f6}.s5{background:#10b981}
+  table.mix tfoot td { background:var(--panel-alt); font-weight:700; padding:10px 12px; border-top:2px solid var(--line-2); text-align:right; font-variant-numeric:tabular-nums; }
+  table.mix tfoot td.l { text-align:left; text-transform:uppercase; font-size:10.5px; letter-spacing:.05em; }
+  .mix-legend { display:flex; gap:14px; flex-wrap:wrap; padding:9px 18px; background:var(--panel-alt); border-top:1px solid var(--line); font-size:11px; color:var(--muted); }
+  .mix-legend .it { display:flex; align-items:center; gap:5px; }
+  .mix-legend .sw { width:10px; height:10px; border-radius:2px; display:inline-block; }
+</style>
+{% endblock %}
+
+{% block content %}
+{{ data|json_script:"analytics-data" }}
+
+<div class="pg-head">
+  <div style="flex:1;">
+    <h1>Aggregate Outputs</h1>
+    <div class="meta">
+      <span id="catMeta"><b>Category:</b> —</span>
+      <span>Scope: all LGAs · excl. archived</span>
+      <span>Cost basis: <b>effective</b> (actual where entered, else notional)</span>
+    </div>
+  </div>
+  <div class="actions">
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'ui:work_items_export' %}" title="Flat dump of every work item"><i class="bi bi-box-arrow-down"></i> All Work Items</a>
+    <button type="button" class="btn btn-outline-secondary btn-sm" id="btnCsv"><i class="bi bi-filetype-csv"></i> CSV</button>
+    <a class="btn btn-primary btn-sm" href="{% url 'ui:reports_workbook_export' %}?region={{ selected_region|urlencode }}" title="Full workbook: Work Items + a sheet per category + Cashflow"><i class="bi bi-filetype-xlsx"></i> Export XLSX</a>
+  </div>
+</div>
+
+<div class="an-tabs" id="catTabs">
+  <button class="t active" data-cat="overall"><i class="bi bi-grid-1x2 ic"></i> Overall</button>
+  <button class="t" data-cat="land"><i class="bi bi-map ic"></i> Land</button>
+  <button class="t" data-cat="dwellings"><i class="bi bi-house-door ic"></i> Dwellings</button>
+  <button class="t" data-cat="extensions"><i class="bi bi-arrows-angle-expand ic"></i> Extensions</button>
+  <button class="t" data-cat="demolition"><i class="bi bi-hammer ic"></i> Demolition</button>
+  <button class="t" data-cat="other"><i class="bi bi-three-dots ic"></i> Other</button>
+</div>
+
+<div class="kpi-row" id="kpiRow"></div>
+
+<form method="get" class="filterbar" id="filterForm">
+  <div class="filt">
+    <div class="lbl">Region</div>
+    <select class="form-select form-select-sm" name="region" style="min-width:170px;" onchange="this.form.submit()">
+      <option value="">All regions</option>
+      {% for r in regions %}
+        <option value="{{ r }}" {% if selected_region == r %}selected{% endif %}>{{ r }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="filt">
+    <div class="lbl">Program</div>
+    <select class="form-select form-select-sm" id="fProgram" style="min-width:190px;"><option value="">All programs</option></select>
+  </div>
+  <div class="spacer"></div>
+  <div class="filt">
+    <div class="lbl">Mix group by</div>
+    <select class="form-select form-select-sm" id="fGroup" style="min-width:130px;">
+      <option value="combined">Output type</option>
+      <option value="form">Built form</option>
+      <option value="beds">Bedrooms</option>
+    </select>
+  </div>
+  <div class="filt">
+    <div class="lbl">Pipeline focus</div>
+    <select class="form-select form-select-sm" id="fFocus" style="min-width:150px;">
+      <option value="all">All stages</option>
+      <option value="potential">Potential</option>
+      <option value="inPipeline">In pipeline</option>
+      <option value="fundedNotCommenced">Funded · not commenced</option>
+      <option value="commenced">Commenced</option>
+      <option value="underConstruction">Under construction</option>
+      <option value="completed">Completed</option>
+    </select>
+  </div>
+</form>
+
+<div class="note amber" id="dcNote">
+  <i class="bi bi-exclamation-triangle-fill"></i>
+  <div>
+    <b>Funding attribution = method (a).</b> A project's full per-program approved funding (from the BFA)
+    is counted on <b>every</b> category it has works in, so projects spanning multiple categories may be
+    <b>double-counted</b> across category pages. The <b>Overall</b> tab counts each project once.
+  </div>
+</div>
+
+<div class="agg-wrap">
+  <div class="agg-head">
+    <h2 id="aggTitle">—</h2>
+    <span class="meta" id="aggMeta">—</span>
+    <div class="spacer"></div>
+    <span class="dyn-note" id="dynNote">—</span>
+  </div>
+  <div class="agg-scroll">
+    <table class="agg" id="aggTable">
+      <thead id="aggHead"></thead>
+      <tbody id="aggBody"></tbody>
+    </table>
+  </div>
+  <div class="agg-foot" id="aggFoot"></div>
+</div>
+
+<div class="mix-wrap" id="mixWrap">
+  <div class="mix-head">
+    <h2 id="mixTitle">Output mix</h2>
+    <span class="cap" id="mixCap">—</span>
+  </div>
+  <div class="agg-scroll">
+    <table class="mix" id="mixTable">
+      <thead id="mixHead"></thead>
+      <tbody id="mixBody"></tbody>
+      <tfoot id="mixFoot"></tfoot>
+    </table>
+  </div>
+  <div class="mix-legend" id="mixLegend"></div>
+</div>
+
+<div class="defs">
+  <h3>Pipeline &amp; column definitions</h3>
+  <div class="defs-grid">
+    <div class="def"><span class="term">Potential</span><span class="desc">Identified in Council master plans or discussions — not yet programmed (Prospective).</span></div>
+    <div class="def"><span class="term">In pipeline</span><span class="desc">Programmed, but not yet funded (no approved BFA).</span></div>
+    <div class="def"><span class="term">Funded, not commenced</span><span class="desc">Funding approved (approved BFA), not yet commenced.</span></div>
+    <div class="def"><span class="term">Commenced</span><span class="desc">On an executed Funding Schedule and in Stage 1.</span></div>
+    <div class="def"><span class="term">Under construction</span><span class="desc">In Stage 2 (works).</span></div>
+    <div class="def"><span class="term">Completed</span><span class="desc">Developed / ready. For Land: lots ready for dwelling construction.</span></div>
+    <div class="def"><span class="term">Funded Yield</span><span class="desc">Funded + commenced + under-construction + completed units.</span></div>
+    <div class="def"><span class="term">Approved funding by program</span><span class="desc">Per-program sum of BriefFinancialApprovalItem.funding_amount — what program funded what outputs.</span></div>
+    <div class="def"><span class="term">Paid to Council</span><span class="desc">Released funding — sum of PaymentAllocation amounts for these projects/programs.</span></div>
+    <div class="def"><span class="term"><span class="sw" style="background:var(--st-green-bg);border:1px solid var(--st-green-bd);"></span>DA Approved</span><span class="desc">Development Application approved.</span></div>
+    <div class="def"><span class="term"><span class="sw" style="background:var(--st-amber-bg);border:1px solid var(--st-amber-bd);"></span>DA Submitted</span><span class="desc">Lodged, not yet decided (Submitted / Under assessment).</span></div>
+    <div class="def"><span class="term">Surplus / Deficit</span><span class="desc">DA-approved units − programmed units. Negative = DA approvals lag programmed demand.</span></div>
+    <div class="def"><span class="term">Average Cost / unit</span><span class="desc">Total effective cost ÷ funded-yield units for the category in that LGA.</span></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function(){
+  const DATA = JSON.parse(document.getElementById('analytics-data').textContent);
+  const CAT_LABEL = DATA.cat_label, CAT_UNIT = DATA.cat_unit, CAT_UNIT1 = DATA.cat_unit1;
+  const STAGES = [
+    {key:'potential', short:'Potential', cls:'s0'},
+    {key:'inPipeline', short:'In pipeline', cls:'s1'},
+    {key:'fundedNotCommenced', short:'Funded·NC', cls:'s2'},
+    {key:'commenced', short:'Commenced', cls:'s3'},
+    {key:'underConstruction', short:'Under constr.', cls:'s4'},
+    {key:'completed', short:'Completed', cls:'s5'},
+  ];
+  const PALETTE = ['#3b82f6','#8b5cf6','#ec4899','#0ea5e9','#14b8a6','#f59e0b','#10b981','#ef4444','#f97316','#7c3aed','#0284c7'];
+
+  let state = { cat:'overall', program:'', group:'combined', focus:'all' };
+
+  function el(tag, opts){
+    const e = document.createElement(tag);
+    if (opts){
+      if (opts.cls) e.className = opts.cls;
+      if (opts.text != null) e.textContent = opts.text;
+      if (opts.style) e.setAttribute('style', opts.style);
+      if (opts.colspan) e.colSpan = opts.colspan;
+      if (opts.rowspan) e.rowSpan = opts.rowspan;
+      if (opts.attrs) for (const k in opts.attrs) e.setAttribute(k, opts.attrs[k]);
+    }
+    for (let i=2;i<arguments.length;i++){ const c=arguments[i]; if(c==null) continue;
+      e.appendChild(typeof c==='object'?c:document.createTextNode(String(c))); }
+    return e;
+  }
+  function clear(n){ while(n.firstChild) n.removeChild(n.firstChild); }
+  function n0(x){ return Math.round(x||0); }
+  function money(n){ return '$'+Math.round(n||0).toLocaleString('en-AU'); }
+  function moneyM(n){ const m=(n||0)/1e6; return '$'+(m>=10?m.toFixed(1):m.toFixed(2))+'M'; }
+  function colorFor(label){ let h=0; for(const ch of String(label)) h=(h*31+ch.charCodeAt(0))>>>0; return PALETTE[h%PALETTE.length]; }
+
+  function catData(){ return DATA.data[state.cat] || {programs:[], rows:[], totals:{}, mix:[]}; }
+  function visiblePrograms(){
+    let ps = (catData().programs || []);
+    if (state.program) ps = ps.filter(p=> p.id===state.program);
+    return ps;
+  }
+
+  function render(){
+    const cat = state.cat, noun = CAT_UNIT[cat], cd = catData();
+    const rows = cd.rows || [], totals = cd.totals || {};
+    const progs = visiblePrograms();
+    const showDA = !(cat==='overall' || cat==='dwellings');
+
+    document.getElementById('catMeta').replaceChildren(
+      el('b',{text:'Category: '}), document.createTextNode(CAT_LABEL[cat]));
+    document.getElementById('aggTitle').textContent = CAT_LABEL[cat] + ' — by LGA';
+    document.getElementById('aggMeta').replaceChildren(
+      document.createTextNode(rows.length+' LGAs · '), el('b',{text:String(progs.length)}),
+      document.createTextNode(' funding programs in scope'));
+    document.getElementById('dynNote').replaceChildren(
+      el('i',{cls:'bi bi-magic'}), document.createTextNode(' '+progs.length+' dynamic program column'+(progs.length===1?'':'s')));
+    document.getElementById('dcNote').style.display = (cat==='overall') ? 'none' : '';
+
+    renderHead(progs, noun, showDA, cat);
+    renderBody(rows, totals, progs, showDA);
+    renderFoot(totals, noun, showDA);
+    renderKPIs(totals, rows.length, progs.length, cat, noun, showDA);
+    renderMix(cat, noun, cd.mix || []);
+  }
+
+  function renderHead(progs, noun, showDA, cat){
+    const head = document.getElementById('aggHead'); clear(head);
+    const g = el('tr',{cls:'grp-row'});
+    g.appendChild(el('th',{cls:'sticky-l', rowspan:2, style:'vertical-align:bottom;text-align:left;', text:'LGA'}));
+    g.appendChild(el('th',{rowspan:2, style:'vertical-align:bottom;text-align:left;', text:'Region'}));
+    g.appendChild(el('th',{cls:'g-pipeline', colspan:7, text:'Pipeline ('+noun+')'}));
+    g.appendChild(el('th',{cls:'g-funding', colspan:progs.length+2, text:'Approved funding by program'}));
+    if (showDA) g.appendChild(el('th',{cls:'g-da', colspan:4, text:'Development applications ('+noun+')'}));
+    g.appendChild(el('th',{cls:'g-cost', rowspan:2, style:'vertical-align:bottom;', text:'Avg cost / '+CAT_UNIT1[cat]}));
+    head.appendChild(g);
+
+    const c = el('tr',{cls:'col-row'});
+    c.appendChild(el('th',{cls:'grp-start', text:'Potential'}));
+    ['In pipeline','Funded·NC','Commenced','Under constr.','Completed'].forEach(t=> c.appendChild(el('th',{text:t})));
+    c.appendChild(el('th',{text:'Funded Yield'}));
+    progs.forEach((p,i)=>{
+      const th = el('th',{cls:'g-funding'+(i===0?' fund-start':''), text:p.short});
+      th.appendChild(el('span',{cls:'prg-sub', text:'approved'}));
+      c.appendChild(th);
+    });
+    c.appendChild(el('th',{cls:'g-funding tot-fund', text:'Total Approved'}));
+    c.appendChild(el('th',{cls:'g-funding fund-end', text:'Paid to Council'}));
+    if (showDA){
+      c.appendChild(el('th',{cls:'grp-start da-approved', text:'DA appr.'}));
+      c.appendChild(el('th',{cls:'da-submitted', text:'DA subm.'}));
+      c.appendChild(el('th',{cls:'da-none', text:'DA none'}));
+      c.appendChild(el('th',{text:'Surplus/Deficit'}));
+    }
+    head.appendChild(c);
+  }
+
+  function pipelineCells(tr, r){
+    const order = ['potential','inPipeline','fundedNotCommenced','commenced','underConstruction','completed'];
+    order.forEach((k,i)=> tr.appendChild(el('td',{cls:(i===0?'grp-start ':'')+(r[k]?'':'muted0'), text:n0(r[k])})));
+    tr.appendChild(el('td',{cls:'yield', text:n0(r.fundedYield)}));
+  }
+  function fundingCells(tr, r, progs){
+    progs.forEach((p,i)=>{
+      const v = (r.funding||{})[p.id] || 0;
+      tr.appendChild(el('td',{cls:'g-funding'+(i===0?' fund-start':'')+(v?'':' muted0'), text: v? money(v):'—'}));
+    });
+    tr.appendChild(el('td',{cls:'g-funding tot-fund', text:money(r.totalApproved)}));
+    tr.appendChild(el('td',{cls:'g-funding fund-end', text:money(r.paid)}));
+  }
+  function daCells(tr, r){
+    tr.appendChild(el('td',{cls:'grp-start da-approved', text:n0(r.daApproved)}));
+    tr.appendChild(el('td',{cls:'da-submitted', text:n0(r.daSubmitted)}));
+    tr.appendChild(el('td',{cls:'da-none', text:n0(r.daNotStarted)}));
+    const s = n0(r.surplus);
+    tr.appendChild(el('td',{cls:(s<0?'deficit':(s>0?'surplus':'')), text:(s>0?'+':'')+s}));
+  }
+
+  function renderBody(rows, totals, progs, showDA){
+    const body = document.getElementById('aggBody'); clear(body);
+    if (!rows.length){
+      const tr = el('tr'); tr.appendChild(el('td',{cls:'agg-empty', attrs:{colspan:'30'}, text:'No projects with works in this category.'}));
+      body.appendChild(tr); return;
+    }
+    rows.forEach(r=>{
+      const tr = el('tr');
+      tr.appendChild(el('td',{cls:'sticky-l l'}, el('div',{cls:'lga-cell'}, el('span',{cls:'nm', text:r.council}))));
+      tr.appendChild(el('td',{cls:'l region-tag', text:r.region}));
+      pipelineCells(tr, r);
+      fundingCells(tr, r, progs);
+      if (showDA) daCells(tr, r);
+      tr.appendChild(el('td',{text: r.avgCost>0 ? money(r.avgCost) : '—'}));
+      body.appendChild(tr);
+    });
+    const tr = el('tr',{cls:'totals'});
+    tr.appendChild(el('td',{cls:'sticky-l l', text:'All LGAs'}));
+    tr.appendChild(el('td',{cls:'l'}));
+    pipelineCells(tr, totals);
+    fundingCells(tr, totals, progs);
+    if (showDA) daCells(tr, totals);
+    tr.appendChild(el('td',{text: totals.avgCost>0 ? money(totals.avgCost) : '—'}));
+    body.appendChild(tr);
+  }
+
+  function renderFoot(T, noun, showDA){
+    const foot = document.getElementById('aggFoot'); clear(foot);
+    const left = el('div');
+    left.appendChild(el('b',{cls:'num', text:money(T.totalApproved)}));
+    left.appendChild(document.createTextNode(' approved · '));
+    left.appendChild(el('b',{cls:'num', text:money(T.paid)}));
+    left.appendChild(document.createTextNode(' paid to councils · '));
+    left.appendChild(el('b',{text:n0(T.fundedYield)}));
+    left.appendChild(document.createTextNode(' funded-yield '+noun));
+    foot.appendChild(left);
+    const right = el('div');
+    if (showDA){
+      const s = n0(T.surplus);
+      right.appendChild(el('span',{style:'font-weight:600;color:'+(s<0?'#991b1b':'var(--st-green-fg)')+';',
+        text:(s<0?'DA deficit of '+Math.abs(s):'DA surplus of '+s)+' '+noun}));
+    } else {
+      right.appendChild(el('span',{text:n0(T.potential+T.inPipeline+T.fundedYield)+' '+noun+' tracked across the pipeline'}));
+    }
+    foot.appendChild(right);
+  }
+
+  function kpi(icon,label,value,sub){
+    return el('div',{cls:'akpi'},
+      el('div',{cls:'label'}, el('i',{cls:'bi '+icon}), document.createTextNode(' '+label)),
+      el('div',{cls:'value', text:value}),
+      el('div',{cls:'sub', text:sub}));
+  }
+  function renderKPIs(T, lgas, progs, cat, noun, showDA){
+    const row = document.getElementById('kpiRow'); clear(row);
+    const drawdown = T.totalApproved>0 ? Math.round(T.paid/T.totalApproved*100) : 0;
+    const totalOutputs = n0(T.potential)+n0(T.inPipeline)+n0(T.fundedYield);
+    row.appendChild(kpi('bi-diagram-3','Funded Yield', n0(T.fundedYield)+' '+noun, lgas+' LGAs'));
+    row.appendChild(kpi('bi-cash-stack','Total Approved', moneyM(T.totalApproved), progs+' programs'));
+    row.appendChild(kpi('bi-arrow-down-circle','Paid to Council', moneyM(T.paid), drawdown+'% drawn down'));
+    if (showDA){
+      const s = n0(T.surplus);
+      row.appendChild(kpi('bi-clipboard-check','DA Approved', n0(T.daApproved)+' '+noun, n0(T.daSubmitted)+' submitted · '+n0(T.daNotStarted)+' none'));
+      row.appendChild(kpi('bi-graph-up', s<0?'DA Deficit':'DA Surplus', (s>0?'+':'')+s+' '+noun, 'approved − programmed'));
+    } else {
+      const mixCount = (catData().mix||[]).length;
+      row.appendChild(kpi('bi-grid-3x3-gap','Total Outputs', totalOutputs+' '+noun, n0(T.potential)+' potential · '+n0(T.inPipeline)+' in pipeline'));
+      row.appendChild(kpi('bi-diagram-2','Output Types', mixCount+' types', cat==='overall'?'across categories':'in '+CAT_LABEL[cat]));
+    }
+  }
+
+  function renderMix(cat, noun, mixRows){
+    let rows = mixRows.map(r=> ({label:r.label, form:r.form, beds:r.beds, counts:Object.assign({}, r.counts), total:r.total}));
+    const group = (cat==='overall') ? 'combined' : state.group;
+    if (group!=='combined'){
+      const map = new Map();
+      rows.forEach(r=>{
+        const key = group==='form' ? r.form : (r.beds? r.beds+' Bed' : 'No bedrooms');
+        if (!map.has(key)) map.set(key, {label:key, form:(group==='form'?r.form:''), beds:(group==='beds'?r.beds:0),
+          counts:Object.fromEntries(STAGES.map(s=>[s.key,0])), total:0});
+        const g = map.get(key);
+        STAGES.forEach(s=> g.counts[s.key]+=(r.counts[s.key]||0));
+        g.total += r.total;
+      });
+      rows = [...map.values()];
+    }
+    const focus = state.focus;
+    rows.sort((a,b)=> focus!=='all' ? ((b.counts[focus]||0)-(a.counts[focus]||0)) : (b.total-a.total));
+
+    const grand = {total:0}; STAGES.forEach(s=> grand[s.key]=0);
+    rows.forEach(r=>{ grand.total+=r.total; STAGES.forEach(s=> grand[s.key]+=(r.counts[s.key]||0)); });
+
+    document.getElementById('mixTitle').textContent = CAT_LABEL[cat]+' — output mix';
+    const grpLbl = group==='form'?'built form':(group==='beds'?'bedroom count':'output type');
+    document.getElementById('mixCap').replaceChildren(
+      el('b',{text:n0(grand.total)}), document.createTextNode(' '+noun+' by '+grpLbl+
+        (cat==='overall'?' · across all categories':' · '+CAT_LABEL[cat])));
+
+    const head = document.getElementById('mixHead'); clear(head);
+    const htr = el('tr');
+    htr.appendChild(el('th',{cls:'l', text: group==='form'?'Built form':(group==='beds'?'Bedrooms':'Output type')}));
+    STAGES.forEach(s=> htr.appendChild(el('th',{cls:(focus===s.key?'focus':''), text:s.short})));
+    htr.appendChild(el('th',{cls:'tot', text:'Total'}));
+    htr.appendChild(el('th',{cls:'l', style:'text-align:left;', text:'Stage distribution'}));
+    head.appendChild(htr);
+
+    const body = document.getElementById('mixBody'); clear(body);
+    if (!rows.length){
+      const tr=el('tr'); tr.appendChild(el('td',{cls:'l', attrs:{colspan:'9'}, style:'color:var(--muted);padding:24px;', text:'No works recorded for this category.'}));
+      body.appendChild(tr);
+    }
+    rows.forEach(r=>{
+      const tr = el('tr');
+      tr.appendChild(el('td',{cls:'l'}, el('div',{cls:'mix-type'},
+        el('span',{cls:'form-dot', style:'background:'+colorFor(r.label)}),
+        el('span',{cls:'nm', text:r.label}))));
+      STAGES.forEach(s=> tr.appendChild(el('td',{cls:((r.counts[s.key]?'':'zero ')+(focus===s.key?'focus':'')).trim(), text:n0(r.counts[s.key])})));
+      tr.appendChild(el('td',{cls:'tot', text:n0(r.total)}));
+      const bar = el('div',{cls:'mix-bar'});
+      STAGES.forEach(s=>{ const pct = r.total? ((r.counts[s.key]||0)/r.total*100):0; if(pct>0) bar.appendChild(el('span',{cls:s.cls, style:'width:'+pct+'%'})); });
+      tr.appendChild(el('td',{cls:'barcell'}, bar));
+      body.appendChild(tr);
+    });
+
+    const foot = document.getElementById('mixFoot'); clear(foot);
+    const ftr = el('tr');
+    ftr.appendChild(el('td',{cls:'l', text:'All '+noun}));
+    STAGES.forEach(s=> ftr.appendChild(el('td',{cls:(focus===s.key?'focus':''), text:n0(grand[s.key])})));
+    ftr.appendChild(el('td',{cls:'tot', text:n0(grand.total)}));
+    ftr.appendChild(el('td'));
+    foot.appendChild(ftr);
+
+    const leg = document.getElementById('mixLegend'); clear(leg);
+    STAGES.forEach(s=> leg.appendChild(el('span',{cls:'it'}, el('span',{cls:'sw '+s.cls}), document.createTextNode(s.short))));
+  }
+
+  // wiring
+  const progSel = document.getElementById('fProgram');
+  function refillProgramFilter(){
+    clear(progSel);
+    progSel.appendChild(el('option',{attrs:{value:''}, text:'All programs'}));
+    (catData().programs||[]).forEach(p=> progSel.appendChild(el('option',{attrs:{value:p.id}, text:p.name})));
+    progSel.value = state.program;
+  }
+  document.querySelectorAll('#catTabs .t').forEach(t=> t.addEventListener('click', ()=>{
+    document.querySelectorAll('#catTabs .t').forEach(x=>x.classList.remove('active')); t.classList.add('active');
+    state.cat=t.dataset.cat; state.program=''; refillProgramFilter(); render();
+  }));
+  progSel.addEventListener('change', e=>{ state.program=e.target.value; render(); });
+  document.getElementById('fGroup').addEventListener('change', e=>{ state.group=e.target.value; render(); });
+  document.getElementById('fFocus').addEventListener('change', e=>{ state.focus=e.target.value; render(); });
+
+  // CSV export of the current category table (client-side, reflects filters).
+  function csvCell(v){ const s = String(v==null?'':v); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }
+  function downloadCSV(name, matrix){
+    const text = matrix.map(r=> r.map(csvCell).join(',')).join('\r\n');
+    const blob = new Blob([text], {type:'text/csv;charset=utf-8;'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name; a.click();
+    setTimeout(()=> URL.revokeObjectURL(a.href), 1000);
+  }
+  function exportCurrentCSV(){
+    const cat = state.cat, cd = catData(), progs = visiblePrograms();
+    const showDA = !(cat==='overall' || cat==='dwellings');
+    const header = ['LGA','Region','Potential','In pipeline','Funded·NC','Commenced','Under constr.','Completed','Funded Yield'];
+    progs.forEach(p=> header.push(p.short+' (approved)'));
+    header.push('Total Approved','Paid to Council');
+    if (showDA) header.push('DA appr.','DA subm.','DA none','Surplus/Deficit');
+    header.push('Avg cost / '+CAT_UNIT1[cat]);
+    const matrix = [header];
+    const emit = (r)=>{
+      const row = [r.council, r.region, n0(r.potential), n0(r.inPipeline), n0(r.fundedNotCommenced),
+        n0(r.commenced), n0(r.underConstruction), n0(r.completed), n0(r.fundedYield)];
+      progs.forEach(p=> row.push(n0((r.funding||{})[p.id]||0)));
+      row.push(n0(r.totalApproved), n0(r.paid));
+      if (showDA) row.push(n0(r.daApproved), n0(r.daSubmitted), n0(r.daNotStarted), n0(r.surplus));
+      row.push(n0(r.avgCost));
+      matrix.push(row);
+    };
+    (cd.rows||[]).forEach(emit);
+    if (cd.totals) emit(cd.totals);
+    downloadCSV('aggregate_outputs_'+cat+'.csv', matrix);
+  }
+  document.getElementById('btnCsv').addEventListener('click', exportCurrentCSV);
+
+  refillProgramFilter();
+  render();
+})();
+</script>
+{% endblock %}

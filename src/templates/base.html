@@ -336,7 +336,7 @@
     <input type="text" placeholder="Search projects, councils, funding schedules…">
   </div>
   <div class="nv-spacer"></div>
-  <button class="icon-btn" title="Help"><i class="bi bi-question-circle"></i></button>
+  <a href="{% url 'ui:help' %}" target="_blank" rel="noopener" class="icon-btn" title="Help &amp; user guide (opens in new tab)"><i class="bi bi-question-circle"></i></a>
   <button class="icon-btn" title="Notifications"><i class="bi bi-bell"></i></button>
   {% if user.is_authenticated %}
     <div class="user-chip">
@@ -363,8 +363,16 @@
   <a href="{% url 'ui:projects_list' %}" class="nav-item {% if active_nav == 'projects' %}active{% endif %}">
     <i class="bi bi-kanban"></i> Projects
   </a>
+  {% if is_writer %}
+  <a href="{% url 'ui:project_create' %}" class="nav-item" style="padding-left:34px; font-size:12px; opacity:.85;" title="Create a new project">
+    <i class="bi bi-plus-lg"></i> New project
+  </a>
+  {% endif %}
   <a href="{% url 'ui:cashflow' %}" class="nav-item {% if active_nav == 'cashflow' %}active{% endif %}">
     <i class="bi bi-graph-up"></i> Cashflow
+  </a>
+  <a href="{% url 'ui:cashflow_monthly' %}" class="nav-item {% if active_nav == 'cashflow_monthly' %}active{% endif %}" style="padding-left:34px; font-size:12px;" title="Per-program cashflow broken down by calendar month">
+    <i class="bi bi-calendar3"></i> By Month
   </a>
   <a href="{% url 'ui:aggregate_outputs' %}" class="nav-item {% if active_nav == 'aggregate' %}active{% endif %}">
     <i class="bi bi-bar-chart-line"></i> Analytics
@@ -401,6 +409,9 @@
   </a>
 
   <div class="group-title">Governance</div>
+  <a href="{% url 'ui:development_application_list' %}" class="nav-item {% if active_nav == 'development_applications' %}active{% endif %}">
+    <i class="bi bi-clipboard2-check"></i> Development Apps
+  </a>
   <a href="{% url 'ui:variations_list' %}" class="nav-item {% if active_nav == 'variations' %}active{% endif %}">
     <i class="bi bi-file-diff"></i> Variations
   </a>
@@ -444,7 +455,35 @@
   {% endif %}
 
   {% block content %}{% endblock %}
+
+  <footer class="ricd-footer">
+    <span>RICD — Remote Indigenous Capital Delivery</span>
+    <span class="sep">·</span>
+    <a href="{% url 'ui:help' %}" target="_blank" rel="noopener">
+      <i class="bi bi-question-circle"></i> Help &amp; User Guide
+    </a>
+    <span class="sep">·</span>
+    <span class="muted">Internal use only</span>
+  </footer>
 </main>
+
+<style>
+  .ricd-footer {
+    margin-top: 32px;
+    padding: 16px 4px;
+    border-top: 1px solid var(--line, #e5e7eb);
+    color: var(--muted, #6b7280);
+    font-size: 12.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .ricd-footer a { color: var(--brand, #2563eb); text-decoration: none; font-weight: 500; }
+  .ricd-footer a:hover { text-decoration: underline; }
+  .ricd-footer .sep { opacity: .5; }
+  .ricd-footer .muted { opacity: .8; }
+</style>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>

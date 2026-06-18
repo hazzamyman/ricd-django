@@ -27,6 +27,10 @@
       <form method="post" action="{% url 'ui:payment_reject' payment.project_id payment.pk %}">
         {% csrf_token %}<button class="btn btn-outline-danger">Reject</button>
       </form>
+    {% elif payment.status == 'RELEASED' %}
+      <form method="post" action="{% url 'ui:payment_reconcile' payment.project_id payment.pk %}">
+        {% csrf_token %}<button class="btn btn-outline-success" title="Mark as reconciled/acquitted">Reconcile</button>
+      </form>
     {% endif %}
     <a href="{% url 'ui:payment_list' payment.project_id %}" class="btn btn-outline-secondary">Back</a>
   </div>
@@ -35,11 +39,18 @@
   <dl class="row">
     <dt class="col-sm-3">Project</dt><dd class="col-sm-9">{{ payment.project }}</dd>
     <dt class="col-sm-3">Funding Schedule</dt><dd class="col-sm-9">{{ payment.funding_schedule }}</dd>
+    <dt class="col-sm-3">Funds work</dt>
+    <dd class="col-sm-9">
+      {% if payment.work %}
+        <a href="{% url 'ui:work_detail' payment.work.project_id payment.work_id %}">{{ payment.work }}</a>
+      {% else %}<span class="text-muted">— whole project (no specific work) —</span>{% endif %}
+    </dd>
     <dt class="col-sm-3">Payment Type</dt><dd class="col-sm-9">{{ payment.get_payment_type_display }}</dd>
     <dt class="col-sm-3">Calculation</dt><dd class="col-sm-9">{{ payment.get_calculation_type_display }}</dd>
     <dt class="col-sm-3">Amount</dt><dd class="col-sm-9">{% if payment.amount %}{{ payment.amount|money }}{% elif payment.percentage %}{{ payment.percentage }}%{% else %}-{% endif %}</dd>
     <dt class="col-sm-3">Status</dt><dd class="col-sm-9"><strong>{{ payment.get_status_display }}</strong></dd>
     <dt class="col-sm-3">Release Date</dt><dd class="col-sm-9">{{ payment.release_date|default:"-" }}</dd>
+    {% if payment.reconciled_date %}<dt class="col-sm-3">Reconciled</dt><dd class="col-sm-9">{{ payment.reconciled_date }}</dd>{% endif %}
     <dt class="col-sm-3">Reference</dt><dd class="col-sm-9">{{ payment.reference|default:"-" }}</dd>
   </dl>
 </div></div>
