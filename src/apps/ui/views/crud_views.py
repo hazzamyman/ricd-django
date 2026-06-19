@@ -33,6 +33,7 @@ from apps.core.models import (
     StateElectorate, FederalElectorate, QhigiRegion,
     SiteSettings, PaymentMilestoneSchedule, PaymentMilestoneRule, Contractor,
     EmailTemplate, SentNotification, DelegatePosition,
+    QuarterlyReportItemGroup, QuarterlyReportItem,
 )
 
 COUNCIL_ROLES = frozenset({'COUNCIL_USER', 'COUNCIL_MANAGER'})
@@ -4249,3 +4250,107 @@ class LandPreConditionEditView(WriteRequiredMixin, View):
             )
         messages.success(request, 'Land pre-conditions saved.')
         return redirect('ui:project_detail', pk=project_pk)
+
+
+# ============================================================================
+# Quarterly Report Item Groups and Items (maintenance)
+# ============================================================================
+
+class QuarterlyReportItemGroupListView(WriteRequiredMixin, ListView):
+    model = QuarterlyReportItemGroup
+    template_name = 'maintenance/quarterly_report_items.html'
+    context_object_name = 'groups'
+    extra_context = {'active_nav': 'maintenance'}
+
+    def get_queryset(self):
+        return QuarterlyReportItemGroup.objects.prefetch_related('items').order_by('order', 'name')
+
+
+class QuarterlyReportItemGroupCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
+    model = QuarterlyReportItemGroup
+    template_name = 'crud/form.html'
+    fields = ['name', 'description', 'is_active', 'order']
+    success_url = reverse_lazy('ui:quarterly_report_item_group_list')
+    extra_context = {'active_nav': 'maintenance'}
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = 'Add Quarterly Report Group'
+        ctx['back_url'] = reverse_lazy('ui:quarterly_report_item_group_list')
+        return ctx
+
+
+class QuarterlyReportItemGroupUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
+    model = QuarterlyReportItemGroup
+    template_name = 'crud/form.html'
+    fields = ['name', 'description', 'is_active', 'order']
+    success_url = reverse_lazy('ui:quarterly_report_item_group_list')
+    extra_context = {'active_nav': 'maintenance'}
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit Group: {self.object.name}'
+        ctx['back_url'] = reverse_lazy('ui:quarterly_report_item_group_list')
+        return ctx
+
+
+class QuarterlyReportItemGroupDeleteView(WriteRequiredMixin, DeleteView):
+    model = QuarterlyReportItemGroup
+    template_name = 'crud/confirm_delete.html'
+    success_url = reverse_lazy('ui:quarterly_report_item_group_list')
+    extra_context = {'active_nav': 'maintenance'}
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['back_url'] = reverse_lazy('ui:quarterly_report_item_group_list')
+        return ctx
+
+
+class QuarterlyReportItemCreateView(WriteRequiredMixin, WidgetUpgradeMixin, CreateView):
+    model = QuarterlyReportItem
+    template_name = 'crud/form.html'
+    fields = ['name', 'field_type', 'order', 'is_required', 'is_active', 'help_text']
+    extra_context = {'active_nav': 'maintenance'}
+
+    def get_group(self):
+        return get_object_or_404(QuarterlyReportItemGroup, pk=self.kwargs['group_pk'])
+
+    def get_success_url(self):
+        return reverse_lazy('ui:quarterly_report_item_group_list')
+
+    def form_valid(self, form):
+        form.instance.group = self.get_group()
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        group = self.get_group()
+        ctx['title'] = f'Add Item to "{group.name}"'
+        ctx['back_url'] = reverse_lazy('ui:quarterly_report_item_group_list')
+        return ctx
+
+
+class QuarterlyReportItemUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
+    model = QuarterlyReportItem
+    template_name = 'crud/form.html'
+    fields = ['name', 'field_type', 'order', 'is_required', 'is_active', 'help_text']
+    success_url = reverse_lazy('ui:quarterly_report_item_group_list')
+    extra_context = {'active_nav': 'maintenance'}
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['title'] = f'Edit Item: {self.object.name}'
+        ctx['back_url'] = reverse_lazy('ui:quarterly_report_item_group_list')
+        return ctx
+
+
+class QuarterlyReportItemDeleteView(WriteRequiredMixin, DeleteView):
+    model = QuarterlyReportItem
+    template_name = 'crud/confirm_delete.html'
+    success_url = reverse_lazy('ui:quarterly_report_item_group_list')
+    extra_context = {'active_nav': 'maintenance'}
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['back_url'] = reverse_lazy('ui:quarterly_report_item_group_list')
+        return ctx
