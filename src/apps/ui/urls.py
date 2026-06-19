@@ -321,6 +321,8 @@ urlpatterns = [
     path('monthly-trackers/<int:pk>/', views.tracker_views.MonthlyTrackerDetailView.as_view(), name='monthly_tracker_detail'),
     path('monthly-trackers/<int:pk>/submit/', views.tracker_views.MonthlyTrackerSubmitView.as_view(), name='monthly_tracker_submit'),
     path('monthly-trackers/<int:pk>/review/', views.tracker_views.MonthlyTrackerReviewView.as_view(), name='monthly_tracker_review'),
+    path('monthly-trackers/<int:pk>/export.xlsx', views.tracker_views.MonthlyTrackerExportView.as_view(), name='monthly_tracker_export'),
+    path('monthly-trackers/<int:pk>/import/', views.tracker_views.MonthlyTrackerImportView.as_view(), name='monthly_tracker_import'),
 
     # Quarterly Report (per-council)
     path('quarterly-reports/', views.tracker_views.QuarterlyReportListView.as_view(), name='quarterly_report_global_list'),
