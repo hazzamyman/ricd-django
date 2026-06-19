@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from apps.core.models import (
     BriefFinancialApproval, FundingSchedule, FundingAgreement, PaymentRule,
+    DelegatePosition,
 )
 from apps.core.models import Council, Program, Project
 from django.contrib.auth.models import User
@@ -52,10 +53,23 @@ def approver_user():
 
 
 @pytest.fixture
-def approved_bfa(project, approver_user):
+def manager_position():
+    # 'Manager' is seeded by migration 0051 — reuse it rather than duplicate.
+    return DelegatePosition.objects.get_or_create(
+        title="Manager", defaults={'max_approval_amount': Decimal("250000.00"), 'order': 1})[0]
+
+
+@pytest.fixture
+def director_position():
+    return DelegatePosition.objects.get_or_create(
+        title="Director", defaults={'max_approval_amount': Decimal("1000000.00"), 'order': 2})[0]
+
+
+@pytest.fixture
+def approved_bfa(project, approver_user, manager_position):
     return make_bfa(
         project, Decimal("500000.00"),
-        delegate_level=BriefFinancialApproval.DelegateLevel.MANAGER,
+        delegate_position=manager_position,
         status="APPROVED",
         approved_by=approver_user,
         mincor_reference="MINCOR-2026-001",
@@ -63,10 +77,10 @@ def approved_bfa(project, approver_user):
 
 
 @pytest.fixture
-def pending_bfa(project):
+def pending_bfa(project, director_position):
     return make_bfa(
         project, Decimal("750000.00"),
-        delegate_level=BriefFinancialApproval.DelegateLevel.DIRECTOR,
+        delegate_position=director_position,
         status="PENDING",
     )
 
@@ -98,13 +112,13 @@ class TestBriefFinancialApprovalCreation:
         assert pending_bfa.id is not None
         assert pending_bfa.status == "PENDING"
         assert pending_bfa.funding_amount == Decimal("750000.00")
-        assert pending_bfa.delegate_level == BriefFinancialApproval.DelegateLevel.DIRECTOR
+        assert pending_bfa.delegate_position.title == "Director"
         assert pending_bfa.approved_by is None
 
-    def test_create_approved_bfa(self, project, approver_user):
+    def test_create_approved_bfa(self, project, approver_user, manager_position):
         bfa = make_bfa(
             project, Decimal("500000.00"),
-            delegate_level=BriefFinancialApproval.DelegateLevel.MANAGER,
+            delegate_position=manager_position,
             status="APPROVED",
             approved_by=approver_user,
             mincor_reference="MINCOR-2026-001",
@@ -119,7 +133,7 @@ class TestBriefFinancialApprovalCreation:
     def test_rejected_bfa(self, project):
         rejection = make_bfa(
             project, Decimal("600000.00"),
-            delegate_level="GM", status="REJECTED",
+            status="REJECTED",
         )
         assert rejection.status == "REJECTED"
 
@@ -163,26 +177,30 @@ class TestBriefFinancialApprovalPreCondition:
 
 
 @pytest.mark.django_db
-class TestBriefFinancialApprovalDelegateLevels:
-    def test_manager_level(self, project, approver_user):
+class TestBriefFinancialApprovalDelegatePositions:
+    def test_manager_position(self, project, approver_user, manager_position):
         bfa = make_bfa(
             project, Decimal("200000.00"),
-            delegate_level=BriefFinancialApproval.DelegateLevel.MANAGER,
+            delegate_position=manager_position,
             status="APPROVED", approved_by=approver_user,
         )
-        assert bfa.delegate_level == BriefFinancialApproval.DelegateLevel.MANAGER
+        assert bfa.delegate_position == manager_position
+        assert bfa.delegate_position.title == "Manager"
 
-    def test_director_level(self, project, approver_user):
+    def test_director_position(self, project, approver_user, director_position):
         bfa = make_bfa(
             project, Decimal("600000.00"),
-            delegate_level=BriefFinancialApproval.DelegateLevel.DIRECTOR,
+            delegate_position=director_position,
             status="APPROVED", approved_by=approver_user,
         )
-        assert bfa.delegate_level == BriefFinancialApproval.DelegateLevel.DIRECTOR
+        assert bfa.delegate_position.title == "Director"
 
-    def test_gm_level(self, project, approver_user):
+    def test_position_cleared_on_delete(self, project, approver_user, manager_position):
         bfa = make_bfa(
-            project, Decimal("2000000.00"),
-            delegate_level="GM", status="APPROVED", approved_by=approver_user,
+            project, Decimal("200000.00"),
+            delegate_position=manager_position,
+            status="APPROVED", approved_by=approver_user,
         )
-        assert bfa.delegate_level == "GM"
+        manager_position.delete()
+        bfa.refresh_from_db()
+        assert bfa.delegate_position is None

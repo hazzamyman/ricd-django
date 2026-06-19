@@ -689,8 +689,8 @@ table.t-works .num-cell{text-align:right;font-variant-numeric:tabular-nums}
 
     <div class="col-12 mt-2">
       <div class="ricd-section-title">
-        <h2>Brief Financial Approvals</h2>
-        {% if is_fnc %}<a href="{% url 'ui:bfa_create_global' %}" class="btn btn-primary btn-sm"><i class="bi bi-plus"></i> New BFA</a>{% endif %}
+        <h2>Funding Approvals</h2>
+        {% if is_fnc %}<a href="{% url 'ui:bfa_create_global' %}" class="btn btn-primary btn-sm"><i class="bi bi-plus"></i> New Funding Approval</a>{% endif %}
       </div>
       {% with bfas=project.financial_approvals.all %}
       {% if bfas %}
@@ -707,7 +707,7 @@ table.t-works .num-cell{text-align:right;font-variant-numeric:tabular-nums}
                   <td>{{ bfa.mincor_reference|default:"—" }} <span class="text-muted">(#{{ bfa.pk }})</span></td>
                   <td class="text-end">{{ item.funding_amount|money }}</td>
                   {% if not is_council %}<td class="text-end">{% if item.contingency_amount %}{{ item.contingency_amount|money }}{% else %}—{% endif %}</td>{% endif %}
-                  {% if not is_council %}<td>{{ bfa.get_delegate_level_display|default:"—" }}</td>{% endif %}
+                  {% if not is_council %}<td>{{ bfa.delegate_position.title|default:"—" }}</td>{% endif %}
                   <td><span class="state-badge state-{{ bfa.status|lower }}">{{ bfa.get_status_display }}</span></td>
                   {% if not is_council %}<td><a href="{% url 'ui:bfa_detail' bfa.pk %}" class="btn btn-outline-secondary btn-sm">View</a></td>{% endif %}
                 </tr>
@@ -718,7 +718,7 @@ table.t-works .num-cell{text-align:right;font-variant-numeric:tabular-nums}
         </table>
       </div>
       {% else %}
-      <p class="text-muted" style="font-size:13px;">No brief financial approvals recorded.</p>
+      <p class="text-muted" style="font-size:13px;">No funding approvals recorded.</p>
       {% endif %}
       {% endwith %}
     </div>

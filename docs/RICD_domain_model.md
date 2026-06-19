@@ -287,7 +287,7 @@ The RICD system manages the full lifecycle of government-funded housing and infr
 | `id` | PK |
 | `project_id` | FK → Project |
 | `funding_amount` | Decimal |
-| `delegate_level` | enum: `MANAGER`, `DIRECTOR`, `GM` |
+| `delegate_position_id` | FK → DelegatePosition (maintenance-managed; title + max approval amount) |
 | `approval_status` | enum: `PENDING`, `APPROVED`, `REJECTED` |
 | `approved_by_id` | FK → User |
 | `approved_at` | timestamp |

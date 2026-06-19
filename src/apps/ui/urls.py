@@ -17,6 +17,10 @@ urlpatterns = [
     path('maintenance/', views.crud_views.MaintenanceView.as_view(), name='maintenance'),
     path('maintenance/site-settings/', views.crud_views.SiteSettingsView.as_view(), name='site_settings'),
     path('maintenance/cashflow-rules/', views.crud_views.CashflowRulesView.as_view(), name='cashflow_rules'),
+    path('maintenance/delegate-positions/', views.crud_views.DelegatePositionListView.as_view(), name='delegate_position_list'),
+    path('maintenance/delegate-positions/create/', views.crud_views.DelegatePositionCreateView.as_view(), name='delegate_position_create'),
+    path('maintenance/delegate-positions/<int:pk>/edit/', views.crud_views.DelegatePositionUpdateView.as_view(), name='delegate_position_edit'),
+    path('maintenance/delegate-positions/<int:pk>/delete/', views.crud_views.DelegatePositionDeleteView.as_view(), name='delegate_position_delete'),
     path('maintenance/email-templates/', views.crud_views.EmailTemplateListView.as_view(), name='email_template_list'),
     path('maintenance/email-templates/<int:pk>/edit/', views.crud_views.EmailTemplateUpdateView.as_view(), name='email_template_edit'),
     path('maintenance/notifications-log/', views.crud_views.NotificationLogView.as_view(), name='notification_log'),
@@ -209,6 +213,8 @@ urlpatterns = [
     path('bfa/<int:pk>/delete/', views.crud_views.BriefFinancialApprovalDeleteView.as_view(), name='bfa_delete'),
     path('bfa/<int:pk>/approve/', views.crud_views.BriefFinancialApprovalApproveView.as_view(), name='bfa_approve'),
     path('bfa/<int:pk>/reject/', views.crud_views.BriefFinancialApprovalRejectView.as_view(), name='bfa_reject'),
+    # AJAX: a project's estimated works total (powers Funding Approval auto-fill)
+    path('projects/<int:project_pk>/works-total.json', views.crud_views.ProjectWorksTotalView.as_view(), name='project_works_total'),
     # Legacy per-project BFA list (project-detail page links here to see BFAs containing this project)
     path('projects/<int:project_pk>/bfa/', views.crud_views.BriefFinancialApprovalListView.as_view(), name='bfa_list'),
     # Compat alias: old per-project create URL -> global create form

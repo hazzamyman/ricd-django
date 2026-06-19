@@ -368,6 +368,23 @@
   </div>
   {% endif %}
 
+  {# Delegate positions #}
+  <div class="col-sm-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="ricd-section-title mb-1">
+          <h2><i class="bi bi-person-badge me-1 text-muted"></i>Delegate Positions</h2>
+        </div>
+        <div class="text-muted mb-3" style="font-size:12px">
+          Financial delegation positions and their approval thresholds, used on Funding Approvals.
+        </div>
+        <div class="d-flex gap-2">
+          <a href="{% url 'ui:delegate_position_list' %}" class="btn btn-sm btn-primary">Manage</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 {# Feature toggles #}

@@ -1,21 +1,21 @@
 {% extends "base.html" %}
 {% load money %}
-{% block title %}BFA {{ bfa.mincor_reference|default:bfa.pk }} — RICD{% endblock %}
+{% block title %}Funding Approval {{ bfa.mincor_reference|default:bfa.pk }} — RICD{% endblock %}
 {% block breadcrumbs %}
   <span class="sep">/</span>
-  <a href="{% url 'ui:bfa_global_list' %}">Brief Financial Approvals</a>
+  <a href="{% url 'ui:bfa_global_list' %}">Funding Approvals</a>
   <span class="sep">/</span>
-  <span class="current">{{ bfa.mincor_reference|default:"BFA" }} #{{ bfa.pk }}</span>
+  <span class="current">{{ bfa.mincor_reference|default:"Funding Approval" }} #{{ bfa.pk }}</span>
 {% endblock %}
 {% block content %}
 <div class="pg-head">
   <div>
-    <h1>{{ bfa.mincor_reference|default:"BFA" }} #{{ bfa.pk }}</h1>
+    <h1>{{ bfa.mincor_reference|default:"Funding Approval" }} #{{ bfa.pk }}</h1>
     <div class="meta">
       {% for c in bfa.councils %}<a href="{% url 'ui:council_detail' c.pk %}">{{ c.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}
       {% if bfa.councils %} &middot; {% endif %}
       {{ bfa.project_count }} project{{ bfa.project_count|pluralize }} &middot;
-      {{ bfa.get_delegate_level_display }} delegate
+      {{ bfa.delegate_position.title|default:"No" }} delegate
       {% if bfa.document_uri %} &middot; <a href="{{ bfa.document_uri }}" target="_blank" rel="noopener"><i class="bi bi-link-45deg"></i> Brief document</a>{% endif %}
     </div>
   </div>
@@ -90,7 +90,7 @@
         {% if not is_council %}<td class="text-end {% if item.remaining < 0 %}text-danger{% endif %}">{{ item.remaining|money }}</td>{% endif %}
       </tr>
     {% empty %}
-      <tr><td colspan="{% if is_council %}7{% else %}10{% endif %}" class="text-center text-muted">No project rows — edit this BFA to add one.</td></tr>
+      <tr><td colspan="{% if is_council %}7{% else %}10{% endif %}" class="text-center text-muted">No project rows — edit this funding approval to add one.</td></tr>
     {% endfor %}
       <tr class="table-light">
         <td class="fw-bold" colspan="5">Totals</td>
@@ -111,7 +111,7 @@
     <dt class="col-sm-3">MINCOR ref</dt><dd class="col-sm-9">{{ bfa.mincor_reference|default:"—" }}</dd>
     <dt class="col-sm-3">Brief document</dt><dd class="col-sm-9">{% if bfa.document_uri %}<a href="{{ bfa.document_uri }}" target="_blank" rel="noopener">{{ bfa.document_uri }}</a>{% else %}<span class="text-muted">—</span>{% endif %}</dd>
     <dt class="col-sm-3">Council(s)</dt><dd class="col-sm-9">{% for c in bfa.councils %}<a href="{% url 'ui:council_detail' c.pk %}">{{ c.name }}</a>{% if not forloop.last %}, {% endif %}{% empty %}<span class="text-muted">—</span>{% endfor %}</dd>
-    <dt class="col-sm-3">Delegate level</dt><dd class="col-sm-9">{{ bfa.get_delegate_level_display }}</dd>
+    <dt class="col-sm-3">Delegate position</dt><dd class="col-sm-9">{% if bfa.delegate_position %}{{ bfa.delegate_position.title }}{% if bfa.delegate_position.max_approval_amount %} <span class="text-muted">(up to {{ bfa.delegate_position.max_approval_amount|money }})</span>{% endif %}{% else %}<span class="text-muted">—</span>{% endif %}</dd>
     <dt class="col-sm-3">Comments</dt><dd class="col-sm-9" style="white-space:pre-wrap;">{{ bfa.comments|default:"—" }}</dd>
     <dt class="col-sm-3">Approved by</dt><dd class="col-sm-9">{% if bfa.approved_by %}{{ bfa.approved_by.get_full_name|default:bfa.approved_by.username }}{% else %}—{% endif %}</dd>
     <dt class="col-sm-3">Approved at</dt><dd class="col-sm-9">{{ bfa.approved_at|default:"—" }}</dd>

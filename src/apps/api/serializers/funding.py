@@ -75,7 +75,7 @@ class BriefFinancialApprovalSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'mincor_reference', 'document_uri',
             'funding_amount', 'contingency_amount', 'total_amount', 'project_count',
-            'delegate_level', 'status', 'approved_by', 'approved_at',
+            'delegate_position', 'status', 'approved_by', 'approved_at',
         ]
         read_only_fields = ['id', 'approved_at',
                             'funding_amount', 'contingency_amount', 'total_amount', 'project_count']

@@ -136,6 +136,35 @@ class FundingAgreement(models.Model):
 
 
 # ============================================================================
+# DelegatePosition - maintenance-managed financial delegation positions
+# ============================================================================
+
+class DelegatePosition(models.Model):
+    """A financial-delegation position (e.g. Manager, Director) and the maximum
+    amount it may approve. Maintained via the Maintenance portal — replaces the
+    old hardcoded BriefFinancialApproval.DelegateLevel choices."""
+    title = models.CharField(max_length=100, unique=True)
+    max_approval_amount = models.DecimalField(
+        max_digits=14, decimal_places=2, null=True, blank=True,
+        help_text="Maximum amount this position may approve. Leave blank for unlimited.",
+    )
+    notes = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    order = models.PositiveIntegerField(default=0, help_text="Display order (low to high).")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order', 'title']
+        verbose_name = 'Delegate position'
+
+    def __str__(self):
+        if self.max_approval_amount is not None:
+            return f"{self.title} — up to ${self.max_approval_amount:,.0f}"
+        return f"{self.title} — unlimited"
+
+
+# ============================================================================
 # BriefFinancialApproval - Pre-condition for funding creation
 # ============================================================================
 
@@ -148,11 +177,6 @@ class BriefFinancialApproval(models.Model):
         PENDING = 'PENDING', 'Pending'
         APPROVED = 'APPROVED', 'Approved'
         REJECTED = 'REJECTED', 'Rejected'
-
-    class DelegateLevel(models.TextChoices):
-        MANAGER = 'MGR', 'Manager'
-        DIRECTOR = 'DIR', 'Director'
-        GM = 'GM', 'General Manager'
 
     mincor_reference = models.CharField(
         max_length=50, blank=True, db_index=True,
@@ -167,7 +191,11 @@ class BriefFinancialApproval(models.Model):
         help_text="Link to the Human Rights Assessment that accompanies this brief "
                   "(required alongside the FAS for financial approval).",
     )
-    delegate_level = models.CharField(max_length=3, choices=DelegateLevel.choices, default=DelegateLevel.MANAGER)
+    delegate_position = models.ForeignKey(
+        'DelegatePosition', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='approvals',
+        help_text="Delegation position approving this. Managed in Maintenance → Delegate Positions.",
+    )
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING, db_index=True)
     approved_by = models.ForeignKey(User, related_name='brief_approvals', null=True, blank=True, on_delete=models.SET_NULL)
     approved_at = models.DateTimeField(null=True, blank=True)

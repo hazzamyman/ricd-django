@@ -47,7 +47,7 @@ class TestEndToEndPaymentWorkflow:
         from tests.fixtures import make_bfa
         bfa = make_bfa(
             project, Decimal("1000000.00"),
-            delegate_level="MGR", status="PENDING",
+            status="PENDING",
         )
         assert bfa.status == "PENDING"
 
@@ -160,7 +160,7 @@ class TestEndToEndPaymentWorkflow:
         from tests.fixtures import make_bfa
         bfa = make_bfa(
             project, Decimal("3000000.00"),
-            delegate_level="MGR", status="APPROVED", approved_by=manager,
+            status="APPROVED", approved_by=manager,
         )
 
         # Create Agreement and Schedule
@@ -273,7 +273,7 @@ class TestEndToEndPaymentWorkflow:
         from tests.fixtures import make_bfa
         bfa = make_bfa(
             project, Decimal("2000000.00"),
-            delegate_level="MGR", status="APPROVED", approved_by=manager,
+            status="APPROVED", approved_by=manager,
         )
 
         # Original schedule
