@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Quarterly Report Items — RICD{% endblock %}
+{% block breadcrumbs %}
+  <span class="sep">/</span>
+  <a href="{% url 'ui:maintenance' %}">Maintenance</a>
+  <span class="sep">/</span>
+  <span class="current">Quarterly Report Items</span>
+{% endblock %}
+{% block content %}
+<div class="pg-head">
+  <div>
+    <h1>Quarterly Report Items</h1>
+    <div class="meta">Groups and items that appear in each council's quarterly progress report. Items are presented to councils in group order.</div>
+  </div>
+  <div class="actions">
+    <a href="{% url 'ui:quarterly_report_item_group_create' %}" class="btn btn-primary btn-sm">+ Add Group</a>
+  </div>
+</div>
+
+{% if groups %}
+  {% for group in groups %}
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center py-2">
+      <div>
+        <strong>{{ group.name }}</strong>
+        {% if not group.is_active %}<span class="badge bg-secondary ms-2">Inactive</span>{% endif %}
+        {% if group.description %}<span class="text-muted ms-2" style="font-size:12px;">{{ group.description }}</span>{% endif %}
+      </div>
+      <div class="d-flex gap-2">
+        <a href="{% url 'ui:quarterly_report_item_create' group_pk=group.pk %}" class="btn btn-sm btn-outline-primary">+ Add Item</a>
+        <a href="{% url 'ui:quarterly_report_item_group_edit' group.pk %}" class="btn btn-sm btn-outline-secondary">Edit Group</a>
+        <a href="{% url 'ui:quarterly_report_item_group_delete' group.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
+      </div>
+    </div>
+    {% with items=group.items.all %}
+    {% if items %}
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0" style="font-size:13px;">
+        <thead class="table-light">
+          <tr>
+            <th style="width:40px;">#</th>
+            <th>Item name</th>
+            <th>Field type</th>
+            <th>Required</th>
+            <th>Active</th>
+            <th>Help text</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          <tr>
+            <td class="text-muted">{{ item.order }}</td>
+            <td>{{ item.name }}</td>
+            <td><span class="badge bg-light text-dark border">{{ item.get_field_type_display }}</span></td>
+            <td>{% if item.is_required %}<span class="text-success">Yes</span>{% else %}<span class="text-muted">No</span>{% endif %}</td>
+            <td>{% if item.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-secondary">Inactive</span>{% endif %}</td>
+            <td class="text-muted" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ item.help_text|default:"—" }}</td>
+            <td class="text-end">
+              <a href="{% url 'ui:quarterly_report_item_edit' group_pk=group.pk pk=item.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+              <a href="{% url 'ui:quarterly_report_item_delete' group_pk=group.pk pk=item.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="card-body text-muted" style="font-size:13px;">
+      No items yet. <a href="{% url 'ui:quarterly_report_item_create' group_pk=group.pk %}">Add the first one.</a>
+    </div>
+    {% endif %}
+    {% endwith %}
+  </div>
+  {% endfor %}
+{% else %}
+<div class="empty">
+  <p class="text-muted mb-2">No groups yet. Groups define the sections of the quarterly report.</p>
+  <a href="{% url 'ui:quarterly_report_item_group_create' %}" class="btn btn-primary btn-sm">+ Add the first group</a>
+</div>
+{% endif %}
+{% endblock %}

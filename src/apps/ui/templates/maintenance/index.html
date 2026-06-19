@@ -368,6 +368,21 @@
   </div>
   {% endif %}
 
+  {# Quarterly Report Items #}
+  <div class="col-sm-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="ricd-section-title mb-1">
+          <h2><i class="bi bi-ui-checks-grid me-1 text-muted"></i>Quarterly Report Items</h2>
+        </div>
+        <div class="text-muted mb-3" style="font-size:12px">Groups and items that appear in the quarterly progress report grid submitted by councils.</div>
+        <div class="d-flex gap-2">
+          <a href="{% url 'ui:quarterly_report_item_group_list' %}" class="btn btn-sm btn-primary">Manage</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
   {# Delegate positions #}
   <div class="col-sm-6 col-xl-4">
     <div class="card h-100">
