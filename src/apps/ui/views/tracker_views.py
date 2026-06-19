@@ -659,3 +659,225 @@ class QuarterlyReportApproveView(LoginRequiredMixin, View):
         report.save()
         messages.success(request, 'Quarterly report approved.')
         return redirect('ui:quarterly_report_detail', pk=pk)
+
+
+# ===========================================================================
+# Monthly Tracker — Excel export / import
+# ===========================================================================
+
+class MonthlyTrackerExportView(LoginRequiredMixin, View):
+    """Download the tracker as a pre-filled .xlsx for offline council completion.
+
+    Column layout (1-indexed):
+      A: _entry_pk  — system ID, do not edit
+      B: Project
+      C: Work / Address
+      D: Step
+      E: Actual Date       ← council fills in
+      F: Forecast Date     ← council fills in
+      G: Notes             ← council fills in
+    """
+
+    def get(self, request, pk):
+        if not _is_ricd_staff(request.user):
+            messages.error(request, 'Only RICD staff can export trackers.')
+            return redirect('ui:monthly_tracker_detail', pk=pk)
+
+        tracker = get_object_or_404(MonthlyTracker, pk=pk)
+        entries = list(
+            tracker.work_entries
+            .select_related(
+                'work_step__work__project',
+                'work_step__work__address',
+                'work_step__group_item__step',
+            )
+            .order_by(
+                'work_step__work__project__name',
+                'work_step__work_id',
+                'work_step__order',
+            )
+        )
+
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill
+        from django.http import HttpResponse
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = f"{tracker.year}-{tracker.month:02d}"
+
+        grey = PatternFill('solid', fgColor='DDDDDD')
+        yellow = PatternFill('solid', fgColor='FFFACD')
+        locked = PatternFill('solid', fgColor='F5F5F5')
+
+        ws['A1'] = (
+            f"Monthly Tracker — {tracker.council.name} "
+            f"— {tracker.year}-{tracker.month:02d}"
+        )
+        ws['A1'].font = Font(bold=True, size=13)
+        ws.merge_cells('A1:G1')
+
+        ws['A2'] = (
+            "Fill in columns E (Actual Date), F (Forecast Date) and G (Notes) only. "
+            "Do not add or remove rows. Return completed file to RICD."
+        )
+        ws['A2'].font = Font(italic=True, color='666666', size=10)
+        ws.merge_cells('A2:G2')
+
+        headers = [
+            '_entry_pk', 'Project', 'Work / Address', 'Step',
+            'Actual Date (dd/mm/yyyy)', 'Forecast Date (dd/mm/yyyy)', 'Notes',
+        ]
+        for col, h in enumerate(headers, 1):
+            cell = ws.cell(row=4, column=col, value=h)
+            cell.font = Font(bold=True)
+            cell.fill = grey
+
+        for i, entry in enumerate(entries, start=5):
+            ws_step = entry.work_step
+            work = ws_step.work
+            project = work.project
+            addr = getattr(work, 'address', None)
+            if addr:
+                addr_str = addr.street + (
+                    f" (Lot {addr.lot} {addr.plan})" if getattr(addr, 'lot', None) else ""
+                )
+            else:
+                addr_str = f"Work #{work.id}"
+            step_name = (
+                ws_step.group_item.step.name if ws_step.group_item_id else ws_step.step_name
+            )
+
+            for col, val in enumerate(
+                [entry.pk, project.name if project else '', addr_str, step_name], 1
+            ):
+                ws.cell(row=i, column=col, value=val).fill = locked
+
+            actual = ws.cell(row=i, column=5)
+            if entry.actual_completion_date:
+                actual.value = entry.actual_completion_date
+                actual.number_format = 'DD/MM/YYYY'
+            actual.fill = yellow
+
+            forecast = ws.cell(row=i, column=6)
+            if entry.forecast_completion_date:
+                forecast.value = entry.forecast_completion_date
+                forecast.number_format = 'DD/MM/YYYY'
+            forecast.fill = yellow
+
+            ws.cell(row=i, column=7, value=entry.notes or '').fill = yellow
+
+        for letter, width in zip('ABCDEFG', [9, 26, 32, 22, 24, 24, 36]):
+            ws.column_dimensions[letter].width = width
+
+        fname = (
+            f"monthly-tracker"
+            f"-{tracker.council.name.lower().replace(' ', '-')}"
+            f"-{tracker.year}-{tracker.month:02d}.xlsx"
+        )
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{fname}"'
+        wb.save(response)
+        return response
+
+
+class MonthlyTrackerImportView(LoginRequiredMixin, View):
+    """Accept a council-completed .xlsx and write the data back into the tracker.
+
+    Matches rows by the hidden _entry_pk in column A.
+    Calls entry.save() for each changed row so the WorkStep sync signal fires.
+    Marks the tracker SUBMITTED after a successful import.
+    """
+
+    def post(self, request, pk):
+        if not _is_ricd_staff(request.user):
+            messages.error(request, 'Only RICD staff can import trackers.')
+            return redirect('ui:monthly_tracker_detail', pk=pk)
+
+        tracker = get_object_or_404(MonthlyTracker, pk=pk)
+        xlsx_file = request.FILES.get('tracker_file')
+        if not xlsx_file:
+            messages.error(request, 'No file selected.')
+            return redirect('ui:monthly_tracker_detail', pk=pk)
+
+        import openpyxl
+        from datetime import datetime as dt
+
+        try:
+            wb = openpyxl.load_workbook(xlsx_file, data_only=True)
+        except Exception:
+            messages.error(request, 'Could not open the file — ensure it is an .xlsx file.')
+            return redirect('ui:monthly_tracker_detail', pk=pk)
+
+        ws = wb.active
+        entry_map = {e.pk: e for e in tracker.work_entries.all()}
+        updated = skipped = 0
+        errors = []
+
+        def _parse_date(val):
+            if val is None:
+                return None
+            if hasattr(val, 'year'):
+                return val.date() if hasattr(val, 'date') else val
+            s = str(val).strip()
+            for fmt in ('%d/%m/%Y', '%Y-%m-%d', '%d-%m-%Y', '%m/%d/%Y'):
+                try:
+                    return dt.strptime(s, fmt).date()
+                except ValueError:
+                    pass
+            return None
+
+        for row in ws.iter_rows(min_row=5, values_only=True):
+            if all(v is None for v in row):
+                continue
+            try:
+                entry_pk = int(row[0])
+            except (TypeError, ValueError):
+                skipped += 1
+                continue
+
+            entry = entry_map.get(entry_pk)
+            if entry is None:
+                errors.append(f"Entry #{entry_pk} not found in this tracker — row skipped.")
+                skipped += 1
+                continue
+
+            new_actual = _parse_date(row[4])
+            new_forecast = _parse_date(row[5])
+            new_notes = str(row[6]).strip() if row[6] else ''
+
+            changed = False
+            if entry.actual_completion_date != new_actual:
+                entry.actual_completion_date = new_actual
+                changed = True
+            if entry.forecast_completion_date != new_forecast:
+                entry.forecast_completion_date = new_forecast
+                changed = True
+            if entry.notes != new_notes:
+                entry.notes = new_notes
+                changed = True
+            if changed:
+                entry.updated_by = request.user
+                entry.save()
+                updated += 1
+
+        for msg in errors[:5]:
+            messages.warning(request, msg)
+
+        if updated:
+            if tracker.status == MonthlyTracker.Status.DRAFT:
+                tracker.status = MonthlyTracker.Status.SUBMITTED
+                tracker.submitted_by = request.user
+                tracker.submitted_at = timezone.now()
+                tracker.save()
+            messages.success(
+                request,
+                f'Import complete: {updated} row(s) updated. Tracker marked as Submitted.',
+            )
+        else:
+            messages.info(
+                request,
+                f'No changes detected in the file ({skipped} row(s) skipped).',
+            )

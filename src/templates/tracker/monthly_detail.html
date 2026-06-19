@@ -6,7 +6,7 @@
     <h2 class="mb-0">{{ tracker.council.name }} &mdash; {{ tracker.year }}-{{ tracker.month|stringformat:"02d" }}</h2>
     <small class="text-muted">Status: <strong>{{ tracker.get_status_display }}</strong> | Due: {{ tracker.due_date }} {% if tracker.is_overdue %}<span class="badge bg-danger">Overdue</span>{% endif %}</small>
   </div>
-  <div>
+  <div class="d-flex gap-2 flex-wrap align-items-center">
     {% if tracker.status == 'DRAFT' and can_edit %}
       <form method="post" action="{% url 'ui:monthly_tracker_submit' tracker.pk %}" class="d-inline">{% csrf_token %}
         <button class="btn btn-primary btn-sm">Submit</button>
@@ -17,9 +17,37 @@
         <button class="btn btn-success btn-sm">Mark Reviewed</button>
       </form>
     {% endif %}
+    {% if is_ricd %}
+      <a href="{% url 'ui:monthly_tracker_export' tracker.pk %}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-file-earmark-excel me-1"></i>Download Excel
+      </a>
+      <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#import-panel">
+        <i class="bi bi-upload me-1"></i>Import Excel
+      </button>
+    {% endif %}
     <a href="{% url 'ui:monthly_tracker_list' %}" class="btn btn-outline-secondary btn-sm">Back</a>
   </div>
 </div>
+
+{% if is_ricd %}
+<div class="collapse mb-3" id="import-panel">
+  <div class="card border-primary">
+    <div class="card-body">
+      <h6 class="card-title mb-1">Import council-completed Excel</h6>
+      <p class="text-muted mb-2" style="font-size:12px;">
+        Upload the filled-in .xlsx file returned by the council. Dates and notes will be written back
+        into the tracker and it will be marked as <strong>Submitted</strong>.
+        Download a fresh copy first if the council has lost their file — it will pre-fill any data already saved.
+      </p>
+      <form method="post" action="{% url 'ui:monthly_tracker_import' tracker.pk %}" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
+        {% csrf_token %}
+        <input type="file" name="tracker_file" accept=".xlsx" class="form-control form-control-sm" style="max-width:320px;" required>
+        <button type="submit" class="btn btn-primary btn-sm">Import</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
 
 {% if not rows %}
   <p class="text-muted">No active projects with tracker columns configured. Add WorkSteps to a Work Step Group with "Is monthly tracker column" set, then re-open this tracker.</p>
