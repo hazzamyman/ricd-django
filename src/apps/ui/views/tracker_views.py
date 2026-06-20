@@ -668,14 +668,10 @@ class QuarterlyReportApproveView(LoginRequiredMixin, View):
 class MonthlyTrackerExportView(LoginRequiredMixin, View):
     """Download the tracker as a pre-filled .xlsx for offline council completion.
 
-    Column layout (1-indexed):
-      A: _entry_pk  — system ID, do not edit
-      B: Project
-      C: Work / Address
-      D: Step
-      E: Actual Date       ← council fills in
-      F: Forecast Date     ← council fills in
-      G: Notes             ← council fills in
+    One sheet per WorkStepGroup. Rows = works/addresses. Columns = 3 per step
+    (Actual Date | Forecast Date | Notes), with the step name spanning all 3 as
+    a merged header. A hidden '_map' sheet stores (entry_pk, sheet, row, col_start)
+    so the import view can round-trip data without relying on cell position alone.
     """
 
     def get(self, request, pk):
@@ -689,86 +685,200 @@ class MonthlyTrackerExportView(LoginRequiredMixin, View):
             .select_related(
                 'work_step__work__project',
                 'work_step__work__address',
+                'work_step__work__work_type',
+                'work_step__work__step_group',
                 'work_step__group_item__step',
             )
             .order_by(
+                'work_step__work__step_group__name',
                 'work_step__work__project__name',
                 'work_step__work_id',
+                'work_step__group_item__order',
                 'work_step__order',
             )
         )
 
         import openpyxl
-        from openpyxl.styles import Font, PatternFill
+        from openpyxl.styles import Font, PatternFill, Alignment
+        from openpyxl.utils import get_column_letter
         from django.http import HttpResponse
-
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = f"{tracker.year}-{tracker.month:02d}"
+        from collections import OrderedDict
 
         grey = PatternFill('solid', fgColor='DDDDDD')
         yellow = PatternFill('solid', fgColor='FFFACD')
-        locked = PatternFill('solid', fgColor='F5F5F5')
+        green = PatternFill('solid', fgColor='C6EFCE')
+        locked_fill = PatternFill('solid', fgColor='F0F0F0')
+        title_font = Font(bold=True, size=13)
+        instr_font = Font(italic=True, color='666666', size=10)
+        hdr_font = Font(bold=True)
+        center_wrap = Alignment(horizontal='center', wrap_text=True)
+        top_wrap = Alignment(wrap_text=True, vertical='top')
 
-        ws['A1'] = (
-            f"Monthly Tracker — {tracker.council.name} "
-            f"— {tracker.year}-{tracker.month:02d}"
-        )
-        ws['A1'].font = Font(bold=True, size=13)
-        ws.merge_cells('A1:G1')
-
-        ws['A2'] = (
-            "Fill in columns E (Actual Date), F (Forecast Date) and G (Notes) only. "
-            "Do not add or remove rows. Return completed file to RICD."
-        )
-        ws['A2'].font = Font(italic=True, color='666666', size=10)
-        ws.merge_cells('A2:G2')
-
-        headers = [
-            '_entry_pk', 'Project', 'Work / Address', 'Step',
-            'Actual Date (dd/mm/yyyy)', 'Forecast Date (dd/mm/yyyy)', 'Notes',
-        ]
-        for col, h in enumerate(headers, 1):
-            cell = ws.cell(row=4, column=col, value=h)
-            cell.font = Font(bold=True)
-            cell.fill = grey
-
-        for i, entry in enumerate(entries, start=5):
+        # Group entries: group_pk → {name, works_order, works_map, steps_order, steps_key_order, grid}
+        groups = OrderedDict()
+        for entry in entries:
             ws_step = entry.work_step
             work = ws_step.work
-            project = work.project
-            addr = getattr(work, 'address', None)
-            if addr:
-                addr_str = addr.street + (
-                    f" (Lot {addr.lot} {addr.plan})" if getattr(addr, 'lot', None) else ""
+            step_group = work.step_group
+            gk = step_group.pk if step_group else 0
+            gname = step_group.name if step_group else 'Other'
+
+            if gk not in groups:
+                groups[gk] = {
+                    'name': gname,
+                    'works_order': [],
+                    'works_map': {},
+                    'steps_order': [],
+                    'steps_key_order': {},
+                    'grid': {},
+                }
+
+            g = groups[gk]
+            if work.pk not in g['works_map']:
+                g['works_order'].append(work.pk)
+                g['works_map'][work.pk] = work
+
+            gi = ws_step.group_item
+            step_name = gi.step.name if gi else ws_step.step_name
+            step_ord = gi.order if gi else (ws_step.order or 0)
+            if step_name not in g['steps_key_order']:
+                g['steps_order'].append(step_name)
+                g['steps_key_order'][step_name] = step_ord
+
+            g['grid'][(work.pk, step_name)] = entry
+
+        for g in groups.values():
+            g['steps_order'].sort(key=lambda sn: g['steps_key_order'][sn])
+
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)
+
+        # Hidden mapping sheet: entry_pk | sheet_title | data_row | col_start
+        map_ws = wb.create_sheet('_map')
+        map_ws.sheet_state = 'hidden'
+        map_ws.append(['entry_pk', 'sheet_title', 'data_row', 'col_start'])
+
+        for gk, g in groups.items():
+            n_steps = len(g['steps_order'])
+            total_cols = 2 + 3 * n_steps
+            sheet_title = g['name'][:31]
+            ws = wb.create_sheet(title=sheet_title)
+
+            # Row 1: title
+            ws.cell(row=1, column=1, value=(
+                f"Monthly Tracker — {tracker.council.name} "
+                f"— {tracker.year}-{tracker.month:02d} — {g['name']}"
+            )).font = title_font
+            ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=total_cols)
+
+            # Row 2: instructions
+            ws.cell(row=2, column=1, value=(
+                "Fill in Actual Date (dd/mm/yyyy), Forecast Date, and Notes for each step. "
+                "Do not add, remove, or reorder rows or columns. Return completed file to RICD."
+            )).font = instr_font
+            ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=total_cols)
+
+            # Row 4: step name headers (merged per 3 cols)
+            ws.cell(row=4, column=1, value='Project').font = hdr_font
+            ws.cell(row=4, column=1).fill = grey
+            ws.cell(row=4, column=2, value='Work / Address').font = hdr_font
+            ws.cell(row=4, column=2).fill = grey
+
+            for si, step_name in enumerate(g['steps_order']):
+                col_start = 3 + si * 3
+                cell = ws.cell(row=4, column=col_start, value=step_name)
+                cell.font = hdr_font
+                cell.fill = grey
+                cell.alignment = center_wrap
+                ws.cell(row=4, column=col_start + 1).fill = grey
+                ws.cell(row=4, column=col_start + 2).fill = grey
+                ws.merge_cells(
+                    start_row=4, start_column=col_start,
+                    end_row=4, end_column=col_start + 2,
                 )
-            else:
-                addr_str = f"Work #{work.id}"
-            step_name = (
-                ws_step.group_item.step.name if ws_step.group_item_id else ws_step.step_name
-            )
 
-            for col, val in enumerate(
-                [entry.pk, project.name if project else '', addr_str, step_name], 1
-            ):
-                ws.cell(row=i, column=col, value=val).fill = locked
+            # Row 5: sub-headers
+            ws.cell(row=5, column=1).fill = grey
+            ws.cell(row=5, column=2).fill = grey
+            for si in range(n_steps):
+                col_start = 3 + si * 3
+                for j, label in enumerate(['Actual (dd/mm/yyyy)', 'Forecast (dd/mm/yyyy)', 'Notes']):
+                    c = ws.cell(row=5, column=col_start + j, value=label)
+                    c.font = hdr_font
+                    c.fill = grey
 
-            actual = ws.cell(row=i, column=5)
-            if entry.actual_completion_date:
-                actual.value = entry.actual_completion_date
-                actual.number_format = 'DD/MM/YYYY'
-            actual.fill = yellow
+            # Data rows (row 6+): one per work
+            prev_proj = None
+            for wi, work_pk in enumerate(g['works_order']):
+                data_row = 6 + wi
+                work = g['works_map'][work_pk]
+                project = work.project
 
-            forecast = ws.cell(row=i, column=6)
-            if entry.forecast_completion_date:
-                forecast.value = entry.forecast_completion_date
-                forecast.number_format = 'DD/MM/YYYY'
-            forecast.fill = yellow
+                proj_name = project.name if project else ''
+                show_proj = proj_name if proj_name != prev_proj else ''
+                prev_proj = proj_name
+                c = ws.cell(row=data_row, column=1, value=show_proj)
+                c.fill = locked_fill
+                c.alignment = Alignment(vertical='top')
 
-            ws.cell(row=i, column=7, value=entry.notes or '').fill = yellow
+                # Work / Address: two lines — address then "N bed TypeName"
+                addr = getattr(work, 'address', None)
+                if addr:
+                    addr_str = addr.street + (
+                        f" (Lot {addr.lot} {addr.plan})" if getattr(addr, 'lot', None) else ""
+                    )
+                else:
+                    addr_str = f"Work #{work.id}"
 
-        for letter, width in zip('ABCDEFG', [9, 26, 32, 22, 24, 24, 36]):
-            ws.column_dimensions[letter].width = width
+                detail_parts = []
+                if work.bedrooms:
+                    detail_parts.append(f"{work.bedrooms} bed")
+                if work.work_type_id:
+                    detail_parts.append(work.work_type.name)
+                elif work.work_type_other:
+                    detail_parts.append(work.work_type_other)
+                cell_text = f"{addr_str}\n{' '.join(detail_parts)}" if detail_parts else addr_str
+
+                c2 = ws.cell(row=data_row, column=2, value=cell_text)
+                c2.fill = locked_fill
+                c2.alignment = top_wrap
+                ws.row_dimensions[data_row].height = 32
+
+                # Step columns (groups of 3)
+                for si, step_name in enumerate(g['steps_order']):
+                    col_start = 3 + si * 3
+                    entry = g['grid'].get((work_pk, step_name))
+                    if entry:
+                        is_done = bool(entry.actual_completion_date)
+                        fill = green if is_done else yellow
+
+                        actual_c = ws.cell(row=data_row, column=col_start)
+                        if entry.actual_completion_date:
+                            actual_c.value = entry.actual_completion_date
+                            actual_c.number_format = 'DD/MM/YYYY'
+                        actual_c.fill = fill
+
+                        forecast_c = ws.cell(row=data_row, column=col_start + 1)
+                        if entry.forecast_completion_date:
+                            forecast_c.value = entry.forecast_completion_date
+                            forecast_c.number_format = 'DD/MM/YYYY'
+                        forecast_c.fill = fill
+
+                        ws.cell(row=data_row, column=col_start + 2, value=entry.notes or '').fill = fill
+
+                        map_ws.append([entry.pk, sheet_title, data_row, col_start])
+                    else:
+                        for j in range(3):
+                            ws.cell(row=data_row, column=col_start + j).fill = grey
+
+            # Column widths
+            ws.column_dimensions['A'].width = 22
+            ws.column_dimensions['B'].width = 30
+            for si in range(n_steps):
+                col_start = 3 + si * 3
+                ws.column_dimensions[get_column_letter(col_start)].width = 16
+                ws.column_dimensions[get_column_letter(col_start + 1)].width = 16
+                ws.column_dimensions[get_column_letter(col_start + 2)].width = 22
 
         fname = (
             f"monthly-tracker"
@@ -786,7 +896,7 @@ class MonthlyTrackerExportView(LoginRequiredMixin, View):
 class MonthlyTrackerImportView(LoginRequiredMixin, View):
     """Accept a council-completed .xlsx and write the data back into the tracker.
 
-    Matches rows by the hidden _entry_pk in column A.
+    Uses the hidden '_map' sheet to match cells to entries by entry_pk.
     Calls entry.save() for each changed row so the WorkStep sync signal fires.
     Marks the tracker SUBMITTED after a successful import.
     """
@@ -811,7 +921,11 @@ class MonthlyTrackerImportView(LoginRequiredMixin, View):
             messages.error(request, 'Could not open the file — ensure it is an .xlsx file.')
             return redirect('ui:monthly_tracker_detail', pk=pk)
 
-        ws = wb.active
+        if '_map' not in wb.sheetnames:
+            messages.error(request, 'File format not recognised — was this exported from this system?')
+            return redirect('ui:monthly_tracker_detail', pk=pk)
+
+        map_ws = wb['_map']
         entry_map = {e.pk: e for e in tracker.work_entries.all()}
         updated = skipped = 0
         errors = []
@@ -829,24 +943,35 @@ class MonthlyTrackerImportView(LoginRequiredMixin, View):
                     pass
             return None
 
-        for row in ws.iter_rows(min_row=5, values_only=True):
-            if all(v is None for v in row):
+        # _map rows: entry_pk | sheet_title | data_row | col_start  (row 1 is header)
+        for map_row in map_ws.iter_rows(min_row=2, values_only=True):
+            if all(v is None for v in map_row):
                 continue
             try:
-                entry_pk = int(row[0])
+                entry_pk = int(map_row[0])
+                sheet_title = map_row[1]
+                data_row = int(map_row[2])
+                col_start = int(map_row[3])
             except (TypeError, ValueError):
                 skipped += 1
                 continue
 
             entry = entry_map.get(entry_pk)
             if entry is None:
-                errors.append(f"Entry #{entry_pk} not found in this tracker — row skipped.")
+                errors.append(f"Entry #{entry_pk} not found in this tracker — skipped.")
                 skipped += 1
                 continue
 
-            new_actual = _parse_date(row[4])
-            new_forecast = _parse_date(row[5])
-            new_notes = str(row[6]).strip() if row[6] else ''
+            if sheet_title not in wb.sheetnames:
+                errors.append(f"Sheet '{sheet_title}' missing — entry #{entry_pk} skipped.")
+                skipped += 1
+                continue
+
+            data_ws = wb[sheet_title]
+            new_actual = _parse_date(data_ws.cell(row=data_row, column=col_start).value)
+            new_forecast = _parse_date(data_ws.cell(row=data_row, column=col_start + 1).value)
+            notes_val = data_ws.cell(row=data_row, column=col_start + 2).value
+            new_notes = str(notes_val).strip() if notes_val else ''
 
             changed = False
             if entry.actual_completion_date != new_actual:
@@ -881,3 +1006,4 @@ class MonthlyTrackerImportView(LoginRequiredMixin, View):
                 request,
                 f'No changes detected in the file ({skipped} row(s) skipped).',
             )
+        return redirect('ui:monthly_tracker_detail', pk=pk)
