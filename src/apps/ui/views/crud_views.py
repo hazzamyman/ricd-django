@@ -22,7 +22,7 @@ from django.utils import timezone
 from django.contrib.contenttypes.models import ContentType
 
 from apps.core.models import (
-    Approval, Address, BriefFinancialApproval, Comment, CommentSettings,
+    Approval, Address, BriefFinancialApproval, BriefFinancialApprovalItem, Comment, CommentSettings,
     Council, CouncilContact, DevelopmentApplication, LandTenure,
     Notice, NoticeTarget,
     NotionalCost, PaymentRule, Program, ProgramBudget, Project, Suburb, Work, WorkType, FundingSchedule,
@@ -1917,6 +1917,21 @@ def _bfa_item_formset_factory():
     )
 
 
+def _bfa_picker_context():
+    """Extra context for the BFA create/edit form: filter data + delegate limits."""
+    import json
+    limits = {
+        str(d.pk): float(d.max_approval_amount) if d.max_approval_amount is not None else None
+        for d in DelegatePosition.objects.filter(is_active=True)
+    }
+    return {
+        'picker_councils': Council.objects.order_by('name'),
+        'picker_programs': Program.objects.filter(is_active=True).order_by('name'),
+        'picker_work_types': WorkType.objects.order_by('category', 'name'),
+        'delegate_limits_json': json.dumps(limits),
+    }
+
+
 class BriefFinancialApprovalGlobalListView(InternalOnlyMixin, ListView):
     """All BFAs across all councils — used by the sidebar nav link. FNC/internal only."""
     model = BriefFinancialApproval
@@ -1965,6 +1980,7 @@ class BriefFinancialApprovalCreateView(WriteRequiredMixin, WidgetUpgradeMixin, C
             ctx['items_formset'] = FormSet(instance=self.object)
         ctx['title'] = 'Create Funding Approval'
         ctx['back_url'] = reverse_lazy('ui:bfa_global_list')
+        ctx.update(_bfa_picker_context())
         return ctx
 
     def form_valid(self, form):
@@ -2015,6 +2031,7 @@ class BriefFinancialApprovalUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, U
             ctx['items_formset'] = FormSet(instance=self.object)
         ctx['title'] = f'Edit Funding Approval #{self.object.pk}'
         ctx['back_url'] = reverse_lazy('ui:bfa_detail', kwargs={'pk': self.object.pk})
+        ctx.update(_bfa_picker_context())
         return ctx
 
     def form_valid(self, form):
@@ -2063,6 +2080,79 @@ class BriefFinancialApprovalRejectView(FNCOnlyMixin, View):
         bfa.save()
         messages.success(request, 'Brief Financial Approval rejected.')
         return redirect('ui:bfa_detail', pk=pk)
+
+
+class BFAEligibleProjectsView(InternalOnlyMixin, View):
+    """AJAX endpoint: returns projects that need (more) financial approval.
+
+    A project is included when its total approved BFA funding is less than
+    its total works cost. Supports filtering by council, program, work_type,
+    and state. Accepts a comma-separated `current_ids` param (project PKs
+    already in the unsaved formset) so the UI can flag duplicates.
+    """
+
+    def get(self, request):
+        from django.http import JsonResponse
+        from django.db.models import Sum
+        from decimal import Decimal
+
+        council_id = request.GET.get('council', '').strip()
+        program_id = request.GET.get('program', '').strip()
+        work_type_id = request.GET.get('work_type', '').strip()
+        state_filter = request.GET.get('state', '').strip()
+        current_ids = {
+            int(x) for x in request.GET.get('current_ids', '').split(',')
+            if x.strip().isdigit()
+        }
+
+        projects = (
+            Project.objects
+            .filter(is_archived=False)
+            .select_related('council', 'program')
+            .prefetch_related('works')
+        )
+        if council_id:
+            projects = projects.filter(council_id=council_id)
+        if program_id:
+            projects = projects.filter(program_id=program_id)
+        if work_type_id:
+            projects = projects.filter(works__work_type_id=work_type_id).distinct()
+        if state_filter:
+            projects = projects.filter(state=state_filter)
+
+        # Approved BFA funding per project (across all approved BFAs)
+        approved_map = {
+            row['project_id']: row['total']
+            for row in BriefFinancialApprovalItem.objects
+            .filter(bfa__status=BriefFinancialApproval.Status.APPROVED)
+            .values('project_id')
+            .annotate(total=Sum('funding_amount'))
+        }
+
+        results = []
+        for project in projects:
+            works_total = sum(
+                (w.total_effective_cost for w in project.works.all()),
+                Decimal('0'),
+            )
+            approved = approved_map.get(project.pk, Decimal('0'))
+            shortfall = works_total - approved
+            if shortfall <= 0:
+                continue
+            results.append({
+                'id': project.pk,
+                'name': project.name,
+                'council': project.council.name if project.council_id else '',
+                'program': project.program.name if project.program_id else '',
+                'state': project.get_state_display(),
+                'works_total': float(works_total),
+                'approved_funding': float(approved),
+                'shortfall': float(shortfall),
+                'already_added': project.pk in current_ids,
+            })
+
+        results.sort(key=lambda r: r['name'])
+        return JsonResponse({'projects': results})
 
 
 # ---------------------------------------------------------------------------
