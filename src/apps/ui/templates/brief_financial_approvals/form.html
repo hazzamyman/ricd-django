@@ -15,7 +15,7 @@
   </div>
 </div>
 
-<form method="post">
+<form method="post" id="bfa-form">
   {% csrf_token %}
 
   <div class="card mb-3"><div class="card-body">
@@ -37,8 +37,19 @@
     </div>
   </div></div>
 
+  <!-- Delegate limit warning — shown live by JS when total exceeds position limit -->
+  <div id="delegate-warning" class="alert alert-danger d-none mb-3" role="alert">
+    <strong>Delegation limit exceeded.</strong>
+    <span id="delegate-warning-msg"></span>
+  </div>
+
   <div class="card mb-3"><div class="card-body">
-    <h2 class="h6 text-muted mb-2">Project rows</h2>
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h2 class="h6 text-muted mb-0">Project rows</h2>
+      <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#project-picker-modal">
+        <i class="bi bi-plus-lg me-1"></i>Add Projects
+      </button>
+    </div>
     <p class="text-muted" style="font-size:12px;">
       Pick the project — its council, cost centre, and GL code are inherited automatically.
       <strong>Program defaults to the project's program;</strong> change it only to capture
@@ -55,7 +66,7 @@
     {% endif %}
 
     <div class="table-responsive">
-      <table class="table table-sm align-middle">
+      <table class="table table-sm align-middle" id="items-table">
         <thead class="table-light">
           <tr>
             <th style="min-width:240px;">Project</th>
@@ -66,7 +77,7 @@
             <th style="min-width:50px;">Delete?</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="items-tbody">
         {% for f in items_formset %}
           <tr>
             {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
@@ -99,44 +110,259 @@
   </div>
 </form>
 
-<script>
-// Auto-fill a row's funding amount + 10% contingency from the chosen project's
-// works total. URL has a placeholder pk (0) we swap for the selected project.
-(function () {
-  const urlTemplate = "{% url 'ui:project_works_total' project_pk=0 %}";
-  const num = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+<!-- ── Project picker modal ──────────────────────────────────────────────── -->
+<div class="modal fade" id="project-picker-modal" tabindex="-1" aria-labelledby="pickerModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="pickerModalLabel">Add Projects — showing those needing (more) financial approval</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2 mb-3">
+          <div class="col-md-3">
+            <select id="picker-council" class="form-select form-select-sm">
+              <option value="">All Councils</option>
+              {% for c in picker_councils %}<option value="{{ c.pk }}">{{ c.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <select id="picker-program" class="form-select form-select-sm">
+              <option value="">All Programs</option>
+              {% for p in picker_programs %}<option value="{{ p.pk }}">{{ p.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <select id="picker-work-type" class="form-select form-select-sm">
+              <option value="">All Work Types</option>
+              {% for wt in picker_work_types %}<option value="{{ wt.pk }}">{{ wt.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2">
+            <select id="picker-state" class="form-select form-select-sm">
+              <option value="">All States</option>
+              <option value="PROS">Prospective</option>
+              <option value="PROG">Programmed</option>
+              <option value="FUND">Funded</option>
+              <option value="COMM">Commenced</option>
+              <option value="UC">Under Construction</option>
+              <option value="COMP">Completed</option>
+            </select>
+          </div>
+          <div class="col-md-1">
+            <button type="button" class="btn btn-primary btn-sm w-100" id="picker-search-btn">Filter</button>
+          </div>
+        </div>
+        <div id="picker-loading" class="text-muted d-none" style="font-size:13px;">Loading…</div>
+        <div id="picker-empty" class="text-muted d-none" style="font-size:13px;"></div>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover" id="picker-table" style="display:none;">
+            <thead class="table-light">
+              <tr>
+                <th>Project</th><th>Council</th><th>Program</th><th>State</th>
+                <th class="text-end">Works Total</th>
+                <th class="text-end">Approved</th>
+                <th class="text-end">Shortfall</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="picker-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
-  function rowInputs(projectSelect) {
-    // id looks like id_items-0-project -> prefix "id_items-0-"
-    const prefix = projectSelect.id.replace(/project$/, '');
+<script>
+(function () {
+  const eligibleUrl    = "{% url 'ui:bfa_eligible_projects' %}";
+  const worksUrl       = "{% url 'ui:project_works_total' project_pk=0 %}";
+  const delegateLimits = {{ delegate_limits_json|safe }};
+
+  const money = v => '$' + Number(v).toLocaleString('en-AU', {minimumFractionDigits:0, maximumFractionDigits:0});
+  const num   = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+
+  // ── formset helpers ────────────────────────────────────────────────────
+  function totalFormsInput() { return document.getElementById('id_items-TOTAL_FORMS'); }
+
+  function currentProjectIds() {
+    return Array.from(
+      document.querySelectorAll('select[id^="id_items-"][id$="-project"]')
+    ).map(s => parseInt(s.value)).filter(v => v > 0);
+  }
+
+  function rowInputs(sel) {
+    const prefix = sel.id.replace(/project$/, '');
     return {
-      funding: document.getElementById(prefix + 'funding_amount'),
+      funding:     document.getElementById(prefix + 'funding_amount'),
       contingency: document.getElementById(prefix + 'contingency_amount'),
     };
   }
 
+  // ── auto-fill from works total ─────────────────────────────────────────
   async function onProjectChange(ev) {
     const sel = ev.target;
-    const pk = sel.value;
+    const pk  = sel.value;
     const { funding, contingency } = rowInputs(sel);
-    if (!pk || !funding) return;
-    // Don't clobber a value the user has already typed.
-    if (num(funding.value) > 0) return;
+    if (!pk || !funding || num(funding.value) > 0) return;
     try {
-      const resp = await fetch(urlTemplate.replace('/projects/0/', '/projects/' + pk + '/'));
+      const resp = await fetch(worksUrl.replace('/projects/0/', '/projects/' + pk + '/'));
       if (!resp.ok) return;
       const data = await resp.json();
       if (num(data.works_total) > 0) {
         funding.value = data.works_total;
-        if (contingency && num(contingency.value) === 0) {
-          contingency.value = data.contingency;
-        }
+        if (contingency && num(contingency.value) === 0) contingency.value = data.contingency;
       }
-    } catch (e) { /* network/JSON error — leave fields for manual entry */ }
+    } catch (e) {}
+    checkDelegateLimit();
   }
 
-  document.querySelectorAll('select[id^="id_items-"][id$="-project"]').forEach(sel => {
-    sel.addEventListener('change', onProjectChange);
+  function wireProjectSelect(sel) { sel.addEventListener('change', onProjectChange); }
+  document.querySelectorAll('select[id^="id_items-"][id$="-project"]').forEach(wireProjectSelect);
+
+  // ── add blank formset row ──────────────────────────────────────────────
+  function addBlankRow() {
+    const tf    = totalFormsInput();
+    const idx   = parseInt(tf.value);
+    const tbody = document.getElementById('items-tbody');
+    const rows  = tbody.querySelectorAll('tr');
+    if (!rows.length) return null;
+    const clone = rows[rows.length - 1].cloneNode(true);
+    clone.querySelectorAll('[id],[name],[for]').forEach(el => {
+      ['id','name','for'].forEach(attr => {
+        const v = el.getAttribute(attr);
+        if (v) el.setAttribute(attr, v.replace(/-\d+-/, `-${idx}-`));
+      });
+      if (el.tagName === 'INPUT' || el.tagName === 'SELECT') el.value = '';
+      if (el.tagName === 'INPUT' && el.type === 'checkbox') el.checked = false;
+    });
+    tbody.appendChild(clone);
+    tf.value = idx + 1;
+    const newSel = clone.querySelector('select[id$="-project"]');
+    if (newSel) wireProjectSelect(newSel);
+    return clone;
+  }
+
+  // ── delegate limit warning ─────────────────────────────────────────────
+  function rowTotal(row) {
+    const f   = row.querySelector('input[id$="-funding_amount"]');
+    const c   = row.querySelector('input[id$="-contingency_amount"]');
+    const del = row.querySelector('input[id$="-DELETE"]');
+    if (del && del.checked) return 0;
+    return num(f && f.value) + num(c && c.value);
+  }
+
+  function checkDelegateLimit() {
+    const delegateSel = document.getElementById('id_delegate_position');
+    const warning     = document.getElementById('delegate-warning');
+    const msg         = document.getElementById('delegate-warning-msg');
+    if (!delegateSel || !warning) return;
+    const limit = delegateLimits[delegateSel.value];
+    if (limit === null || limit === undefined) { warning.classList.add('d-none'); return; }
+    const total = Array.from(document.querySelectorAll('#items-tbody tr'))
+      .reduce((acc, row) => acc + rowTotal(row), 0);
+    if (total > limit) {
+      const posName = delegateSel.options[delegateSel.selectedIndex].text.split(' —')[0];
+      msg.textContent = ` The selected delegate (${posName}) can approve up to ${money(limit)}, but the current total is ${money(total)}.`;
+      warning.classList.remove('d-none');
+    } else {
+      warning.classList.add('d-none');
+    }
+  }
+
+  document.getElementById('id_delegate_position')?.addEventListener('change', checkDelegateLimit);
+  document.getElementById('items-tbody').addEventListener('input', checkDelegateLimit);
+  checkDelegateLimit();
+
+  // ── project picker modal ───────────────────────────────────────────────
+  const pickerTbody = document.getElementById('picker-tbody');
+  const pickerTable = document.getElementById('picker-table');
+  const pickerEmpty = document.getElementById('picker-empty');
+  const pickerLoad  = document.getElementById('picker-loading');
+
+  async function loadPicker() {
+    const params = new URLSearchParams({
+      council:     document.getElementById('picker-council').value,
+      program:     document.getElementById('picker-program').value,
+      work_type:   document.getElementById('picker-work-type').value,
+      state:       document.getElementById('picker-state').value,
+      current_ids: currentProjectIds().join(','),
+    });
+    pickerLoad.classList.remove('d-none');
+    pickerTable.style.display = 'none';
+    pickerEmpty.classList.add('d-none');
+    pickerTbody.replaceChildren();
+
+    try {
+      const resp = await fetch(eligibleUrl + '?' + params);
+      if (!resp.ok) throw new Error('Server error');
+      const data = await resp.json();
+      pickerLoad.classList.add('d-none');
+
+      if (!data.projects.length) {
+        pickerEmpty.textContent = 'No projects found needing approval with the current filters.';
+        pickerEmpty.classList.remove('d-none');
+        return;
+      }
+
+      pickerTable.style.display = '';
+      data.projects.forEach(p => {
+        const tr = document.createElement('tr');
+
+        // Name cell — plain text + optional red "already added" note
+        const nameTd = document.createElement('td');
+        nameTd.textContent = p.name;
+        if (p.already_added) {
+          const note = document.createElement('span');
+          note.textContent = ' (already in this approval)';
+          note.className = 'text-danger fw-semibold';
+          note.style.fontSize = '11px';
+          nameTd.appendChild(note);
+        }
+
+        const councilTd  = document.createElement('td'); councilTd.textContent  = p.council;
+        const programTd  = document.createElement('td'); programTd.textContent  = p.program;
+        const stateTd    = document.createElement('td');
+        const badge      = document.createElement('span');
+        badge.textContent = p.state; badge.className = 'badge bg-secondary';
+        stateTd.appendChild(badge);
+
+        const totalTd    = document.createElement('td'); totalTd.textContent    = money(p.works_total);    totalTd.className = 'text-end';
+        const approvedTd = document.createElement('td'); approvedTd.textContent = money(p.approved_funding); approvedTd.className = 'text-end';
+        const shortTd    = document.createElement('td'); shortTd.textContent    = money(p.shortfall);      shortTd.className = 'text-end text-danger fw-semibold';
+
+        const actionTd   = document.createElement('td');
+        const btn        = document.createElement('button');
+        btn.type = 'button'; btn.textContent = 'Add';
+        btn.className = 'btn btn-sm btn-outline-primary picker-add-btn';
+        btn.dataset.pk = p.id;
+        actionTd.appendChild(btn);
+
+        tr.append(nameTd, councilTd, programTd, stateTd, totalTd, approvedTd, shortTd, actionTd);
+        pickerTbody.appendChild(tr);
+      });
+    } catch (e) {
+      pickerLoad.classList.add('d-none');
+      pickerEmpty.textContent = 'Error loading projects — please try again.';
+      pickerEmpty.classList.remove('d-none');
+    }
+  }
+
+  document.getElementById('picker-search-btn').addEventListener('click', loadPicker);
+  document.getElementById('project-picker-modal').addEventListener('show.bs.modal', loadPicker);
+
+  pickerTbody.addEventListener('click', async ev => {
+    const btn = ev.target.closest('.picker-add-btn');
+    if (!btn) return;
+    btn.disabled = true;
+    btn.textContent = 'Adding…';
+    const row = addBlankRow();
+    if (!row) { btn.disabled = false; btn.textContent = 'Add'; return; }
+    const sel = row.querySelector('select[id$="-project"]');
+    if (sel) { sel.value = btn.dataset.pk; sel.dispatchEvent(new Event('change')); }
+    btn.textContent = 'Added ✓';
+    checkDelegateLimit();
   });
 })();
 </script>

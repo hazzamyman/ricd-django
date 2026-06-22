@@ -215,6 +215,7 @@ urlpatterns = [
     # Brief Financial Approvals (un-nested — header may cover multiple projects)
     path('bfa/', views.crud_views.BriefFinancialApprovalGlobalListView.as_view(), name='bfa_global_list'),
     path('bfa/create/', views.crud_views.BriefFinancialApprovalCreateView.as_view(), name='bfa_create_global'),
+    path('bfa/eligible-projects.json', views.crud_views.BFAEligibleProjectsView.as_view(), name='bfa_eligible_projects'),
     path('bfa/<int:pk>/', views.crud_views.BriefFinancialApprovalDetailView.as_view(), name='bfa_detail'),
     path('bfa/<int:pk>/edit/', views.crud_views.BriefFinancialApprovalUpdateView.as_view(), name='bfa_edit'),
     path('bfa/<int:pk>/delete/', views.crud_views.BriefFinancialApprovalDeleteView.as_view(), name='bfa_delete'),
