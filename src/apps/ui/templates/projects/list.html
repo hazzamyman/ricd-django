@@ -50,10 +50,12 @@
                             <label for="state" class="form-label">State</label>
                             <select name="state" id="state" class="form-select">
                                 <option value="">All States</option>
-                                <option value="PLANNING" {% if selected_state == "PLANNING" %}selected{% endif %}>Planning</option>
-                                <option value="COMMENCED" {% if selected_state == "COMMENCED" %}selected{% endif %}>Commenced</option>
-                                <option value="UNDER_CONSTRUCTION" {% if selected_state == "UNDER_CONSTRUCTION" %}selected{% endif %}>Under Construction</option>
-                                <option value="COMPLETED" {% if selected_state == "COMPLETED" %}selected{% endif %}>Completed</option>
+                                <option value="PROS" {% if selected_state == "PROS" %}selected{% endif %}>Prospective</option>
+                                <option value="PROG" {% if selected_state == "PROG" %}selected{% endif %}>Programmed</option>
+                                <option value="FUND" {% if selected_state == "FUND" %}selected{% endif %}>Funded</option>
+                                <option value="COMM" {% if selected_state == "COMM" %}selected{% endif %}>Commenced</option>
+                                <option value="UC" {% if selected_state == "UC" %}selected{% endif %}>Under Construction</option>
+                                <option value="COMP" {% if selected_state == "COMP" %}selected{% endif %}>Completed</option>
                             </select>
                         </div>
                         <div class="col-md-12">
