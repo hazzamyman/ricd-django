@@ -165,7 +165,7 @@
       <h3>Portfolio</h3>
       <ul>
         <li><strong>Dashboard</strong> — portfolio totals, project status (on-track / late / overdue), budget, filters by council/program/status.</li>
-        <li><strong>Projects</strong> — each project's overview, its child <em>addresses &amp; works</em> (dwellings, lots, infrastructure) with costs, funding, payments, reports and documents in tabs.</li>
+        <li><strong>Projects</strong> — each project's overview, its child <em>addresses &amp; works</em> (dwellings, lots, infrastructure) with costs, funding, payments, reports and documents in tabs. The project list hides completed projects by default — tick <em>Include completed projects</em> under the State filter to show them (useful for analytics and past cashflow without cluttering active work).</li>
         <li><strong>Cashflow</strong> — forecast of committed vs released spend per program per financial year (see §6).</li>
         <li><strong>Analytics</strong> — aggregate outputs: how many dwellings by type and bedroom count, residential lots, and their costs, totalled by category, council and program.</li>
       </ul>
@@ -175,13 +175,13 @@
         <li><strong>Funding Agreements</strong> — the legal umbrella with a council.</li>
         <li><strong>Funding Schedules</strong> — the per-project funding instrument with a lifecycle (draft → ready → executed → active → superseded) and key dates that cascade to the project.</li>
         <li><strong>Payment Rules</strong> — immutable, versioned rules defining how a schedule's payments split (e.g. 30/60/10).</li>
-        <li><strong>BFA</strong> <span class="tag fnc">FNC only</span> — Brief Financial Approvals: the pre-condition that releases funding, including per-program splits and contingency.</li>
+        <li><strong>BFA</strong> <span class="tag fnc">FNC only</span> — Brief Financial Approvals: the pre-condition that releases funding, including per-program splits and contingency. The <em>Add Projects</em> button opens a picker showing only projects with a funding shortfall (total works cost exceeds approved BFA funding). A live warning appears if the sum of all row totals exceeds the selected delegate's approval limit.</li>
         <li><strong>Funding Notices &amp; Expense Claims</strong> — the capped-payment pathway; councils can submit claims against a notice.</li>
       </ul>
 
       <h3>Reports</h3>
       <ul>
-        <li><strong>Monthly Trackers</strong> — per-work construction progress grid; entering dates here drives forecasting and (now) payment timing.</li>
+        <li><strong>Monthly Trackers</strong> — per-work construction progress grid; entering dates here drives forecasting and payment timing. The Excel export uses a pivoted layout: one sheet per Work Step Group, rows are addresses/works (showing street address and "N bed Type" on two lines), and columns are the tracker steps. Green = completed (actual date recorded), yellow = fillable, grey = not applicable. Import the filled sheet back to bulk-update progress dates.</li>
         <li><strong>Quarterly Reports</strong> — FS → project → works hierarchy with expenditure and declarations, submitted to the State.</li>
         <li><strong>Stage Reports</strong> — Stage 1 / Stage 2 contract checklists that gate the next payment.</li>
       </ul>
@@ -326,7 +326,7 @@
           "Site establishment" step yet, that payment stays undated until the step (or its date) is recorded.</li>
         <li><strong>Manual always wins.</strong> Setting a payment to Manual, or typing a date, opts it out of automatic rolling.</li>
         <li><strong>Released payments are locked.</strong> Their program allocation is snapshotted at release and never retro-adjusted by later BFA changes.</li>
-        <li><strong>Costs are actual where entered, otherwise notional</strong> (estimated from per-work-type rates) — the Analytics page notes this.</li>
+        <li><strong>Cost fields on a work are per output (per unit), not totals.</strong> There are three tiers in priority order: <em>Estimated cost per output</em> (base, from notional rates or manual entry) → <em>Forecast final cost per output</em> (overrides estimated once entered) → <em>Actual cost per output</em> (authoritative once "Costs finalised" is ticked). The system multiplies whichever tier applies by the work's quantity to get the total. Entering a total instead of a per-unit cost will over-report by a factor of quantity.</li>
         <li><strong>Audit logging is automatic</strong> for financial records and cannot be edited.</li>
       </ul>
       <div class="note">
