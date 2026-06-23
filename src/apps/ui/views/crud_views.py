@@ -2585,6 +2585,24 @@ class WorkUpdateView(WriteRequiredMixin, WidgetUpgradeMixin, UpdateView):
                     .select_related('project', 'suburb')
                 )
             form.fields['address'].help_text = "Only addresses under this council's projects."
+        _cost_meta = {
+            'estimated_cost': (
+                'Estimated cost per output',
+                'Base-level cost estimate for a single unit/output. Used when no other cost is entered.',
+            ),
+            'forecast_final_cost': (
+                'Forecast final cost per output',
+                'Revised cost forecast per unit. Overrides the estimated cost once entered.',
+            ),
+            'actual_cost': (
+                'Actual cost per output',
+                'Reconciled actual cost per unit. Overrides all other costs once "Costs finalised" is ticked.',
+            ),
+        }
+        for fname, (label, help_text) in _cost_meta.items():
+            if fname in form.fields:
+                form.fields[fname].label = label
+                form.fields[fname].help_text = help_text
         return form
 
     def get_success_url(self):

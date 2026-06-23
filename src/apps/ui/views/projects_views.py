@@ -13,6 +13,7 @@ def projects_list_view(request):
     program_id = request.GET.get('program', '')
     state_filter = request.GET.get('state', '')
     show_archived = request.GET.get('archived') in ('1', 'true', 'on')
+    show_completed = request.GET.get('completed') in ('1', 'true', 'on')
 
     # Build queryset
     projects = Project.objects.select_related('council', 'program').prefetch_related('works')
@@ -20,6 +21,11 @@ def projects_list_view(request):
     # Archived (cancelled / never-finished) projects are hidden unless asked for.
     if not show_archived:
         projects = projects.filter(is_archived=False)
+
+    # Completed projects are hidden by default; show_completed checkbox or an explicit
+    # state=COMP filter reveals them.
+    if not show_completed and state_filter != 'COMP':
+        projects = projects.exclude(state='COMP')
 
     # Apply filters
     if council_id:
@@ -71,5 +77,6 @@ def projects_list_view(request):
         'selected_program': program_id,
         'selected_state': state_filter,
         'show_archived': show_archived,
+        'show_completed': show_completed,
     }
     return render(request, 'projects/list.html', context)

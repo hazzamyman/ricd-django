@@ -57,6 +57,10 @@
                                 <option value="UC" {% if selected_state == "UC" %}selected{% endif %}>Under Construction</option>
                                 <option value="COMP" {% if selected_state == "COMP" %}selected{% endif %}>Completed</option>
                             </select>
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" name="completed" id="show_completed" value="1" {% if show_completed %}checked{% endif %}>
+                                <label class="form-check-label text-muted" for="show_completed" style="font-size:13px;">Include completed projects</label>
+                            </div>
                         </div>
                         <div class="col-md-12">
                             <button type="submit" class="btn btn-primary">Filter</button>

@@ -142,7 +142,7 @@
     const table = el('table',{cls:'table awe-wtable'});
     const thead = el('thead');
     const htr = el('tr');
-    ['Work type','Beds','Qty','Est. cost','Status','',''].forEach((h,i)=> htr.appendChild(el('th',{cls:(i>=5?'awe-actions':''), text:h})));
+    ['Work type','Beds','Qty','Est. cost per output','Status','',''].forEach((h,i)=> htr.appendChild(el('th',{cls:(i>=5?'awe-actions':''), text:h})));
     thead.appendChild(htr); table.appendChild(thead);
     const tbody = el('tbody',{cls:'awe-wbody'});
     ((a && a.works) || []).forEach(w=> tbody.appendChild(buildWorkRow(w)));
