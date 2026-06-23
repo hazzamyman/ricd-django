@@ -15,6 +15,12 @@ Side-effect: recalculate_forecast writes the final calculated PC date back to
 Work.forecast_practical_completion_date.  forecast_handover_date is preserved
 when it was explicitly set to a date *different* from the current computed PC
 (manual target override); otherwise it tracks PC.
+
+Steps whose WorkStepGroupItem has excludes_from_pc_forecast=True are treated
+as parallel/standalone activities: they are removed from the sequential date
+chain (the cursor does not advance through them) and are excluded from PC date
+selection.  Their forecast dates are set to null since they have no sequenced
+anchor.
 """
 from datetime import timedelta
 
@@ -26,17 +32,24 @@ RECALC_UPDATE_FIELDS = frozenset({
 })
 
 
+def _is_pc_excluded(step):
+    gi = getattr(step, 'group_item', None)
+    return bool(gi and getattr(gi, 'excludes_from_pc_forecast', False))
+
+
 def _final_step(active_steps):
     """Return the step that defines the work's Practical Completion date.
 
-    Preference: the step whose source WorkStepGroupItem has stage_gate='STAGE2'.
-    Fallback: the last active step.
+    Steps flagged excludes_from_pc_forecast are ignored entirely.
+    Preference among remaining: the step with stage_gate='STAGE2'.
+    Fallback: the last non-excluded active step.
     """
-    for s in active_steps:
+    pc_steps = [s for s in active_steps if not _is_pc_excluded(s)]
+    for s in pc_steps:
         gi = getattr(s, 'group_item', None)
         if gi and getattr(gi, 'stage_gate', '') == 'STAGE2':
             return s
-    return active_steps[-1] if active_steps else None
+    return pc_steps[-1] if pc_steps else None
 
 
 def recalculate_forecast(work):
@@ -53,21 +66,30 @@ def recalculate_forecast(work):
             step.forecast_start_date = None
             step.forecast_completion_date = None
 
+    # Standalone (PC-excluded) active steps get null forecast dates — they have
+    # no sequenced anchor.
+    for step in active_steps:
+        if _is_pc_excluded(step):
+            step.forecast_start_date = None
+            step.forecast_completion_date = None
+
+    sequential_steps = [s for s in active_steps if not _is_pc_excluded(s)]
+
     start = work.actual_start_date or (work.project.start_date if work.project_id else None)
     target = work.forecast_handover_date
 
-    if start and active_steps:
+    if start and sequential_steps:
         # Forward scheduling from known start date.
         cursor = start
-        for step in active_steps:
+        for step in sequential_steps:
             step.forecast_start_date = cursor
             step.forecast_completion_date = cursor + timedelta(days=step.expected_duration_days)
             cursor = step.actual_completion_date or step.forecast_completion_date
 
-    elif target and active_steps:
+    elif target and sequential_steps:
         # Backward scheduling: anchor last step at target, cascade left.
         cursor = target
-        for step in reversed(active_steps):
+        for step in reversed(sequential_steps):
             step.forecast_completion_date = cursor
             step.forecast_start_date = cursor - timedelta(days=step.expected_duration_days)
             cursor = step.forecast_start_date

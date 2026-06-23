@@ -3451,7 +3451,8 @@ def _workstep_group_items_formset():
     return inlineformset_factory(
         WorkStepGroup, WorkStepGroupItem,
         fields=['order', 'step', 'expected_duration_days',
-                'cost_percentage', 'stage_gate', 'is_monthly_tracker_column'],
+                'cost_percentage', 'stage_gate', 'is_monthly_tracker_column',
+                'excludes_from_pc_forecast'],
         extra=3, can_delete=True,
     )
 

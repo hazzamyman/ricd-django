@@ -447,6 +447,7 @@ class WorkStepGroup(models.Model):
                     expected_duration_days=it.expected_duration_days,
                     stage_gate=it.stage_gate,
                     is_monthly_tracker_column=it.is_monthly_tracker_column,
+                    excludes_from_pc_forecast=it.excludes_from_pc_forecast,
                 )
             # Copy the payment milestone schedule (if any) so the clone keeps the
             # same payment timing until the user tweaks it.
@@ -476,6 +477,13 @@ class WorkStepGroupItem(models.Model):
     is_monthly_tracker_column = models.BooleanField(
         default=False,
         help_text="Show this step as a column in the monthly tracker grid"
+    )
+    excludes_from_pc_forecast = models.BooleanField(
+        default=False,
+        help_text="When checked, this step does not participate in the sequential date chain "
+                  "and is excluded from Practical Completion date forecasting. "
+                  "Use for parallel or standalone activities (e.g. inspections, admin) that "
+                  "happen independently of the main construction sequence.",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

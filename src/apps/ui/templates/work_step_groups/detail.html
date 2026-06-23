@@ -78,6 +78,7 @@
           <th style="width:100px;" class="text-end">Cost %</th>
           <th style="width:160px;">Stage Gate</th>
           <th style="width:90px;" class="text-center">Tracker col?</th>
+          <th style="width:110px;" class="text-center" title="Step is excluded from the PC date forecast chain">Excl. PC forecast?</th>
           <th style="width:70px;" class="text-center">Delete</th>
         </tr>
       </thead>
@@ -104,6 +105,7 @@
             </td>
             <td>{{ form.stage_gate }}</td>
             <td class="text-center">{{ form.is_monthly_tracker_column }}</td>
+            <td class="text-center">{{ form.excludes_from_pc_forecast }}</td>
             <td class="text-center">
               {% if form.DELETE %}{{ form.DELETE }}{% endif %}
             </td>
@@ -123,6 +125,7 @@
           <td>{{ formset.empty_form.cost_percentage }}</td>
           <td>{{ formset.empty_form.stage_gate }}</td>
           <td class="text-center">{{ formset.empty_form.is_monthly_tracker_column }}</td>
+          <td class="text-center">{{ formset.empty_form.excludes_from_pc_forecast }}</td>
           <td class="text-center">{% if formset.empty_form.DELETE %}{{ formset.empty_form.DELETE }}{% endif %}</td>
         </tr>
       </tbody>
